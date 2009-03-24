@@ -50,7 +50,7 @@ all:	$(PROGS)
 %.o: %.cpp %.hpp
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
-cpgcaller cgicaller bsrate coverage: \
+cpgcaller cgicaller bsrate coverage trimclone swbs cpgcallercompare nnmeth: \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 

@@ -36,6 +36,8 @@
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
 
+#include "BSUtils.hpp"
+
 using std::tr1::unordered_map;
 
 using std::string;
@@ -44,22 +46,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::ifstream;
-
-static void
-adjust_region_ends(const vector<vector<GenomicRegion> > &clusters, 
-		   vector<GenomicRegion> &regions) {
-  assert(clusters.size() == regions.size());
-  for (size_t i = 0; i < regions.size(); ++i) {
-    size_t max_pos = regions[i].get_end();
-    size_t min_pos = regions[i].get_start();
-    for (size_t j = 0; j < clusters[i].size(); ++j) {
-      max_pos = std::max(clusters[i][j].get_end(), max_pos);
-      min_pos = std::min(clusters[i][j].get_start(), min_pos);
-    }
-    regions[i].set_end(max_pos);
-    regions[i].set_start(min_pos);
-  }
-}
 
 static void
 get_coverage(const vector<GenomicRegion> &reads, 
@@ -82,7 +68,6 @@ get_coverage(const vector<GenomicRegion> &reads,
 	columns_pos[offset + j]++;
     }
   }
-  
   for (size_t i = 0; i < reads.size(); ++i) {
     const size_t read_width = reads[i].get_width();
     if (reads[i].neg_strand()) {
@@ -101,7 +86,6 @@ get_coverage(const vector<GenomicRegion> &reads,
 
 static size_t
 get_median_from_histogram(vector<size_t> &coverage) {
-  
   size_t total = 0;
   for (size_t i = 0; i < coverage.size(); ++i)
     total += coverage[i];
@@ -120,7 +104,6 @@ main(int argc, const char **argv) {
   try {
 
     bool VERBOSE = false;
-    bool HISTOGRAM = false;
     
     string outfile;
     string regions_file;
@@ -132,8 +115,6 @@ main(int argc, const char **argv) {
 		      false , outfile);
     opt_parse.add_opt("regions", 'r', "file of relevant regions", 
 		      true, regions_file);
-    opt_parse.add_opt("hist", 'H', "output histogram", 
-		      false, HISTOGRAM);
     opt_parse.add_opt("verbose", 'v', "print run info", 
 		      false, VERBOSE);
 
@@ -183,36 +164,32 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> adjusted_regions(regions);
     adjust_region_ends(clusters, adjusted_regions);
     
-    std::ostream *out = (!outfile.empty()) ? new std::ofstream(outfile.c_str()) : &cout;
+    std::ostream *out = (!outfile.empty()) ? 
+      new std::ofstream(outfile.c_str()) : &cout;
     
     vector<size_t> coverage_counts;
     for (size_t i = 0; i < clusters.size(); ++i) {
       vector<size_t> coverage;
       get_coverage(clusters[i], adjusted_regions[i], coverage);
       
-      size_t j = regions[i].get_start() - adjusted_regions[i].get_start();
-      size_t lim = coverage.size() - 
-	(adjusted_regions[i].get_end() - regions[i].get_end());
       const string chrom(adjusted_regions[i].get_chrom());
+      const string name(adjusted_regions[i].get_name());
+      const size_t start(adjusted_regions[i].get_start());
       
+      size_t j = regions[i].get_start() - adjusted_regions[i].get_start();
+      const size_t lim = coverage.size() - 
+	(adjusted_regions[i].get_end() - regions[i].get_end());
       for (; j < lim; ++j) {
-	if (!HISTOGRAM) {
-	  *out << adjusted_regions[i].get_chrom() << "\t"
-	       << adjusted_regions[i].get_start() + j << "\t"
-	       << adjusted_regions[i].get_start() + j + 1 << "\t"
-	       << "X\t" << coverage[j] << "\t+" << endl;
-	}
+	*out << chrom << "\t" << start + j << "\t" << start + j + 1 << "\t"
+	     << name << "\t" << coverage[j] << "\t+" << endl;
 	const size_t c = coverage[j];
 	if (c >= coverage_counts.size())
 	  coverage_counts.resize(c + 1);
 	coverage_counts[coverage[j]]++;
       }
     }
-    if (HISTOGRAM)
-      for (size_t i = 0; i < coverage_counts.size(); ++i)
-	*out << i << "\t" << coverage_counts[i] << endl;
     if (out != &cout) delete out;
-
+    
     if (VERBOSE)
       cerr << "Median read depth:\t" 
 	   << get_median_from_histogram(coverage_counts) << endl;

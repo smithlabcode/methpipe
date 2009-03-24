@@ -36,6 +36,8 @@
 #include "rmap_os.hpp"
 #include "GenomicRegion.hpp"
 
+#include "BSUtils.hpp"
+
 using std::tr1::unordered_map;
 
 using std::string;
@@ -46,163 +48,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::ifstream;
-
-
-//// CONFIDENCE INTERVALS //**************////////////////////////
-#include <gsl/gsl_cdf.h>
-static void
-wilson_ci_for_binomial(const double alpha, const double n, 
-		       const double p_hat, double &lower, double &upper) {
-  const double z = gsl_cdf_ugaussian_Pinv(1 - alpha/2);
-  const double denom = 1 + z*z/n;
-  const double first_term = p_hat + z*z/(2*n);
-  const double discriminant = p_hat*(1 - p_hat)/n + z*z/(4*n*n);
-  lower = std::max(0.0, (first_term - z*std::sqrt(discriminant))/denom);
-  upper = std::min(1.0, (first_term + z*std::sqrt(discriminant))/denom);
-}
-//////////////////////////**************////////////////////////
-
-static bool 
-is_cytosine(char c) {return (c == 'c' || c == 'C');}
-
-static bool 
-is_guanine(char c)  {return (c == 'g' || c == 'G');}
-
-static bool 
-is_thymine(char c)  {return (c == 't' || c == 'T');}
-
-static bool 
-is_cpg(const string &s, size_t i) {
-  return (i < (s.length() - 1)) && 
-    is_cytosine(s[i]) && is_guanine(s[i + 1]);
-}
-
-struct meth_base {
-  meth_base() : unconv(0.0), conv(0.0) {}
-  void inc(char c) {
-    if (is_cytosine(c)) unconv++;
-    if (is_thymine(c)) conv++;
-  }
-  size_t get_unconverted() const {return unconv;}
-  size_t get_converted() const {return conv;}
-  double unconv;
-  double conv;
-};
-
-static size_t
-get_min_obs_for_confidence(const double d, const double alpha) {
-  size_t i = 0;
-  double curr_width = 1.0;
-  while (curr_width > d) {
-    ++i;
-    double lower = 0, upper = 1;
-    wilson_ci_for_binomial(alpha, i, 0.5, lower, upper);
-    curr_width = upper - lower;
-  }
-  return i;
-}
-
-size_t
-get_meth_state(const double alpha, const double critical_value,
-	       const double interval_width, 
-	       const size_t n, const double p, 
-	       bool &confident_call, double &upper, double &lower) {
-  size_t meth_state = 3ul;
-  if (n > 0) {
-    wilson_ci_for_binomial(alpha, n, p, lower, upper);
-    const double tail_size = (1.0 - critical_value);
-    confident_call = ((upper - lower) < interval_width);
-    
-    assert(upper <= 1.0 && lower >= 0.0);
-    
-    if (confident_call) 
-      meth_state = 2ul;
-    
-    if (upper < tail_size)
-      meth_state = 0ul;
-    else if (lower > critical_value)
-      meth_state = 1ul;
-    
-  }
-  return meth_state;
-}
-
-
-string
-call_cpg_state(const double critical_value,
-	       const double alpha,
-	       const size_t min_obs_for_confidence,
-	       const double interval_width,
-	       
-	       const vector<GenomicRegion> &reads, 
-	       const vector<string> &rd_seqs,
-	       const GenomicRegion &region, 
-	       const string &seq) {
-  
-  assert(reads.size() == rd_seqs.size());
-  assert(region.get_width() == seq.length());
-
-  // set individual column data
-  const size_t region_start = region.get_start();
-  const size_t region_size = region.get_width();
-
-  std::vector<meth_base> columns_pos;
-  std::vector<meth_base> columns_neg;
-
-  columns_pos.resize(region_size);
-  columns_neg.resize(region_size);
-
-  const string seq_rc(revcomp(seq));
-  
-  for (size_t i = 0; i < reads.size(); ++i) {
-    const size_t read_width = reads[i].get_width();
-    if (reads[i].pos_strand()) {
-      assert(reads[i].get_start() >= region_start);
-      const size_t offset = reads[i].get_start() - region_start;
-      for (size_t j = 0; j < read_width; ++j)
-	columns_pos[offset + j].inc(rd_seqs[i][j]);
-    }
-    else {
-      const size_t offset = region_size - read_width -
-	(reads[i].get_start() - region_start);
-      for (size_t j = 0; j < read_width; ++j)
-	columns_neg[offset + j].inc(rd_seqs[i][j]);
-    }
-  }
-  reverse(columns_neg.begin(), columns_neg.end());
-
-  std::ostringstream ss;
-  bool first_print = true;
-
-  const string chrom(region.get_chrom());
-  const string name(region.get_name());
-  const size_t start = region.get_start();
-  for (size_t i = 0; i < columns_pos.size() - 1; ++i) {
-    if (is_cpg(seq, i)) {
-      const size_t meth = (columns_pos[i].get_unconverted() + 
-			   columns_pos[i + 1].get_unconverted());
-      const size_t unmeth = (columns_pos[i].get_converted() + 
-			     columns_pos[i + 1].get_converted());
-      const size_t n = meth + unmeth;
-      const double p = meth/std::max(1.0, static_cast<double>(n));
-      
-      bool comparable_confident = (n >= min_obs_for_confidence);
-      bool confident_call = false;
-      double upper = 0, lower = 0;
-      const size_t meth_state = 
-	get_meth_state(alpha, critical_value, interval_width,
-		       n, p, confident_call, upper, lower);
-      if (!first_print) 
-	ss << endl;
-      else first_print = false;
-      ss << chrom << "\t" << start + i << "\t" << start + i + 1 << "\t"
-	 << name << ":" << unmeth << ":" << meth << ":" 
-	 << comparable_confident << ":" << confident_call << "\t" 
-	 << meth_state << "\t+\t" << upper << "\t" << lower;
-    }
-  }
-  return ss.str();
-}
 
 
 template <class T, class U, class V> static void
@@ -237,38 +82,139 @@ separate_regions(const std::vector<T> &big_regions,
   }
 }
 
-static void
-relative_sort(const vector<GenomicRegion> &mapped_locations, 
-	      const vector<string> &names,
-	      vector<size_t> &lookup) {
-  unordered_map<string, size_t> names_map;
-  for (size_t i = 0; i < names.size(); ++i)
-    names_map[names[i]] = i;
-  
-  for (size_t i = 0; i < mapped_locations.size(); ++i) {
-    const unordered_map<string, size_t>::const_iterator 
-      j(names_map.find(mapped_locations[i].get_name()));
-    if (j == names_map.end())
-      throw RMAPException("read sequence not found for: " + names[i]);
-    lookup.push_back(j->second);
+
+struct meth_base {
+  meth_base() : unconv(0.0), conv(0.0) {}
+  void inc(char c) {
+    if (is_cytosine(c)) unconv++;
+    if (is_thymine(c)) conv++;
   }
+  double unconv;
+  double conv;
+};
+
+static size_t
+get_min_obs_for_confidence(const double d, const double alpha) {
+  size_t i = 0;
+  double curr_width = 1.0;
+  while (curr_width > d) {
+    ++i;
+    double lower = 0, upper = 1;
+    wilson_ci_for_binomial(alpha, i, 0.5, lower, upper);
+    curr_width = upper - lower;
+  }
+  return i;
 }
 
-static void
-adjust_region_ends(const vector<vector<GenomicRegion> > &clusters, 
-		   vector<GenomicRegion> &regions) {
-  assert(clusters.size() == regions.size());
-  for (size_t i = 0; i < regions.size(); ++i) {
-    size_t max_pos = regions[i].get_end();
-    size_t min_pos = regions[i].get_start();
-    for (size_t j = 0; j < clusters[i].size(); ++j) {
-      max_pos = std::max(clusters[i][j].get_end(), max_pos);
-      min_pos = std::min(clusters[i][j].get_start(), min_pos);
-    }
-    regions[i].set_end(max_pos);
-    regions[i].set_start(min_pos);
+size_t
+get_meth_state(const double alpha, const double critical_value,
+	       const double interval_width, 
+	       const size_t n, const double p, 
+	       bool &confident_call, double &upper, double &lower) {
+
+  static const size_t NO_CALL = 3ul;
+  static const size_t PARTIAL_METH = 2ul;
+  static const size_t METHYLATED = 1ul;
+  static const size_t UNMETHYLATED = 0ul;
+  
+  size_t meth_state = NO_CALL;
+
+  if (n > 0) {
+    wilson_ci_for_binomial(alpha, n, p, lower, upper);
+    const double tail_size = (1.0 - critical_value);
+    confident_call = ((upper - lower) < interval_width);
+    
+    assert(upper <= 1.0 && lower >= 0.0);
+    
+    if (confident_call) meth_state = PARTIAL_METH;
+    
+    if (upper < tail_size) meth_state = UNMETHYLATED;
+    else if (lower > critical_value)
+      meth_state = METHYLATED;
+  
   }
+  return meth_state;
 }
+
+
+string
+call_cpg_state(const double critical_value,
+	       const double alpha,
+	       const size_t min_obs_for_confidence,
+	       const double interval_width,
+	       
+	       const vector<GenomicRegion> &reads, 
+	       const vector<string> &rd_seqs,
+	       const GenomicRegion &region, 
+	       const string &seq) {
+  
+  // 1) COLLECT INFORMATION ABOUT EACH SITE
+
+  assert(reads.size() == rd_seqs.size());
+  assert(region.get_width() == seq.length());
+
+  const size_t region_start = region.get_start();
+  const size_t region_size = region.get_width();
+
+  std::vector<meth_base> columns_pos;
+  std::vector<meth_base> columns_neg;
+
+  columns_pos.resize(region_size);
+  columns_neg.resize(region_size);
+
+  const string seq_rc(revcomp(seq));
+  
+  for (size_t i = 0; i < reads.size(); ++i) {
+    const size_t read_width = reads[i].get_width();
+    if (reads[i].pos_strand()) {
+      assert(reads[i].get_start() >= region_start);
+      const size_t offset = reads[i].get_start() - region_start;
+      for (size_t j = 0; j < read_width; ++j)
+	columns_pos[offset + j].inc(rd_seqs[i][j]);
+    }
+    else {
+      const size_t offset = region_size - read_width -
+	(reads[i].get_start() - region_start);
+      for (size_t j = 0; j < read_width; ++j)
+	columns_neg[offset + j].inc(rd_seqs[i][j]);
+    }
+  }
+  reverse(columns_neg.begin(), columns_neg.end());
+
+  // 2) DO THE STATISTICS AND FORMAT THE OUTPUT
+  
+  std::ostringstream ss;
+  bool first_print = true;
+
+  const string chrom(region.get_chrom());
+  const string name(region.get_name());
+  const size_t start = region.get_start();
+  for (size_t i = 0; i < columns_pos.size() - 1; ++i) {
+    if (is_cpg(seq, i)) {
+      const size_t meth = (columns_pos[i].unconv + columns_pos[i + 1].unconv);
+      const size_t unmeth = (columns_pos[i].conv + columns_pos[i + 1].conv);
+      const size_t n = meth + unmeth;
+      const double p = meth/std::max(1.0, static_cast<double>(n));
+      
+      bool confident_call = false;
+      double upper = 0, lower = 0;
+      const size_t meth_state = 
+	get_meth_state(alpha, critical_value, interval_width,
+		       n, p, confident_call, upper, lower);
+      if (!first_print) 
+	ss << endl;
+      else first_print = false;
+
+      const bool comparable_confident = (n >= min_obs_for_confidence);
+      ss << chrom << "\t" << start + i << "\t" << start + i + 1 << "\t"
+	 << name << ":" << unmeth << ":" << meth << ":" 
+	 << comparable_confident << ":" << confident_call << "\t" 
+	 << meth_state << "\t+\t" << upper << "\t" << lower;
+    }
+  }
+  return ss.str();
+}
+
 
 int 
 main(int argc, const char **argv) {
@@ -375,12 +321,9 @@ main(int argc, const char **argv) {
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
     for (size_t i = 0; i < clusters.size(); ++i)
-      *out << call_cpg_state(crit,
-			     alpha,
-			     min_obs_for_confidence,
-			     interval_width, 
-			     clusters[i], cluster_seqs[i], 
-			     regions[i], region_sequences[i]) << endl;
+      *out << call_cpg_state(crit, alpha, min_obs_for_confidence,interval_width, 
+			     clusters[i], cluster_seqs[i], regions[i], 
+			     region_sequences[i]) << endl;
     if (out != &cout) delete out;
   }
   catch (const RMAPException &e) {

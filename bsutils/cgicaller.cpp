@@ -77,18 +77,19 @@ separate_cpgs(const vector<GenomicRegion> &cpgs,
 }
 
 struct CPGInfo {
-  CPGInfo(const GenomicRegion &r);
+  CPGInfo(const GenomicRegion &r) {
+    const string name(r.get_name());
+    vector<string> parts = rmap::split(name, ":");
+
+    assert(parts.size() >= 3);
+    unmeth_count = atoi(parts[1].c_str());
+    meth_count = atoi(parts[2].c_str());
+  }
   bool has_values() const {return meth_count + unmeth_count > 0;}
   size_t meth_count;
   size_t unmeth_count;
 };
 
-CPGInfo::CPGInfo(const GenomicRegion &r) {
-  const string name(r.get_name());
-  vector<string> parts = rmap::split(name, ":");
-  unmeth_count = atoi(parts[1].c_str());
-  meth_count = atoi(parts[2].c_str());
-}
 
 void
 simulate_island_meth_status(Runif &runif, const gsl_rng *rng, 
@@ -116,15 +117,16 @@ simulate_island_meth_status(Runif &runif, const gsl_rng *rng,
 
 
 void
-call_island(Runif &runif,
-	    const gsl_rng *rng,
-	    const size_t n_samples,
+call_island(Runif &runif, const gsl_rng *rng, const size_t n_samples,
 	    const double required_cpgs_with_values,
-	    const double meth_unmeth_island_critical_value,
-	    const double meth_unmeth_island_alpha_value,
-	    const double confidence_interval_width,
-	    const vector<GenomicRegion> &cpgs, GenomicRegion &r) {
-
+	    const double critical_value, const double alpha, 
+	    const double ci_width, const vector<GenomicRegion> &cpgs, 
+	    GenomicRegion &r) {
+  
+  static const size_t NO_CALL = 3ul;
+  static const size_t PARTIAL_METH = 2ul;
+  static const size_t METHYLATED = 1ul;
+  static const size_t UNMETHYLATED = 0ul;
 
   vector<pair<double, double> > beta_params;
   for (size_t i = 0; i < cpgs.size(); ++i) {
@@ -133,39 +135,40 @@ call_island(Runif &runif,
       beta_params.push_back(make_pair(cgi.meth_count, cgi.unmeth_count));
   }
   
-  size_t meth_state = 3ul;
+  size_t meth_state = NO_CALL;
   bool confident_call = false;
   bool confident_comparison = false;
-
+  
   double lower = 0;
   double upper = 0;
   double meth_freq = 0;
   
   if (beta_params.size() > required_cpgs_with_values*cpgs.size()) {
-
-    meth_state = 2ul;
+    
+    confident_comparison = true;
     
     simulate_island_meth_status(runif, rng, n_samples, 
-				meth_unmeth_island_alpha_value, beta_params, 
+				alpha, beta_params, 
 				lower, upper, meth_freq);
     
-    const double tail_size = (1.0 - meth_unmeth_island_critical_value);
-    confident_call = ((upper - lower) < confidence_interval_width);
+    const double tail_size = (1.0 - critical_value);
+    confident_call = ((upper - lower) < ci_width);
     assert(upper <= 1.0 && lower >= 0.0);
     
     if (confident_call)
-      meth_state = 2ul;
+      meth_state = PARTIAL_METH;
     
     if (upper < tail_size)
-      meth_state = 0ul;
-    else if (lower > meth_unmeth_island_critical_value)
-      meth_state = 1ul;
+      meth_state = UNMETHYLATED;
+    else if (lower > critical_value)
+      meth_state = METHYLATED;
     
-    confident_comparison = true;
   }
+
   const string annotated_name = r.get_name() + ":" +
     toa(meth_freq) + ":" + toa(upper) + ":" + toa(lower) + ":" + 
     toa(confident_comparison) + ":" + toa(confident_call);
+
   r.set_name(annotated_name);
   r.set_score(meth_state);
 }
@@ -252,13 +255,12 @@ main(int argc, const char **argv) {
       cerr << "calling island states" << endl;
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
+    
     for (size_t i = 0; i < regions.size(); ++i) {
       if (!sep_cpgs[i].empty()) {
 	assert(!sep_cpgs[i].empty());
-	call_island(runif, rng, n_samples, 
-		    required_cpgs_with_values,
-		    crit, alpha, interval_width,
-		    sep_cpgs[i], regions[i]);
+	call_island(runif, rng, n_samples, required_cpgs_with_values,
+		    crit, alpha, interval_width, sep_cpgs[i], regions[i]);
 	*out << regions[i] << endl;
       }
     }      
