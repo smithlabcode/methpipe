@@ -69,9 +69,10 @@ separate_cpgs(const vector<GenomicRegion> &cpgs,
     const string region_name(name.substr(0, region_name_end));
     const unordered_map<string, size_t>::const_iterator j =
       region_id_lookup.find(region_name);
-    if (j == region_id_lookup.end()) 
-      cerr << region_name << endl;
-    assert(j != region_id_lookup.end());
+    if (j == region_id_lookup.end())
+      throw RMAPException("ERROR: region " + 
+			  region_name + " not found (did "
+			  "input come from CpG caller?)");
     sep_cpgs[j->second].push_back(cpgs[i]);
   }
 }
@@ -80,7 +81,7 @@ struct CPGInfo {
   CPGInfo(const GenomicRegion &r) {
     const string name(r.get_name());
     vector<string> parts = rmap::split(name, ":");
-
+    
     assert(parts.size() >= 3);
     unmeth_count = atoi(parts[1].c_str());
     meth_count = atoi(parts[2].c_str());
@@ -96,22 +97,29 @@ simulate_island_meth_status(Runif &runif, const gsl_rng *rng,
 			    const size_t n_samples, const double alpha, 
 			    const vector<pair<double, double> > &beta_params, 
 			    double &lower, double &upper, double &meth_freq) {
+  
+  static const double BETA_DISTRO_PARAM_1_PRIOR = 0.5;
+  static const double BETA_DISTRO_PARAM_2_PRIOR = 0.5;
+  
   const size_t n_cpgs = beta_params.size();
   vector<double> outcomes(n_samples);
   for (size_t i = 0; i < n_samples; ++i) {
     size_t sum = 0;
     for (size_t j = 0; j < n_cpgs; ++j) {
-      const double p_sample = gsl_ran_beta(rng, beta_params[j].first + 0.5, 
-					   beta_params[j].second + 0.5);
+      const double p_sample = gsl_ran_beta(rng, beta_params[j].first + 
+					   BETA_DISTRO_PARAM_1_PRIOR,
+					   beta_params[j].second + 
+					   BETA_DISTRO_PARAM_2_PRIOR);
       if (runif.runif(0.0, 1.0) < p_sample)
 	++sum;
     }
     outcomes[i] = static_cast<double>(sum)/n_cpgs;
   }
-  
   sort(outcomes.begin(), outcomes.end());
-  lower = outcomes[alpha*n_samples];
-  upper = outcomes[(1 - alpha)*n_samples];
+
+  // RETURN VALUES (PASSED THROUGH REFERENCE PARAMETERS)
+  lower = outcomes[static_cast<size_t>(alpha*n_samples)];
+  upper = outcomes[static_cast<size_t>((1 - alpha)*n_samples)];
   meth_freq = accumulate(outcomes.begin(), outcomes.end(), 0.0)/n_samples;
 }
 
@@ -253,17 +261,15 @@ main(int argc, const char **argv) {
     
     if (VERBOSE)
       cerr << "calling island states" << endl;
+
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
-    
-    for (size_t i = 0; i < regions.size(); ++i) {
+    for (size_t i = 0; i < regions.size(); ++i)
       if (!sep_cpgs[i].empty()) {
-	assert(!sep_cpgs[i].empty());
 	call_island(runif, rng, n_samples, required_cpgs_with_values,
 		    crit, alpha, interval_width, sep_cpgs[i], regions[i]);
 	*out << regions[i] << endl;
       }
-    }      
     if (out != &cout) delete out;
   }
   catch (const RMAPException &e) {
