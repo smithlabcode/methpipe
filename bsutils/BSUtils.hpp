@@ -76,7 +76,7 @@ adjust_region_ends(const std::vector<std::vector<GenomicRegion> > &clusters,
 }
 
 
-static void
+void
 relative_sort(const std::vector<GenomicRegion> &mapped_locations, 
 	      const std::vector<std::string> &names,
 	      std::vector<size_t> &lookup) {
