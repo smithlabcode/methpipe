@@ -225,6 +225,7 @@ main(int argc, const char **argv) {
     
     string mapped_locations_file;
     string chrom_dir;
+
     string outfile;
     string regions_file;
     
@@ -314,14 +315,14 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "extracting reference sequence" << endl;
     vector<string> region_sequences;
-    extract_regions(chrom_dir, regions, region_sequences);
-    
+    extract_regions_fasta(chrom_dir, regions, region_sequences);
+
     size_t min_obs_for_confidence = get_min_obs_for_confidence(interval_width, alpha);
     
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
     for (size_t i = 0; i < clusters.size(); ++i)
-      *out << call_cpg_state(crit, alpha, min_obs_for_confidence,interval_width, 
+      *out << call_cpg_state(crit, alpha, min_obs_for_confidence, interval_width,
 			     clusters[i], cluster_seqs[i], regions[i], 
 			     region_sequences[i]) << endl;
     if (out != &cout) delete out;
