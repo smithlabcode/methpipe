@@ -50,39 +50,6 @@ using std::endl;
 using std::ifstream;
 
 
-template <class T, class U, class V> static void
-separate_regions(const std::vector<T> &big_regions,
-		 const std::vector<U> &regions, 
-		 const std::vector<V> &seqs, 
-		 std::vector<std::vector<U> > &sep_regions,
-		 std::vector<std::vector<V> > &sep_seqs) {
-  size_t rr_id = 0;
-  const size_t n_regions = regions.size();
-  assert(n_regions <= seqs.size());
-  
-  const size_t n_big_regions = big_regions.size();
-  sep_regions.resize(n_big_regions);
-  sep_seqs.resize(n_big_regions);
-  for (size_t i = 0; i < n_big_regions; ++i) {
-    const std::string current_chrom(big_regions[i].get_chrom());
-    const size_t current_start = big_regions[i].get_start();
-    const size_t current_end = big_regions[i].get_end();
-    while (rr_id < n_regions &&
-	   (regions[rr_id].get_chrom() < current_chrom ||
-	    (regions[rr_id].get_chrom() == current_chrom &&
-	     regions[rr_id].get_start() < current_start)))
-      ++rr_id;
-    while (rr_id < n_regions &&
-	   (regions[rr_id].get_chrom() == current_chrom &&
-	    regions[rr_id].get_start() < current_end)) {
-      sep_regions[i].push_back(regions[rr_id]);
-      sep_seqs[i].push_back(seqs[rr_id]);
-      ++rr_id;
-    }
-  }
-}
-
-
 struct meth_base {
   meth_base() : unconv(0.0), conv(0.0) {}
   void inc(char c) {
@@ -191,8 +158,8 @@ call_cpg_state(const double critical_value,
   const size_t start = region.get_start();
   for (size_t i = 0; i < columns_pos.size() - 1; ++i) {
     if (is_cpg(seq, i)) {
-      const size_t meth = (columns_pos[i].unconv + columns_pos[i + 1].unconv);
-      const size_t unmeth = (columns_pos[i].conv + columns_pos[i + 1].conv);
+      const size_t meth = (columns_pos[i].unconv + columns_neg[i + 1].unconv);
+      const size_t unmeth = (columns_pos[i].conv + columns_neg[i + 1].conv);
       const size_t n = meth + unmeth;
       const double p = meth/std::max(1.0, static_cast<double>(n));
       
@@ -204,12 +171,12 @@ call_cpg_state(const double critical_value,
       if (!first_print) 
 	ss << endl;
       else first_print = false;
-
+      
       const bool comparable_confident = (n >= min_obs_for_confidence);
       ss << chrom << "\t" << start + i << "\t" << start + i + 1 << "\t"
 	 << name << ":" << unmeth << ":" << meth << ":" 
 	 << comparable_confident << ":" << confident_call << "\t" 
-	 << meth_state << "\t+\t" << upper << "\t" << lower;
+	 << meth_state << "\t+";
     }
   }
   return ss.str();
@@ -276,6 +243,8 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> mapped_locations;
     ReadBEDFile(mapped_locations_file, mapped_locations);
     assert(check_sorted(mapped_locations));
+    if (VERBOSE)
+      cerr << "read " << mapped_locations.size() << " total locations" << endl;
     
     if (VERBOSE)
       cerr << "reading regions file" << endl;
@@ -317,7 +286,8 @@ main(int argc, const char **argv) {
     vector<string> region_sequences;
     extract_regions_fasta(chrom_dir, regions, region_sequences);
 
-    size_t min_obs_for_confidence = get_min_obs_for_confidence(interval_width, alpha);
+    size_t min_obs_for_confidence = 
+      get_min_obs_for_confidence(interval_width, alpha);
     
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
