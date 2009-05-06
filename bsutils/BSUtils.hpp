@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <cmath>
 
 #include <GenomicRegion.hpp>
 #include <rmap_utils.hpp>
@@ -91,6 +92,39 @@ relative_sort(const std::vector<GenomicRegion> &mapped_locations,
     if (j == names_map.end())
       throw RMAPException("read sequence not found for: " + names[i]);
     lookup.push_back(j->second);
+  }
+}
+
+
+template <class T, class U, class V> static void
+separate_regions(const std::vector<T> &big_regions,
+		 const std::vector<U> &regions, 
+		 const std::vector<V> &seqs, 
+		 std::vector<std::vector<U> > &sep_regions,
+		 std::vector<std::vector<V> > &sep_seqs) {
+  size_t rr_id = 0;
+  const size_t n_regions = regions.size();
+  assert(n_regions <= seqs.size());
+  
+  const size_t n_big_regions = big_regions.size();
+  sep_regions.resize(n_big_regions);
+  sep_seqs.resize(n_big_regions);
+  for (size_t i = 0; i < n_big_regions; ++i) {
+    const std::string current_chrom(big_regions[i].get_chrom());
+    const size_t current_start = big_regions[i].get_start();
+    const size_t current_end = big_regions[i].get_end();
+    while (rr_id < n_regions &&
+	   (regions[rr_id].get_chrom() < current_chrom ||
+	    (regions[rr_id].get_chrom() == current_chrom &&
+	     regions[rr_id].get_end() <= current_start)))
+      ++rr_id;
+    while (rr_id < n_regions &&
+	   (regions[rr_id].get_chrom() == current_chrom &&
+	    regions[rr_id].get_start() < current_end)) {
+      sep_regions[i].push_back(regions[rr_id]);
+      sep_seqs[i].push_back(seqs[rr_id]);
+      ++rr_id;
+    }
   }
 }
 
