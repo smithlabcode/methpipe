@@ -17,7 +17,12 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-PROGS = cpgcaller cgicaller bsrate coverage
+PROGS = cpgcaller cpgcaller2 \
+	cgicaller cgicaller2 \
+	bsrate    bsrate2    \
+	coverage  coverage2  \
+	hypometh sortreads   \
+	cpgsmoother methgram_prep
 
 LIBS = -lgsl -lgslcblas
 LIBDIR = $(RMAP)/lib
@@ -48,13 +53,17 @@ endif
 all:	$(PROGS)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CFLAGS) -c -o $@ $< -I$(COMMON_DIR)
 
-cpgcaller cgicaller bsrate coverage trimclone swbs cpgcallercompare nnmeth: \
+cpgcaller cpgcaller2 cgicaller cgicaller2 \
+bsrate bsrate2 coverage coverage2 \
+hypometh sortreads cpgsmoother methgram_prep: \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 
 cgicaller: $(addprefix $(COMMON_DIR), RNG.o)
+
+bsrate2 coverage2 hypometh: FileIterator.o
 
 install: all
 	@mkdir -p $(RMAP)/bin
