@@ -65,6 +65,7 @@ get_meth_unmeth_count(const string name, double &meth, double &unmeth) {
   meth = static_cast<double>(atoi(parts[2].c_str()));
 }
 
+
 static string
 reassemble_name(const string &orig_name, const double lower, const double upper) {
   std::ostringstream ss;
@@ -73,6 +74,7 @@ reassemble_name(const string &orig_name, const double lower, const double upper)
      << ":" << lower << ":" << upper;
   return ss.str();
 }
+
 
 void
 prep_region(const double alpha, const GenomicRegion &region,
@@ -95,7 +97,8 @@ prep_region(const double alpha, const GenomicRegion &region,
 			   prop_methylated, lower, upper);
     
     cpgs_prep.push_back(cpgs[i]);
-    cpgs_prep.back().set_name(reassemble_name(orig_name, lower, upper));
+    cpgs_prep.back().set_name(reassemble_name(orig_name, 
+					      lower, upper));
   }
 }
 
@@ -171,9 +174,9 @@ main(int argc, const char **argv) {
       const string region_name(assemble_region_name(regions[i], "_"));
       
       const string filename = 
-	path_join(outdir, (outfiles_suffix.empty()) ? 
-		  region_name + BED_SUFFIX :
-		  region_name + "_" + outfiles_suffix + BED_SUFFIX);
+	path_join(outdir, region_name + 
+		  ((outfiles_suffix.empty()) ? 
+		   BED_SUFFIX : "_" + outfiles_suffix + BED_SUFFIX));
       std::ofstream out(filename.c_str());
       if (!out) throw RMAPException("could not open file \"" + filename + "\"");
       copy(cpgs_prep.begin(), cpgs_prep.end(), 
