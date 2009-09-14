@@ -207,9 +207,9 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		std::ostream &out) {
   const string chrom_name(chrom_region.get_chrom());
   
-  for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
+  for (size_t i = 1; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions, reads);
-    if (is_cytosine(chrom[i])) {
+    if (is_cytosine(chrom[i]) && !is_guanine(chrom[i + 1])) {
       size_t meth_count = 0, unmeth_count = 0;
       typename vector<T>::const_iterator k(reads.get_first());
       for (vector<GenomicRegion>::const_iterator j(regions.get_first());
@@ -217,17 +217,16 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	if (j->get_score() <= max_mismatches)
 	  add_contribution_c(i, *j, *k, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\tC:" 
+      out << chrom_name << "\t" << i << "\t" << i + 1 << "\tC:"
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }
-    if (is_guanine(chrom[i])) {
+    if (is_guanine(chrom[i]) && !is_cytosine(chrom[i - 1])) {
       size_t meth_count = 0, unmeth_count = 0;
       typename vector<T>::const_iterator k(reads.get_first());
       for (vector<GenomicRegion>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j, ++k)
 	if (j->get_score() <= max_mismatches)
 	  add_contribution_g(i, *j, *k, meth_count, unmeth_count);
-      
       const double total = meth_count + unmeth_count;
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tG:" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
@@ -334,7 +333,7 @@ main(int argc, const char **argv) {
 		      false , fasta_suffix);
     opt_parse.add_opt("mapped", 'm', "file of mapped locations", 
 		      true , mapped_file);
-    opt_parse.add_opt("all", 'A', "process all Cs", 
+    opt_parse.add_opt("non", 'N', "process non-CpG cytosines", 
 		      false , PROCESS_NON_CPGS);
     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
 		      false , BUFFER_SIZE);
