@@ -251,13 +251,15 @@ partition_fastq_file(const bool VERBOSE, string filename,
 
 
 static void
-relative_sort_reads_fasta(const string &filename, 
+relative_sort_reads_fasta(const bool KEEP_TEMP_FILES,
+			  const string &filename, 
 			  const unordered_map<string, size_t> &read_name_index,
 			  ofstream &out) {
   
   vector<string> names, sequences;
   read_fasta_file(filename.c_str(), names, sequences);
-  remove(filename.c_str());
+  if (!KEEP_TEMP_FILES)
+    remove(filename.c_str());
   
   vector<pair<size_t, size_t> > sorter(names.size());
   for (size_t i = 0; i < names.size(); ++i) {
@@ -277,13 +279,15 @@ relative_sort_reads_fasta(const string &filename,
 
 
 static void
-relative_sort_reads_fastq(const string &filename, 
+relative_sort_reads_fastq(const bool KEEP_TEMP_FILES,
+			  const string &filename, 
 			  const unordered_map<string, size_t> &read_name_index,
 			  ofstream &out) {
   
   vector<string> names, sequences, scores;
   read_fastq_file(filename.c_str(), names, sequences, scores);
-  remove(filename.c_str());
+  if (!KEEP_TEMP_FILES)
+    remove(filename.c_str());
   
   vector<pair<size_t, size_t> > sorter(names.size());
   for (size_t i = 0; i < names.size(); ++i) {
@@ -313,7 +317,8 @@ main(int argc, const char **argv) {
     string outfile;
     size_t tmp_file_size = 100000ul;
     string tmp_dir = ".";
-    
+
+    bool KEEP_TEMP_FILES = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse("sortreads", "a program for sorting read sequences "
@@ -328,6 +333,7 @@ main(int argc, const char **argv) {
 		      false , tmp_file_size);
     opt_parse.add_opt("dir", 'd', "directory for temporary files", 
 		      false , tmp_dir);
+    opt_parse.add_opt("keep", 'K', "keep temporary files", false, KEEP_TEMP_FILES);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -380,8 +386,10 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < n_files; ++i) {
       if (VERBOSE) cerr << "\r[SORTING=" << filenames[i] << "]";
       if (FASTQ)
-	relative_sort_reads_fastq(filenames[i], read_name_index, out);
-      else relative_sort_reads_fasta(filenames[i], read_name_index, out);
+	relative_sort_reads_fastq(KEEP_TEMP_FILES,
+				  filenames[i], read_name_index, out);
+      else relative_sort_reads_fasta(KEEP_TEMP_FILES,
+				     filenames[i], read_name_index, out);
     }
     if (VERBOSE) cerr << endl;
   }
