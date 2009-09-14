@@ -143,7 +143,9 @@ main(int argc, const char **argv) {
       cerr << "reading mapped locations" << endl;
     vector<GenomicRegion> mapped_locations;
     ReadBEDFile(mapped_locations_file, mapped_locations);
-    assert(check_sorted(mapped_locations));
+    if (!check_sorted(mapped_locations))
+      throw RMAPException("regions in \"" + mapped_locations_file + "\" not sorted");
+    
     if (VERBOSE)
       cerr << "read " << mapped_locations.size() << " locations" << endl;
     
@@ -151,7 +153,8 @@ main(int argc, const char **argv) {
       cerr << "reading regions file" << endl;
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
-    assert(check_sorted(regions));
+    if (!check_sorted(regions))
+      throw RMAPException("regions in \"" + regions_file + "\" not sorted");
     
     if (VERBOSE)
       cerr << "associating reads with regions" << endl;
