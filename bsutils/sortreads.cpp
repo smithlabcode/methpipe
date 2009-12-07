@@ -114,21 +114,11 @@ is_fasta_name_line(size_t line_count) {
 static void
 partition_fasta_file(const bool VERBOSE, string filename, 
 		     const unordered_map<string, size_t> &read_name_index,
-		     const vector<string> filenames, const size_t tmp_file_size) {
+		     vector<ofstream*> &outfiles, const size_t tmp_file_size) {
   vector<char> buffer(INPUT_BUFFER_SIZE);
   
   std::ifstream in(filename.c_str(), std::ios::binary);
   if (!in) throw RMAPException("cannot open input file " + filename);
-  
-  if (VERBOSE)
-    cerr << "CREATING: " << filenames.front() << " -- "
-	 << filenames.back() << endl;
-  vector<ofstream*> outfiles;
-  for (size_t i = 0; i < filenames.size(); ++i) {
-    outfiles.push_back(new ofstream(filenames[i].c_str()));
-    if (!(*outfiles.back()))
-      throw RMAPException("cannot open input file " + filename);
-  }
   
   const size_t filesize = get_filesize(filename);
   const size_t one_percent = filesize/100;
@@ -166,8 +156,6 @@ partition_fasta_file(const bool VERBOSE, string filename,
   }
   if (VERBOSE) cerr << "\r100%" << endl;
   
-  for (size_t i = 0; i < outfiles.size(); ++i)
-    delete outfiles[i];
 }
 
 inline bool
@@ -186,7 +174,7 @@ is_fastq_score_line(size_t line_count) {
 static void
 partition_fastq_file(const bool VERBOSE, string filename,
 		     const unordered_map<string, size_t> &read_name_index,
-		     const vector<string> filenames, const size_t tmp_file_size) {
+		     vector<ofstream*> &outfiles, const size_t tmp_file_size) {
   vector<char> buffer(INPUT_BUFFER_SIZE);
   
   if (VERBOSE)
@@ -194,16 +182,6 @@ partition_fastq_file(const bool VERBOSE, string filename,
   
   std::ifstream in(filename.c_str(), std::ios::binary);
   if (!in) throw RMAPException("cannot open input file " + filename);
-  
-  if (VERBOSE)
-    cerr << "CREATING: " << filenames.front() << " -- "
-	 << filenames.back() << endl;
-  vector<ofstream*> outfiles;
-  for (size_t i = 0; i < filenames.size(); ++i) {
-    outfiles.push_back(new ofstream(filenames[i].c_str()));
-    if (!(*outfiles.back()))
-      throw RMAPException("cannot open input file " + filename);
-  }
   
   const size_t filesize = get_filesize(filename);
   const size_t one_percent = filesize/100;
@@ -230,10 +208,11 @@ partition_fastq_file(const bool VERBOSE, string filename,
       else if (is_fastq_seq_line(line_count))
 	read_seq = string(&buffer[0]);
       else if (is_fastq_score_line(line_count) &&
-	       file_id != std::numeric_limits<size_t>::max())
+	       file_id != std::numeric_limits<size_t>::max()) {
 	(*outfiles[file_id]) << '@' << read_name << '\n'
 			     << read_seq << "\n+\n"
 			     << &buffer[0] << '\n';
+      }
       ++line_count;
     }
     const size_t total_read = in.tellg();
@@ -244,9 +223,6 @@ partition_fastq_file(const bool VERBOSE, string filename,
     in.peek();
   }
   if (VERBOSE) cerr << "\r100%" << endl;
-  
-  for (size_t i = 0; i < outfiles.size(); ++i)
-    delete outfiles[i];
 }
 
 
@@ -353,13 +329,9 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string reads_file = leftover_args.front();
+    vector<string> reads_files(leftover_args);
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    const bool FASTQ = is_fastq(reads_file);
-    if (VERBOSE)
-      cerr << "READS FILE FORMAT: " << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
-    
     if (VERBOSE)
       cerr << "[LOADING MAPPED LOCATIONS]" << endl;
     unordered_map<string, size_t> read_name_index;
@@ -374,16 +346,38 @@ main(int argc, const char **argv) {
       filenames.push_back(path_join(tmp_dir, "." + rmap::toa(i) + 
 				    "." + pid + ".tmp"));
     
-    cerr << "PARTITIONING READS" << endl;
-    if (FASTQ)
-      partition_fastq_file(VERBOSE, reads_file, read_name_index, 
-			   filenames, tmp_file_size);
-    else
-      partition_fasta_file(VERBOSE, reads_file, read_name_index, 
-			   filenames, tmp_file_size);
+
+    if (VERBOSE)
+      cerr << "CREATING: " << filenames.front() << " -- "
+	   << filenames.back() << endl;
+    vector<ofstream*> outfiles;
+    for (size_t i = 0; i < filenames.size(); ++i) {
+      outfiles.push_back(new ofstream(filenames[i].c_str()));
+      if (!(*outfiles.back()))
+	throw RMAPException("cannot open input file " + filenames[i]);
+    }
+    
+    if (VERBOSE)
+      cerr << "PARTITIONING READS" << endl;
+    
+    for (size_t i = 0; i < reads_files.size(); ++i) {
+      const bool FASTQ = is_fastq(reads_files[i]);
+      if (VERBOSE)
+	cerr << "READS FILE FORMAT: " << reads_files[i] 
+	     << "=" << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
+      if (FASTQ)
+	partition_fastq_file(VERBOSE, reads_files[i], read_name_index, 
+			     outfiles, tmp_file_size);
+      else
+	partition_fasta_file(VERBOSE, reads_files[i], read_name_index, 
+			     outfiles, tmp_file_size);
+    }
+    for (size_t i = 0; i < outfiles.size(); ++i)
+      delete outfiles[i];
     
     ofstream out(outfile.c_str());
     for (size_t i = 0; i < n_files; ++i) {
+      const bool FASTQ = is_fastq(reads_files[i]);
       if (VERBOSE) cerr << "\r[SORTING=" << filenames[i] << "]";
       if (FASTQ)
 	relative_sort_reads_fastq(KEEP_TEMP_FILES,
