@@ -120,7 +120,8 @@ main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse("bsrate", "A program for obtaining the conversion "
-			   "rate in a bisulfite sequencing experiment");
+			   "rate in a bisulfite capture experiment.",
+			   "<reads-file>");
     opt_parse.add_opt("chrom", 'c', "chromosome directory (FASTA format)", 
 		      true , chrom_dir);
     opt_parse.add_opt("mapped", 'm', "file of mapped reads (BED format)", 
@@ -129,7 +130,8 @@ main(int argc, const char **argv) {
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {

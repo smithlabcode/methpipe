@@ -200,8 +200,10 @@ main(int argc, const char **argv) {
     double interval_width = 0.25;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("cpgcaller", "A program for calling cpg methylation "
-			   "status from a Solexa bisulfite capture experiment");
+    OptionParser opt_parse("cpgcaller", 
+			   "A program for calling CpG methylation "
+			   "status from a Solexa bisulfite capture experiment.",
+			   "<reads-file>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
     opt_parse.add_opt("chrom", 'c', "dir of chrom sequences (single-line format)",
@@ -219,7 +221,8 @@ main(int argc, const char **argv) {
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {

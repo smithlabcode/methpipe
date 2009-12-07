@@ -81,7 +81,6 @@ add_contribution_c(const size_t offset, const GenomicRegion &r,
     //     if (s.second[position] > '`') {
     if (is_cytosine(s.first[position])) ++unconv;
     if (is_thymine(s.first[position])) ++conv;
-    //     }
   }
 }
 
@@ -145,6 +144,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
  		size_t &unconv_count_pos, size_t &conv_count_pos,
  		size_t &unconv_count_neg, size_t &conv_count_neg) {
   const string chrom_name(chrom_region.get_chrom());
+  
   
   for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions, reads);
@@ -306,7 +306,7 @@ main(int argc, const char **argv) {
     OptionParser opt_parse("bsrate2", "a program for determining the "
 			   "rate of bisulfite conversion in a "
 			   "bisulfite sequencing experiment, with "
-			   "too many reads to load into memory at once",
+			   "too many reads to load into memory at once.",
 			   "<FASTA_READS>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
@@ -327,7 +327,8 @@ main(int argc, const char **argv) {
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {

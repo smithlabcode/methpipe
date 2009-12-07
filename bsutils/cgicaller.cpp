@@ -1,5 +1,6 @@
-/*    cgicaller: a program for calling CGI methylation status in a defined
- *    region from bisulfite capture sequencing with Solexa reads
+/*    cgicaller: a program for calling CGI methylation status in a
+ *    defined region from bisulfite capture sequencing with Solexa
+ *    reads
  *
  *    Copyright (C) 2009 University of Southern California and
  *                       Andrew D. Smith
@@ -198,8 +199,10 @@ main(int argc, const char **argv) {
     double required_cpgs_with_values = 0.9;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("cgicaller", "A program for calling CGI methylation "
-			   "status from a Solexa bisulfite capture experiment");
+    OptionParser opt_parse("cgicaller", 
+			   "A program for calling CGI methylation "
+			   "status from a Solexa bisulfite capture experiment.",
+			   "<cpgs-file>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
     opt_parse.add_opt("crit", 'C', "critical value", 
@@ -216,7 +219,8 @@ main(int argc, const char **argv) {
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
