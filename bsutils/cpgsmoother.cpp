@@ -196,6 +196,11 @@ scan_cpgs(const size_t context_size, FileIterator<GenomicRegion> &regions,
 	   regions.get_curr()->same_chrom(*regions.get_last()) &&
 	   !succeeds(*regions.get_last(), context_rhs))
       regions.increment_last();
+
+    while (regions.first_is_good() &&
+	   !regions.get_curr()->same_chrom(*regions.get_first()))
+      regions.increment_first();
+    
     while (regions.first_is_good() &&
 	   regions.get_curr()->same_chrom(*regions.get_first()) &&
 	   precedes(*regions.get_first(), context_lhs))
@@ -203,6 +208,7 @@ scan_cpgs(const size_t context_size, FileIterator<GenomicRegion> &regions,
     
     // iterate over the context
     double meth = 0.0, unmeth = 0.0;
+    
     for (vector<GenomicRegion>::const_iterator i(regions.get_first());
 	 i != regions.get_last(); ++i) {
       const double dist = std::abs(static_cast<int>(i->get_start()) - 
