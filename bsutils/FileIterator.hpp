@@ -36,17 +36,22 @@ public:
       assert(first <= last);
       refill_buffer();
     }
+    assert(first <= buffer.end() && last <= buffer.end());
   }
   void increment_last() {
+    assert(last < buffer.end());
     if (++last == buffer.end()) {
       assert(first <= last);
       refill_buffer();
     }
+    assert(first <= buffer.end());
+    assert(last <= buffer.end());
   }
   typename std::vector<T>::const_iterator get_first() const {return first;}
   typename std::vector<T>::const_iterator get_last() const {return last;}
   bool first_is_good() const {return (!in.eof() || first < buffer.end());}
   bool last_is_good() const {return (!in.eof() || last < buffer.end());}
+  
 private:
   std::ifstream in;
   std::vector<T> buffer;
