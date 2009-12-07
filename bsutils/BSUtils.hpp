@@ -87,7 +87,7 @@ relative_sort(const std::vector<GenomicRegion> &mapped_locations,
     names_map[names[i]] = i;
   
   for (size_t i = 0; i < mapped_locations.size(); ++i) {
-    const unordered_map<std::string, size_t>::const_iterator 
+    const std::tr1::unordered_map<std::string, size_t>::const_iterator 
       j(names_map.find(mapped_locations[i].get_name()));
     if (j == names_map.end())
       throw RMAPException("read sequence not found for: " + names[i]);
