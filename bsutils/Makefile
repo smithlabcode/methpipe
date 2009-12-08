@@ -18,11 +18,13 @@
 #
 
 PROGS = cpgcaller cpgcaller2 \
-	cgicaller cgicaller2 \
+	cgicaller methcounts \
 	bsrate    bsrate2    \
 	coverage  coverage2  \
-	hypometh sortreads   \
-	cpgsmoother methgram_prep
+	sortreads cpgsmoother \
+	methdiff  mergelanes \
+	dmrfinder
+
 
 LIBS = -lgsl -lgslcblas
 LIBDIR = $(RMAP)/lib
@@ -56,14 +58,15 @@ all:	$(PROGS)
 	$(CXX) $(CFLAGS) -c -o $@ $< -I$(COMMON_DIR)
 
 cpgcaller cpgcaller2 cgicaller cgicaller2 \
-bsrate bsrate2 coverage coverage2 \
-hypometh sortreads cpgsmoother methgram_prep: \
+bsrate bsrate2 coverage coverage2 methdiff \
+sortreads cpgsmoother methcounts mergelanes \
+dmrfinder: \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 
-cgicaller: $(addprefix $(COMMON_DIR), RNG.o)
+mergelanes cgicaller: $(addprefix $(COMMON_DIR), RNG.o)
 
-bsrate2 coverage2 hypometh: FileIterator.o
+methcounts bsrate2 coverage2 dmrfinder: FileIterator.o
 
 install: all
 	@mkdir -p $(RMAP)/bin
