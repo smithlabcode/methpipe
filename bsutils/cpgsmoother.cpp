@@ -239,7 +239,7 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     
     string outfile;
-    size_t context_size = 50;
+    size_t context_size = 100;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse("cpgsmoother", "a program for smoothing CpG "
