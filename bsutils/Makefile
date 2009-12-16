@@ -23,8 +23,8 @@ PROGS = cpgcaller cpgcaller2 \
 	coverage  coverage2  \
 	sortreads cpgsmoother \
 	methdiff  mergelanes \
-	dmrfinder
-
+	dmrfinder \
+	allelic
 
 LIBS = -lgsl -lgslcblas
 LIBDIR = $(RMAP)/lib
@@ -60,13 +60,17 @@ all:	$(PROGS)
 cpgcaller cpgcaller2 cgicaller cgicaller2 \
 bsrate bsrate2 coverage coverage2 methdiff \
 sortreads cpgsmoother methcounts mergelanes \
-dmrfinder: \
+dmrfinder : \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 
 mergelanes cgicaller: $(addprefix $(COMMON_DIR), RNG.o)
 
 methcounts bsrate2 coverage2 dmrfinder: FileIterator.o
+
+allelic : \
+	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
+	rmap_utils.o OptionParser.o) FileIterator.o
 
 install: all
 	@mkdir -p $(RMAP)/bin
