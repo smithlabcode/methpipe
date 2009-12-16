@@ -448,9 +448,9 @@ main(int argc, const char **argv) {
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("methcounts", "a program for counting the "
-			   "methylated and unmethylated reads mapping "
-			   "over each CpG or C.",
+    OptionParser opt_parse("allelic", "a program for testing"
+			   "whether there are two different allelic groups of reads"
+			   "over a pair CpG or C.",
 			   "<fasta-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
