@@ -30,6 +30,7 @@
 #include <gsl/gsl_sf_gamma.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 
 using std::string;
@@ -217,6 +218,9 @@ main(int argc, const char **argv) {
 	
  	cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
  						    meth_a, unmeth_a));
+	
+	cpgs_a[i].set_name(std::min(cpgs_a[i].get_name(), cpgs_b[j].get_name()));
+
 	*out << cpgs_a[i] << endl;
       }
     }
