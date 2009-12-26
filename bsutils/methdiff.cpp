@@ -30,8 +30,8 @@
 #include <gsl/gsl_sf_gamma.h>
 
 #include <cmath>
-#include <cstdlib>
 #include <fstream>
+#include <algorithm>
 
 using std::string;
 using std::vector;
