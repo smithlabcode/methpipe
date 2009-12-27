@@ -1,38 +1,29 @@
-/* dmrfinder: A program for identifying DMRs (differentially
- * methylated regions) based on a file showing probability of
- * differential methylation at each CpG or base.
+/* diffseg 
+ * Song Qiang <qiang.song@usc.edu> 2009
  *
- * Copyright (C) 2009 University of Southern California
- *                    Andrew D Smith
- * Author: Andrew D. Smith
+ * This program reads output from methdiff, first convert it to a 0/1 sequence
+ * and then get a sequence of intervals between 1's in basepairs. It then
+ * segments this interval sequence using HMM method. We use two-state HMM with
+ * geometric distribution.
  *
- * This is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this software; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include "rmap_utils.hpp"
 #include "rmap_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
+#include "StringTool"
 
 #include "FileIterator.hpp"
 
 #include <gsl/gsl_sf_gamma.h>
 
+
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
+
 
 using std::string;
 using std::vector;
@@ -44,121 +35,226 @@ using std::numeric_limits;
 using std::ostream_iterator;
 using std::ofstream;
 
+// get reads number from CpG name which is in the form CpG:integer
+int
+get_reads_num(const string &name)
+{
+		return atoi(name.substr(name.find(':') + 1));
+}
+
+// seperate CpGs by chromosome and remove deserts
+
+void
+seperate_regions(vector<GenomicRegion> &cpgs,
+				 vector<size_t> &reset_points,
+				 const size_t desert_size)
+{
+		size_t j = 0;
+		for (size_t i = 0; i < cpgs.size(); ++i)
+				if (get_reads_num(cpgs[i].get_name()) > 0)
+				{
+						cpgs[j] = cpgs[i];
+						++j;
+				}
+		cpgs.erase(cpgs.begin() + j, cpgs.end());
+		
+		reset_points.push_back(0);
+		for (size_t i = 1; i < cpgs.size(); ++i)
+		{
+				const size_t dist = cpgs[i].distance(cpgs[i - 1]);
+				if (dist > desert_size)
+						reset_points.push_back(i);
+		}
+}
+
+// get significant CpG's and get intervals
+class pred_significant_cpg
+{
+		double crit;
+		bool LOWER_TAIL;
+		bool UPPER_TAIL;
+public:
+		pred_significant_cpg(double c, short si) :
+				crit(c), LOWER_TAIL(si & 1), UPPER_TAIL(si & 2) {}
+		inline bool operator() (const GenomicRegion &cpg)
+		{
+				return (LOWER_TAIL && cpg.get_score() < crit) ||
+						(UPPER_TAIL && cpg.get_score() > 1 - crit);
+		}
+}
+
+void
+get_intervals(const vector<GenomicRegion> &cpgs,
+			  const vector<size_t> &reset_points,
+			  vector<GenomicRegion> &sig_cpgs,
+			  vector<SimpleGenomicRegion> &intervals,
+			  const double crit,
+			  const short TAIL_MARKER)
+{
+		for (size_t i = 0; i < sig_cpgs.size(); i++)
+				sig_cpgs[i].set_score(0);
+		const pred_significant_cpg is_significant_cpg(crit, TAIL_MARKER);		
+
+		for (size_t i = 0; i < reset_points.size() - 1; ++i)
+		{
+				const vector<GenomicRegion>::const_iterator first
+						= cpgs.begin() + reset_points[i];
+				const vector<GenomicRegion>::const_iterator last
+						= cpgs.begin() + reset_points[i + 1];
+				vector<GenomicRegion>::const_iterator iter
+						= std::find_if(first, last, is_significant_cpg);
+				while(iter != last)
+				{
+						sig_cpgs[iter - cpgs.begin()].set_score(1);
+						const GenomicRegion last_sig_cpg = *iter;
+						iter = std::find_if(iter + 1, last, is_significant_cpg);
+						if (iter != last)
+						{
+								sig_cpgs[iter - cpgs.begin()].set_score(1);
+								if (iter->same_chrom(last_sig_cpg))
+										intervals.push_back(
+												SimpleGenomicRegion(last_sig_cpg.get_chrom(),
+																	last_sig_cpg.get_end(),
+																	iter->get_start()));
+						}
+				}
+		}
+}
+
 int
 main(int argc, const char **argv) {
 
-  try {
+		try {
 
-    string outfile;
-    double crit = 0.05;
-    size_t min_cpgs = 20;
-    bool UPPER = false;
-    bool VERBOSE = false;
+				string outfile;
+				double crit = 0.05;
+				short TAIL_MARKER = 1;
+				size_t deserts = 2000;
 
-    size_t BUFFER_SIZE = 100000;
-    
-    /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("dmrfinder", 
-			   "A program for identifying DMRs (differentially "
-			   "methylated regions) based on a file showing "
-			   "probability of differential methylation at "
-			   "each CpG or base. ",
-			   "<cpg_meth_diffs_file>");
-    opt_parse.add_opt("crit", 'c', "critical value (default: 0.05)", 
-		      false, crit);
-    opt_parse.add_opt("width", 'w', "width in terms of CpGs of min DMR size (default: 20)", 
-		      false, min_cpgs);
-    opt_parse.add_opt("upper", 'u', "get upper values", false, UPPER);
-    opt_parse.add_opt("out", 'o', "output file (BED format)", 
-		      false, outfile);
-    opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
-		      false , BUFFER_SIZE);
-    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    vector<string> leftover_args;
-    opt_parse.parse(argc, argv, leftover_args);
-    if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    if (opt_parse.about_requested()) {
-      cerr << opt_parse.about_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    if (opt_parse.option_missing()) {
-      cerr << opt_parse.option_missing_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    if (leftover_args.size() != 1) {
-      cerr << opt_parse.help_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    const string cpgs_file = leftover_args.front();
-    /****************** END COMMAND LINE OPTIONS *****************/
+				// mode for HMM
+				bool USE_VITERBI = false;
+				bool VERBOSE = false;
+				bool BROWSER = false;
+				
+				// corrections for small values (not parameters):
+				double tolerance = 1e-10;
+				double min_prob  = 1e-10;
 
-    if (VERBOSE)
-      cerr << "[READING CPGS]";
-    vector<GenomicRegion> cpgs;
-    ReadBEDFile(cpgs_file, cpgs);
-    if (!check_sorted(cpgs))
-      throw RMAPException("file not sorted: \"" + cpgs_file + "\"");
-    if (VERBOSE)
-      cerr << "[DONE]" << endl;
+				bool VERBOSE = false;
+
+				size_t BUFFER_SIZE = 100000;
     
-    vector<GenomicRegion> regions;
-    size_t count = 0, start = 0, end = 0;
-    double total_score = 0.0;
-    for (size_t i = 0; i < cpgs.size(); ++i) {
-      if (i == 0 || !cpgs[i].same_chrom(cpgs[i - 1])) {
-	if (VERBOSE)
-	  cerr << "processing:\t" << cpgs[i].get_chrom() << endl;
-	if (count > min_cpgs) {
-	  const string name("CpG:" + toa(total_score/count));
-	  regions.push_back(GenomicRegion(cpgs[i - 1].get_chrom(), 
-					  start, end, name, count, '+'));
-	}
-	count = 0;
-	total_score = 0.0;
-	start = numeric_limits<size_t>::max();
-      }
-      const double score = (UPPER) ? 1.0 - cpgs[i].get_score() : cpgs[i].get_score();
-      if (score < crit) {
-	count += 1;
-	total_score += score;
-	if (start == numeric_limits<size_t>::max())
-	  start = cpgs[i].get_start();
-	end = cpgs[i].get_end();
-      }
-      else {
-	if (count > min_cpgs) {
-	  const string name("CpG:" + toa(total_score/count));
-	  regions.push_back(GenomicRegion(cpgs[i - 1].get_chrom(), 
-					  start, end, name, count, '+'));
-	}
-	count = 0;
-	total_score = 0.0;
-	start = numeric_limits<size_t>::max();
-      }
-    }
-    if (count > min_cpgs) {
-      const string name("CpG:" + toa(total_score/count));
-      regions.push_back(GenomicRegion(cpgs.back().get_chrom(), 
-				      start, end, name, count, '+'));
-    }
-    
-    std::ostream *out = (outfile.empty()) ? &cout : 
-      new std::ofstream(outfile.c_str());
-    copy(regions.begin(), regions.end(), 
-	 ostream_iterator<GenomicRegion>(*out, "\n"));
-    if (out != &cout) delete out;
-  }
-  catch (RMAPException &e) {
-    cerr << "ERROR:\t" << e.what() << endl;
-    return EXIT_FAILURE;
-  }
-  catch (std::bad_alloc &ba) {
-    cerr << "ERROR: could not allocate memory" << endl;
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+				/****************** COMMAND LINE OPTIONS ********************/
+				OptionParser opt_parse("diffseg", 
+									   "A program for identifying DMRs (differentially "
+									   "methylated regions) based on a file showing "
+									   "probability of differential methylation at "
+									   "each CpG or base. ",
+									   "<cpg_meth_diffs_file>");
+				opt_parse.add_opt("crit", 'c', "critical value (default: 0.05)", 
+								  false, crit);
+				opt_parse.add_opt("tail", 't',
+								  "use which tail to determine signif.\n" + 
+								  "1: LOWER TAIL; 2: UPPER_TAIL; 3: BOTH",
+								  false, TAIL_MARKER);
+				opt_parse.add_opt("out", 'o', "output file (BED format)", 
+								  false, outfile);
+				opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
+								  false , BUFFER_SIZE);
+				opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+				vector<string> leftover_args;
+				opt_parse.parse(argc, argv, leftover_args);
+				if (argc == 1 || opt_parse.help_requested()) {
+						cerr << opt_parse.help_message() << endl
+							 << opt_parse.about_message() << endl;
+						return EXIT_SUCCESS;
+				}
+				if (opt_parse.about_requested()) {
+						cerr << opt_parse.about_message() << endl;
+						return EXIT_SUCCESS;
+				}
+				if (opt_parse.option_missing()) {
+						cerr << opt_parse.option_missing_message() << endl;
+						return EXIT_SUCCESS;
+				}
+				if (leftover_args.size() != 1) {
+						cerr << opt_parse.help_message() << endl;
+						return EXIT_SUCCESS;
+				}
+				const string cpgs_file = leftover_args.front();
+				/****************** END COMMAND LINE OPTIONS *****************/
+
+				if (VERBOSE)
+						cerr << "[READING CPGS]";
+				vector<GenomicRegion> cpgs;
+				ReadBEDFile(cpgs_file, cpgs);
+				if (!check_sorted(cpgs))
+						throw RMAPException("file not sorted: \"" + cpgs_file + "\"");
+				if (VERBOSE)
+						cerr << "[DONE]" << endl;
+
+				// seperate regions by chromosome and remove deserts
+				vector<size_t> reset_points;
+				seperate_regions(cpgs, reset_points, desert_size);
+
+				// discretize p-values and get intervals
+				vector<GenomicRegion> sig_cpgs(cpgs);
+				vector<SimpleGenomicRegion> intervals;
+				vector<size_t> widths(intervals.size());
+				if (VERBOSE)
+						cerr << "[Discretizing p-values ...]"
+				get_intervals(cpgs, reset_points, sig_cpgs, intervals, crit, TAIL_MARKER);
+				for (size_t i = 0; i < intervals.size(); ++i)
+						widths[i] = intervals[i].get_width();
+				if (VERBOSE)
+						cerr << "[done]" << endl;
+
+				
+				/*****  HMM *******/
+
+				// setup
+				vector<double> start_trans(2, 0.5), end_trans(2, 1e-10);
+				vector<vector<double> > trans(2, vector<double>(2, 0.25));
+				trans[0][0] = trans[1][1] = 0.75;
+
+				const double mean_width
+						= std::accumulate(widths.begin(), widths.end(), 0.0) / widths.size();
+				double fg_lambda = 0.25 * mean_width;
+				double bg_lambda = 4 * mean_width;
+
+				const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
+
+				// EM training
+				hmm.BaumWelchTraining(widths, intervals, reset_points,
+									  start_trans, trans, end_trans,
+									  fg_lambda, bg_lambda);
+
+				// Viterbi decoding
+				vector<bool> classes;
+				vector<double> scores;
+				if (USE_VITERBI)
+						hmm.ViterbiDecoding(widths, intervals, reset_points,
+											start_trans, trans, end_trans,
+											fg_lambda, bg_lambda, classes);
+				else 
+						hmm.PosteriorDecoding(widths, intervals, reset_points,
+											  start_trans, trans, end_trans,
+											  fg_lambda, bg_lambda, classes);
+				
+				// output result
+				std::ostream *out = (outfile.empty()) ? &cout : 
+						new std::ofstream(outfile.c_str());
+				copy(regions.begin(), regions.end(), 
+					 ostream_iterator<GenomicRegion>(*out, "\n"));
+				if (out != &cout) delete out;
+		}
+		catch (RMAPException &e) {
+				cerr << "ERROR:\t" << e.what() << endl;
+				return EXIT_FAILURE;
+		}
+		catch (std::bad_alloc &ba) {
+				cerr << "ERROR: could not allocate memory" << endl;
+				return EXIT_FAILURE;
+		}
+		return EXIT_SUCCESS;
 }
