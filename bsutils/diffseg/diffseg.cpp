@@ -119,6 +119,28 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 						}
 				}
 		}
+		const vector<GenomicRegion>::const_iterator first
+				= cpgs.begin() + reset_points[i];
+		const vector<GenomicRegion>::const_iterator last
+				= cpgs.end();
+		vector<GenomicRegion>::const_iterator iter
+				= std::find_if(first, last, is_significant_cpg);
+		while(iter != last)
+		{
+				sig_cpgs[iter - cpgs.begin()].set_score(1);
+				const GenomicRegion last_sig_cpg = *iter;
+				iter = std::find_if(iter + 1, last, is_significant_cpg);
+				if (iter != last)
+				{
+						sig_cpgs[iter - cpgs.begin()].set_score(1);
+						if (iter->same_chrom(last_sig_cpg))
+								intervals.push_back(
+										SimpleGenomicRegion(last_sig_cpg.get_chrom(),
+															last_sig_cpg.get_end(),
+															iter->get_start()));
+				}
+		}
+		
 }
 
 int
