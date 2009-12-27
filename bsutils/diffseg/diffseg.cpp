@@ -85,7 +85,7 @@ public:
 
 void
 get_intervals(const vector<GenomicRegion> &cpgs,
-			  const vector<size_t> &reset_points,
+			  vector<size_t> &reset_points,
 			  vector<GenomicRegion> &sig_cpgs,
 			  vector<SimpleGenomicRegion> &intervals,
 			  const double crit,
@@ -95,8 +95,13 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 				sig_cpgs[i].set_score(0);
 		const pred_significant_cpg is_significant_cpg(crit, TAIL_MARKER);		
 
+		// deal with the end of CpG sequence
+		reset_points.push_back(cpgs.begin() - cpgs.end());
+		
+		size_t j = 0;			// counter for reset_points of intervals
 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
 		{
+				bool is_first_interval = true; 
 				const vector<GenomicRegion>::const_iterator first
 						= cpgs.begin() + reset_points[i];
 				const vector<GenomicRegion>::const_iterator last
@@ -108,39 +113,22 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 						sig_cpgs[iter - cpgs.begin()].set_score(1);
 						const GenomicRegion last_sig_cpg = *iter;
 						iter = std::find_if(iter + 1, last, is_significant_cpg);
-						if (iter != last)
+						if (iter != last && iter->same_chrom(last_sig_cpg))
 						{
-								sig_cpgs[iter - cpgs.begin()].set_score(1);
-								if (iter->same_chrom(last_sig_cpg))
-										intervals.push_back(
-												SimpleGenomicRegion(last_sig_cpg.get_chrom(),
-																	last_sig_cpg.get_end(),
-																	iter->get_start()));
-						}
-				}
-		}
-		const vector<GenomicRegion>::const_iterator first
-				= cpgs.begin() + reset_points[i];
-		const vector<GenomicRegion>::const_iterator last
-				= cpgs.end();
-		vector<GenomicRegion>::const_iterator iter
-				= std::find_if(first, last, is_significant_cpg);
-		while(iter != last)
-		{
-				sig_cpgs[iter - cpgs.begin()].set_score(1);
-				const GenomicRegion last_sig_cpg = *iter;
-				iter = std::find_if(iter + 1, last, is_significant_cpg);
-				if (iter != last)
-				{
-						sig_cpgs[iter - cpgs.begin()].set_score(1);
-						if (iter->same_chrom(last_sig_cpg))
 								intervals.push_back(
 										SimpleGenomicRegion(last_sig_cpg.get_chrom(),
 															last_sig_cpg.get_end(),
 															iter->get_start()));
+								if (is_first_interval)
+								{
+										reset_points[j] = intervals.size() - 1;
+										is_first_interval = false;
+										++j;
+								}
+						}
 				}
 		}
-		
+		reset_points.erase(reset_points.begin() + j, reset_points.end());
 }
 
 int
@@ -232,9 +220,9 @@ main(int argc, const char **argv) {
 						cerr << "[done]" << endl;
 
 				
-				/*****  HMM *******/
+				/******************  HMM *************************************/
 
-				// setup
+				// HMM setup
 				vector<double> start_trans(2, 0.5), end_trans(2, 1e-10);
 				vector<vector<double> > trans(2, vector<double>(2, 0.25));
 				trans[0][0] = trans[1][1] = 0.75;
@@ -247,19 +235,19 @@ main(int argc, const char **argv) {
 				const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 
 				// EM training
-				hmm.BaumWelchTraining(widths, intervals, reset_points,
+				hmm.BaumWelchTraining(widths, reset_points,
 									  start_trans, trans, end_trans,
 									  fg_lambda, bg_lambda);
 
-				// Viterbi decoding
+				// Decoding: using either Viterbi or posterior
 				vector<bool> classes;
 				vector<double> scores;
 				if (USE_VITERBI)
-						hmm.ViterbiDecoding(widths, intervals, reset_points,
+						hmm.ViterbiDecoding(widths, reset_points,
 											start_trans, trans, end_trans,
 											fg_lambda, bg_lambda, classes);
 				else 
-						hmm.PosteriorDecoding(widths, intervals, reset_points,
+						hmm.PosteriorDecoding(widths, reset_points,
 											  start_trans, trans, end_trans,
 											  fg_lambda, bg_lambda, classes);
 				
