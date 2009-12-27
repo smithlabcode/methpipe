@@ -245,11 +245,13 @@ main(int argc, const char **argv) {
 				if (USE_VITERBI)
 						hmm.ViterbiDecoding(widths, reset_points,
 											start_trans, trans, end_trans,
-											fg_lambda, bg_lambda, classes);
+											fg_lambda, bg_lambda,
+											classes);
 				else 
 						hmm.PosteriorDecoding(widths, reset_points,
 											  start_trans, trans, end_trans,
-											  fg_lambda, bg_lambda, classes);
+											  fg_lambda, bg_lambda,
+											  classes, scores);
 				
 				// output result
 				std::ostream *out = (outfile.empty()) ? &cout : 
