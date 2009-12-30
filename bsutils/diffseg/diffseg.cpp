@@ -108,11 +108,12 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 						= cpgs.begin() + reset_points[i + 1];
 				vector<GenomicRegion>::const_iterator iter
 						= std::find_if(first, last, is_significant_cpg);
-				while(iter != last)
+				while (iter != last)
 				{
 						sig_cpgs[iter - cpgs.begin()].set_score(1);
 						const GenomicRegion last_sig_cpg = *iter;
-						iter = std::find_if(iter + 1, last, is_significant_cpg);
+						iter = (iter + 1 == last) ?
+								last : std::find_if(iter + 1, last, is_significant_cpg);
 						if (iter != last && iter->same_chrom(last_sig_cpg))
 						{
 								intervals.push_back(
@@ -130,6 +131,39 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 		}
 		reset_points.erase(reset_points.begin() + j, reset_points.end());
 }
+
+void 
+build_domains(const vector<SimpleGenomicRegion> &intervals,
+			  const vector<size_t> &reset_points,
+			  const vector<bool> &classes,
+			  vector<SimpleGenomicRegion> &domains)
+{
+		assert(intervals.size() == classes.size());
+		
+		const bool FG_CLASS = true;
+		const bool BG_CLASS = false;
+		for (size_t i = 0; i < reset_points.size() - 1; ++i)
+		{
+				const vector<bool>::const_iterator first
+						= classes.begin() + reset_points[i];
+				const vector<bool>::const_iterator last
+						= classes.begin() + reset_points[i + 1];
+				vector<bool>::const_iterator iter
+						=  std::find(first, last, FG_CLASS);
+				while (iter != last)
+				{
+						const size_t start_index = iter - classes.begin();
+						iter = (iter + 1 == last) ?
+								last : std::find(iter + 1, last, BG_CLASS);
+						const size_t end_index = iter - classes.begin() - 1;
+						domains.push_back(
+								SimpleGenomicRegion(intervals[start_index].get_chrom(),
+													intervals[start_index].get_start(),
+													intervals[end_index].get_end()));
+						iter = (iter == last) ? last : std::find(iter, last, FG_CLASS);
+				}
+		}
+}					
 
 int
 main(int argc, const char **argv) {
@@ -229,8 +263,8 @@ main(int argc, const char **argv) {
 
 				const double mean_width
 						= std::accumulate(widths.begin(), widths.end(), 0.0) / widths.size();
-				double fg_lambda = 0.25 * mean_width;
-				double bg_lambda = 4 * mean_width;
+				double fg_lambda = 1 / (0.25 * mean_width);
+				double bg_lambda = 1 / (4 * mean_width);
 
 				const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 
@@ -253,11 +287,15 @@ main(int argc, const char **argv) {
 											  fg_lambda, bg_lambda,
 											  classes, scores);
 				
+				// Build domains
+				vector<SimpleGenomicRegion> domains;
+				build_domains(intervals, reset_points, classes, domains); 
+
 				// output result
 				std::ostream *out = (outfile.empty()) ? &cout : 
 						new std::ofstream(outfile.c_str());
-				copy(regions.begin(), regions.end(), 
-					 ostream_iterator<GenomicRegion>(*out, "\n"));
+				copy(domains.begin(), domains.end(), 
+					 ostream_iterator<SimpleGenomicRegion>(*out, "\n"));
 				if (out != &cout) delete out;
 		}
 		catch (RMAPException &e) {
