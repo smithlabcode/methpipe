@@ -24,8 +24,11 @@
 
 #include "rmap_utils.hpp"
 #include <memory>
+#include <vector>
 
-struct betabin;
+using std::vector;
+
+struct geometric;
 
 class TwoStateHMMB {
 public:
@@ -36,68 +39,67 @@ public:
     VERBOSE(v), DEBUG(d) {}
   
   double
-  ViterbiDecoding(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
-		  const std::vector<double> &start_trans, 
-		  const std::vector<std::vector<double> > &trans, 
-		  const std::vector<double> &end_trans, 
-		  const double fg_alpha, const double fg_beta,
-		  const double bg_alpha, const double bg_beta,
-		  std::vector<bool> &ml_classes) const;
+  ViterbiDecoding(const vector<size_t> &widths,
+		  const vector<size_t> &reset_points,
+		  const vector<double> &start_trans, 
+		  const vector<vector<double> > &trans, 
+		  const vector<double> &end_trans, 
+		  const double fg_lambda,
+		  const double bg_lambda,
+		  vector<bool> &ml_classes) const;
   
   
   double
-  BaumWelchTraining(const std::vector<std::pair<double, double> > &values,
-		    const std::vector<size_t> &reset_points,
-		    std::vector<double> &start_trans,
-		    std::vector<std::vector<double> > &trans, 
-		    std::vector<double> &end_trans,
-		    double &fg_alpha, double &fg_beta,
-		    double &bg_alpha, double &bg_beta) const;
+  BaumWelchTraining(const vector<size_t> &widths,
+		    const vector<size_t> &reset_points,
+		    vector<double> &start_trans,
+		    vector<vector<double> > &trans, 
+		    vector<double> &end_trans,
+		    double &fg_lambda, double &bg_lambda) const;
   
   double
-  PosteriorDecoding(const std::vector<std::pair<double, double> > &values,
-		    const std::vector<size_t> &reset_points,
-		    const std::vector<double> &start_trans, 
-		    const std::vector<std::vector<double> > &trans, 
-		    const std::vector<double> &end_trans, 
-		    const double fg_alpha, const double fg_beta,
-		    const double bg_alpha, const double bg_beta,
-		    std::vector<bool> &classes,
-		    std::vector<double> &llr_scores) const;
+  PosteriorDecoding(const vector<size_t> &widths,
+		    const vector<size_t> &reset_points,
+		    const vector<double> &start_trans, 
+		    const vector<vector<double> > &trans, 
+		    const vector<double> &end_trans, 
+		    const double fg_lambda,
+		    const double bg_lambda,
+		    vector<bool> &classes,
+		    vector<double> &llr_scores) const;
   
   void
-  PosteriorScores(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
-		  const std::vector<double> &start_trans, 
-		  const std::vector<std::vector<double> > &trans, 
-		  const std::vector<double> &end_trans, 
-		  const double fg_alpha, const double fg_beta,
-		  const double bg_alpha, const double bg_beta,
-		  const std::vector<bool> &classes,
-		  std::vector<double> &llr_scores) const;
+  PosteriorScores(const vector<size_t> &widths,
+		  const vector<size_t> &reset_points,
+		  const vector<double> &start_trans, 
+		  const vector<vector<double> > &trans, 
+		  const vector<double> &end_trans, 
+		  const double fg_lambda,
+		  const double bg_lambda,
+		  const vector<bool> &classes,
+		  vector<double> &llr_scores) const;
   
   void
-  PosteriorScores(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
-		  const std::vector<double> &start_trans, 
-		  const std::vector<std::vector<double> > &trans, 
-		  const std::vector<double> &end_trans, 
-		  const double fg_alpha, const double fg_beta,
-		  const double bg_alpha, const double bg_beta,
+  PosteriorScores(const vector<size_t > &widths,
+		  const vector<size_t> &reset_points,
+		  const vector<double> &start_trans, 
+		  const vector<vector<double> > &trans, 
+		  const vector<double> &end_trans, 
+		  const double fg_lambda,
+		  const double bg_lambda,
 		  const bool class_id,
-		  std::vector<double> &llr_scores) const;
+		  vector<double> &llr_scores) const;
   
   void
-  TransitionPosteriors(const std::vector<std::pair<double, double> > &values,
-		       const std::vector<size_t> &reset_points,
-		       const std::vector<double> &start_trans, 
-		       const std::vector<std::vector<double> > &trans, 
-		       const std::vector<double> &end_trans, 
-		       const double fg_alpha, const double fg_beta,
-		       const double bg_alpha, const double bg_beta,
+  TransitionPosteriors(const vector<size_t > &widths,
+		       const vector<size_t> &reset_points,
+		       const vector<double> &start_trans, 
+		       const vector<vector<double> > &trans, 
+		       const vector<double> &end_trans, 
+		       const double fg_lambda,
+		       const double bg_lambda,
 		       const size_t transition,
-		       std::vector<double> &scores) const;
+		       vector<double> &scores) const;
   
   std::string
   error_log() const;
@@ -108,124 +110,124 @@ public:
 private:
 
   double
-  ViterbiDecoding(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
+  ViterbiDecoding(const vector<size_t > &widths,
+		  const vector<size_t> &reset_points,
 		  double p_sf, double p_sb,
 		  double p_ff, double p_fb, double p_ft,
 		  double p_bf, double p_bb, double p_bt,
-		  const betabin &fg_distro,
-		  const betabin &bg_distro,
-		  std::vector<bool> &ml_classes) const;
+		  const geometric &fg_distro,
+		  const geometric &bg_distro,
+		  vector<bool> &ml_classes) const;
 
   double
-  BaumWelchTraining(const std::vector<std::pair<double, double> > &values,
-		    const std::vector<size_t> &reset_points,
+  BaumWelchTraining(const vector<size_t > &widths,
+		    const vector<size_t> &reset_points,
 		    double &p_sf, double &p_sb,
 		    double &p_ff, double &p_fb, double &p_ft,
 		    double &p_bf, double &p_bb, double &p_bt,
-		    betabin &fg_distro,
-		    betabin &bg_distro) const;
+		    geometric &fg_distro,
+		    geometric &bg_distro) const;
 
   double
-  PosteriorDecoding(const std::vector<std::pair<double, double> > &values,
-		    const std::vector<size_t> &reset_points,
+  PosteriorDecoding(const vector<size_t > &widths,
+		    const vector<size_t> &reset_points,
 		    double p_sf, double p_sb,
 		    double p_ff, double p_fb, double p_ft,
 		    double p_bf, double p_bb, double p_bt,
-		    const betabin &fg_distro,
-		    const betabin &bg_distro,
-		    std::vector<bool> &classes,
-		    std::vector<double> &llr_scores) const;
+		    const geometric &fg_distro,
+		    const geometric &bg_distro,
+		    vector<bool> &classes,
+		    vector<double> &llr_scores) const;
 
   void
-  PosteriorScores(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
+  PosteriorScores(const vector<size_t > &widths,
+		  const vector<size_t> &reset_points,
 		  double p_sf, double p_sb,
 		  double p_ff, double p_fb, double p_ft,
 		  double p_bf, double p_bb, double p_bt,
-		  const betabin &fg_distro,
-		  const betabin &bg_distro,
-		  const std::vector<bool> &classes,
-		  std::vector<double> &llr_scores) const;
+		  const geometric &fg_distro,
+		  const geometric &bg_distro,
+		  const vector<bool> &classes,
+		  vector<double> &llr_scores) const;
 
   void
-  PosteriorScores(const std::vector<std::pair<double, double> > &values,
-		  const std::vector<size_t> &reset_points,
+  PosteriorScores(const vector<size_t > &widths,
+		  const vector<size_t> &reset_points,
 		  double p_sf, double p_sb,
 		  double p_ff, double p_fb, double p_ft,
 		  double p_bf, double p_bb, double p_bt,
-		  const betabin &fg_distro,
-		  const betabin &bg_distro,
+		  const geometric &fg_distro,
+		  const geometric &bg_distro,
 		  const bool class_id,
-		  std::vector<double> &llr_scores) const;
+		  vector<double> &llr_scores) const;
 
   void
-  TransitionPosteriors(const std::vector<std::pair<double, double> > &values,
-		       const std::vector<size_t> &reset_points,
+  TransitionPosteriors(const vector<size_t > &widths,
+		       const vector<size_t> &reset_points,
 		       double p_sf, double p_sb,
 		       double p_ff, double p_fb, double p_ft,
 		       double p_bf, double p_bb, double p_bt,
-		       const betabin &fg_distro,
-		       const betabin &bg_distro,
+		       const geometric &fg_distro,
+		       const geometric &bg_distro,
 		       const size_t transition,
-		       std::vector<double> &scores) const;
+		       vector<double> &scores) const;
   
   double
-  single_iteration(const std::vector<std::pair<double, double> > &values,
-		   const std::vector<double> &vals_a,
-		   const std::vector<double> &vals_b,
-		   const std::vector<size_t> &reset_points,
-		   std::vector<std::pair<double, double> > &forward,
-		   std::vector<std::pair<double, double> > &backward,
+  single_iteration(const vector<size_t > &widths,
+		   const vector<double> &vals_a,
+		   const vector<double> &vals_b,
+		   const vector<size_t> &reset_points,
+		   vector<std::pair<double, double> > &forward,
+		   vector<std::pair<double, double> > &backward,
 		   double &p_sf, double &p_sb,
 		   double &p_ff, double &p_fb, double &p_ft,
 		   double &p_bf, double &p_bb, double &p_bt,
-		   betabin &fg_distro,
-		   betabin &bg_distro) const;
+		   geometric &fg_distro,
+		   geometric &bg_distro) const;
 
   double 
-  forward_algorithm(const std::vector<std::pair<double, double> > &vals,
+  forward_algorithm(const vector<std::pair<double, double> > &vals,
 		    const size_t start, const size_t end,
 		    const double lp_sf, const double lp_sb,
 		    const double lp_ff, const double lp_fb, const double lp_ft,
 		    const double lp_bf, const double lp_bb, const double lp_bt,
-		    const betabin &fg_distro,
-		    const betabin &bg_distro,
-		    std::vector<std::pair<double, double> > &f) const;
+		    const geometric &fg_distro,
+		    const geometric &bg_distro,
+		    vector<std::pair<double, double> > &f) const;
   double 
-  backward_algorithm(const std::vector<std::pair<double, double> > &vals,
+  backward_algorithm(const vector<std::pair<double, double> > &vals,
 		     const size_t start, const size_t end,
 		     const double lp_sf, const double lp_sb,
 		     const double lp_ff, const double lp_fb, const double lp_ft,
 		     const double lp_bf, const double lp_bb, const double lp_bt,
-		     const betabin &fg_distro,
-		     const betabin &bg_distro,
-		     std::vector<std::pair<double, double> > &b) const;
+		     const geometric &fg_distro,
+		     const geometric &bg_distro,
+		     vector<std::pair<double, double> > &b) const;
 
   double
-  log_sum_log_vec(const std::vector<double> &vals, size_t limit) const;
+  log_sum_log_vec(const vector<double> &vals, size_t limit) const;
   
   void 
-  estimate_emissions(const std::vector<std::pair<double, double> > &f,
-		     const std::vector<std::pair<double, double> > &b,
-		     std::vector<double> &fg_probs,
-		     std::vector<double> &bg_probs) const;
+  estimate_emissions(const vector<std::pair<double, double> > &f,
+		     const vector<std::pair<double, double> > &b,
+		     vector<double> &fg_probs,
+		     vector<double> &bg_probs) const;
   
   void
-  estimate_transitions(const std::vector<std::pair<double, double> > &vals,
+  estimate_transitions(const vector<std::pair<double, double> > &vals,
 		       const size_t start, const size_t end,
-		       const std::vector<std::pair<double, double> > &f,
-		       const std::vector<std::pair<double, double> > &b,
+		       const vector<std::pair<double, double> > &f,
+		       const vector<std::pair<double, double> > &b,
 		       const double total,
-		       const betabin &fg_distro,
-		       const betabin &bg_distro,
+		       const geometric &fg_distro,
+		       const geometric &bg_distro,
 		       const double lp_ff, const double lp_fb,
 		       const double lp_bf, const double lp_bb,
 		       const double lp_ft, const double lp_bt,
-		       std::vector<double> &ff_vals,
-		       std::vector<double> &fb_vals,
-		       std::vector<double> &bf_vals,
-		       std::vector<double> &bb_vals) const;
+		       vector<double> &ff_vals,
+		       vector<double> &fb_vals,
+		       vector<double> &bf_vals,
+		       vector<double> &bb_vals) const;
   
   double
   log_sum_log(const double p, const double q) const;
