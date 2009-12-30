@@ -173,9 +173,7 @@ private:
 		       vector<double> &scores) const;
   
   double
-  single_iteration(const vector<size_t > &widths,
-		   const vector<double> &vals_a,
-		   const vector<double> &vals_b,
+  single_iteration(const vector<size_t > &vals,
 		   const vector<size_t> &reset_points,
 		   vector<std::pair<double, double> > &forward,
 		   vector<std::pair<double, double> > &backward,
@@ -186,7 +184,7 @@ private:
 		   geometric &bg_distro) const;
 
   double 
-  forward_algorithm(const vector<std::pair<double, double> > &vals,
+  forward_algorithm(const vector<size_t > &vals,
 		    const size_t start, const size_t end,
 		    const double lp_sf, const double lp_sb,
 		    const double lp_ff, const double lp_fb, const double lp_ft,
@@ -195,7 +193,7 @@ private:
 		    const geometric &bg_distro,
 		    vector<std::pair<double, double> > &f) const;
   double 
-  backward_algorithm(const vector<std::pair<double, double> > &vals,
+  backward_algorithm(const vector<size_t > &vals,
 		     const size_t start, const size_t end,
 		     const double lp_sf, const double lp_sb,
 		     const double lp_ff, const double lp_fb, const double lp_ft,
@@ -214,7 +212,7 @@ private:
 		     vector<double> &bg_probs) const;
   
   void
-  estimate_transitions(const vector<std::pair<double, double> > &vals,
+  estimate_transitions(const vector<size_t > &vals,
 		       const size_t start, const size_t end,
 		       const vector<std::pair<double, double> > &f,
 		       const vector<std::pair<double, double> > &b,
