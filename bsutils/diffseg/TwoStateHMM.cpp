@@ -26,8 +26,7 @@
 #include <limits>
 #include <cmath>
 
-#include <gsl/gsl_sf_psi.h>
-#include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_log.h>
 
 using std::vector;
 using std::pair;
@@ -44,7 +43,7 @@ struct geometric
 		double prob;
 
 		geometric(const double p) : prob(p) {}
-		operator()(const double &val) const;
+		double operator()(const double &val) const;
 		void fit(const vector<double> &vals,
 				 const vector<double> &p);
 		string tostring() const;
@@ -115,8 +114,8 @@ TwoStateHMMB::forward_algorithm(const vector<size_t > &vals,
 								const double lp_ft,
 								const double lp_bf, const double lp_bb, 
 								const double lp_bt,
-								const betabin &fg_distro,
-								const betabin &bg_distro,
+								const geometric &fg_distro,
+								const geometric &bg_distro,
 								vector<pair<double, double> > &f) const {
 		f[start].first = fg_distro(vals[start]) + lp_sf;
 		f[start].second = bg_distro(vals[start]) + lp_sb;
@@ -132,15 +131,15 @@ TwoStateHMMB::forward_algorithm(const vector<size_t > &vals,
 }
 
 double
-TwoStateHMMB::backward_algorithm(const vector<pair<double, double> > &vals,
+TwoStateHMMB::backward_algorithm(const vector<size_t > &vals,
 								 const size_t start, const size_t end,
 								 const double lp_sf, const double lp_sb,
 								 const double lp_ff, const double lp_fb, 
 								 const double lp_ft,
 								 const double lp_bf, const double lp_bb, 
 								 const double lp_bt,
-								 const betabin &fg_distro,
-								 const betabin &bg_distro,
+								 const geometric &fg_distro,
+								 const geometric &bg_distro,
 								 vector<pair<double, double> > &b) const {
 		b[end - 1].first = lp_ft;
 		b[end - 1].second = lp_bt;
@@ -173,13 +172,13 @@ TwoStateHMMB::estimate_emissions(const vector<pair<double, double> > &f,
 
 
 void
-TwoStateHMMB::estimate_transitions(const vector<pair<double, double> > &vals,
+TwoStateHMMB::estimate_transitions(const vector<size_t > &vals,
 								   const size_t start, const size_t end,
 								   const vector<pair<double, double> > &f,
 								   const vector<pair<double, double> > &b,
 								   const double total,
-								   const betabin &fg_distro,
-								   const betabin &bg_distro,
+								   const geometric &fg_distro,
+								   const geometric &bg_distro,
 								   const double lp_ff, const double lp_fb,
 								   const double lp_bf, const double lp_bb,
 								   const double lp_ft, const double lp_bt,
@@ -323,8 +322,8 @@ TwoStateHMMB::single_iteration(const vector<size_t > &values,
 		vector<double> bg_probs(values.size());
 		estimate_emissions(forward, backward, fg_probs, bg_probs);
   
-		fg_distro.fit(vals, fg_probs);
-		bg_distro.fit(vals, bg_probs);
+		fg_distro.fit(values, fg_probs);
+		bg_distro.fit(values, bg_probs);
   
 		return total_score;
 }
@@ -365,13 +364,13 @@ TwoStateHMMB::BaumWelchTraining(const vector<size_t > &widths,
 
 
 double
-TwoStateHMMB::BaumWelchTraining(const vector<size_t > &widths,
+TwoStateHMMB::BaumWelchTraining(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								double &p_sf, double &p_sb,
 								double &p_ff, double &p_fb, double &p_ft,
 								double &p_bf, double &p_bb, double &p_bt,
-								betabin &fg_distro,
-								betabin &bg_distro) const 
+								geometric &fg_distro,
+								geometric &bg_distro) const 
 {
   
 		vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
@@ -445,18 +444,18 @@ TwoStateHMMB::BaumWelchTraining(const vector<size_t > &widths,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  const vector<double> &start_trans,
 							  const vector<vector<double> > &trans, 
 							  const vector<double> &end_trans,
-							  const double fg_alpha, const double fg_beta,
-							  const double bg_alpha, const double bg_beta,
+							  const double fg_lambda,
+							  const double bg_lambda,
 							  const vector<bool> &classes,
 							  vector<double> &llr_scores) const {
 
-		const betabin fg_distro(fg_alpha, fg_beta);
-		const betabin bg_distro(bg_alpha, bg_beta);
+		const geometric fg_distro(fg_lambda);
+		const geometric bg_distro(bg_lambda);
 
 		assert(start_trans.size() >= 2);
 		assert(end_trans.size() >= 2);
@@ -474,13 +473,13 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  double p_sf, double p_sb,
 							  double p_ff, double p_fb, double p_ft,
 							  double p_bf, double p_bb, double p_bt,
-							  const betabin &fg_distro,
-							  const betabin &bg_distro,
+							  const geometric &fg_distro,
+							  const geometric &bg_distro,
 							  const vector<bool> &classes,
 							  vector<double> &llr_scores) const {
 
@@ -542,18 +541,18 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  const vector<double> &start_trans,
 							  const vector<vector<double> > &trans, 
 							  const vector<double> &end_trans,
-							  const double fg_alpha, const double fg_beta,
-							  const double bg_alpha, const double bg_beta,
+							  const double fg_lambda,
+							  const double bg_lambda,
 							  const bool fg_class,
 							  vector<double> &llr_scores) const {
   
-		const betabin fg_distro(fg_alpha, fg_beta);
-		const betabin bg_distro(bg_alpha, bg_beta);
+		const geometric fg_distro(fg_lambda);
+		const geometric bg_distro(bg_lambda);
 
 
 		assert(start_trans.size() >= 2);
@@ -573,13 +572,13 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  double p_sf, double p_sb,
 							  double p_ff, double p_fb, double p_ft,
 							  double p_bf, double p_bb, double p_bt,
-							  const betabin &fg_distro,
-							  const betabin &bg_distro,
+							  const geometric &fg_distro,
+							  const geometric &bg_distro,
 							  const bool fg_class,
 							  vector<double> &llr_scores) const {
   
@@ -640,18 +639,18 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
 
 
 void
-TwoStateHMMB::TransitionPosteriors(const vector<pair<double, double> > &values,
+TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
 								   const vector<size_t> &reset_points,
 								   const vector<double> &start_trans,
 								   const vector<vector<double> > &trans, 
 								   const vector<double> &end_trans,
-								   const double fg_alpha, const double fg_beta,
-								   const double bg_alpha, const double bg_beta,
+								   const double fg_lambda,
+								   const double bg_lambda,
 								   const size_t transition,
 								   vector<double> &llr_scores) const {
   
-		const betabin fg_distro(fg_alpha, fg_beta);
-		const betabin bg_distro(bg_alpha, bg_beta);
+		const geometric fg_distro(fg_lambda);
+		const geometric bg_distro(bg_lambda);
 
 		assert(start_trans.size() >= 2);
 		assert(end_trans.size() >= 2);
@@ -668,13 +667,13 @@ TwoStateHMMB::TransitionPosteriors(const vector<pair<double, double> > &values,
 
 
 void
-TwoStateHMMB::TransitionPosteriors(const vector<pair<double, double> > &values,
+TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
 								   const vector<size_t> &reset_points,
 								   double p_sf, double p_sb,
 								   double p_ff, double p_fb, double p_ft,
 								   double p_bf, double p_bb, double p_bt,
-								   const betabin &fg_distro,
-								   const betabin &bg_distro,
+								   const geometric &fg_distro,
+								   const geometric &bg_distro,
 								   const size_t transition,
 								   vector<double> &scores) const {
   
@@ -753,19 +752,19 @@ TwoStateHMMB::TransitionPosteriors(const vector<pair<double, double> > &values,
 
 
 double
-TwoStateHMMB::PosteriorDecoding(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								const vector<double> &start_trans,
 								const vector<vector<double> > &trans, 
 								const vector<double> &end_trans,
-								const double fg_alpha, const double fg_beta,
-								const double bg_alpha, const double bg_beta,
+								const double fg_lambda,
+								const double bg_lambda,
 								vector<bool> &classes,
 								vector<double> &llr_scores) const {
 
   
-		const betabin fg_distro(fg_alpha, fg_beta);
-		const betabin bg_distro(bg_alpha, bg_beta);
+		const geometric fg_distro(fg_lambda);
+		const geometric bg_distro(bg_lambda);
 
 		assert(start_trans.size() >= 2);
 		assert(end_trans.size() >= 2);
@@ -782,13 +781,13 @@ TwoStateHMMB::PosteriorDecoding(const vector<pair<double, double> > &values,
 
 
 double
-TwoStateHMMB::PosteriorDecoding(const vector<pair<double, double> > &values,
+TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								double p_sf, double p_sb,
 								double p_ff, double p_fb, double p_ft,
 								double p_bf, double p_bb, double p_bt,
-								const betabin &fg_distro,
-								const betabin &bg_distro,
+								const geometric &fg_distro,
+								const geometric &bg_distro,
 								vector<bool> &classes,
 								vector<double> &llr_scores) const {
   
