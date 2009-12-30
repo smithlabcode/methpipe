@@ -44,7 +44,7 @@ struct geometric
 
 		geometric(const double p) : prob(p) {}
 		double operator()(const double &val) const;
-		void fit(const vector<double> &vals,
+		void fit(const vector<size_t> &vals,
 				 const vector<double> &p);
 		string tostring() const;
 };
@@ -54,7 +54,7 @@ geometric::tostring() const
 {
 		std::ostringstream os;
 		os << setprecision(4) << prob;
-		os.str();
+		return os.str();
 }
 
 double 
@@ -64,7 +64,7 @@ geometric::operator()(const double &val) const
 }
 
 void
-geometric::fit(const vector<double> &vals, const vector<double> &p) 
+geometric::fit(const vector<size_t> &vals, const vector<double> &p) 
 {
 		const double p_total = std::accumulate(p.begin(), p.end(), 0.0);
 		const double val_total = inner_product(vals.begin(), vals.end(), 
@@ -78,7 +78,7 @@ geometric::fit(const vector<double> &vals, const vector<double> &p)
 /***********************/
 
 inline double
-TwoStateHMMB::log_sum_log(const double p, const double q) const {
+TwoStateHMM::log_sum_log(const double p, const double q) const {
 		if (p == 0) {return q;}
 		else if (q == 0) {return p;}
 		const double larger = (p > q) ? p : q;
@@ -88,7 +88,7 @@ TwoStateHMMB::log_sum_log(const double p, const double q) const {
 
 
 double
-TwoStateHMMB::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
+TwoStateHMM::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
 		const vector<double>::const_iterator x = 
 				std::max_element(vals.begin(), vals.begin() + limit);
 		const double max_val = *x;
@@ -107,7 +107,7 @@ TwoStateHMMB::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
 
 
 double
-TwoStateHMMB::forward_algorithm(const vector<size_t > &vals,
+TwoStateHMM::forward_algorithm(const vector<size_t > &vals,
 								const size_t start, const size_t end,
 								const double lp_sf, const double lp_sb,
 								const double lp_ff, const double lp_fb, 
@@ -131,7 +131,7 @@ TwoStateHMMB::forward_algorithm(const vector<size_t > &vals,
 }
 
 double
-TwoStateHMMB::backward_algorithm(const vector<size_t > &vals,
+TwoStateHMM::backward_algorithm(const vector<size_t > &vals,
 								 const size_t start, const size_t end,
 								 const double lp_sf, const double lp_sb,
 								 const double lp_ff, const double lp_fb, 
@@ -156,7 +156,7 @@ TwoStateHMMB::backward_algorithm(const vector<size_t > &vals,
 
 
 void
-TwoStateHMMB::estimate_emissions(const vector<pair<double, double> > &f,
+TwoStateHMM::estimate_emissions(const vector<pair<double, double> > &f,
 								 const vector<pair<double, double> > &b,
 								 vector<double> &fg_probs,
 								 vector<double> &bg_probs) const {
@@ -172,7 +172,7 @@ TwoStateHMMB::estimate_emissions(const vector<pair<double, double> > &f,
 
 
 void
-TwoStateHMMB::estimate_transitions(const vector<size_t > &vals,
+TwoStateHMM::estimate_transitions(const vector<size_t > &vals,
 								   const size_t start, const size_t end,
 								   const vector<pair<double, double> > &f,
 								   const vector<pair<double, double> > &b,
@@ -206,7 +206,7 @@ TwoStateHMMB::estimate_transitions(const vector<size_t > &vals,
 
 
 double
-TwoStateHMMB::single_iteration(const vector<size_t > &values,
+TwoStateHMM::single_iteration(const vector<size_t > &values,
 							   const vector<size_t> &reset_points,
 							   vector<pair<double, double> > &forward,
 							   vector<pair<double, double> > &backward,
@@ -331,7 +331,7 @@ TwoStateHMMB::single_iteration(const vector<size_t > &values,
 
 
 double
-TwoStateHMMB::BaumWelchTraining(const vector<size_t > &widths,
+TwoStateHMM::BaumWelchTraining(const vector<size_t > &widths,
 								const std::vector<size_t> &reset_points,
 								vector<double> &start_trans,
 								vector<vector<double> > &trans, 
@@ -364,7 +364,7 @@ TwoStateHMMB::BaumWelchTraining(const vector<size_t > &widths,
 
 
 double
-TwoStateHMMB::BaumWelchTraining(const vector<size_t > &values,
+TwoStateHMM::BaumWelchTraining(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								double &p_sf, double &p_sb,
 								double &p_ff, double &p_fb, double &p_ft,
@@ -444,7 +444,7 @@ TwoStateHMMB::BaumWelchTraining(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
+TwoStateHMM::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  const vector<double> &start_trans,
 							  const vector<vector<double> > &trans, 
@@ -473,7 +473,7 @@ TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
+TwoStateHMM::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  double p_sf, double p_sb,
 							  double p_ff, double p_fb, double p_ft,
@@ -541,7 +541,7 @@ TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
+TwoStateHMM::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  const vector<double> &start_trans,
 							  const vector<vector<double> > &trans, 
@@ -572,7 +572,7 @@ TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
+TwoStateHMM::PosteriorScores(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  double p_sf, double p_sb,
 							  double p_ff, double p_fb, double p_ft,
@@ -639,7 +639,7 @@ TwoStateHMMB::PosteriorScores(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
+TwoStateHMM::TransitionPosteriors(const vector<size_t > &values,
 								   const vector<size_t> &reset_points,
 								   const vector<double> &start_trans,
 								   const vector<vector<double> > &trans, 
@@ -667,7 +667,7 @@ TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
 
 
 void
-TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
+TwoStateHMM::TransitionPosteriors(const vector<size_t > &values,
 								   const vector<size_t> &reset_points,
 								   double p_sf, double p_sb,
 								   double p_ff, double p_fb, double p_ft,
@@ -752,7 +752,7 @@ TwoStateHMMB::TransitionPosteriors(const vector<size_t > &values,
 
 
 double
-TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
+TwoStateHMM::PosteriorDecoding(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								const vector<double> &start_trans,
 								const vector<vector<double> > &trans, 
@@ -781,7 +781,7 @@ TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
 
 
 double
-TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
+TwoStateHMM::PosteriorDecoding(const vector<size_t > &values,
 								const vector<size_t> &reset_points,
 								double p_sf, double p_sb,
 								double p_ff, double p_fb, double p_ft,
@@ -856,7 +856,7 @@ TwoStateHMMB::PosteriorDecoding(const vector<size_t > &values,
 
 
 double
-TwoStateHMMB::ViterbiDecoding(const vector<size_t > &values,
+TwoStateHMM::ViterbiDecoding(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  const vector<double> &start_trans,
 							  const vector<vector<double> > &trans, 
@@ -883,7 +883,7 @@ TwoStateHMMB::ViterbiDecoding(const vector<size_t > &values,
 
 
 double
-TwoStateHMMB::ViterbiDecoding(const vector<size_t > &values,
+TwoStateHMM::ViterbiDecoding(const vector<size_t > &values,
 							  const vector<size_t> &reset_points,
 							  double p_sf, double p_sb,
 							  double p_ff, double p_fb, double p_ft,

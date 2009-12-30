@@ -30,10 +30,10 @@ using std::vector;
 
 struct geometric;
 
-class TwoStateHMMB {
+class TwoStateHMM {
 public:
   
-  TwoStateHMMB(const double mp, const double tol,
+  TwoStateHMM(const double mp, const double tol,
 	       const size_t max_itr, const bool v, bool d = false) : 
     MIN_PROB(mp), tolerance(tol), max_iterations(max_itr),    
     VERBOSE(v), DEBUG(d) {}

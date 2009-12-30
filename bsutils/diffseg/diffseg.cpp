@@ -12,14 +12,11 @@
 #include "rmap_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
-#include "StringTool"
 
-#include "FileIterator.hpp"
-
-#include <gsl/gsl_sf_gamma.h>
-
+#include "TwoStateHMM.hpp"
 
 #include <algorithm>
+#include <numeric>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -35,14 +32,13 @@ using std::numeric_limits;
 using std::ostream_iterator;
 using std::ofstream;
 
-// get reads number from CpG name which is in the form CpG:integer
-int
-get_reads_num(const string &name)
-{
-		return atoi(name.substr(name.find(':') + 1));
-}
 
 // seperate CpGs by chromosome and remove deserts
+
+size_t get_reads_num(const string &name)
+{
+		return atoi(name.substr(name.find(':') + 1).c_str());
+}
 
 void
 seperate_regions(vector<GenomicRegion> &cpgs,
@@ -74,14 +70,14 @@ class pred_significant_cpg
 		bool LOWER_TAIL;
 		bool UPPER_TAIL;
 public:
-		pred_significant_cpg(double c, short si) :
-				crit(c), LOWER_TAIL(si & 1), UPPER_TAIL(si & 2) {}
+		pred_significant_cpg(double c, int TAIL_MARKER) :
+				crit(c), LOWER_TAIL(TAIL_MARKER & 1), UPPER_TAIL(TAIL_MARKER & 2) {}
 		inline bool operator() (const GenomicRegion &cpg)
 		{
 				return (LOWER_TAIL && cpg.get_score() < crit) ||
 						(UPPER_TAIL && cpg.get_score() > 1 - crit);
 		}
-}
+};
 
 void
 get_intervals(const vector<GenomicRegion> &cpgs,
@@ -89,7 +85,7 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 			  vector<GenomicRegion> &sig_cpgs,
 			  vector<SimpleGenomicRegion> &intervals,
 			  const double crit,
-			  const short TAIL_MARKER)
+			  const int TAIL_MARKER)
 {
 		for (size_t i = 0; i < sig_cpgs.size(); i++)
 				sig_cpgs[i].set_score(0);
@@ -172,17 +168,16 @@ main(int argc, const char **argv) {
 
 				string outfile;
 				double crit = 0.05;
-				short TAIL_MARKER = 1;
-				size_t deserts = 2000;
+				int TAIL_MARKER = 1;
+				size_t desert_size = 2000;
 
 				// mode for HMM
 				bool USE_VITERBI = false;
-				bool VERBOSE = false;
-				bool BROWSER = false;
 				
 				// corrections for small values (not parameters):
 				double tolerance = 1e-10;
 				double min_prob  = 1e-10;
+				size_t max_iterations = 10;
 
 				bool VERBOSE = false;
 
@@ -198,13 +193,18 @@ main(int argc, const char **argv) {
 				opt_parse.add_opt("crit", 'c', "critical value (default: 0.05)", 
 								  false, crit);
 				opt_parse.add_opt("tail", 't',
-								  "use which tail to determine signif.\n" + 
-								  "1: LOWER TAIL; 2: UPPER_TAIL; 3: BOTH",
+								  "use which tail to determine signif.\n 1: LOWER TAIL; 2: UPPER_TAIL; 3: BOTH",
 								  false, TAIL_MARKER);
 				opt_parse.add_opt("out", 'o', "output file (BED format)", 
 								  false, outfile);
+				opt_parse.add_opt("desert", 'd', "size of desert",
+								  false, desert_size);
 				opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
 								  false , BUFFER_SIZE);
+				opt_parse.add_opt("iteration", 'i',  "Max number of iteration for EM training (defualt 10)",
+								  false, max_iterations);
+				opt_parse.add_opt("viterbi", 'V', "useing viterbi decoding",
+								  false, USE_VITERBI);
 				opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
 				vector<string> leftover_args;
 				opt_parse.parse(argc, argv, leftover_args);
@@ -246,7 +246,7 @@ main(int argc, const char **argv) {
 				vector<SimpleGenomicRegion> intervals;
 				vector<size_t> widths(intervals.size());
 				if (VERBOSE)
-						cerr << "[Discretizing p-values ...]"
+						cerr << "[Discretizing p-values ...]";
 				get_intervals(cpgs, reset_points, sig_cpgs, intervals, crit, TAIL_MARKER);
 				for (size_t i = 0; i < intervals.size(); ++i)
 						widths[i] = intervals[i].get_width();
