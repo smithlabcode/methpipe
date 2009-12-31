@@ -92,8 +92,8 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 		const pred_significant_cpg is_significant_cpg(crit, TAIL_MARKER);		
 
 		// deal with the end of CpG sequence
-		reset_points.push_back(cpgs.begin() - cpgs.end());
-		
+		reset_points.push_back(cpgs.size());
+
 		size_t j = 0;			// counter for reset_points of intervals
 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
 		{
@@ -104,6 +104,7 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 						= cpgs.begin() + reset_points[i + 1];
 				vector<GenomicRegion>::const_iterator iter
 						= std::find_if(first, last, is_significant_cpg);
+				
 				while (iter != last)
 				{
 						sig_cpgs[iter - cpgs.begin()].set_score(1);
@@ -125,7 +126,9 @@ get_intervals(const vector<GenomicRegion> &cpgs,
 						}
 				}
 		}
+
 		reset_points.erase(reset_points.begin() + j, reset_points.end());
+		reset_points.push_back(intervals.size());
 }
 
 void 
@@ -229,29 +232,33 @@ main(int argc, const char **argv) {
 				/****************** END COMMAND LINE OPTIONS *****************/
 
 				if (VERBOSE)
-						cerr << "[READING CPGS]";
+						cerr << "Reading CpG file ... ";
 				vector<GenomicRegion> cpgs;
 				ReadBEDFile(cpgs_file, cpgs);
 				if (!check_sorted(cpgs))
 						throw RMAPException("file not sorted: \"" + cpgs_file + "\"");
 				if (VERBOSE)
-						cerr << "[DONE]" << endl;
+						cerr << "done" << endl;
 
 				// seperate regions by chromosome and remove deserts
+				if (VERBOSE)
+						cerr << "Seperating regions ... ";
 				vector<size_t> reset_points;
 				seperate_regions(cpgs, reset_points, desert_size);
+				if (VERBOSE)
+						cerr << "done" << endl;
 
 				// discretize p-values and get intervals
 				vector<GenomicRegion> sig_cpgs(cpgs);
 				vector<SimpleGenomicRegion> intervals;
-				vector<size_t> widths(intervals.size());
 				if (VERBOSE)
-						cerr << "[Discretizing p-values ...]";
+						cerr << "Discretizing p-values ... ";
 				get_intervals(cpgs, reset_points, sig_cpgs, intervals, crit, TAIL_MARKER);
+				vector<size_t> widths(intervals.size());
 				for (size_t i = 0; i < intervals.size(); ++i)
 						widths[i] = intervals[i].get_width();
 				if (VERBOSE)
-						cerr << "[done]" << endl;
+						cerr << "done" << endl;
 
 				
 				/******************  HMM *************************************/
@@ -269,11 +276,17 @@ main(int argc, const char **argv) {
 				const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 
 				// EM training
+				if (VERBOSE)
+						cerr << "HMM: Baum-Welch Training ... ";
 				hmm.BaumWelchTraining(widths, reset_points,
 									  start_trans, trans, end_trans,
 									  fg_lambda, bg_lambda);
+				if (VERBOSE)
+						cerr << "done" << endl;
 
 				// Decoding: using either Viterbi or posterior
+				if (VERBOSE)
+						cerr << "HMM: Decoding ... ";
 				vector<bool> classes;
 				vector<double> scores;
 				if (USE_VITERBI)
@@ -286,17 +299,34 @@ main(int argc, const char **argv) {
 											  start_trans, trans, end_trans,
 											  fg_lambda, bg_lambda,
 											  classes, scores);
+				if (VERBOSE)
+						cerr << "done" << endl;
 				
 				// Build domains
+				if (VERBOSE)
+						cerr << "HMM: clustering segnificant intervals ... ";
 				vector<SimpleGenomicRegion> domains;
 				build_domains(intervals, reset_points, classes, domains); 
+				const size_t LOWER_DOMAIN_CUTOFF = 500;
+				vector<SimpleGenomicRegion> domains_selected;
+				for (size_t i = 0; i < domains.size(); ++i)
+						if (domains[i].get_width() > LOWER_DOMAIN_CUTOFF)
+								domains_selected.push_back(domains[i]);
+				
+				if (VERBOSE)
+						cerr << "done" << endl;
 
+				
 				// output result
+				if (VERBOSE)
+						cerr << "HMM: output result ... ";
 				std::ostream *out = (outfile.empty()) ? &cout : 
 						new std::ofstream(outfile.c_str());
-				copy(domains.begin(), domains.end(), 
+				copy(domains_selected.begin(), domains_selected.end(), 
 					 ostream_iterator<SimpleGenomicRegion>(*out, "\n"));
 				if (out != &cout) delete out;
+				if (VERBOSE)
+						cerr << "done" << endl;
 		}
 		catch (RMAPException &e) {
 				cerr << "ERROR:\t" << e.what() << endl;
