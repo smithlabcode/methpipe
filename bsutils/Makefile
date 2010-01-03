@@ -23,7 +23,7 @@ PROGS = cpgcaller cpgcaller2 \
 	coverage  coverage2  \
 	sortreads cpgsmoother \
 	methdiff  mergelanes \
-	dmrfinder \
+	dmrfinder  dmr\
 	allelic
 
 LIBS = -lgsl -lgslcblas
@@ -60,7 +60,7 @@ all:	$(PROGS)
 cpgcaller cpgcaller2 cgicaller cgicaller2 \
 bsrate bsrate2 coverage coverage2 methdiff \
 sortreads cpgsmoother methcounts mergelanes \
-dmrfinder : \
+dmrfinder dmr: \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 
