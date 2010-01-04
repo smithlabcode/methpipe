@@ -146,7 +146,7 @@ seek_dmrs(const vector<GenomicRegion>::const_iterator &first,
 		  const double crit,
 		  const int TAIL_MARKER)
 {
-		if (last - first < min_width) return; // range length is smaller than minimum width
+		if (static_cast<size_t>(last - first) < min_width) return; // range length is smaller than minimum width
 
 		const size_t seed_size = 5;
 		
@@ -158,7 +158,7 @@ seek_dmrs(const vector<GenomicRegion>::const_iterator &first,
 				= std::find_if(first, last, is_significant_cpg);
 		vector<GenomicRegion>::const_iterator seed_right
 				= std::find_if(seed_left, last, non_significant_cpg);
-		while ((seed_left != last) && (seed_right - seed_left < seed_size))
+		while ((seed_left != last) && (static_cast<size_t>(seed_right - seed_left) < seed_size))
 		{
 				seed_left = std::find_if(seed_right, last, is_significant_cpg);
 				seed_right = std::find_if(seed_left, last, non_significant_cpg);
@@ -208,7 +208,7 @@ seek_dmrs(const vector<GenomicRegion>::const_iterator &first,
 					 i < seed_right + 1;
 					 ++i)
 						score += i->get_score();
-				region.set_score(score / ((seed_right - seed_left) + 1));
+				region.set_score(static_cast<int>(score * 1000 / ((seed_right - seed_left) + 1)));
 				dmrs.push_back(region);
 		}
 		
