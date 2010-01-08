@@ -93,7 +93,7 @@ build_domains(const vector<GenomicRegion> &cpgs,
 			  const vector<bool> &classes,
 			  vector<GenomicRegion> &domains)
 {
-		assert(intervals.size() == classes.size());
+		assert(cpg.size() == classes.size());
 		
 		const size_t STATE_DMR_LOWER = 0;
 		const size_t STATE_NON_DMR = 1;

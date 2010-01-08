@@ -123,7 +123,7 @@ public:
 							 const vector<double> &start_trans, 
 							 const vector<vector<double> > &trans, 
 							 const vector<double> &end_trans, 
-							 const vector<double> &distros,
+							 const vector<distro_type> &distros,
 							 const size_t state_first,
 							 const size_t state_second,
 							 vector<double> &scores) const;
@@ -200,11 +200,11 @@ private:
 		single_iteration(const vector<double> &values,
 						 const vector<size_t> &reset_points,
 						 vector< vector<double> > &forward,
-						 vector< vector<double> > &backwar,
+						 vector< vector<double> > &backward,
 						 vector<double> &start_trans_est,
 						 vector< vector<double> > &trans_est,
 						 vector<double> &end_trans_est,
-						 vector<distro_type> &distros);
+						 vector<distro_type> &distros) const;
 
 // 		double 
 // 		forward_algorithm(const vector<size_t > &vals,

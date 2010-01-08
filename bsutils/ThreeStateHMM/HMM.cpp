@@ -574,7 +574,7 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 					 << endl;
 		}
   
-		double prev_total = -std::numeric_limits<double>::max();
+		double prev_total = - std::numeric_limits<double>::max();
 
 		for (size_t i = 0; i < max_iterations; ++i)
 		{
@@ -597,7 +597,7 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 							 <<	prev_total << "\t"
 								(total - prev_total)/std::fabs(total) << " | ";
 						for (size_t i = 0; i < distros.size(); ++i)
-								cerr << distros[i] << "\t";
+								cerr << distros[i].tostring() << "\t";
 						cerr << "| ";
 						for (size_t i = 0; i < trans.size(); ++i)
 								cerr << 1 /  trans[i][i] << "\t";
@@ -851,7 +851,7 @@ HMM::TransitionPosteriors(const vector<value_type> &values,
 						  const vector<double> &start_trans, 
 						  const vector<vector<double> > &trans, 
 						  const vector<double> &end_trans, 
-						  const vector<double> &distros,
+						  const vector<distro_type> &distros,
 						  const size_t state_first,
 						  const size_t state_second,
 						  vector<double> &scores) const
@@ -890,7 +890,7 @@ HMM::TransitionPosteriors(const vector<value_type> &values,
 // 			   finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
 
 		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
-		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
+		vector< vector<double>  > backward(values.size(), vector<double>(distros.size(), 0));
   
 		for (size_t i = 0; i < reset_points.size() - 1; ++i) {
 				const double score = forward_algorithm(values, 
@@ -951,18 +951,18 @@ HMM::TransitionPosteriors(const vector<value_type> &values,
 						double denom = 0;
 						double numerator = 0;
 						
-						for (size_t j = 0; i < distros.size(); ++i)
+						for (size_t j = 0; j < distros.size(); ++j)
 						{
-								const log_emission_prob = distros[j](values[i]);
+								const double log_emission_prob = distros[j](values[i]);
 								for (size_t k = 0; k < distros.size(); ++k)
 								{
-										const sts = forward[i - 1][k]
+										const double sts = forward[i - 1][k]
 												+ log_trans[k][j]
 												+ log_emission_prob
 												+ backward[i][j];
 										denom = log_sum_log(denom, sts);
 										
-										if (k == state_first && j = state_second)
+										if (k == state_first && j == state_second)
 												numerator = sts;
 								}
 						}
@@ -1056,7 +1056,7 @@ HMM::PosteriorDecoding(const vector<value_type> &values,
 // 		vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
 
 		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
-		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
+		vector< vector<double>  > backward (values.size(), vector<double>(distros.size(), 0));
 
 
 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
@@ -1092,15 +1092,17 @@ HMM::PosteriorDecoding(const vector<value_type> &values,
 		for (size_t i = 0; i < values.size(); ++i)
 		{
 				vector<double> state_posteriors(distros.size());
-				std::transform(forward[i].begin(), forward[i].end(),
-							   backward[i].begin(),
-							   state_posteriors.begin(),
-							   op_sum);
+//				std::transform(forward[i].begin(), forward[i].end(),
+//							   backward[i].begin(),
+//							   state_posteriors.begin(),
+//							   op_sum);
+				for (size_t j = 0; j < distros.size(); ++j)
+						state_posteriors[j] = forward[i][j] + backward[i][j]; 
 
 				classes[i] = static_cast<state_type>(std::max_element(state_posteriors.begin(),
 																	  state_posteriors.end())
 													 - state_posteriors.begin());
-				consu double sum = log_sum_log_vec(state_posteriors, state_posteriors.size());
+				const double sum = log_sum_log_vec(state_posteriors, state_posteriors.size());
 				llr_scores[i] = exp(state_posteriors[classes[i]] - sum);
 				
 // 				const double fg_state = forward[i].first + backward[i].first;
@@ -1153,7 +1155,7 @@ HMM::ViterbiDecoding(const vector<value_type> &values,
 					 const vector<double> &start_trans,
 					 const vector< vector<double> > &trans,
 					 const vector<double> &end_trans,
-					 const vector<distro_type> &distros
+					 const vector<distro_type> &distros,
 					 vector<state_type> &ml_classes) const 
 {
 // 		const double lp_sf = log(p_sf);
@@ -1206,11 +1208,11 @@ HMM::ViterbiDecoding(const vector<value_type> &values,
 						for (size_t k = 0; k < distros.size(); ++k)
 						{
 								// dynamic programming
-								double max_prob = - numeric_limits<double>::max();
-								for (size_t state_prev = 0; state_prev = distros.size(); ++state)
+								double max_prob = - std::numeric_limits<double>::max();
+								for (size_t state_prev = 0; state_prev < distros.size(); ++state_prev)
 								{
-										const log_trans_prob
-												= delta[j - 1][state_prev] + log_trans_prob[state_prev][k];
+										const double log_trans_prob
+												= delta[j - 1][state_prev] + log_trans[state_prev][k];
 										if (log_trans_prob > max_prob)
 										{
 												max_prob = log_trans_prob;
@@ -1233,9 +1235,9 @@ HMM::ViterbiDecoding(const vector<value_type> &values,
 				vector<state_type> inner_ml_classes;
 					 
 				// do the traceback
-				size_t opt_state = static_cast<size_t>(std::max_element(delta[j].begin(),
-																		delta.[j].end())
-													   - delta.[j].begin());
+				size_t opt_state = static_cast<size_t>(std::max_element(delta.back().begin(),
+																		delta.back().end())
+													   - delta.back().begin());
 				inner_ml_classes.push_back(opt_state);
     
 				for (size_t j = trace.size() - 1; j > 0; --j)
@@ -1257,7 +1259,7 @@ HMM::ViterbiDecoding(const vector<value_type> &values,
 				ml_classes.insert(ml_classes.end(), inner_ml_classes.begin(), 
 								  inner_ml_classes.end());
 					 
-				total += *std::max_element(delta.back().begin(), v.back().end());
+				total += *std::max_element(delta.back().begin(), delta.back().end());
 		}
 		return total;
 }
