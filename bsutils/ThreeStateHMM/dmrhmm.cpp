@@ -9,8 +9,6 @@
 #include "rmap_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
-#include "StringTool.hpp"
-
 
 #include "HMM.hpp"
 
@@ -19,7 +17,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
-
 
 using std::string;
 using std::vector;
@@ -90,7 +87,7 @@ public:
 void 
 build_domains(const vector<GenomicRegion> &cpgs,
 			  const vector<size_t> &reset_points,
-			  const vector<bool> &classes,
+			  const vector<state_type> &classes,
 			  vector<GenomicRegion> &domains)
 {
 		assert(cpg.size() == classes.size());
@@ -115,9 +112,9 @@ build_domains(const vector<GenomicRegion> &cpgs,
 						} else {
 								// finish previous domain
 								domain.set_end(cpgs[j - 1].get_end());
-								domain.set_name(StringTool::tostring(cpg_num)
+								domain.set_name(tostring(cpg_num)
 												+ ":"
-												+ StringTool::tostring(total / cpg_num));
+												+ tostring(total / cpg_num));
 								domain.set_score(classes[j - 1]);
 								if (classes[j - 1] == STATE_DMR_UPPER ||
 									classes[j -1] == STATE_DMR_LOWER)
@@ -133,9 +130,9 @@ build_domains(const vector<GenomicRegion> &cpgs,
 
 				// finish final domain
 				domain.set_end(cpgs[j - 1].get_end());
-				domain.set_name(StringTool::tostring(cpg_num)
+				domain.set_name(tostring(cpg_num)
 								+ ":"
-								+ StringTool::tostring(total / cpg_num));
+								+ tostring(total / cpg_num));
 				domain.set_score(classes[j - 1]);
 				if (classes[j - 1] != STATE_NON_DMR)
 						domains.push_back(domain);
@@ -245,7 +242,7 @@ main(int argc, const char **argv) {
 				const size_t STATE_NON_DMR = 1;
 				const size_t STATE_DMR_UPPER = 2;
 
-				vector<double> start_trans(STATE_NUM, 1.0 / STATE_NUM), end_trans(3, 1e-10);
+				vector<double> start_trans(STATE_NUM, 1.0 / STATE_NUM), end_trans(STATE_NUM, 1e-10);
 				vector<vector<double> > trans(STATE_NUM, vector<double>(STATE_NUM, 0.2));
 				trans[0][0] = trans[1][1] = trans[2][2] = 0.6;
 
@@ -299,7 +296,7 @@ main(int argc, const char **argv) {
 						cerr << "HMM: output result ... ";
 				std::ostream *out = (outfile.empty()) ? &cout : 
 						new std::ofstream(outfile.c_str());
-				copy(domains_selected.begin(), domains_selected.end(), 
+				copy(domains.begin(), domains.end(), 
 					 ostream_iterator<SimpleGenomicRegion>(*out, "\n"));
 				if (out != &cout) delete out;
 				if (VERBOSE)
