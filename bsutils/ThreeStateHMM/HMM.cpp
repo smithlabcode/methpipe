@@ -389,7 +389,7 @@ HMM::single_iteration(const vector<double> &values,
 					  vector<double> &start_trans,
 					  vector< vector<double> > &trans,
 					  vector<double> &end_trans,
-					  vector<distro_type> &distros)
+					  vector<distro_type> &distros) const
 {
 // 		vector<double> log_fg_expected;
 // 		vector<double> log_bg_expected;
@@ -420,7 +420,7 @@ HMM::single_iteration(const vector<double> &values,
 				vals(trans.size(),
 					 vector< vector<double> >(trans.size(),
 											  vector<double>(values.size(), 0)));
-		
+		cerr << "check #1" << endl;
 // 		vector<double> ff_vals(values.size(), 0);
 // 		vector<double> fb_vals(values.size(), 0);
 // 		vector<double> bf_vals(values.size(), 0);
@@ -463,6 +463,8 @@ HMM::single_iteration(const vector<double> &values,
 
 				total_score += score;
 		}
+
+		cerr << "check #2" << endl;
 
 		// Subtracting 1 from the limit of the summation because the final
 		// term has no meaning since there is no transition to be counted
@@ -542,6 +544,8 @@ HMM::single_iteration(const vector<double> &values,
 		for (size_t i = 0; i < distros.size(); ++i)
 				distros[i].fit(values, probs[i]);
 		
+		cerr << "check #3" << endl;
+
 		return total_score;
 }
 
@@ -589,13 +593,13 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 												trans_est,
 												end_trans_est,
 												distros);
-    
+   
 				if (VERBOSE)
 				{
 						cerr << i + 1 << " | ";
 						cerr << total << "\t"
 							 <<	prev_total << "\t"
-								(total - prev_total)/std::fabs(total) << " | ";
+							 <<	(total - prev_total)/std::fabs(total) << " | ";
 						for (size_t i = 0; i < distros.size(); ++i)
 								cerr << distros[i].tostring() << "\t";
 						cerr << "| ";
