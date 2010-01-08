@@ -27,6 +27,9 @@
 #include <cmath>
 
 #include <gsl/gsl_sf_log.h>
+#include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_psi.h>
+
 
 using std::vector;
 using std::pair;
@@ -37,8 +40,6 @@ using std::endl;
 using std::string;
 using std::setprecision;
 
-#include "gsl/gsl_sf_lnbeta.h"
-#include "gsl/gsl_sf_log.h"
 
 // struct geometric 
 // {
@@ -74,6 +75,13 @@ using std::setprecision;
 // 		prob = p_total / val_total;
 // }
 
+betadistribution::betadistribution(double a, double b)
+{
+		alpha = a;
+		beta = b;
+		lnbeta_helper = gsl_sf_lnbeta(a, b);
+}
+
 betadistribution& 
 betadistribution::set_alpha(double a)
 {
@@ -90,13 +98,17 @@ betadistribution::set_beta(double b)
 		return *this;
 }
 
-
 double
 betadistribution::operator()(double v) const
 {
 		return (alpha - 1) * gsl_sf_log(v)
 				+ (beta -1 ) * gsl_sf_log(1 - v)
 				- lnbeta_helper;
+}
+
+inline static double 
+sign(double x) {
+  return (x >= 0) ? 1.0 : -1.0;
 }
 
 inline static double
@@ -156,7 +168,7 @@ betadistribution::tostring() const
 /***********************/
 
 inline double
-TwoStateHMM::log_sum_log(const double p, const double q) const {
+HMM::log_sum_log(const double p, const double q) const {
 		if (p == 0) {return q;}
 		else if (q == 0) {return p;}
 		const double larger = (p > q) ? p : q;
@@ -166,7 +178,7 @@ TwoStateHMM::log_sum_log(const double p, const double q) const {
 
 
 double
-TwoStateHMM::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
+HMM::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
 		const vector<double>::const_iterator x = 
 				std::max_element(vals.begin(), vals.begin() + limit);
 		const double max_val = *x;
@@ -206,8 +218,8 @@ HMM::forward_algorithm(const vector<double> &values,
 // 		}
 // 		return log_sum_log(f[end - 1].first + lp_ft, f[end - 1].second + lp_bt);
 
-		for (size_t i = log_start_trans.size(); ++i)
-				f[start][i] = distros[i](values[start]) + log_start_trans[i];
+		for (size_t i = 0; i < distros.size(); ++i)
+				f[start][i] =  log_start_trans[i] + distros[i](values[start]);
 		for (size_t i = start + 1; i <  end; ++i)
 		{
 				const size_t k = i - 1;
@@ -241,7 +253,7 @@ HMM::backward_algorithm(const vector<double> &values,
 						vector< vector<double> > &b) const
 {
 
-		for (size_t i = distros.size(); ++i)
+		for (size_t i = 0; i < distros.size(); ++i)
 				b[end - 1][i] = log_end_trans[i];
 		for (size_t k = end - 1; k >  start; --k)
 		{
@@ -253,7 +265,7 @@ HMM::backward_algorithm(const vector<double> &values,
 						for (size_t ii = 0; ii < distros.size(); ++ii)
 								log_p[ii] = b[k][ii] + distros[ii](values[k]) + log_trans[j][ii];
 						 
-						b[k][j] = log_sum_log_vec(log_p, log_p.size());
+						b[i][j] = log_sum_log_vec(log_p, log_p.size());
 				}
 		}
 
@@ -293,34 +305,30 @@ HMM::backward_algorithm(const vector<double> &values,
 void
 HMM::estimate_emissions(const vector< vector<double> > &forward,
 						const vector< vector<double> > &backward,
-						vector< vector<double> > probs) const
+						vector< vector<double> > &probs) const
 {
 		for (size_t i = 0; i < forward.size(); ++i)
 		{
 				// the log_likelihood of being state j at time i
-				vector<double> log_gamma(probs.size);
-// 				for (size_t j = 0; j < distros.size(); ++j)
-// 						log_gamma[j] = forward[i][j] + backward[i][j];
-				std::transform(forward[i].begin(), forward[i].end(),
-							   backward[i].begin(),
-							   log_gamma.begin(),
-							   op_sum);
+				vector<double> log_gamma(probs.size());
+				for (size_t j = 0; j < probs.size(); ++j)
+						log_gamma[j] = forward[i][j] + backward[i][j];
 
 				const double denom = log_sum_log_vec(log_gamma, log_gamma.size());
 
 				for (size_t j = 0; j < probs.size(); ++j)
-						probs[i][j] = exp(log_gamma[i][j] - denom);
+						probs[i][j] = exp(log_gamma[j] - denom);
 		}
 }
 
 void
 HMM::estimate_transitions(const vector<value_type> &values,
-						  const size_t reset_points[i], 
-						  const size_t reset_points[i + 1],
+						  const size_t start,
+						  const size_t end,
 						  const vector< vector<double> > &forward,
 						  const vector< vector<double> > &backward,
 						  const double total, 
-						  const vector<distros> &distros,
+						  const vector<distro_type> &distros,
 						  const vector< vector<double> > &log_trans,
 						  const vector<double> &log_end_trans,
 						  vector< vector< vector<double> > > &vals) const
@@ -377,12 +385,11 @@ double
 HMM::single_iteration(const vector<double> &values,
 					  const vector<size_t> &reset_points,
 					  vector< vector<double> > &forward,
-					  vector< vector<double> > &backwar,
-					  vector<double> &start_trans_est,
-					  vector< vector<double> > &trans_est,
-					  vector<double> &end_trans_est,
-					  vector<distro_type> &distros);
-
+					  vector< vector<double> > &backward,
+					  vector<double> &start_trans,
+					  vector< vector<double> > &trans,
+					  vector<double> &end_trans,
+					  vector<distro_type> &distros)
 {
 // 		vector<double> log_fg_expected;
 // 		vector<double> log_bg_expected;
@@ -506,7 +513,7 @@ HMM::single_iteration(const vector<double> &values,
 		for (size_t i = 0; i < trans.size(); ++i)
 		{
 				double denom = std::accumulate(trans_new_est[i].begin(),
-											   trans_new_est[j].endl(),
+											   trans_new_est[i].end(),
 											   0.0);
 				for (size_t j = 0; j < trans.size(); ++j)
 				{
@@ -540,22 +547,23 @@ HMM::single_iteration(const vector<double> &values,
 
 
 double
-BaumWelchTraining(const vector<value_type> &values,
+HMM::BaumWelchTraining(const vector<value_type> &values,
 				  const vector<size_t> &reset_points,
 				  vector<double> &start_trans,
 				  vector<vector<double> > &trans, 
 				  vector<double> &end_trans,
-				  vector<distro_type> &distros) const;
+				  vector<distro_type> &distros) const
 {
 		assert(distros.size() >= 2);
 		assert(start_trans.size() == distros.size());
 		assert(end_trans.size() == distros.size());
 		assert(trans.size() == distros.size());
+
 		for (size_t i = 0; i < trans.size(); ++i)
 				assert(trans[i].size() == distros.size());
   
 		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
-		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
+		vector< vector<double>  > backward(values.size(), vector<double>(distros.size(), 0));
   
 		if (VERBOSE)
 		{
@@ -586,7 +594,7 @@ BaumWelchTraining(const vector<value_type> &values,
 				{
 						cerr << i + 1 << " | ";
 						cerr << total << "\t"
-								prev_total << "\t"
+							 <<	prev_total << "\t"
 								(total - prev_total)/std::fabs(total) << " | ";
 						for (size_t i = 0; i < distros.size(); ++i)
 								cerr << distros[i] << "\t";

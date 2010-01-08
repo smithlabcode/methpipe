@@ -49,10 +49,7 @@ all:	$(PROGS)
 %.o: %.cpp %.hpp
 	$(CXX) $(CFLAGS) -c -o $@ $< -I$(COMMON_DIR)
 
-%.o: %.cpp %.hpp
-	$(CXX) $(CFLAGS) -c -o $@ $< 
-
-dmrhmm: TwoStateHMM.o \
+dmrhmm: HMM.o \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o) \	
 	StringTool.o		

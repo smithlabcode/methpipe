@@ -25,23 +25,27 @@
 #include "rmap_utils.hpp"
 #include <memory>
 #include <vector>
+#include <string>
 
 using std::vector;
-
+using std::string;
 
 class betadistribution
 {
 public:
-		betadistribution(double a = 1, double b = 1) :
-				alpha(a), beta(b), lnbeta_helper(gsl_sf_lnbeta(a, b)) {}
+		betadistribution(double a = 1, double b = 1);
 		double operator()(double v) const;
 		void fit(const vector<double> &vals,
 				 const vector<double> &probs);
 
 		double get_alpha() const
+		{
 				return alpha;
+		}
 		double get_beta() const
+		{
 				return beta;
+		}
 		betadistribution& set_alpha(double a);
 		betadistribution& set_beta(double b);
 		
@@ -52,6 +56,7 @@ public:
 private:
 		double alpha, beta;
 		double lnbeta_helper;
+		static const double tolerance = 1e-10;
 };
 
 typedef betadistribution distro_type;
@@ -241,27 +246,43 @@ private:
 						   vector< vector<double> > &b) const;
 
   
-		void 
-		estimate_emissions(const vector<std::pair<double, double> > &f,
-						   const vector<std::pair<double, double> > &b,
-						   vector<double> &fg_probs,
-						   vector<double> &bg_probs) const;
-  
+// 		void 
+// 		estimate_emissions(const vector<std::pair<double, double> > &f,
+// 						   const vector<std::pair<double, double> > &b,
+// 						   vector<double> &fg_probs,
+// 						   vector<double> &bg_probs) const;
 		void
-		estimate_transitions(const vector<size_t > &vals,
-							 const size_t start, const size_t end,
-							 const vector<std::pair<double, double> > &f,
-							 const vector<std::pair<double, double> > &b,
-							 const double total,
-							 const geometric &fg_distro,
-							 const geometric &bg_distro,
-							 const double lp_ff, const double lp_fb,
-							 const double lp_bf, const double lp_bb,
-							 const double lp_ft, const double lp_bt,
-							 vector<double> &ff_vals,
-							 vector<double> &fb_vals,
-							 vector<double> &bf_vals,
-							 vector<double> &bb_vals) const;
+		estimate_emissions(const vector< vector<double> > &forward,
+						   const vector< vector<double> > &backward,
+						   vector< vector<double> > &probs) const;
+  
+// 		void
+// 		estimate_transitions(const vector<size_t > &vals,
+// 							 const size_t start, const size_t end,
+// 							 const vector<std::pair<double, double> > &f,
+// 							 const vector<std::pair<double, double> > &b,
+// 							 const double total,
+// 							 const geometric &fg_distro,
+// 							 const geometric &bg_distro,
+// 							 const double lp_ff, const double lp_fb,
+// 							 const double lp_bf, const double lp_bb,
+// 							 const double lp_ft, const double lp_bt,
+// 							 vector<double> &ff_vals,
+// 							 vector<double> &fb_vals,
+// 							 vector<double> &bf_vals,
+// 							 vector<double> &bb_vals) const;
+
+		void
+		estimate_transitions(const vector<value_type> &values,
+							 const size_t start, 
+							 const size_t end,
+							 const vector< vector<double> > &forward,
+							 const vector< vector<double> > &backward,
+							 const double total, 
+							 const vector<distro_type> &distros,
+							 const vector< vector<double> > &log_trans,
+							 const vector<double> &log_end_trans,
+							 vector< vector< vector<double> > > &vals) const;
   
 		double
 		log_sum_log(const double p, const double q) const;
