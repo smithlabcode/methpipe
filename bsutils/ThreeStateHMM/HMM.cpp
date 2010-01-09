@@ -134,11 +134,12 @@ betadistribution::fit(const vector<double> &vals,
 {
 		const double probs_total = std::accumulate(probs.begin(), probs.end(), 0.0);
 		vector<double> log_vals(vals.size());
-		std::transform(vals.begin(), vals.end(), log_vals.begin(), gsl_sf_log);
+		for (size_t i = 0; i < log_vals.size(); ++i)
+				log_vals[i] = gsl_sf_log(vals[i]);
 		const double alpha_rhs = inner_product(log_vals.begin(), log_vals.end(), 
 											   probs.begin(), 0.0)/probs_total;
 		for (size_t i = 0; i < log_vals.size(); ++i)
-				log_vals[i] = 1 - log_vals[i];
+				log_vals[i] = gsl_sf_log(1 - vals[i]);
 		const double beta_rhs = inner_product(log_vals.begin(), log_vals.end(), 
 											  probs.begin(), 0.0)/probs_total;
 		double prev_alpha = 0.0, prev_beta = 0.0;
@@ -260,7 +261,6 @@ HMM::backward_algorithm(const vector<double> &values,
 				const size_t i = k - 1;
 				for (size_t j = 0; j < distros.size(); ++j)
 				{
-						// each element is like f[k].first + lp_ff
 						vector<double> log_p(distros.size());
 						for (size_t ii = 0; ii < distros.size(); ++ii)
 								log_p[ii] = b[k][ii] + distros[ii](values[k]) + log_trans[j][ii];
@@ -271,7 +271,9 @@ HMM::backward_algorithm(const vector<double> &values,
 
 		vector<double> log_p(distros.size());
 		for (size_t ii = 0; ii < distros.size(); ++ii)
-				log_p[ii] = b[start][ii] + distros[ii](values[start]) + log_start_trans[ii];
+				log_p[ii] = b[start][ii]
+						+ distros[ii](values[start])
+						+ log_start_trans[ii];
 		
 		return log_sum_log_vec(log_p, log_p.size());
 }
@@ -317,7 +319,7 @@ HMM::estimate_emissions(const vector< vector<double> > &forward,
 				const double denom = log_sum_log_vec(log_gamma, log_gamma.size());
 
 				for (size_t j = 0; j < probs.size(); ++j)
-						probs[i][j] = exp(log_gamma[j] - denom);
+						probs[j][i] = exp(log_gamma[j] - denom);
 		}
 }
 
@@ -338,7 +340,7 @@ HMM::estimate_transitions(const vector<value_type> &values,
 				const size_t k = i - 1;
 				for (size_t state_now = 0; state_now < distros.size(); ++state_now)
 						for (size_t state_next = 0; state_next < distros.size(); ++state_next)
-								vals[k][state_now][state_next]
+								vals[state_now][state_next][k]
 										= forward[k][state_now] +
 										log_trans[state_now][state_next] +
 										distros[state_next](values[i]) +
@@ -397,30 +399,46 @@ HMM::single_iteration(const vector<double> &values,
 		double total_score = 0;
   
 		vector<double> log_start_trans(start_trans.size());
-		std::transform(start_trans.begin(),
-					   start_trans.end(),
-					   log_start_trans.begin(),
-					   log);
+		for (size_t i = 0; i < start_trans.size(); ++i)
+		{
+				log_start_trans[i] = gsl_sf_log(start_trans[i]);
+				assert(finite(log_start_trans[i]));
+		}
+// 		std::transform(start_trans.begin(),
+// 					   start_trans.end(),
+// 					   log_start_trans.begin(),
+// 					   log);
 
 		vector< vector<double> > log_trans(trans.size(), vector<double>(trans.size()));
 		for (size_t i = 0; i < trans.size(); ++i)
-				std::transform(trans[i].begin(),
-							   trans[i].end(),
-							   log_trans[i].begin(),
-							   log);
+				for (size_t j = 0; j < trans.size(); ++j)
+				{
+						log_trans[i][j] = gsl_sf_log(trans[i][j]);
+						assert(finite(log_trans[i][j]));
+				}
+
+// 		std::transform(trans[i].begin(),
+// 					   trans[i].end(),
+// 					   log_trans[i].begin(),
+// 					   log);
 
 		vector<double> log_end_trans(end_trans.size());
-		std::transform(end_trans.begin(),
-					   end_trans.end(),
-					   log_end_trans.begin(),
-					   log);
+		for (size_t i = 0; i < end_trans.size(); ++i)
+		{
+				log_end_trans[i] = gsl_sf_log(end_trans[i]);
+				assert(finite(log_end_trans[i]));
+		}
+
+// 		std::transform(end_trans.begin(),
+// 					   end_trans.end(),
+// 					   log_end_trans.begin(),
+// 					   log);
 
 		// for estimating transitions
 		vector< vector< vector<double> > >
 				vals(trans.size(),
 					 vector< vector<double> >(trans.size(),
 											  vector<double>(values.size(), 0)));
-		cerr << "check #1" << endl;
 // 		vector<double> ff_vals(values.size(), 0);
 // 		vector<double> fb_vals(values.size(), 0);
 // 		vector<double> bf_vals(values.size(), 0);
@@ -445,12 +463,12 @@ HMM::single_iteration(const vector<double> &values,
 										   log_end_trans,
 										   distros,
 										   backward);								
-    
-				if (DEBUG && (fabs(score - backward_score)/
+
+				if (VERBOSE && (fabs(score - backward_score)/
 							  max(score, backward_score)) > 1e-10)
 						cerr << "fabs(score - backward_score)/"
 							 << "max(score, backward_score) > 1e-10" << endl;
-    
+
 				estimate_transitions(values,
 									 reset_points[i], 
 									 reset_points[i + 1],
@@ -464,8 +482,6 @@ HMM::single_iteration(const vector<double> &values,
 				total_score += score;
 		}
 
-		cerr << "check #2" << endl;
-
 		// Subtracting 1 from the limit of the summation because the final
 		// term has no meaning since there is no transition to be counted
 		// from the final observation (they all must go to terminal state)
@@ -474,12 +490,11 @@ HMM::single_iteration(const vector<double> &values,
 // 		const double p_bf_new_estimate = exp(log_sum_log_vec(bf_vals, values.size() - 1));
 // 		const double p_bb_new_estimate = exp(log_sum_log_vec(bb_vals, values.size() - 1));
 
-		vector< vector<double> > trans_new_est(trans.size(), vector<double>(trans.size()));
+		vector< vector<double> > trans_new_est(trans.size(), vector<double>(trans.size(), 0.0));
 		for (size_t i = 0; i < trans.size(); ++i)
 				for (size_t j = 0; j < trans.size(); ++j)
 						trans_new_est[i][j] = exp(log_sum_log_vec(vals[i][j], values.size() - 1));
 
-  
 // 		double denom = (p_ff_new_estimate + p_fb_new_estimate);
 // 		p_ff = p_ff_new_estimate/denom - p_ft/2.0;
 // 		p_fb = p_fb_new_estimate/denom - p_ft/2.0;
@@ -529,6 +544,7 @@ HMM::single_iteration(const vector<double> &values,
 						}
 				}
 		}
+
 		
 		// for estimating emissions
 // 		vector<double> fg_probs(values.size());
@@ -538,14 +554,12 @@ HMM::single_iteration(const vector<double> &values,
 // 		fg_distro.fit(values, fg_probs);
 // 		bg_distro.fit(values, bg_probs);
 
-		vector< vector<double> > probs(trans.size(), vector<double>(values.size()) );
+		vector< vector<double> > probs(trans.size(), vector<double>(values.size(), 0.0) );
 		estimate_emissions(forward, backward, probs);
-
+		
 		for (size_t i = 0; i < distros.size(); ++i)
 				distros[i].fit(values, probs[i]);
 		
-		cerr << "check #3" << endl;
-
 		return total_score;
 }
 
@@ -571,9 +585,10 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
   
 		if (VERBOSE)
 		{
-				cerr << "ITR | "
-					 << "DELTA | "
-					 << "PARAMS | "
+				cerr << endl
+					 << "ITR\t"
+					 << "DELTA\t"
+					 << "PARAMS\t"
 					 << "sizes"
 					 << endl;
 		}
@@ -596,15 +611,15 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
    
 				if (VERBOSE)
 				{
-						cerr << i + 1 << " | ";
-						cerr << total << "\t"
-							 <<	prev_total << "\t"
-							 <<	(total - prev_total)/std::fabs(total) << " | ";
+						cerr << i + 1 << "\t";
+						cerr << total << ", "
+							 <<	prev_total << ", "
+							 <<	(total - prev_total)/std::fabs(total) << "\t";
 						for (size_t i = 0; i < distros.size(); ++i)
-								cerr << distros[i].tostring() << "\t";
-						cerr << "| ";
+								cerr << distros[i].tostring() << ", ";
+						cerr << "\t";
 						for (size_t i = 0; i < trans.size(); ++i)
-								cerr << 1 /  trans[i][i] << "\t";
+								cerr << 1 / trans[i][i] << ", ";
 						cerr << endl;
 				}
 
