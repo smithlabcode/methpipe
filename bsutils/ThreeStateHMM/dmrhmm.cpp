@@ -66,6 +66,7 @@ seperate_regions(vector<GenomicRegion> &cpgs,
 				if (dist > desert_size)
 						reset_points.push_back(i);
 		}
+		reset_points.push_back(cpgs.size());
 }
 
 // get significant CpG's and get intervals
@@ -226,8 +227,30 @@ main(int argc, const char **argv) {
 				if (VERBOSE)
 						cerr << "Extracting probabilities ... ";
 				vector<value_type> prob_vals(cpgs.size());
+				const double MIN_METH_PROB = 1e-2;
 				for (size_t i = 0; i < cpgs.size(); ++i)
+				{
 						prob_vals[i] = cpgs[i].get_score();
+						if (prob_vals[i] < MIN_METH_PROB)
+						{
+// 								if (VERBOSE)
+// 										cerr << endl  << cpgs[i] << endl
+// 											 << "Methylation probablity of "
+// 											 << " is smaller than MIN_PROB "
+// 											 << ". Adjusted to MIN_PROB" << endl;
+								prob_vals[i] = MIN_METH_PROB;
+						}
+						if (prob_vals[i] > 1 - MIN_METH_PROB)
+						{
+// 								if (VERBOSE)
+// 										cerr << endl << cpgs[i] << endl
+// 											 << "Methylation probablity of "
+// 											 << " is larger than MAX_PROB "
+// 											 << ". Adjusted to MAX_PROB" << endl;
+								prob_vals[i] = 1 - MIN_METH_PROB;
+						}
+				}
+				
 				if (VERBOSE)
 						cerr << "done" << endl;
 				
@@ -247,9 +270,9 @@ main(int argc, const char **argv) {
 				trans[0][0] = trans[1][1] = trans[2][2] = 0.6;
 
 				vector<distro_type> distros(STATE_NUM);
-				distros[STATE_DMR_LOWER].set_alpha(1).set_beta(20);
+				distros[STATE_DMR_LOWER].set_alpha(2).set_beta(20);
 				distros[STATE_NON_DMR].set_alpha(10).set_beta(10);
-				distros[STATE_DMR_UPPER].set_beta(20).set_beta(1);
+				distros[STATE_DMR_UPPER].set_beta(20).set_beta(2);
 
 				const HMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 				if (VERBOSE)
@@ -284,7 +307,7 @@ main(int argc, const char **argv) {
 				
 				// Build domains
 				if (VERBOSE)
-						cerr << "HMM: clustering segnificant intervals ... ";
+						cerr << "HMM: Clustering segnificant domains ... ";
 				vector<GenomicRegion> domains;
 				build_domains(cpgs, reset_points, classes, domains); 
 				if (VERBOSE)
@@ -297,7 +320,7 @@ main(int argc, const char **argv) {
 				std::ostream *out = (outfile.empty()) ? &cout : 
 						new std::ofstream(outfile.c_str());
 				copy(domains.begin(), domains.end(), 
-					 ostream_iterator<SimpleGenomicRegion>(*out, "\n"));
+					 ostream_iterator<GenomicRegion>(*out, "\n"));
 				if (out != &cout) delete out;
 				if (VERBOSE)
 						cerr << "done" << endl;
