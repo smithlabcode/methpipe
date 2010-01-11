@@ -56,10 +56,12 @@ using std::ofstream;
 
 
 template <class T>
-class FileIterator {
+class FileIterator
+{
 public:
-		FileIterator(const std::string f, const size_t bs);
-		void increment_first() {
+		FileIterator(const std::string &f, const size_t bs);
+		void increment_first()
+		{
 				if (++first == buffer.end()) {
 						refill_buffer();
 				}
@@ -75,7 +77,8 @@ private:
 };
 
 std::istream& 
-operator>>(std::istream &in, GenomicRegion &region){
+operator>>(std::istream &in, GenomicRegion &region)
+{
 		static const size_t buffer_size = 10000; // Magic
 		char buffer[buffer_size];
 		in.getline(buffer, buffer_size);
@@ -87,11 +90,13 @@ operator>>(std::istream &in, GenomicRegion &region){
  */
 void 
 fill_buffer(std::ifstream &in, const size_t buffer_start, 
-			vector<GenomicRegion> &buffer) {
+			vector<GenomicRegion> &buffer)
+{
 		GenomicRegion tmp;
 		size_t i = buffer_start;
 		assert(buffer_start <= buffer.size());
-		for (; i != buffer.size() && !in.eof(); ++i) {
+		for (; i != buffer.size() && !in.eof(); ++i)
+		{
 				in >> tmp;
 				buffer[i].swap(tmp);
 				in.peek();
@@ -145,10 +150,12 @@ operator<<(std::ostream &s, const FASTQRecord &rhs) {
 
 void 
 fill_buffer(std::ifstream &in, const size_t buffer_start, 
-			vector<FASTQRecord> &buffer) {
+			vector<FASTQRecord> &buffer) 
+{
 		string tmp, read_name, read_seq, scores_seq;
 		size_t i = buffer_start;
-		for (; i != buffer.size() && !in.eof(); ++i) {
+		for (; i != buffer.size() && !in.eof(); ++i)
+		{
 				// the read name...
 				in >> read_name; // DANGER: assumes that the name of the read has no
 				// spaces in it!!
@@ -171,21 +178,25 @@ fill_buffer(std::ifstream &in, const size_t buffer_start,
    LAST.
 */
 template <class T> void
-FileIterator<T>::refill_buffer() {
+FileIterator<T>::refill_buffer() 
+{
 		first = buffer.begin();
 		fill_buffer(in, 0, buffer);
 }
 
 template <class T>
-FileIterator<T>::FileIterator(const std::string f, const size_t bs) :
-		buffer(std::vector<T>(bs)) {
+FileIterator<T>::FileIterator(const std::string &f, const size_t bs) :
+		buffer(std::vector<T>(bs)) 
+{
 		in.open(f.c_str());
-		if (!in) throw RMAPException("cannot open input file " + f);
+		if (!in)
+				throw RMAPException("cannot open input file " + f);
 		fill_buffer(in, 0, buffer);
 		first = buffer.begin();
 }
 
-struct ComparePairs {
+struct ComparePairs 
+{
 		bool operator()(const pair<GenomicRegion, size_t> &a,
 						const pair<GenomicRegion, size_t> &b) const {
 				return !(a.first < b.first);
@@ -257,7 +268,8 @@ main(int argc, const char **argv) {
 				vector<FileIterator<GenomicRegion> *> itrs;
 				if (VERBOSE)
 						cerr << "[MAPPED READS FILES:]" << endl;
-				for (size_t i = 0; i < mapped_files.size(); ++i) {
+				for (size_t i = 0; i < mapped_files.size(); ++i)
+				{
 						if (VERBOSE)
 								cerr << mapped_files[i] << endl;
 						itrs.push_back(new FileIterator<GenomicRegion>(mapped_files[i], BUFFER_SIZE));
@@ -266,14 +278,15 @@ main(int argc, const char **argv) {
 				vector<FileIterator<FASTQRecord> *> read_itrs;
 				if (VERBOSE)
 						cerr << "[FASTQ READS FILES:]" << endl;
-				for (size_t i = 0; i < reads_files.size(); ++i) {
+				for (size_t i = 0; i < reads_files.size(); ++i)
+				{
 						if (VERBOSE)
 								cerr << reads_files[i] << endl;
 						read_itrs.push_back(new FileIterator<FASTQRecord>(reads_files[i], BUFFER_SIZE));
 				}
     
-				std::priority_queue<pair<GenomicRegion, size_t>, 
-						vector<pair<GenomicRegion, size_t> >, ComparePairs> a;
+				std::priority_queue<pair<GenomicRegion, size_t>, 	
+					vector<pair<GenomicRegion, size_t> >, ComparePairs> a;
 				for (size_t i = 0; i < itrs.size(); ++i)
 						a.push(make_pair(*itrs[i]->get_first(), i));
     
@@ -285,18 +298,20 @@ main(int argc, const char **argv) {
 				double score = std::numeric_limits<double>::max();
 				const Runif rng(random_number_seed);
     
-				while (!a.empty()) {
+				while (!a.empty())
+				{
 						const size_t file_id = a.top().second;
 						if (mapped_ties.empty() || 
-							!(mapped_ties.front() < a.top().first)) {
-								double new_score = a.top().first.get_score();
-								if (new_score < score) {
+							!(mapped_ties.front() < a.top().first)) // the same mapped location
+						{
+								double new_score = a.top().first.get_score(); // reads of better quality
+								if (new_score < score)
+								{
 										new_score = a.top().first.get_score();
 										mapped_ties.clear();
 										reads_ties.clear();
 								}
-						}
-						else {
+						} else {
 								const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
 								out << mapped_ties[rand_idx] << '\n';
 								read_out << reads_ties[rand_idx] << '\n';
