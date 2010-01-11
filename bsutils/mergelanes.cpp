@@ -297,7 +297,7 @@ main(int argc, const char **argv) {
 				std::priority_queue<pair<GenomicRegion, size_t>, 	
 					vector<pair<GenomicRegion, size_t> >, ComparePairs> a;
 				for (size_t i = 0; i < itrs.size(); ++i)
-						a.push(make_pair(*itrs[i]->get_first(), i));
+						a.push(make_pair(*( itrs[i]->get_first() ), i));
     
 				ofstream out(map_outfile.c_str());
 				ofstream read_out(read_outfile.c_str());
@@ -327,13 +327,13 @@ main(int argc, const char **argv) {
 								reads_ties.clear();
 						}
 						mapped_ties.push_back(a.top().first);
-						reads_ties.push_back(*read_itrs[file_id]->get_first());
+						reads_ties.push_back(*(read_itrs[file_id]->get_first());
 						score = a.top().first.get_score();
 						a.pop();
 						itrs[file_id]->increment_first();
 						read_itrs[file_id]->increment_first();
 						if (itrs[file_id]->first_is_good())
-								a.push(make_pair(*itrs[file_id]->get_first(), file_id));
+								a.push(make_pair( *( itrs[file_id]->get_first() ), file_id));
 				}
 
 				const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
