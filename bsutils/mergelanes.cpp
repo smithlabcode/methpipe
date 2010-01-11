@@ -339,7 +339,14 @@ main(int argc, const char **argv) {
 				const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
 				out << mapped_ties[rand_idx] << '\n';
 				read_out << reads_ties[rand_idx] << '\n';
-				
+
+				// release resources
+				for (size_t i = 0; i < itrs.size(); ++i)
+				{
+						delete itrs[i];
+						delete read_itrs[i];
+				}
+
 				out.close();
 				read_out.close();
 		}
