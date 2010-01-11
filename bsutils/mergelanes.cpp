@@ -60,12 +60,15 @@ class FileIterator
 {
 public:
 		FileIterator(const std::string &f, const size_t bs);
+		~FileIterator();
+
 		void increment_first()
 		{
 				if (++first == buffer.end()) {
 						refill_buffer();
 				}
 		}
+
 		typename std::vector<T>::const_iterator get_first() const {return first;}
 		bool first_is_good() const {return (!in.eof() || first < buffer.end());}
   
@@ -195,6 +198,12 @@ FileIterator<T>::FileIterator(const std::string &f, const size_t bs) :
 		first = buffer.begin();
 }
 
+template <class T>
+FileIterator<T>::~FileIterator()  
+{
+		in.close();
+}
+
 struct ComparePairs 
 {
 		bool operator()(const pair<GenomicRegion, size_t> &a,
@@ -307,7 +316,6 @@ main(int argc, const char **argv) {
 								double new_score = a.top().first.get_score(); // reads of better quality
 								if (new_score < score)
 								{
-										new_score = a.top().first.get_score();
 										mapped_ties.clear();
 										reads_ties.clear();
 								}
@@ -317,19 +325,23 @@ main(int argc, const char **argv) {
 								read_out << reads_ties[rand_idx] << '\n';
 								mapped_ties.clear();
 								reads_ties.clear();
-								score = std::numeric_limits<double>::max();
 						}
 						mapped_ties.push_back(a.top().first);
 						reads_ties.push_back(*read_itrs[file_id]->get_first());
+						score = a.top().first.get_score();
 						a.pop();
 						itrs[file_id]->increment_first();
 						read_itrs[file_id]->increment_first();
 						if (itrs[file_id]->first_is_good())
 								a.push(make_pair(*itrs[file_id]->get_first(), file_id));
 				}
+
 				const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
 				out << mapped_ties[rand_idx] << '\n';
 				read_out << reads_ties[rand_idx] << '\n';
+				
+				out.close();
+				read_out.close();
 		}
 		catch (const RMAPException &e) {
 				cerr << e.what() << endl;
