@@ -327,7 +327,7 @@ main(int argc, const char **argv) {
 								reads_ties.clear();
 						}
 						mapped_ties.push_back(a.top().first);
-						reads_ties.push_back(*(read_itrs[file_id]->get_first());
+						reads_ties.push_back(*(read_itrs[file_id]->get_first()));
 						score = a.top().first.get_score();
 						a.pop();
 						itrs[file_id]->increment_first();
