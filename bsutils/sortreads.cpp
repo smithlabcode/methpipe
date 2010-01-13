@@ -198,13 +198,16 @@ partition_fastq_file(const bool VERBOSE, string filename,
 		string read_name, read_seq;
   
 		if (VERBOSE) cerr << "\r0%";
-		while (!in.eof()) {
+		while (!in.eof())
+		{
 				in.getline(&buffer[0], INPUT_BUFFER_SIZE);
-				if (in.gcount() > 1) {
+				if (in.gcount() > 1)
+				{
 						if (in.gcount() == INPUT_BUFFER_SIZE - 1)
 								throw RMAPException("Line in " + filename + "\nexceeds max length: " +
 													toa(INPUT_BUFFER_SIZE));
-						if (is_fastq_name_line(line_count)) {
+						if (is_fastq_name_line(line_count))
+						{
 								read_name = string(&buffer[0] + 1);
 								const unordered_map<string, size_t>::const_iterator 
 										idx(read_name_index.find(read_name));
@@ -215,7 +218,8 @@ partition_fastq_file(const bool VERBOSE, string filename,
 						else if (is_fastq_seq_line(line_count))
 								read_seq = string(&buffer[0]);
 						else if (is_fastq_score_line(line_count) &&
-								 file_id != std::numeric_limits<size_t>::max()) {
+								 file_id != std::numeric_limits<size_t>::max())
+						{
 								(*outfiles[file_id]) << '@' << read_name << '\n'
 													 << read_seq << "\n+\n"
 													 << &buffer[0] << '\n';
@@ -267,15 +271,18 @@ static void
 relative_sort_reads_fastq(const bool KEEP_TEMP_FILES,
 						  const string &filename, 
 						  const unordered_map<string, size_t> &read_name_index,
-						  ofstream &out) {
-  
+						  ofstream &out) 
+{
+		
 		vector<string> names, sequences, scores;
 		read_fastq_file(filename.c_str(), names, sequences, scores);
 		if (!KEEP_TEMP_FILES)
 				remove(filename.c_str());
+
   
 		vector<pair<size_t, size_t> > sorter(names.size());
-		for (size_t i = 0; i < names.size(); ++i) {
+		for (size_t i = 0; i < names.size(); ++i)
+		{
 				const unordered_map<string, size_t>::const_iterator 
 						idx(read_name_index.find(names[i]));
 				if (idx == read_name_index.end())
@@ -283,8 +290,10 @@ relative_sort_reads_fastq(const bool KEEP_TEMP_FILES,
 				sorter[i] = make_pair(idx->second, i);
 		}
 		sort(sorter.begin(), sorter.end());
+
   
-		for (size_t i = 0; i < names.size(); ++i) {
+		for (size_t i = 0; i < names.size(); ++i)
+		{
 				const size_t idx = sorter[i].second;
 				out << '@' << names[idx] << '\n' << sequences[idx] << '\n'
 					<< "+\n" << scores[idx] << '\n';
@@ -342,6 +351,7 @@ main(int argc, const char **argv)
 				}
 				vector<string> reads_files(leftover_args);
 				/****************** END COMMAND LINE OPTIONS *****************/
+				
 
 				if (VERBOSE)
 						cerr << "[LOADING MAPPED LOCATIONS]" << endl;
@@ -362,7 +372,8 @@ main(int argc, const char **argv)
 						cerr << "CREATING: " << filenames.front() << " -- "
 							 << filenames.back() << endl;
 				vector<ofstream*> outfiles;
-				for (size_t i = 0; i < filenames.size(); ++i) {
+				for (size_t i = 0; i < filenames.size(); ++i)
+				{
 						outfiles.push_back(new ofstream(filenames[i].c_str()));
 						if (!(*outfiles.back()))
 								throw RMAPException("cannot open input file " + filenames[i]);
@@ -370,6 +381,7 @@ main(int argc, const char **argv)
     
 				if (VERBOSE)
 						cerr << "PARTITIONING READS" << endl;
+
     
 				for (size_t i = 0; i < reads_files.size(); ++i)
 				{
@@ -386,10 +398,11 @@ main(int argc, const char **argv)
 				}
 				for (size_t i = 0; i < outfiles.size(); ++i)
 						delete outfiles[i];
+
     
 				ofstream out(outfile.c_str());
 				for (size_t i = 0; i < n_files; ++i) {
-						const bool FASTQ = is_fastq(reads_files[i]);
+						const bool FASTQ = is_fastq(filenames[i]);
 						if (VERBOSE) cerr << "\r[SORTING=" << filenames[i] << "]";
 						if (FASTQ)
 								relative_sort_reads_fastq(KEEP_TEMP_FILES,
@@ -399,6 +412,7 @@ main(int argc, const char **argv)
 													   filenames[i], read_name_index, out);
 				}
 				if (VERBOSE) cerr << endl;
+
 		}
 		catch (const RMAPException &e) {
 				cerr << e.what() << endl;
