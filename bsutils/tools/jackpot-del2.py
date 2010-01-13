@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+# jackpot-del
+# Jin Park <jinhpark@usc.edu> 2010
+# This program remove duplicated reads mapped to the same location. It there are multiple
+# reads mapped to the same location, it choose the one with the fewest errors.
+# It assumes the input bed file is sorted
+
 import sys, string, random
 
 prevName = '' # empty string
