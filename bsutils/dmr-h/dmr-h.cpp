@@ -93,6 +93,14 @@ get_sig_cpgs(const vector<GenomicRegion> &cpgs,
 }
 
 
+template <class T> string 
+tostring(T t)
+{
+		std::ostringstream oss;
+		oss << t;
+		return oss.str();
+}
+
 void 
 build_domains(const vector<GenomicRegion> &cpgs,
 			  const vector<size_t> &reset_points,
@@ -106,23 +114,42 @@ build_domains(const vector<GenomicRegion> &cpgs,
 
 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
 		{
-				const vector<bool>::const_iterator first
-						= classes.begin() + reset_points[i];
-				const vector<bool>::const_iterator last
-						= classes.begin() + reset_points[i + 1];
-				vector<bool>::const_iterator iter
-						=  std::find(first, last, FG_CLASS);
-				while (iter != last)
+				size_t j = reset_points[i];
+				GenomicRegion domain = cpgs[reset_points[i]];
+				double total = domain.get_score();
+				size_t cpg_num = 1;
+				++j;
+				while (j < reset_points[i+1])
 				{
-						const size_t start_index = iter - classes.begin();
-						iter = std::find(iter + 1, last, BG_CLASS);
-						const size_t end_index = iter - classes.begin() - 1;
-						GenomicRegion tmp_domain(cpgs[start_index]);
-						tmp_domain.set_end(cpgs[end_index].get_end());
-						tmp_domain.set_score(end_index + 1 - start_index);
-						domains.push_back(tmp_domain);
-						iter = std::find(iter, last, FG_CLASS);
+						if (classes[j] == classes[j - 1])
+						{
+								total += cpgs[j].get_score();
+								++cpg_num;
+						} else {
+								// finish previous domain
+								domain.set_end(cpgs[j - 1].get_end());
+								domain.set_name("CpG:"
+												+ tostring(cpg_num));
+								domain.set_score(static_cast<size_t>(1000 * total / cpg_num));
+								if (classes[j - 1] == FG_CLASS)
+										domains.push_back(domain);
+								
+								// start a new domain
+								domain = cpgs[j];
+								total = cpgs[j].get_score();
+								cpg_num = 1;
+						}
+						++j;
 				}
+
+				// finish final domain
+				domain.set_end(cpgs[j - 1].get_end());
+				domain.set_name("CpG:"
+								+ tostring(cpg_num));
+				domain.set_score(static_cast<size_t>(1000 * total / cpg_num));
+				if (classes[j - 1] == FG_CLASS)
+						domains.push_back(domain);
+				
 		}
 }					
 
