@@ -60,7 +60,7 @@ bernoulli::tostring() const
 double 
 bernoulli::operator()(const size_t &val) const
 {
-		if (prob > 1 or prob < 0) cerr << this->tostring();
+		assert(prob > 0 && prob < 1);
 		return val == 1 ? gsl_sf_log(prob) : gsl_sf_log(1 - prob);
 }
 
@@ -70,7 +70,7 @@ bernoulli::fit(const vector<size_t> &vals, const vector<double> &p)
 		const double p_total = std::accumulate(p.begin(), p.end(), 0.0);
 		const double val_total = inner_product(vals.begin(), vals.end(), 
 											   p.begin(), 0.0);
-		prob = p_total / val_total;
+		prob = val_total / p_total;
 }
 
 
@@ -378,7 +378,8 @@ TwoStateHMM::BaumWelchTraining(const vector<size_t > &values,
 		vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
   
 		if (VERBOSE)
-				cerr << setw(5)  << "ITR"
+				cerr << endl
+					 << setw(5)  << "ITR"
 					 << setw(10) << "F size"
 					 << setw(10) << "B size"
 					 << setw(18) << "F PARAMS"
@@ -388,8 +389,8 @@ TwoStateHMM::BaumWelchTraining(const vector<size_t > &values,
   
 		double prev_total = -std::numeric_limits<double>::max();
 
-		for (size_t i = 0; i < max_iterations; ++i) {
-    
+		for (size_t i = 0; i < max_iterations; ++i)
+		{
 				double p_sf_est = p_sf;
 				double p_sb_est = p_sb;
 				double p_ff_est = p_ff;
@@ -407,6 +408,7 @@ TwoStateHMM::BaumWelchTraining(const vector<size_t > &values,
 												p_bf_est, p_bb_est, p_bt_est,
 												fg_distro, bg_distro);
     
+
 				if (VERBOSE) {
 						cerr << setw(5) << i + 1
 							 << setw(10) << 1/p_fb_est
@@ -439,6 +441,7 @@ TwoStateHMM::BaumWelchTraining(const vector<size_t > &values,
 
 				prev_total = total;
 		}
+
 		return prev_total;
 }
 
