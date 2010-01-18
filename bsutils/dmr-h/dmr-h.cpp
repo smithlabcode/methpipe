@@ -105,7 +105,8 @@ void
 build_domains(const vector<GenomicRegion> &cpgs,
 			  const vector<size_t> &reset_points,
 			  const vector<bool> &classes,
-			  vector<GenomicRegion> &domains)
+			  vector<GenomicRegion> &domains,
+			const size_t min_cpgs)
 {
 		assert(cpgs.size() == classes.size());
 		
@@ -131,7 +132,7 @@ build_domains(const vector<GenomicRegion> &cpgs,
 								domain.set_name("CpG:"
 												+ tostring(cpg_num));
 								domain.set_score(static_cast<size_t>(1000 * total / cpg_num));
-								if (classes[j - 1] == FG_CLASS)
+								if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
 										domains.push_back(domain);
 								
 								// start a new domain
@@ -147,7 +148,7 @@ build_domains(const vector<GenomicRegion> &cpgs,
 				domain.set_name("CpG:"
 								+ tostring(cpg_num));
 				domain.set_score(static_cast<size_t>(1000 * total / cpg_num));
-				if (classes[j - 1] == FG_CLASS)
+				if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
 						domains.push_back(domain);
 				
 		}
@@ -291,11 +292,7 @@ main(int argc, const char **argv) {
 				if (VERBOSE)
 						cerr << "HMM: clustering segnificant intervals ... ";
 				vector<GenomicRegion> domains;
-				build_domains(cpgs, reset_points, classes, domains); 
-				vector<GenomicRegion> domains_selected;
-				for (size_t i = 0; i < domains.size(); ++i)
-						if (domains[i].get_score() > min_cpgs)
-								domains_selected.push_back(domains[i]);
+				build_domains(cpgs, reset_points, classes, domains, min_cpgs); 
 				if (VERBOSE)
 						cerr << "done" << endl;
 
@@ -304,7 +301,7 @@ main(int argc, const char **argv) {
 						cerr << "HMM: output result ... ";
 				std::ostream *out = (outfile.empty()) ? &cout : 
 						new std::ofstream(outfile.c_str());
-				copy(domains_selected.begin(), domains_selected.end(), 
+				copy(domains.begin(), domains.end(), 
 					 ostream_iterator<GenomicRegion>(*out, "\n"));
 				if (out != &cout) delete out;
 				if (VERBOSE)
