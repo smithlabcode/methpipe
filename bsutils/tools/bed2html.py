@@ -6,8 +6,7 @@
 # it is used to display DMR files and / or hypo-methylated regions 
 # in html format
 
-import sys, string
-
+import sys, os
 
 #  html header and footer
 html_header = """
