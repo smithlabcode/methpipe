@@ -16,6 +16,8 @@ html_header = """
 <link rel="stylesheet" href="css/table.css" type="text/css">
 </head>
 <body>
+Last updated: <!--#echo var="LAST_MODIFIED"\ -->
+<br>
 <table class="dmrtable" cellspacing="0">
 """
 html_footer = """
