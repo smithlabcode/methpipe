@@ -131,7 +131,7 @@ build_domains(const vector<GenomicRegion> &cpgs,
 								domain.set_end(cpgs[j - 1].get_end());
 								domain.set_name("CpG:"
 												+ tostring(cpg_num));
-								domain.set_score(static_cast<size_t>(1000 * total / cpg_num));
+								domain.set_score( total / cpg_num);
 								if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
 										domains.push_back(domain);
 								
