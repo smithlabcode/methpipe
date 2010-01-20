@@ -24,9 +24,9 @@ html_footer = """
 </html>
 """
 
-odd_line_template = """\t<tr class="odd"><td> %(INDEX)d </td><td><a href="http://genome.ucsc.edu/cgi-bin/hgTracks?position=%(CHROM)s%%3A%(START)d-%(END)d">%(CHROM)s:%(START)d-%(END)d</a></td><td>%(SCORE)s</td><td>%(CPG_NUM)s</td></tr>\n"""
+odd_line_template = """\t<tr class="odd"><td> %(INDEX)d </td><td><a href="http://genome.ucsc.edu/cgi-bin/hgTracks?position=%(CHROM)s%%3A%(START)d-%(END)d">%(CHROM)s:%(START)d-%(END)d</a></td><td>%(NAME)s</td><td>%(SCORE)s</td></tr>\n"""
 
-even_line_template = """\t<tr><td> %(INDEX)d </td><td><a href="http://genome.ucsc.edu/cgi-bin/hgTracks?position=%(CHROM)s%%3A%(START)d-%(END)d">%(CHROM)s:%(START)d-%(END)d</a></td><td>%(SCORE)s</td><td>%(CPG_NUM)s</td></tr>\n"""
+even_line_template = """\t<tr><td> %(INDEX)d </td><td><a href="http://genome.ucsc.edu/cgi-bin/hgTracks?position=%(CHROM)s%%3A%(START)d-%(END)d">%(CHROM)s:%(START)d-%(END)d</a></td><td>%(NAME)s</td><td>%(SCORE)s</td></tr>\n"""
 
 output_file = open(sys.argv[2], "w")
 output_file.write(html_header)
@@ -41,22 +41,20 @@ for line in open(sys.argv[1]):
 	extension = int(width / (1 - 0.618) * 0.618 / 2)
 	start -= extension
 	end += extension
-	score = str( float(score) / 1000)
-	cpg_num = readName.split(":")[1]
 	if index % 2 == 1:
 		row = odd_line_template % {"INDEX" : index, \
 								   "CHROM" : chrom, \
 								   "START" : start, \
 									"END" : end, \
-								   "SCORE" : score, \
-								   "CPG_NUM" : cpg_num} 	
+								   "NAME" : readName, \
+								   "SCORE" : score} 	
 	else:
 		row = even_line_template % {"INDEX" : index, \
 								   "CHROM" : chrom, \
 								   "START" : start, \
 								   "END" : end, \
-								   "SCORE" : score, \
-								   "CPG_NUM" : cpg_num} 	
+								   "NAME" : readName, \
+								   "SCORE" : score} 	
 	output_file.write(row)
 	index += 1
 
