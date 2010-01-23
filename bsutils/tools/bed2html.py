@@ -36,7 +36,7 @@ output_file.write(html_header)
 index = 1
 
 for line in open(sys.argv[1]):
-	(chrom, start, end, readName, score, strand) = line.split()
+	(chrom, start, end, readName, score, strand) = line.split("\t")
 	start = int(start)
 	end = int(end)
 	width = end - start
