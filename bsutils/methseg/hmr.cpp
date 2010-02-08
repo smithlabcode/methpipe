@@ -46,17 +46,6 @@ using std::ostream_iterator;
 using std::ofstream;
 
 static void
-write_scores_bedgraph(const string &filename,
-					  const vector<SimpleGenomicRegion> &cpgs,
-					  const vector<double> &scores)
-{
-		std::ofstream wigout(filename.c_str());
-		for (size_t i = 0; i < cpgs.size(); ++i)
-				wigout << cpgs[i] << "\t" << scores[i] << "\n";
-		wigout.close();
-}
-
-static void
 build_domains(const bool VERBOSE, 
 			  const vector<SimpleGenomicRegion> &cpgs,
 			  const vector<double> &post_scores,
@@ -382,10 +371,12 @@ main(int argc, const char **argv)
 
 
 				// filtering domains according to posterior_cutoff
-				if (VERBOSE)
-						cerr << "Filtering domains: FDR = " << fdr << " ...";
-
 				double posterior_cutoff( get_posterior_cutoff(domains_false, fdr) );
+
+				if (VERBOSE)
+						cerr << "Filtering domains: FDR = " << fdr << ", "
+							 << "Posterior score >= " << posterior_cutoff
+							 << " ... ";
 
 				vector<GenomicRegion> domains_filterd;
 				for (size_t i = 0; i < domains.size(); ++i)
