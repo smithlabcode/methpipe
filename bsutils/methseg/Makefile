@@ -17,7 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-PROGS = methseg hmr 
+PROGS = methseg hmr hmr2 
 
 LIBS = -lgsl -lgslcblas
 LIBDIR = $(RMAP)/lib
@@ -54,6 +54,10 @@ methseg: TwoStateHMM.o \
 	rmap_utils.o OptionParser.o)
 
 hmr: TwoStateHMM.o \
+	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
+	rmap_utils.o OptionParser.o)
+
+hmr2: TwoStateHMM.o \
 	$(addprefix $(COMMON_DIR), GenomicRegion.o rmap_os.o \
 	rmap_utils.o OptionParser.o)
 

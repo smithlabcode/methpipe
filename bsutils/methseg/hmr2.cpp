@@ -47,7 +47,7 @@ using std::ofstream;
 
 static void
 write_scores_bedgraph(const string &filename,
-                                          const vector<SimpleGenomicRegion> &cpgs,
+	                                          const vector<SimpleGenomicRegion> &cpgs,
                                           const vector<double> &scores)
 {
                 std::ofstream wigout(filename.c_str());
@@ -187,31 +187,69 @@ shuffle_cpg_sites(const vector<size_t> &reset_points,
 }
 
 double
-get_posterior_cutoff(const vector<GenomicRegion> &domains,
-					 const double fdr)
+get_cutoff(const vector<double> &scores,
+		   const double fdr)
 {
 		if (fdr <= 0)
 				return numeric_limits<double>::max();
 		else if (fdr > 1)
 				return numeric_limits<double>::min();
 
-		vector<double> scores(domains.size());
+		vector<double> local_scores(scores.begin(), scores.end());
 		
-		for (size_t i = 0; i < domains.size(); ++i)
-				scores[i] = domains[i].get_score();
+		std::sort(local_scores.begin(), local_scores.end());
 
-		std::sort(scores.begin(), scores.end());
-
-		size_t index = static_cast<size_t>(domains.size() * (1 - fdr));
+		size_t index = static_cast<size_t>(local_scores.size() * (1 - fdr));
 		// choose the more stringent cutoff.
-		for (size_t i = index; i < domains.size(); ++i)
-				if (scores[i] > scores[index])
+		for (size_t i = index; i < local_scores.size(); ++i)
+				if (local_scores[i] > local_scores[index])
 				{
 						index = i;
 						break;
 				}
 
-		return scores[index];
+		return local_scores[index];
+}
+
+void
+get_mean_meth_prob(const vector<SimpleGenomicRegion> &cpgs,
+				   const vector< pair<double, double> >  &meth,
+				   const vector<GenomicRegion> &domains,
+				   vector<double> &meth_probs)
+{
+		assert(domains.size() == meth_probs.size());
+		assert(cpgs.size() == meth.size());
+
+		double total = 0;
+		
+		size_t i = 0;
+		size_t j = 0;
+		
+		while (i < domains.size() && j < cpgs.size() )
+		{
+				if (domains[i].get_chrom() == cpgs[j].get_chrom()
+					&& domains[i].get_start() <= cpgs[j].get_start()
+					&& domains[i].get_end() >= cpgs[j].get_end())
+				{
+						total += 1 - meth[j].first / (meth[j].first + meth[j].second);
+				}
+				if ((domains[i].get_chrom() < cpgs[j].get_chrom())
+					|| (domains[i].get_chrom() == cpgs[j].get_chrom() &&
+						domains[i].get_end() < cpgs[j].get_end()))
+				{
+						meth_probs[i] = total;
+						total = 0;
+						++i;
+				}
+				else
+				{
+						++j;
+				}
+		}
+
+		if (i < domains.size())
+				meth_probs[i] = total;
+		return;
 }
 
 
@@ -354,10 +392,14 @@ main(int argc, const char **argv)
 				vector<GenomicRegion> domains;
 				build_domains(VERBOSE, cpgs, post_scores,
 							  reset_points, classes, domains);
+				
+				// get mean methylation proportion for HMRs
+				vector<double> meth_probs(domains.size());
+				get_mean_meth_prob(cpgs, meth, domains, meth_probs);
     
 				// compute false positive control by random shuffling original data
 				if (VERBOSE)
-						cerr << "Computing cutoff  by randomly shuffling original data ...";
+						cerr << "Computing cutoff  by randomly shuffling original data ... ";
 				
 				shuffle_cpg_sites(reset_points, meth);
 
@@ -377,21 +419,25 @@ main(int argc, const char **argv)
 				vector<GenomicRegion> domains_false;
 				build_domains(VERBOSE, cpgs, post_scores_false,
 							  reset_points, classes_false, domains_false);
+
+				vector<double> meth_probs_false(domains_false.size());
+				get_mean_meth_prob(cpgs, meth, domains_false, meth_probs_false);
+				
 				if (VERBOSE)
 						cerr << "done" << endl;
 
 
 				// filtering domains according to posterior_cutoff
-				double posterior_cutoff( get_posterior_cutoff(domains_false, fdr) );
+				double posterior_cutoff( get_cutoff(meth_probs_false, fdr) );
 
 				if (VERBOSE)
 						cerr << "Filtering domains: FDR = " << fdr << ", "
-							 << "Posterior score >= " << posterior_cutoff
+							 << "cutoff >= " << posterior_cutoff
 							 << " ... ";
 
 				vector<GenomicRegion> domains_filterd;
 				for (size_t i = 0; i < domains.size(); ++i)
-						if (domains[i].get_score() >= posterior_cutoff)
+						if (meth_probs[i] >= posterior_cutoff)
 								domains_filterd.push_back(domains[i]);
 				if (VERBOSE)
 						cerr << "done" << endl;
