@@ -101,43 +101,97 @@ tostring(T t)
 		return oss.str();
 }
 
-void 
+// void 
+// build_domains(const vector<GenomicRegion> &cpgs,
+// 			  const vector<size_t> &reset_points,
+// 			  const vector<bool> &classes,
+// 			  vector<GenomicRegion> &domains,
+// 			const size_t min_cpgs)
+// {
+// 		assert(cpgs.size() == classes.size());
+		
+// 		const bool FG_CLASS = true;
+
+// 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
+// 		{
+// 				size_t j = reset_points[i];
+// 				GenomicRegion domain = cpgs[reset_points[i]];
+// 				double total = domain.get_score();
+// 				size_t cpg_num = 1;
+// 				++j;
+// 				while (j < reset_points[i+1])
+// 				{
+// 						if (classes[j] == classes[j - 1])
+// 						{
+// 								total += cpgs[j].get_score();
+// 								++cpg_num;
+// 						} else {
+// 								// finish previous domain
+// 								domain.set_end(cpgs[j - 1].get_end());
+// 								domain.set_name("CpG:"
+// 												+ tostring(cpg_num));
+// 								domain.set_score( total / cpg_num);
+// 								if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
+// 										domains.push_back(domain);
+								
+// 								// start a new domain
+// 								domain = cpgs[j];
+// 								total = cpgs[j].get_score();
+// 								cpg_num = 1;
+// 						}
+// 						++j;
+// 				}
+
+// 				// finish final domain
+// 				domain.set_end(cpgs[j - 1].get_end());
+// 				domain.set_name("CpG:"
+// 								+ tostring(cpg_num));
+// 				domain.set_score(total / cpg_num);
+// 				if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
+// 						domains.push_back(domain);
+				
+// 		}
+// }					
+
+static void
 build_domains(const vector<GenomicRegion> &cpgs,
 			  const vector<size_t> &reset_points,
+			  const vector<double> &post_scores,
 			  const vector<bool> &classes,
-			  vector<GenomicRegion> &domains,
-			const size_t min_cpgs)
+			  vector<GenomicRegion> &domains)
 {
 		assert(cpgs.size() == classes.size());
-		
+		assert(cpgs.size() == post_scores.size());
+
 		const bool FG_CLASS = true;
-		const bool BG_CLASS = false;
 
 		for (size_t i = 0; i < reset_points.size() - 1; ++i)
 		{
 				size_t j = reset_points[i];
-				GenomicRegion domain = cpgs[reset_points[i]];
-				double total = domain.get_score();
+				GenomicRegion domain = cpgs[j];
+				double total = post_scores[j];
 				size_t cpg_num = 1;
 				++j;
 				while (j < reset_points[i+1])
 				{
 						if (classes[j] == classes[j - 1])
 						{
-								total += cpgs[j].get_score();
+								total += post_scores[j];
 								++cpg_num;
-						} else {
+						}
+						else
+						{
 								// finish previous domain
 								domain.set_end(cpgs[j - 1].get_end());
 								domain.set_name("CpG:"
 												+ tostring(cpg_num));
-								domain.set_score( total / cpg_num);
-								if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
+								domain.set_score( total);
+								if (classes[j - 1] == FG_CLASS)
 										domains.push_back(domain);
 								
 								// start a new domain
 								domain = cpgs[j];
-								total = cpgs[j].get_score();
+								total = post_scores[j];
 								cpg_num = 1;
 						}
 						++j;
@@ -147,12 +201,16 @@ build_domains(const vector<GenomicRegion> &cpgs,
 				domain.set_end(cpgs[j - 1].get_end());
 				domain.set_name("CpG:"
 								+ tostring(cpg_num));
-				domain.set_score(total / cpg_num);
-				if (classes[j - 1] == FG_CLASS && cpg_num > min_cpgs)
+				domain.set_score(total);
+				if (classes[j - 1] == FG_CLASS)
 						domains.push_back(domain);
 				
 		}
-}					
+
+		return;
+}
+
+
 
 int
 main(int argc, const char **argv) {
@@ -256,8 +314,8 @@ main(int argc, const char **argv) {
 				vector<vector<double> > trans(2, vector<double>(2, 0.25));
 				trans[0][0] = trans[1][1] = 0.75;
 
-				double fg_prob = 0.8;
-				double bg_prob = 0.2;
+				double fg_prob = 0.33;
+				double bg_prob = 0.03;
 
 				const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 
@@ -285,6 +343,12 @@ main(int argc, const char **argv) {
 											  start_trans, trans, end_trans,
 											  fg_prob, bg_prob,
 											  classes, scores);
+				vector<double> post_scores;
+				hmm.PosteriorScores(labels, reset_points,
+									start_trans, trans, end_trans,
+									fg_prob, bg_prob,
+									true, post_scores);
+				
 				if (VERBOSE)
 						cerr << "done" << endl;
 				
@@ -292,7 +356,8 @@ main(int argc, const char **argv) {
 				if (VERBOSE)
 						cerr << "HMM: clustering segnificant intervals ... ";
 				vector<GenomicRegion> domains;
-				build_domains(cpgs, reset_points, classes, domains, min_cpgs); 
+				build_domains(cpgs, reset_points,
+							  post_scores, classes, domains); 
 				if (VERBOSE)
 						cerr << "done" << endl;
 
