@@ -42,6 +42,15 @@ using std::cerr;
 using std::ostream_iterator;
 using std::ofstream;
 
+
+template <class T> string 
+tostring(T t)
+{
+		std::ostringstream oss;
+		oss << t;
+		return oss.str();
+}
+
 static inline double
 log_sum_log(const double p, const double q) {
   if (p == 0) {return q;}
@@ -219,7 +228,10 @@ main(int argc, const char **argv) {
  	cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
  						    meth_a, unmeth_a));
 	
-	cpgs_a[i].set_name(std::min(cpgs_a[i].get_name(), cpgs_b[j].get_name()));
+	cpgs_a[i].set_name("CpG:" + tostring(meth_a ) + "/"
+					   + tostring(meth_a + unmeth_a)
+					   + ":" + tostring(meth_b ) + "/"
+					   + tostring(meth_b + unmeth_b));
 
 	*out << cpgs_a[i] << endl;
       }
