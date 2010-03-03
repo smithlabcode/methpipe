@@ -99,7 +99,7 @@ main(int argn, char ** argv)
 						cout << "\t" << n
 							 << "\t" << total / n << endl;
 						swap(pre_cols, cols);
-						total = atof(cols.back().c_str());
+						total = atof(pre_cols.back().c_str());
 						n = 1;
 				}
 		}
