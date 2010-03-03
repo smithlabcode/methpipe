@@ -27,6 +27,19 @@ main(int argn, char ** argv)
 		ifstream infile_1(argv[1], fstream::in);	
 		ifstream infile_2(argv[2], fstream::in);
 
+		if (infile_1.fail())
+		{
+				cerr << "Can not open file : "
+					 << argv[1] << endl;
+				return -1;
+		}
+		if (infile_2.fail())
+		{
+				cerr << "Can not open file : "
+					 << argv[2] << endl;
+				return -1;
+		}
+
 		string chrom1, chrom2, other1, other2, line;
 		size_t  start(0), end(0),
 				start1(0), end1(0),
