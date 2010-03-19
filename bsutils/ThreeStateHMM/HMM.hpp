@@ -96,6 +96,16 @@ public:
 						  const vector<distro_type> &distros,
 						  vector<state_type> &classes,
 						  vector<double> &llr_scores) const;
+
+		void
+		PosteriorScores(const vector<value_type> &values,
+						const vector<size_t> &reset_points,
+						const vector<double> &start_trans, 
+						const vector<vector<double> > &trans, 
+						const vector<double> &end_trans, 
+						const vector<distro_type> &distros,
+						const vector<state_type> &classes,
+						vector<double> &llr_scores) const;
   
 // 		void
 // 		PosteriorScores(const vector<size_t> &values,
