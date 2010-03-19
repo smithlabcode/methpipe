@@ -28,6 +28,32 @@ using std::numeric_limits;
 using std::ostream_iterator;
 using std::ofstream;
 
+void
+get_meth_reads_number(const string &cpg_name,
+					  size_t &meth_a, size_t &total_a,
+					  size_t &meth_b, size_t &total_b)
+{
+		std::stringstream ss(cpg_name);
+		char ch;
+		
+		ss.ignore(4);
+		ss >> meth_a >> ch
+		   >> total_a >> ch
+		   >> meth_b >> ch
+		   >> total_b;
+		return;
+}
+
+size_t 
+get_reads_num(const string &cpg_name)
+{
+		size_t meth_a, total_a, meth_b, total_b;
+		get_meth_reads_number(cpg_name,
+							  meth_a, total_a,
+							  meth_b, total_b);
+		return std::min(total_a - 2, total_b -2);
+}
+
 
 template <class T> string 
 tostring(T t)
@@ -39,11 +65,6 @@ tostring(T t)
 
 
 // seperate CpGs by chromosome and remove deserts
-
-size_t get_reads_num(const string &name)
-{
-		return atoi(name.substr(name.find(':') + 1).c_str());
-}
 
 void
 seperate_regions(vector<GenomicRegion> &cpgs,
@@ -270,9 +291,9 @@ main(int argc, const char **argv) {
 				trans[0][0] = trans[1][1] = trans[2][2] = 0.6;
 
 				vector<distro_type> distros(STATE_NUM);
-				distros[STATE_DMR_LOWER].set_alpha(2).set_beta(20);
-				distros[STATE_NON_DMR].set_alpha(10).set_beta(10);
-				distros[STATE_DMR_UPPER].set_beta(20).set_beta(2);
+				distros[STATE_DMR_LOWER].set_alpha(0.8).set_beta(8);
+				distros[STATE_NON_DMR].set_alpha(1.5).set_beta(1.5);
+				distros[STATE_DMR_UPPER].set_beta(8).set_beta(0.2);
 
 				const HMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 				if (VERBOSE)
@@ -302,6 +323,7 @@ main(int argc, const char **argv) {
 											  start_trans, trans, end_trans,
 											  distros,
 											  classes, scores);
+				
 				if (VERBOSE)
 						cerr << "done" << endl;
 				
