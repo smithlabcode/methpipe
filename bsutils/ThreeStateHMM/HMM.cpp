@@ -557,8 +557,15 @@ HMM::single_iteration(const vector<double> &values,
 		vector< vector<double> > probs(trans.size(), vector<double>(values.size(), 0.0) );
 		estimate_emissions(forward, backward, probs);
 		
-		for (size_t i = 0; i < distros.size(); ++i)
-				distros[i].fit(values, probs[i]);
+ 		for (size_t i = 0; i < distros.size(); ++i)
+ 				distros[i].fit(values, probs[i]);
+
+
+// // fix the background distribution
+//  		for (size_t i = 0; i < distros.size(); ++i)
+// 				if (i != 1)
+// 						distros[i].fit(values, probs[i]);
+
 		
 		return total_score;
 }
@@ -619,7 +626,7 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 								cerr << distros[i].tostring() << ", ";
 						cerr << "\t";
 						for (size_t i = 0; i < trans.size(); ++i)
-								cerr << 1 / trans[i][i] << ", ";
+								cerr << 1 / (1 - trans[i][i]) << ", ";
 						cerr << endl;
 				}
 
