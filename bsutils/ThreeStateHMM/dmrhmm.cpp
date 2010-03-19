@@ -162,6 +162,70 @@ build_domains(const vector<GenomicRegion> &cpgs,
 		}
 }					
 
+
+void 
+build_domains(const vector<GenomicRegion> &cpgs,
+			  const vector<size_t> &reset_points,
+			  const vector<state_type> &classes,
+			  const vector<double> &post_scores,
+			  vector<GenomicRegion> &domains)
+{
+		assert(cpgs.size() == classes.size());
+		assert(cpgs.size() == post_scores.size());
+		
+//		const size_t STATE_DMR_LOWER = 0;
+		const size_t STATE_NON_DMR = 1;
+//		const size_t STATE_DMR_UPPER = 2;
+
+		vector<string> direction_labels;
+		direction_labels.push_back("L");
+		direction_labels.push_back("N");
+		direction_labels.push_back("U");
+
+		for (size_t i = 0; i < reset_points.size() - 1; ++i)
+		{
+				size_t j = reset_points[i];
+				GenomicRegion domain = cpgs[j];
+				double total = post_scores[j];
+				size_t cpg_num = 1;
+				++j;
+				while (j < reset_points[i+1])
+				{
+						if (classes[j] == classes[j - 1])
+						{
+								total += post_scores[j];
+								++cpg_num;
+						} else {
+								// finish previous domain
+								if (classes[j - 1] != STATE_NON_DMR)
+								{
+										domain.set_end(cpgs[j - 1].get_end());
+										domain.set_name("DMR:" +
+														direction_labels[classes[j - 1]]);
+										domain.set_score(total);
+										domains.push_back(domain);
+								}
+								
+								// start a new domain
+								domain = cpgs[j];
+								total = post_scores[j];
+								cpg_num = 1;
+						}
+						++j;
+				}
+
+				// finish final domain
+				if (classes[j - 1] != STATE_NON_DMR)
+				{
+						domain.set_end(cpgs[j - 1].get_end());
+						domain.set_name("DMR:" + tostring(classes[j - 1]));
+						domain.set_score(total);
+						domains.push_back(domain);
+				}
+		}
+}					
+
+
 int
 main(int argc, const char **argv) {
 
@@ -182,6 +246,8 @@ main(int argc, const char **argv) {
 
 				bool VERBOSE = false;
 
+				double fdr = 0.05;
+
 				size_t BUFFER_SIZE = 100000;
     
 				/****************** COMMAND LINE OPTIONS ********************/
@@ -189,11 +255,6 @@ main(int argc, const char **argv) {
 									   "A program for identifying DMRs (differentially "
 									   "methylated regions) using three-state HMM ",
 									   "<cpg_meth_diffs_file>");
-				opt_parse.add_opt("crit", 'c', "critical value (default: 0.05)", 
-								  false, crit);
-				opt_parse.add_opt("tail", 't',
-								  "use which tail to determine signif.\n 1: LOWER TAIL; 2: UPPER_TAIL; 3: BOTH",
-								  false, TAIL_MARKER);
 				opt_parse.add_opt("out", 'o', "output file (BED format)", 
 								  false, outfile);
 				opt_parse.add_opt("desert", 'd', "size of desert",
@@ -204,6 +265,8 @@ main(int argc, const char **argv) {
 								  false, max_iterations);
 				opt_parse.add_opt("viterbi", 'V', "useing viterbi decoding",
 								  false, USE_VITERBI);
+				opt_parse.add_opt("fdr", 'C', "Cutoff p-value (default 0.05)",
+								  false, fdr);
 				opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
 				vector<string> leftover_args;
 				opt_parse.parse(argc, argv, leftover_args);
@@ -292,7 +355,7 @@ main(int argc, const char **argv) {
 
 				vector<distro_type> distros(STATE_NUM);
 				distros[STATE_DMR_LOWER].set_alpha(0.8).set_beta(8);
-				distros[STATE_NON_DMR].set_alpha(1.5).set_beta(1.5);
+				distros[STATE_NON_DMR].set_alpha(1.0).set_beta(1.0);
 				distros[STATE_DMR_UPPER].set_beta(8).set_beta(0.2);
 
 				const HMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
@@ -331,7 +394,7 @@ main(int argc, const char **argv) {
 				if (VERBOSE)
 						cerr << "HMM: Clustering segnificant domains ... ";
 				vector<GenomicRegion> domains;
-				build_domains(cpgs, reset_points, classes, domains); 
+				build_domains(cpgs, reset_points, classes, scores, domains); 
 				if (VERBOSE)
 						cerr << "done" << endl;
 
