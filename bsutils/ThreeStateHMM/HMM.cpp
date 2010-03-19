@@ -745,6 +745,115 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 // }
 
 
+void
+HMM::PosteriorScores(const vector<value_type> &values,
+					 const vector<size_t> &reset_points,
+					 const vector<double> &start_trans,
+					 const vector< vector<double> > &trans,
+					 const vector<double> &end_trans,
+					 const vector<distro_type> &distros,
+					 const vector<state_type> &classes,
+					 vector<double> &llr_scores) const 
+{
+
+		double total_score = 0;
+  
+// 		const double lp_sf = log(p_sf);
+// 		const double lp_sb = log(p_sb);
+// 		const double lp_ff = log(p_ff);
+// 		const double lp_fb = log(p_fb);
+// 		const double lp_ft = log(p_ft);
+// 		const double lp_bf = log(p_bf);
+// 		const double lp_bb = log(p_bb);
+// 		const double lp_bt = log(p_bt);
+
+		vector<double> log_start_trans(start_trans.size());
+		std::transform(start_trans.begin(),
+					   start_trans.end(),
+					   log_start_trans.begin(),
+					   log);
+
+		vector< vector<double> > log_trans(trans.size(), vector<double>(trans.size()));
+		for (size_t i = 0; i < trans.size(); ++i)
+				std::transform(trans[i].begin(),
+							   trans[i].end(),
+							   log_trans[i].begin(),
+							   log);
+
+		vector<double> log_end_trans(end_trans.size());
+		std::transform(end_trans.begin(),
+					   end_trans.end(),
+					   log_end_trans.begin(),
+					   log);
+  
+// 		assert(finite(lp_sf) && finite(lp_sb) && 
+// 			   finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
+// 			   finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+
+// 		vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
+// 		vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
+
+		vector< vector<double>  > forward(values.size(), vector<double>(distros.size(), 0));
+		vector< vector<double>  > backward (values.size(), vector<double>(distros.size(), 0));
+
+		for (size_t i = 0; i < reset_points.size() - 1; ++i) 
+		{
+				const double score = forward_algorithm(values, 
+													   reset_points[i], 
+													   reset_points[i + 1],
+													   log_start_trans,
+													   log_trans,
+													   log_end_trans,
+													   distros,
+													   forward);
+				const double backward_score = 
+						backward_algorithm(values, 
+										   reset_points[i], 
+										   reset_points[i + 1],
+										   log_start_trans,
+										   log_trans,
+										   log_end_trans,
+										   distros,
+										   backward);								
+    
+				if (DEBUG && (fabs(score - backward_score)/
+							  max(score, backward_score)) > 1e-10)
+						cerr << "fabs(score - backward_score)/"
+							 << "max(score, backward_score) > 1e-10" << endl;
+
+				total_score += score;
+		}
+  
+// 		for (size_t i = 0; i < values.size(); ++i) {
+// 				const double fg_state = forward[i].first + backward[i].first;
+// 				const double bg_state = forward[i].second + backward[i].second;
+// 				if (classes[i])
+// 						llr_scores[i] = (fg_state - bg_state);
+// 				else 
+// 						llr_scores[i] = (bg_state - fg_state);
+// 		}
+
+		llr_scores.resize(values.size());
+		for (size_t i = 0; i < values.size(); ++i)
+		{
+				vector<double> state_posteriors(distros.size());
+				for (size_t j = 0; j < distros.size(); ++j)
+						state_posteriors[j] = forward[i][j] + backward[i][j]; 
+
+				classes[i] = static_cast<state_type>(std::max_element(state_posteriors.begin(),
+																	  state_posteriors.end())
+													 - state_posteriors.begin());
+				const double sum = log_sum_log_vec(state_posteriors, state_posteriors.size());
+				llr_scores[i] = exp(state_posteriors[classes[i]] - sum);
+				
+// 				const double fg_state = forward[i].first + backward[i].first;
+// 				const double bg_state = forward[i].second + backward[i].second;
+// 				classes[i] = static_cast<bool>(fg_state > bg_state);
+// 				llr_scores[i] = (fg_state - bg_state);
+		}
+}
+
+
 
 // void
 // HMM::PosteriorScores(const vector<size_t > &values,
@@ -773,8 +882,6 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 // 							   trans[1][0], trans[1][1], end_trans[1],
 // 							   fg_distro, bg_distro, fg_class, llr_scores);
 // }
-
-
 
 
 // void
@@ -842,8 +949,6 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 
 
 
-
-
 // void
 // HMM::TransitionPosteriors(const vector<size_t > &values,
 // 						  const vector<size_t> &reset_points,
@@ -870,6 +975,7 @@ HMM::BaumWelchTraining(const vector<value_type> &values,
 // 									trans[1][0], trans[1][1], end_trans[1],
 // 									fg_distro, bg_distro, transition, llr_scores);
 // }
+
 
 void
 HMM::TransitionPosteriors(const vector<value_type> &values,
