@@ -840,9 +840,6 @@ HMM::PosteriorScores(const vector<value_type> &values,
 				for (size_t j = 0; j < distros.size(); ++j)
 						state_posteriors[j] = forward[i][j] + backward[i][j]; 
 
-				classes[i] = static_cast<state_type>(std::max_element(state_posteriors.begin(),
-																	  state_posteriors.end())
-													 - state_posteriors.begin());
 				const double sum = log_sum_log_vec(state_posteriors, state_posteriors.size());
 				llr_scores[i] = exp(state_posteriors[classes[i]] - sum);
 				
