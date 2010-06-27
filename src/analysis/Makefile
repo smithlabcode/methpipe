@@ -19,7 +19,7 @@
 #
 
 PROGS =	methcounts bsrate hmr methdiff dmr amr \
-	sortreads mergelanes bsrate
+	sortreads mergelanes
 
 LIBS = -lgsl -lgslcblas
 CXX = g++
@@ -69,8 +69,8 @@ methcounts methdiff dmr amr bsrate: \
 hmr : $(addprefix $(COMMON), TwoStateHMM.o)
 
 install: all
-	@mkdir -p $(RMAP)/bin
-	@install -m 755 $(PROGS) $(RMAP)/bin
+	@mkdir -p $(METHPIPE)/bin
+	@install -m 755 $(PROGS) $(METHPIPE)/bin
 
 %: %.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ -I$(SMITHLAB_CPP) -I$(COMMON) $(LIBS)
