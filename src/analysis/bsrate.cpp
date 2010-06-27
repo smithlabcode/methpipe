@@ -602,7 +602,7 @@ main(int argc, const char **argv) {
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("bsrate", "a program for determining the "
+    OptionParser opt_parse(argv[0], "a program for determining the "
 			   "rate of bisulfite conversion in a "
 			   "bisulfite sequencing experiment, with "
 			   "too many reads to load into memory at once.",

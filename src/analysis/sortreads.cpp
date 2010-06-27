@@ -323,7 +323,7 @@ main(int argc, const char **argv) {
     size_t read_len = std::numeric_limits<size_t>::max();
   
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("sortreads", "a program for sorting read sequences "
+    OptionParser opt_parse(argv[0], "a program for sorting read sequences "
 			   "relative to an order given in a BED file (i.e. "
 			   "mapping locations)cpgcaller2",
 			   "<fasta-reads-file>");

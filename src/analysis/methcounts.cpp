@@ -502,7 +502,7 @@ main(int argc, const char **argv) {
     double cutoff = -std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("methcounts", "a program for counting the "
+    OptionParser opt_parse(argv[0], "a program for counting the "
 			   "methylated and unmethylated reads mapping "
 			   "over each CpG or C.",
 			   "<fast[a/q]-reads>");

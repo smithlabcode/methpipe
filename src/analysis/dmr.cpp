@@ -213,7 +213,7 @@ main(int argc, const char **argv) {
     bool LOWER = false;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("dmr", "",
+    OptionParser opt_parse(argv[0], "",
 			   "<diffs>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);

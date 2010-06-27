@@ -206,7 +206,7 @@ main(int argc, const char **argv) {
     size_t BUFFER_SIZE = 10000ul;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("mergelanes", 
+    OptionParser opt_parse(argv[0], 
 			   "A program to merge different lanes in a shotgun bisulfite "
 			   "sequencing experiment producing one large sorted file of all read "
 			   "mapping locations (without duplicate 5' ends) and one large file "

@@ -142,7 +142,7 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("methdiff", 
+    OptionParser opt_parse(argv[0], 
 			   "A program for determining the probability that "
 			   "methylation at each CpG (or any nucleotide) differs "
 			   "between two conditions.",

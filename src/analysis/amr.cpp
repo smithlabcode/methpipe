@@ -448,7 +448,7 @@ main(int argc, const char **argv) {
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("methcounts", "a program for counting the "
+    OptionParser opt_parse(argv[0], "a program for counting the "
 			   "methylated and unmethylated reads mapping "
 			   "over each CpG or C.",
 			   "<fasta-reads>");
