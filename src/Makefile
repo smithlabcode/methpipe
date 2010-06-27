@@ -21,6 +21,12 @@
 
 app_subdirs=analysis
 
+## COMMENT: The smithlab_cpp directory is only appearing in the
+## "clean" target below because the compilation of object files inside
+## that directory is achieved through dependency structure -- the
+## reason we do it this way is because much in smithlab_cpp is not
+## needed for methpipe.
+
 all:
 	@make -C common METHPIPE=$(METHPIPE) OPT=1
 	@for i in $(app_subdirs); do \
@@ -39,6 +45,7 @@ test:
 	done;
 
 clean:
+	@make -C smithlab_cpp METHPIPE=$(METHPIPE) OPT=1 clean
 	@make -C common METHPIPE=$(METHPIPE) OPT=1 clean
 	@for i in $(app_subdirs); do \
 		make -C $${i} METHPIPE=$(METHPIPE) OPT=1 clean; \
