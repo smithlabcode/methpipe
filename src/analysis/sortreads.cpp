@@ -113,7 +113,11 @@ is_fasta_name_line(size_t line_count) {
 
 static void
 partition_fasta_file(const bool VERBOSE, string filename, 
-		     const unordered_map<string, size_t> &read_name_index,
+		     /* the const below must be commented out because
+			of the bug in the OS X implementation of
+			unordered_map */
+		     /* const */ 
+		     unordered_map<string, size_t> &read_name_index,
 		     vector<ofstream*> &outfiles, const size_t tmp_file_size) {
   vector<char> buffer(INPUT_BUFFER_SIZE);
   
@@ -173,7 +177,8 @@ is_fastq_score_line(size_t line_count) {
 
 static void
 partition_fastq_file(const bool VERBOSE, string filename,
-		     const unordered_map<string, size_t> &read_name_index,
+		     // const // Because of the mac unordered_map bug, no const...
+		     unordered_map<string, size_t> &read_name_index,
 		     vector<ofstream*> &outfiles, const size_t tmp_file_size) {
   vector<char> buffer(INPUT_BUFFER_SIZE);
   
@@ -231,7 +236,8 @@ relative_sort_reads_fasta(const bool VERBOSE,
 			  const bool KEEP_TEMP_FILES,
 			  const size_t read_len,
 			  const string &filename, 
-			  const unordered_map<string, size_t> &read_name_index,
+			  // const 
+			  unordered_map<string, size_t> &read_name_index,
 			  ofstream &out) {
   
   if (VERBOSE)
@@ -267,7 +273,8 @@ relative_sort_reads_fastq(const bool VERBOSE,
 			  const bool KEEP_TEMP_FILES,
 			  const size_t read_len,
 			  const string &filename, 
-			  const unordered_map<string, size_t> &read_name_index,
+			  // const 
+			  unordered_map<string, size_t> &read_name_index,
 			  ofstream &out) {
   if (VERBOSE)
     cerr << "[READING]";
