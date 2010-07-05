@@ -205,6 +205,8 @@ main(int argc, const char **argv) {
     
     size_t BUFFER_SIZE = 10000ul;
     
+    bool ALLOW_DUPLICATES = false;
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], 
 			   "A program to merge different lanes in a shotgun bisulfite "
@@ -216,6 +218,8 @@ main(int argc, const char **argv) {
 		      true, map_outfile);
     opt_parse.add_opt("readout", 'r', "Name of reads output file", 
 		      true, read_outfile);
+    opt_parse.add_opt("dups", 'D', "Allow duplicate fragments",
+		      false, ALLOW_DUPLICATES);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -279,7 +283,7 @@ main(int argc, const char **argv) {
     
     ofstream out(map_outfile.c_str());
     ofstream read_out(read_outfile.c_str());
-
+    
     vector<GenomicRegion> mapped_ties;
     vector<FASTQRecord> reads_ties;
     double score = -std::numeric_limits<double>::max();
@@ -287,25 +291,31 @@ main(int argc, const char **argv) {
     
     while (!a.empty()) {
       const size_t file_id = a.top().second;
-      if (mapped_ties.empty() || 
-	  !(mapped_ties.front() < a.top().first)) {
-	const double new_score = (a.top().first.get_width() - a.top().first.get_score());
-	if (new_score > score) {
-	  score = new_score;
-	  mapped_ties.clear();
-	  reads_ties.clear();
-	}
+      if (ALLOW_DUPLICATES) {
+	out << a.top().first << '\n';
+	read_out << *read_itrs[file_id]->get_first() << '\n';
       }
       else {
-	const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
-	out << mapped_ties[rand_idx] << '\n';
-	read_out << reads_ties[rand_idx] << '\n';
-	mapped_ties.clear();
-	reads_ties.clear();
-	score = -std::numeric_limits<double>::max();
+	if (mapped_ties.empty() || 
+	    !(mapped_ties.front() < a.top().first)) {
+	  const double new_score = (a.top().first.get_width() - a.top().first.get_score());
+	  if (new_score > score) {
+	    score = new_score;
+	    mapped_ties.clear();
+	    reads_ties.clear();
+	  }
+	}
+	else {
+	  const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
+ 	  out << mapped_ties[rand_idx] << '\n';
+	  read_out << reads_ties[rand_idx] << '\n';
+	  mapped_ties.clear();
+	  reads_ties.clear();
+	  score = -std::numeric_limits<double>::max();
+	}
+	mapped_ties.push_back(a.top().first);
+	reads_ties.push_back(*read_itrs[file_id]->get_first());
       }
-      mapped_ties.push_back(a.top().first);
-      reads_ties.push_back(*read_itrs[file_id]->get_first());
       a.pop();
       itrs[file_id]->increment_first();
       read_itrs[file_id]->increment_first();
