@@ -322,9 +322,11 @@ main(int argc, const char **argv) {
       if (itrs[file_id]->first_is_good())
 	a.push(make_pair(*itrs[file_id]->get_first(), file_id));
     }
-    const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
-    out << mapped_ties[rand_idx] << '\n';
-    read_out << reads_ties[rand_idx] << '\n';
+    if (!ALLOW_DUPLICATES) {
+      const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
+      out << mapped_ties[rand_idx] << '\n';
+      read_out << reads_ties[rand_idx] << '\n';
+    }
   }
   catch (const RMAPException &e) {
     cerr << e.what() << endl;
