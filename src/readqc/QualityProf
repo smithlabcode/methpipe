@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+
+import sys, os.path, bz2, random
+from optparse import OptionParser
+
+
+isFASTQ_Solexa = 0
+isFASTQ_Phred = 0
+readLen = 0
+
+
+def isBzipFile(fn):
+    return os.path.splitext(fn)[-1] == '.bz2'
+
+
+## CONVERT_FROM_QUALITY_CHARACTERS
+def quality_character_to_phred(c):
+    return ord(c)-33
+
+def quality_character_to_solexa(c):
+    return ord(c)-64    
+
+def check_format(inFile):
+    global readLen
+    isFASTQ_Solexa = 1;    
+    lineCount = 0;
+    for i in inFile:
+        if lineCount % 4 ==3:
+            scores = i.strip()
+            if readLen == 0:
+                readLen = len(scores)
+            for j in scores:
+                if ord(j)<64 or ord(j)>104:
+                    isFAStQ_Solexa = 0
+                    isFASTQ_Phred = 1
+                    return
+        lineCount += 1
+
+def FindMedian(column,K):
+    columnLen = len(column)
+    a = random.randint(0,columnLen-1)
+    aValue = column[a]
+    del column[a]
+    countS = 0    
+    S = []
+    B = []
+    for i in range(columnLen-1):
+        if column[i]<aValue:
+            countS += 1
+            S.append(column[i])
+        else:
+            B.append(column[i])
+    if countS == K-1:
+        return aValue
+    if countS<K-1:
+        return FindMedian(B,K-countS-1)
+    else:
+        return FindMedian(S,K)
+    
+    
+def main(argv):    
+    
+    usage = "usage: %prog [options]"
+    parser = OptionParser(usage = usage)
+    parser.add_option("-o",action="store",type="string",dest="outFile",help="output file",metavar="<filename>")
+    parser.add_option("-f",action="store",type="string",dest="reads",help="reads file",metavar="<filename>")
+
+    (opt, args) = parser.parse_args(argv)
+    if opt.reads == None:
+        parser.print_help()
+        sys.exit(1)
+
+    out = sys.stdout
+    if opt.reads != None:
+        out = open(opt.outFile, 'w')
+
+    inFile = open(opt.reads)
+    if isBzipFile(opt.reads):
+        inFile.close()
+        inFile = bz2.BZ2File(opt.reads)
+    
+    
+    print("ReadLen: %d " % (readLen))
+    check_format(inFile)
+    
+    inFile.close()
+    inFile = open(opt.reads)
+    if isBzipFile(opt.reads):
+        inFile.close()
+        inFile = bz2.BZ2File(opt.reads)    
+
+    lineCount = 0;
+    ValueMatrix = []*readLen
+    ACount = [0]*readLen
+    TCount = [0]*readLen
+    GCount = [0]*readLen
+    CCount = [0]*readLen
+    NCount = [0]*readLen
+    Max = [-1]*readLen
+    Min = [9999]*readLen
+    Median = [0]*readLen
+    Sum = [0]*readLen
+
+    for i in inFile:
+        if lineCount % 4 == 3:            
+            scores = i.strip()
+            columnCount = 0
+            for j in scores:
+                if isFASTQ_Solexa:
+                    value = quality_character_to_solexa(j)
+                if isFASTQ_Phred:
+                    value = quality_character_to_phred(j)
+
+                ValueMatrix[columnCount].append(value)
+                Sum[columnCount] += value
+                if value<Min[columnCount]:
+                    Min[columnCount] = value
+                if value>Max[columnCount]:
+                    Max[columnCount] = value                
+                if j=='A':
+                    ACount[columnCount] += 1
+                if j=='T':
+                    TCount[columnCount] += 1
+                if j=='G':
+                    GCount[columnCount] += 1
+                if j=='C':
+                    CCount[columnCount] += 1
+                if j=='N':
+                    NCount[columnCount] += 1
+                columnCount += 1
+        lineCount += 1
+
+    columnLen = len(valueMatrix[0])
+    for i in range(readLen):
+        if columnLen%2==0:
+            Median[i] = (FindMedian(ValueMatrix[i],int(columnLen/2)) + FindMedian(ValueMatrix[i],int(columnLen/2)-1))/2
+        else:
+            Median[i] = FindMedian(ValueMatrix[i],int((columnLen-1)/2))       
+
+    out.write("Column\tmin\tmax\tsum\tmean\tmedian\tA_Count\tC_Count\tG_Count\tT_Count\tN_Count")
+    for i in range(readLen):
+        out.write("%d\t%d\t%d\t%d\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n" % (i+1,Min[i],Max[i],Sum[i],Sum[i]/columnLen,Median[i],ACount[i],CCount[i],GCount[i],TCount[i],NCount[i]))
+        
+    out.close()
+
+
+
+
+
+if __name__=="__main__":
+    main(sys.argv)
