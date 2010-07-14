@@ -235,11 +235,11 @@ TwoStateHMMB::estimate_transitions(const vector<pair<double, double> > &vals,
 				  vector<double> &bb_vals) const {
   for (size_t i = start + 1; i < end; ++i) {
     const size_t k = i - 1;
-    const double b_first = b[i].first;
-    const double b_second = b[i].second;
+    const double b_first = b[i].first + fg_distro(vals[i]) - total;
+    const double b_second = b[i].second + bg_distro(vals[i]) - total;
     
-    const double ff = f[k].first + fg_distro(vals[i]) - total;
-    const double bb = f[k].second + bg_distro(vals[i]) - total;
+    const double ff = f[k].first;
+    const double bb = f[k].second;
     
     ff_vals[k] = ff + lp_ff + b_first;
     fb_vals[k] = ff + lp_fb + b_second;
