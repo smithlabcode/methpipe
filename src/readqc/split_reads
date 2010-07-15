@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+
+import sys, os.path, bz2, math
+from optparse import OptionParser
+
+def terminalNCount(seq):
+    i = 1
+    count = 0
+    while i >= 0 and seq[:-i] == 'N':
+        count += 1
+    return len(seq) - count
+    
+def sim(seq, pos, adaptor):
+    count = 0
+    lim = min(len(seq) - pos, len(adaptor))
+    i = 0
+    skip = 0
+    while i < lim and skip < 2: ### MAGIC
+        base = seq[pos + i]
+        if base  == adaptor[i]:
+            count += 1
+        elif base != 'N':
+            skip += 1
+        i += 1
+    return count
+
+def clipRead(seq, adaptor, maxMatch, minRead):
+    minMatch = len(seq) - maxMatch
+    rr = len(seq) - maxMatch + 1
+    ss = len(adaptor) - maxMatch + 1
+    for i in range(rr):
+        score = sim(seq, i, adaptor)
+        if score >= maxMatch:
+            return (i, score, seq[:i] + 'N'*(len(seq) - i))
+    return terminalNCount(seq), 0, seq
+
+def isBzipFile(fn):
+    return os.path.splitext(fn)[-1] == '.bz2'
+
+def main(argv):                         
+
+    usage = "usage: %prog [options]"
+    parser = OptionParser(usage=usage)
+    parser.add_option("-o", action="store", type="string",
+                      dest="outDir", help="output dir", metavar="<dir>")
+    parser.add_option("-r", action="store", type="string", dest="reads",
+                      help="reads file to split", metavar="<file>")
+    parser.add_option("-n", action="store", type="int", dest="number",
+                      help="number of reads per split file", metavar="<int>")
+    parser.add_option("-l", action="store", type="string", dest="readCountsFile",
+                      help="file containing read counts in file to split",
+                      metavar="<file>")
+    parser.add_option("-v", action="store_true", dest="verbose",
+                      help="run in verbose mode", metavar="<bool>")
+    parser.add_option("-a", action="store", type="string", dest="adaptor",
+                      help="adaptor sequence", metavar="<string>")
+    parser.add_option("-m", action="store", type="int", dest="allowedAdaptorMatch",
+                      help="max allowed adaptor match", metavar="<int>")
+    parser.add_option("-L", action="store", type="int", dest="minLen",
+                      help="min sequence len", metavar="<int>")
+    
+    (opt, args) = parser.parse_args(argv)
+    if (opt.outDir == None or opt.reads == None or
+        opt.readCountsFile == None or opt.number == None):
+        parser.print_help()
+        sys.exit(1)
+
+    ## Determine how many lines in the file to split
+    nReads = 0
+    for i in open(opt.readCountsFile):
+        n, c = i.split()
+        if os.path.basename(n) == os.path.basename(opt.reads): nReads = int(c)
+
+    if opt.verbose:
+        print >> sys.stderr, 'reads=', nReads, '; per file=', opt.number
+        
+    inFile = open(opt.reads)
+    n = os.path.basename(opt.reads)
+    if isBzipFile(opt.reads):
+        inFile.close()
+        inFile = bz2.BZ2File(opt.reads)
+        n = os.path.basename(os.path.splitext(opt.reads)[0])
+
+    lineCount = 0
+    outRecordCount = 0
+    fileCount = 0
+
+    name = ''
+    scores = ''
+    seq = ''
+
+    adaptorReads = 0
+    shortReads = 0
+    
+    out = None
+    for i in inFile:
+        if lineCount % 4 == 0:
+            name = i
+        if lineCount % 4 == 1:
+            seq = i.strip()
+        if lineCount % 4 == 3:
+            scores = i.strip()
+            goodLen, adaptorMatchLen, seq = clipRead(seq, opt.adaptor, opt.allowedAdaptorMatch, opt.minLen)
+            goodRead = (goodLen >= opt.minLen) # and adaptorMatchLen < opt.allowedAdaptorMatch)
+            adaptorReads += (adaptorMatchLen >= opt.allowedAdaptorMatch)
+            shortReads += (goodLen < opt.minLen)
+            if goodRead:
+                if (outRecordCount % opt.number == 0):
+                    if not out == None: out.close()
+                    fileCount += 1
+                    outFileName = n[:n.find('.')] + "_%d" % (fileCount) + n[n.find('.'):]
+                    if opt.verbose: print >> sys.stderr, 'writing: ' + outFileName
+                    out = open(os.path.join(opt.outDir, outFileName), 'w')
+                out.write(name)
+                out.write(seq + 'N'*(101 - len(seq)) + '\n')
+                out.write('+' + name[1:])
+                out.write(scores + 'B'*(101 - len(seq)) + '\n')
+                outRecordCount += 1
+        lineCount += 1
+    if not out == None: out.close()
+
+    print 'adaptor\t%d' % adaptorReads
+    print 'short\t%d' % shortReads
+
+if __name__ == "__main__":
+    main(sys.argv)
