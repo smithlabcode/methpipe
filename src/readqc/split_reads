@@ -26,7 +26,7 @@ def sim(seq, pos, adaptor):
 
 def clipRead(seq, adaptor, maxMatch, minRead):
     minMatch = len(seq) - maxMatch
-    rr = len(seq) - maxMatch + 1
+    rr = len(seq) - maxMatch 
     ss = len(adaptor) - maxMatch + 1
     for i in range(rr):
         score = sim(seq, i, adaptor)
