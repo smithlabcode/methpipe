@@ -267,7 +267,8 @@ read_params_file(const bool VERBOSE,
 		 double &bg_beta,
 		 vector<double> &start_trans, 
 		 vector<vector<double> > &trans, 
-		 vector<double> &end_trans) {
+		 vector<double> &end_trans,
+		 double &fdr_cutoff) {
   string jnk;
   std::ifstream in(params_file.c_str());
   in >> jnk >> fg_alpha
@@ -281,7 +282,8 @@ read_params_file(const bool VERBOSE,
      >> jnk >> trans[1][0]
      >> jnk >> trans[1][1]
      >> jnk >> end_trans[0]
-     >> jnk >> end_trans[1];
+     >> jnk >> end_trans[1]
+     >> jnk >> fdr_cutoff;
   if (VERBOSE)
     cerr << "FG_ALPHA\t" << fg_alpha << endl
 	 << "FG_BETA\t" << fg_beta << endl
@@ -294,7 +296,8 @@ read_params_file(const bool VERBOSE,
 	 << "B_F\t" << trans[1][0] << endl
 	 << "B_B\t" << trans[1][1] << endl
 	 << "F_E\t" << end_trans[0] << endl
-	 << "B_E\t" << end_trans[1] << endl;
+	 << "B_E\t" << end_trans[1] << endl
+	 << "FDR_CUTOFF\t" << fdr_cutoff << endl;
 }
 
 static void
@@ -403,7 +406,7 @@ main(int argc, const char **argv) {
     vector<double> start_trans(2, 0.5), end_trans(2, 1e-10);
     vector<vector<double> > trans(2, vector<double>(2, 0.25));
     trans[0][0] = trans[1][1] = 0.75;
-
+    
     const TwoStateHMMB hmm(min_prob, tolerance, max_iterations, VERBOSE);
     
     double fg_alpha = 0;
@@ -411,10 +414,13 @@ main(int argc, const char **argv) {
     double bg_alpha = 0;
     double bg_beta = 0;
     
+    double fdr_cutoff = std::numeric_limits<double>::max();
+
     if (!params_in_file.empty()) {
       // READ THE PARAMETERS FILE
-      read_params_file(VERBOSE, params_in_file, fg_alpha, fg_beta, bg_alpha, bg_beta,
-		       start_trans, trans, end_trans);
+      read_params_file(VERBOSE, params_in_file, 
+		       fg_alpha, fg_beta, bg_alpha, bg_beta,
+		       start_trans, trans, end_trans, fdr_cutoff);
     }
     else {
       const double n_reads = accumulate(reads.begin(), reads.end(), 0.0)/reads.size();
@@ -423,9 +429,12 @@ main(int argc, const char **argv) {
       bg_alpha = 0.67*n_reads;
       bg_beta = 0.33*n_reads;
     }
-    if (!params_out_file.empty()) {
+    
+    if (max_iterations > 0)
       hmm.BaumWelchTraining(meth, reset_points, start_trans, trans, 
 			    end_trans, fg_alpha, fg_beta, bg_alpha, bg_beta);
+    
+    if (!params_out_file.empty()) {
       // WRITE ALL THE HMM PARAMETERS:
       write_params_file(params_out_file, fg_alpha, fg_beta, bg_alpha, bg_beta,
 			start_trans, trans, end_trans);
@@ -449,8 +458,16 @@ main(int argc, const char **argv) {
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
     
-    const double fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
-      
+    if (fdr_cutoff == numeric_limits<double>::max())
+      fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
+
+    if (!params_out_file.empty()) {
+      std::ofstream out(params_out_file.c_str(), std::ios::app);
+      out.precision(30);
+      out << "FDR_CUTOFF\t" << fdr_cutoff << endl;
+      out.close();
+    }
+    
     /***********************************
      * STEP 6: WRITE THE RESULTS
      */
