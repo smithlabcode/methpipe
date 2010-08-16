@@ -19,7 +19,7 @@
 #
 
 PROGS =	methcounts bsrate hmr methdiff dmr amr \
-	sortreads mergelanes
+	sortreads mergelanes checkoverlap
 
 LIBS = -lgsl -lgslcblas
 CXX = g++
@@ -63,8 +63,11 @@ mergelanes: \
 methcounts bsrate: \
 	$(addprefix $(SMITHLAB_CPP), QualityScore.o)
 
+checkoverlap: \
+	$(addprefix $(SMITHLAB_CPP), MappedRead.o)
+
 methcounts methdiff dmr amr bsrate: \
-	$(addprefix $(SMITHLAB_CPP), FileIterator.o)
+	$(addprefix $(SMITHLAB_CPP), FileIterator.o MappedRead.o) 
 
 hmr : $(addprefix $(COMMON), TwoStateHMM.o)
 
