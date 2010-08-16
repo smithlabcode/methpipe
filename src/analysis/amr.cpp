@@ -37,6 +37,7 @@
 
 #include "bsutils.hpp"
 #include "FileIterator.hpp"
+#include "MappedRead.hpp"
 
 
 #include <gsl/gsl_sf_gamma.h>
@@ -60,15 +61,6 @@ log_sum_log(const double p, const double q) {
   return larger + log(1.0 + exp(smaller - larger));
 }
 
-static void
-get_meth_unmeth(const GenomicRegion &cpg, size_t &meth, size_t &unmeth) {
-  const double prob = cpg.get_score();
-  const string name(cpg.get_name());
-  const size_t n_reads = atoi(name.substr(name.find_first_of(":") + 1).c_str());
-  meth = prob*n_reads;
-  unmeth = n_reads - meth;
-}
-
 static double
 log_hyper_g(const size_t a, const size_t c, 
 	    const size_t b, const size_t d) {
@@ -82,24 +74,6 @@ static double
 test_similar_population(size_t meth_a, size_t unmeth_a, 
 			size_t meth_b, size_t unmeth_b) {
   double p = 0;
-
-//   size_t a = 0, b = 0, c = 0, d = 0;
-//   if ((meth_a + 1)*(unmeth_b + 1) > unmeth_a*meth_b) {
-//     a = meth_a;   c = meth_b; 
-//     b = unmeth_a; d = unmeth_b;
-//   }
-//   else {
-//     c = meth_a;   a = meth_b;   
-//     d = unmeth_a; b = unmeth_b; 
-//   }
-//   while (b > 0 && c > 0) {
-//     p = log_sum_log(p, log_hyper_g(a, c, b, d));
-//     ++a; --b;
-//     ++d; --c;
-//   }
-//   p = log_sum_log(p, log_hyper_g(a, c, b, d));
-
-
   while (unmeth_a > 0 && meth_b > 0) {
     p = log_sum_log(p, log_hyper_g(meth_a, meth_b, unmeth_a, unmeth_b));
     ++meth_a; --unmeth_a;
@@ -109,187 +83,117 @@ test_similar_population(size_t meth_a, size_t unmeth_a,
   return exp(p);
 }
 
-// static void
-// add_contribution_cpg(const size_t offset, const GenomicRegion &r,
-// 		     const string &s, size_t &meth, size_t &unmeth) {
-//   if (r.pos_strand() && (r.get_start() <= offset)) {
-//     const size_t position = offset - r.get_start();
-//     assert(position < s.length());
-//     if (is_cytosine(s[position])) ++meth;
-//     if (is_thymine(s[position])) ++unmeth;
-//   }
-//   else if (offset - r.get_start() + 2 <= s.length()) {
-//     const size_t position = (s.length() - 1) - 
-//       ((offset + 1) - r.get_start());
-//     assert(position < s.length());
-//     if (is_cytosine(s[position])) ++meth;
-//     if (is_thymine(s[position])) ++unmeth;
-//   }
-// }
-
-
-// static void
-// add_contribution_c(const size_t offset, const GenomicRegion &r,
-// 		   const string &s, size_t &meth, size_t &unmeth) {
-//   if (r.pos_strand()) {
-//     const size_t position = offset - r.get_start();
-//     assert(position < s.length());
-//     if (is_cytosine(s[position])) ++meth;
-//     if (is_thymine(s[position])) ++unmeth;
-//   }
-// }
-
-
-// static void
-// add_contribution_g(const size_t offset, const GenomicRegion &r,
-// 		   const string &s, size_t &meth, size_t &unmeth) {
-//   if (r.neg_strand()) {
-//     const size_t position = s.length() - (offset - r.get_start() + 1);
-//     assert(position < s.length());
-//     if (is_cytosine(s[position])) ++meth;
-//     if (is_thymine(s[position])) ++unmeth;
-//   }
-// }
-
 
 static void
 add_contribution_cpg(const size_t offset_a, 
 		     const size_t offset_b, 
-		     const GenomicRegion &r,
-		     const FASTQRecord &s, 
+		     const MappedRead &r,
 		     size_t &meth_meth, size_t &meth_unmeth,
 		     size_t &unmeth_meth, size_t &unmeth_unmeth) {
-  if (r.pos_strand() && 
-      (r.get_start() <= offset_a) &&
-      (r.get_start() <= offset_b)) {
-    const size_t position_a = offset_a - r.get_start();
-    if (!(position_a < s.first.length())) return;
-    assert(position_a < s.first.length());
-    const size_t position_b = offset_b - r.get_start();
-    if (!(position_b < s.first.length())) return;
-    assert(position_b < s.first.length());
-    if (is_cytosine(s.first[position_a])) {
-      if (is_cytosine(s.first[position_b])) ++meth_meth;
-      else if (is_thymine(s.first[position_b])) ++meth_unmeth;
+  if (r.r.pos_strand() && 
+      (r.r.get_start() <= offset_a) &&
+      (r.r.get_start() <= offset_b)) {
+    const size_t position_a = offset_a - r.r.get_start();
+    if (!(position_a < r.seq.length())) return;
+    assert(position_a < r.seq.length());
+    const size_t position_b = offset_b - r.r.get_start();
+    if (!(position_b < r.seq.length())) return;
+    assert(position_b < r.seq.length());
+    if (is_cytosine(r.seq[position_a])) {
+      if (is_cytosine(r.seq[position_b])) ++meth_meth;
+      else if (is_thymine(r.seq[position_b])) ++meth_unmeth;
     }
-    else if (is_thymine(s.first[position_a])) {
-      if (is_thymine(s.first[position_b])) ++unmeth_unmeth;
-      else if (is_cytosine(s.first[position_b])) ++unmeth_meth;
+    else if (is_thymine(r.seq[position_a])) {
+      if (is_thymine(r.seq[position_b])) ++unmeth_unmeth;
+      else if (is_cytosine(r.seq[position_b])) ++unmeth_meth;
     }
-    // (offset_b - r.get_start() < s.first.length()) &&
     
   }
-  if (r.neg_strand() && 
-      (offset_a - r.get_start() + 2 <= s.first.length()) &&
-      (offset_b - r.get_start() + 2 <= s.first.length())) {
-    const size_t position_a = (s.first.length() - 1) - 
-      ((offset_a + 1) - r.get_start());
-//     cerr << s.first << "\n" 
-// 	 << r << endl
-// 	 << offset_a << endl;
-    if (!(position_a < s.first.length())) return;
-    assert(position_a < s.first.length());
-    const size_t position_b = (s.first.length() - 1) - 
-      ((offset_b + 1) - r.get_start());
-    if (!(position_b < s.first.length())) return;
-    assert(position_b < s.first.length());
-    if (is_cytosine(s.first[position_a])) {
-      if (is_cytosine(s.first[position_b])) ++meth_meth;
-      else if (is_thymine(s.first[position_b])) ++meth_unmeth;
+  if (r.r.neg_strand() && 
+      (offset_a - r.r.get_start() + 2 <= r.seq.length()) &&
+      (offset_b - r.r.get_start() + 2 <= r.seq.length())) {
+    const size_t position_a = (r.seq.length() - 1) - 
+      ((offset_a + 1) - r.r.get_start());
+    if (!(position_a < r.seq.length())) return;
+    assert(position_a < r.seq.length());
+    const size_t position_b = (r.seq.length() - 1) - 
+      ((offset_b + 1) - r.r.get_start());
+    if (!(position_b < r.seq.length())) return;
+    assert(position_b < r.seq.length());
+    if (is_cytosine(r.seq[position_a])) {
+      if (is_cytosine(r.seq[position_b])) ++meth_meth;
+      else if (is_thymine(r.seq[position_b])) ++meth_unmeth;
     }
-    else if (is_thymine(s.first[position_a])) {
-      if (is_thymine(s.first[position_b])) ++unmeth_unmeth;
-      else if (is_cytosine(s.first[position_b])) ++unmeth_meth;
+    else if (is_thymine(r.seq[position_a])) {
+      if (is_thymine(r.seq[position_b])) ++unmeth_unmeth;
+      else if (is_cytosine(r.seq[position_b])) ++unmeth_meth;
     }
-
-
-//     if (is_cytosine(s.first[position_a])) ++meth;
-//     if (is_thymine(s.first[position_a])) ++unmeth;
-  }
-
-//   if (r.pos_strand() && 
-//       // (offset_b - r.get_start() < s.first.length()) &&
-//       (r.get_start() <= offset_b)) {
-//     if (is_cytosine(s.first[position_b])) ++meth;
-//     if (is_thymine(s.first[position_b])) ++unmeth;
-//   }
-//   if (r.neg_strand() && 
-//       // (r.get_start() <= offset_b + 1) && 
-//     if (is_cytosine(s.first[position_b])) ++meth;
-//     if (is_thymine(s.first[position_b])) ++unmeth;
-//   }
-
-  
-  
-}
-
-
-static void
-add_contribution_c(const size_t offset, const GenomicRegion &r,
-		   const FASTQRecord &s, size_t &meth, size_t &unmeth) {
-  if (r.pos_strand()) {
-    const size_t position = offset - r.get_start();
-    assert(position < s.first.length());
-    if (is_cytosine(s.first[position])) ++meth;
-    if (is_thymine(s.first[position])) ++unmeth;
   }
 }
 
 
 static void
-add_contribution_g(const size_t offset, const GenomicRegion &r,
-		   const FASTQRecord &s, size_t &meth, size_t &unmeth) {
-  if (r.neg_strand()) {
-    const size_t position = s.first.length() - (offset - r.get_start() + 1);
-    assert(position < s.first.length());
-    if (is_cytosine(s.first[position])) ++meth;
-    if (is_thymine(s.first[position])) ++unmeth;
+add_contribution_c(const size_t offset, const MappedRead &r,
+		   size_t &meth, size_t &unmeth) {
+  if (r.r.pos_strand()) {
+    const size_t position = offset - r.r.get_start();
+    assert(position < r.seq.length());
+    if (is_cytosine(r.seq[position])) ++meth;
+    if (is_thymine(r.seq[position])) ++unmeth;
+  }
+}
+
+
+static void
+add_contribution_g(const size_t offset, const MappedRead &r,
+		   size_t &meth, size_t &unmeth) {
+  if (r.r.neg_strand()) {
+    const size_t position = r.seq.length() - (offset - r.r.get_start() + 1);
+    assert(position < r.seq.length());
+    if (is_cytosine(r.seq[position])) ++meth;
+    if (is_thymine(r.seq[position])) ++unmeth;
   }
 }
 
 
 static bool
-precedes(const GenomicRegion &r, const size_t offset) {
-  return r.get_end() <= offset;
+precedes(const MappedRead &r, const size_t offset) {
+  return r.r.get_end() <= offset;
 }
 
 
 static bool
-succeeds(const GenomicRegion &r, const size_t offset) {
-  return r.get_start() > offset;
+succeeds(const MappedRead &r, const size_t offset) {
+  return r.r.get_start() > offset;
 }
 
 
-template <class T> void
+static void
 advance(const size_t first, const size_t last,
 	const GenomicRegion &chrom_region, 
-	FileIterator<GenomicRegion> &regions,
-	FileIterator<T> &reads) {
+	FileIterator<MappedRead> &regions) {
   while (regions.last_is_good() && 
-	 chrom_region.same_chrom(*regions.get_last()) &&
+	 chrom_region.same_chrom(regions.get_last()->r) &&
 	 !succeeds(*regions.get_last(), last)) {
     regions.increment_last();
-    reads.increment_last();
   }
   //   if (regions.last_is_good() != reads.last_is_good())
   //     throw RMAPException("read and map files seem out of sync");
   while (regions.first_is_good() && 
-	 chrom_region.same_chrom(*regions.get_first()) &&
+	 chrom_region.same_chrom(regions.get_first()->r) &&
 	 precedes(*regions.get_first(), first)) {
     regions.increment_first();
-    reads.increment_first();
   }
   //   if (regions.first_is_good() != reads.first_is_good())
   //     throw RMAPException("read and map files seem out of sync");
 }
 
 
-template <class T> void
+static void
 scan_chromosome_cpg(const string &chrom,
 		    const GenomicRegion &chrom_region,
 		    const double max_mismatches,
-		    FileIterator<GenomicRegion> &regions, 
-		    FileIterator<T> &reads,
+		    FileIterator<MappedRead> &regions,
 		    std::ostream &out) {
   const string chrom_name(chrom_region.get_chrom());
   size_t prev = std::numeric_limits<size_t>::max();
@@ -298,14 +202,13 @@ scan_chromosome_cpg(const string &chrom,
     if (is_cpg(chrom, i)) {
       if (prev != std::numeric_limits<size_t>::max()) {
 	if (i - prev <= read_width) {
-	  advance(prev, i + 1, chrom_region, regions, reads);
+	  advance(prev, i + 1, chrom_region, regions);
 	  size_t meth_meth_count = 1, meth_unmeth_count = 1;
 	  size_t unmeth_meth_count = 1, unmeth_unmeth_count = 1;
-	  typename vector<T>::const_iterator k(reads.get_first());
-	  for (vector<GenomicRegion>::const_iterator j(regions.get_first());
-	       j != regions.get_last(); ++j, ++k)
-	    if (j->get_score() <= max_mismatches)
-	      add_contribution_cpg(prev, i, *j, *k, 
+	  for (vector<MappedRead>::const_iterator j(regions.get_first());
+	       j != regions.get_last(); ++j)
+	    if (j->r.get_score() <= max_mismatches)
+	      add_contribution_cpg(prev, i, *j, 
 				   meth_meth_count, meth_unmeth_count,
 				   unmeth_meth_count, unmeth_unmeth_count);
 	  const double total = meth_meth_count + meth_unmeth_count +
@@ -327,34 +230,31 @@ scan_chromosome_cpg(const string &chrom,
 }
 
 
-template <class T> void
+static void
 scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		const double max_mismatches,
-		FileIterator<GenomicRegion> &regions, 
-		FileIterator<T> &reads,
+		FileIterator<MappedRead> &regions, 
 		std::ostream &out) {
   const string chrom_name(chrom_region.get_chrom());
   
   for (size_t i = 1; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
-    advance(i, i, chrom_region, regions, reads);
+    advance(i, i, chrom_region, regions);
     if (is_cytosine(chrom[i]) && !is_guanine(chrom[i + 1])) {
       size_t meth_count = 0, unmeth_count = 0;
-      typename vector<T>::const_iterator k(reads.get_first());
-      for (vector<GenomicRegion>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j, ++k)
-	if (j->get_score() <= max_mismatches)
-	  add_contribution_c(i, *j, *k, meth_count, unmeth_count);
+      for (vector<MappedRead>::const_iterator j(regions.get_first());
+	   j != regions.get_last(); ++j)
+	if (j->r.get_score() <= max_mismatches)
+	  add_contribution_c(i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tC:"
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }
     if (is_guanine(chrom[i]) && !is_cytosine(chrom[i - 1])) {
       size_t meth_count = 0, unmeth_count = 0;
-      typename vector<T>::const_iterator k(reads.get_first());
-      for (vector<GenomicRegion>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j, ++k)
-	if (j->get_score() <= max_mismatches)
-	  add_contribution_g(i, *j, *k, meth_count, unmeth_count);
+      for (vector<MappedRead>::const_iterator j(regions.get_first());
+	   j != regions.get_last(); ++j)
+	if (j->r.get_score() <= max_mismatches)
+	  add_contribution_g(i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tG:" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
@@ -382,31 +282,26 @@ identify_chromosomes(const bool VERBOSE, const string chrom_file,
 }
 
 
-template <class T> void
+static void
 advance_chromosome(const GenomicRegion &chrom_region, 
-		   FileIterator<GenomicRegion> &regions, 
-		   FileIterator<T> &reads) {
+		   FileIterator<MappedRead> &regions) {
   while (regions.last_is_good() && 
-	 (*regions.get_last() < chrom_region)) {
+	 (regions.get_last()->r < chrom_region)) {
     assert(regions.last_is_good());
     regions.increment_last();
-    reads.increment_last();
   }
   while (regions.first_is_good() && 
-	 (*regions.get_first() < chrom_region)) {
+	 (regions.get_first()->r < chrom_region)) {
     regions.increment_first();
-    reads.increment_first();
   }
 }
 
 
-template <class T> 
-void
+static void
 scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
-	    FileIterator<GenomicRegion> &regions,
-	    FileIterator<T> &reads) {
+	    FileIterator<MappedRead> &regions) {
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
   for (size_t i = 0; i < chrom_files.size(); ++i) {
     const string fn(strip_path_and_suffix(chrom_files[i]));
@@ -418,12 +313,12 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       if (VERBOSE) cerr << "[SCANNING=" << chrom_names[j] << "]";
       //TODO: WHAT HAPPENS IF A CHROM IS MISSING??
       const GenomicRegion chrom_region(chrom_names[j], 0, 0);
-      advance_chromosome(chrom_region, regions, reads);
+      advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(chroms[j], chrom_region, max_mismatches,
-			regions, reads, *out);
+			regions, *out);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
-			       regions, reads, *out);
+			       regions, *out);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
@@ -439,7 +334,6 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     bool PROCESS_NON_CPGS = false;
     
-    string mapped_file;
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
@@ -459,8 +353,6 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
 		      "(assumes -c indicates dir)", 
 		      false , fasta_suffix);
-    opt_parse.add_opt("mapped", 'm', "file of mapped locations", 
-		      true , mapped_file);
     opt_parse.add_opt("non", 'N', "process non-CpG cytosines", 
 		      false , PROCESS_NON_CPGS);
     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
@@ -487,31 +379,23 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string reads_file = leftover_args.front();
+    const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
     if (VERBOSE)
       cerr << "MAX MISMATCHES=" << max_mismatches << endl;
 
-    const bool FASTQ = is_fastq(reads_file);
-    if (VERBOSE)
-      cerr << "READS FILE FORMAT: " << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
+    //     const bool FASTQ = is_fastq(reads_file);
+    //     if (VERBOSE)
+    //       cerr << "READS FILE FORMAT: " << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
     
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
     sort(chrom_files.begin(), chrom_files.end());
     
-    FileIterator<GenomicRegion> regions(mapped_file, BUFFER_SIZE);
-    //     if (FASTQ) {
-    FileIterator<FASTQRecord> reads(reads_file, BUFFER_SIZE);
+    FileIterator<MappedRead> regions(mapped_reads_file, BUFFER_SIZE);
     scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
-		outfile, chrom_files, regions, reads);
-//     }
-//     else {
-//       FileIterator<string> reads(reads_file, BUFFER_SIZE);
-//       scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
-// 		  outfile, chrom_files, regions, reads);
-//     }
+		outfile, chrom_files, regions);
   }
   catch (const RMAPException &e) {
     cerr << e.what() << endl;
