@@ -19,7 +19,7 @@
 #
 
 PROGS =	methcounts bsrate hmr methdiff dmr amr \
-	sortreads mergelanes checkoverlap
+	sortreads mergelanes checkoverlap roimethstat
 
 LIBS = -lgsl -lgslcblas
 CXX = g++
