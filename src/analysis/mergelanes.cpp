@@ -38,6 +38,7 @@
 #include "GenomicRegion.hpp"
 #include "RNG.hpp"
 
+
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -93,7 +94,58 @@ fill_buffer(std::ifstream &in, const size_t buffer_start,
   assert(buffer_start <= buffer.size());
   for (; i != buffer.size() && !in.eof(); ++i) {
     in >> tmp;
-    buffer[i].swap(tmp);
+       buffer[i].swap(tmp);
+
+	in.peek();
+  }
+  if (i < buffer.size())
+    buffer.erase(buffer.begin() + i, buffer.end());
+}
+/* THIS FUNCTION FILLS A BUFFER FOR MappedRead OBJECTS
+*/
+
+struct MappedRead {
+  MappedRead() {}
+  MappedRead(const char *line);
+  GenomicRegion r;
+  std::string seq;
+  std::string scr;
+};
+
+
+std::ostream&
+operator<<(std::ostream& the_stream, MappedRead &mr) {
+  return the_stream << mr.r << "\t" << mr.seq << "\t" << mr.scr;
+}
+
+std::istream&
+operator>>(std::istream& the_stream, MappedRead &mr) {
+  string chr;
+  size_t start, end;
+  string name;
+  char strand;
+  double score;
+  if (!(the_stream >> chr >> start >> end >> name >>
+        score >> strand >> mr.seq >> mr.scr))
+    throw RMAPException("ERROR reading MappedRead");
+  while (isspace(the_stream.peek()))
+    the_stream.get();
+  mr.r = GenomicRegion(chr, start, end, name, score, strand);
+  return the_stream;
+}
+
+void
+fill_buffer(std::ifstream &in, const size_t buffer_start,
+            vector<MappedRead> &buffer) {
+  MappedRead tmp;
+  size_t i = buffer_start;
+  assert(buffer_start <= buffer.size());
+  for (; i != buffer.size() && !in.eof(); ++i) {
+    in >> tmp;
+    buffer[i].r = tmp.r;
+        buffer[i].seq = tmp.seq;
+        buffer[i].scr = tmp.scr;
+
     in.peek();
   }
   if (i < buffer.size())
@@ -213,11 +265,9 @@ main(int argc, const char **argv) {
 			   "sequencing experiment producing one large sorted file of all read "
 			   "mapping locations (without duplicate 5' ends) and one large file "
 			   "sorted similarly containing the corresponding sequences.",
-			   "<fasta-reads-file-1> [<fasta-reads-file-2> ...]");
+			   "<file with names of bed-files>");
     opt_parse.add_opt("output", 'o', "Name of maps output file", 
 		      true, map_outfile);
-    opt_parse.add_opt("readout", 'r', "Name of reads output file", 
-		      true, read_outfile);
     opt_parse.add_opt("dups", 'D', "Allow duplicate fragments",
 		      false, ALLOW_DUPLICATES);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -248,7 +298,8 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string read_file_names_file(leftover_args.back());
+  /* Old format
+  const string read_file_names_file(leftover_args.back());
     vector<string> reads_files;
     if (!read_file_names_file.empty())
       read_filename_file(read_file_names_file.c_str(), reads_files);
@@ -256,8 +307,10 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
+*/
+
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+    /*
     vector<FileIterator<GenomicRegion> *> itrs;
     if (VERBOSE)
       cerr << "[MAPPED READS FILES:]" << endl;
@@ -275,57 +328,73 @@ main(int argc, const char **argv) {
 	cerr << reads_files[i] << endl;
       read_itrs.push_back(new FileIterator<FASTQRecord>(reads_files[i], BUFFER_SIZE));
     }
-    
+    */
+
+	//same as above, but for MappedRead
+	
+    vector<FileIterator<MappedRead> *> itrs;
+    if (VERBOSE)
+      cerr << "[MAPPED READS FILES:]" << endl;
+    for (size_t i = 0; i < mapped_files.size(); ++i) {
+      if (VERBOSE)
+	cerr << mapped_files[i] << endl;
+      itrs.push_back(new FileIterator<MappedRead>(mapped_files[i], BUFFER_SIZE));
+    }
+
     std::priority_queue<pair<GenomicRegion, size_t>, 
       vector<pair<GenomicRegion, size_t> >, ComparePairs> a;
     for (size_t i = 0; i < itrs.size(); ++i)
-      a.push(make_pair(*itrs[i]->get_first(), i));
+      a.push(make_pair((*itrs[i]->get_first()).r, i));
     
     ofstream out(map_outfile.c_str());
-    ofstream read_out(read_outfile.c_str());
+   // ofstream read_out(read_outfile.c_str());
     
-    vector<GenomicRegion> mapped_ties;
-    vector<FASTQRecord> reads_ties;
+  //  vector<GenomicRegion> mapped_ties;
+   // vector<FASTQRecord> reads_ties;
+	vector<MappedRead> mapped_ties;
     double score = -std::numeric_limits<double>::max();
     const Runif rng(random_number_seed);
     
     while (!a.empty()) {
       const size_t file_id = a.top().second;
       if (ALLOW_DUPLICATES) {
-	out << a.top().first << '\n';
-	read_out << *read_itrs[file_id]->get_first() << '\n';
+	//out << a.top().first << '\n';
+	//read_out << *read_itrs[file_id]->get_first() << '\n';
+	out << (*itrs[file_id]->get_first()).r << '\t' << (*itrs[file_id]->get_first()).seq << '\t'
+		<< (*itrs[file_id]->get_first()).scr << '\n';
       }
       else {
 	if (mapped_ties.empty() || 
-	    !(mapped_ties.front() < a.top().first)) {
+	    !((mapped_ties.front()).r < a.top().first)) {
 	  const double new_score = (a.top().first.get_width() - a.top().first.get_score());
 	  if (new_score > score) {
 	    score = new_score;
 	    mapped_ties.clear();
-	    reads_ties.clear();
+	    //reads_ties.clear();
 	  }
 	}
 	else {
 	  const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
  	  out << mapped_ties[rand_idx] << '\n';
-	  read_out << reads_ties[rand_idx] << '\n';
+	  //read_out << reads_ties[rand_idx] << '\n';
 	  mapped_ties.clear();
-	  reads_ties.clear();
+	  //reads_ties.clear();
 	  score = -std::numeric_limits<double>::max();
 	}
-	mapped_ties.push_back(a.top().first);
-	reads_ties.push_back(*read_itrs[file_id]->get_first());
+	mapped_ties.push_back((*itrs[file_id]->get_first()));
+
+	//reads_ties.push_back(*read_itrs[file_id]->get_first());
       }
       a.pop();
       itrs[file_id]->increment_first();
-      read_itrs[file_id]->increment_first();
+//      read_itrs[file_id]->increment_first();
       if (itrs[file_id]->first_is_good())
-	a.push(make_pair(*itrs[file_id]->get_first(), file_id));
+	a.push(make_pair((*itrs[file_id]->get_first()).r, file_id));
     }
     if (!ALLOW_DUPLICATES) {
       const size_t rand_idx = rng.runif(0ul, mapped_ties.size());
       out << mapped_ties[rand_idx] << '\n';
-      read_out << reads_ties[rand_idx] << '\n';
+      //read_out << reads_ties[rand_idx] << '\n';
     }
   }
   catch (const RMAPException &e) {
