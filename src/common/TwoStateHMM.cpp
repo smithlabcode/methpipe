@@ -63,8 +63,8 @@ betabin::tostring() const {
 
 double 
 betabin::operator()(const pair<double, double> &val) const {
-  const size_t x = val.first;
-  const size_t n = x + val.second;
+  const size_t x = static_cast<size_t>(val.first);
+  const size_t n = static_cast<size_t>(x + val.second);
   return gsl_sf_lnchoose(n, x) + 
     gsl_sf_lnbeta(alpha + x, beta + val.second) - lnbeta_helper;
 }

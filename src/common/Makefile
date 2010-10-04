@@ -1,4 +1,4 @@
-#    Makefile from methpipe common directory (code for C++ classes)
+#    Makefile from smithlab_cpp C++ code library
 #
 #    Copyright (C) 2010 University of Southern California and
 #                       Andrew D. Smith
@@ -19,41 +19,57 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef METHPIPE
-$(error Must define METHPIPE variable)
+ifndef ROOT
+$(error Must define ROOT variable)
 endif
 
 HEADERS = $(shell ls *.hpp)
 SOURCES = $(shell ls *.cpp)
-INCLUDEDIR = $(METHPIPE)/src/smithlab_cpp/
+OBJECTS = $(subst .cpp,.o,$(SOURCES))
 
-OBJS = $(subst .cpp,.o,$(SOURCES))
+INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+
+STATIC_LIB = libmethpipe.a
+DYNAMIC_LIB = libmethpipe.so
 
 CXX = g++
-CFLAGS = -Wall -fPIC -fmessage-length=50
+CXXFLAGS = -Wall -fPIC -fmessage-length=50 
 OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
-VPATH = $(METHPIPE)/src/smithlab_cpp
-
 ifeq "$(shell uname)" "Darwin"
-CFLAGS += -arch x86_64
+CXXFLAGS += -arch x86_64
 endif
 
 ifdef DEBUG
-CFLAGS += $(DEBUGFLAGS)
+CXXFLAGS += $(DEBUGFLAGS)
 endif
 
 ifdef OPT
-CFLAGS += $(OPTFLAGS)
+CXXFLAGS += $(OPTFLAGS)
 endif
 
-all: $(OBJS)
+all: $(DYNAMIC_LIB) $(STATIC_LIB)
+
+install: $(DYNAMIC_LIB) $(STATIC_LIB)
+#	@mkdir -p $(LIBDIR)
+#	@mkdir -p $(INCLUDEDIR)
+#	@install -m 755 $(DYNAMIC_LIB) $(LIBDIR)
+#	@install -m 644 $(STATIC_LIB) $(LIBDIR)
+#	@install -m 644 $(HEADERS) $(INCLUDEDIR)
+
+
+$(DYNAMIC_LIB): $(OBJECTS)
+	$(CXX) -shared $(CXXFLAGS) -o $@ $^
+
+$(STATIC_LIB): $(OBJECTS)
+	ar cru $@ $^
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CFLAGS) -c -o $@ $< -I$(INCLUDEDIR)
-
-clean:
-	@-rm -f $(PROGS) *.o *.so *.a *~
+	$(CXX) $(CXXFLAGS) $(INCLUDEARGS) -c -o $@ $<
 
 .PHONY: clean
+clean: 
+	@-rm -f *.o *.so *.a *~
+
