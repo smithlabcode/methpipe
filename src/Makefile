@@ -19,7 +19,14 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-app_subdirs=analysis
+ifndef ROOT
+$(error Must define ROOT variable)
+endif
+
+all_subdirs=$(shell find $(ROOT)/src -maxdepth 2 -mindepth 2 -name "Makefile"|\
+xargs -n 1 dirname|sort|uniq)
+lib_subdirs=$(shell find $(ROOT)/src -maxdepth 2 -name "*hpp"|xargs -n 1 dirname|sort|uniq)
+app_subdirs=$(filter-out $(lib_subdirs),$(all_subdirs))
 
 ## COMMENT: The smithlab_cpp directory is only appearing in the
 ## "clean" target below because the compilation of object files inside
@@ -28,25 +35,27 @@ app_subdirs=analysis
 ## needed for methpipe.
 
 all:
-	@make -C common METHPIPE=$(METHPIPE) OPT=1
+	@for i in $(lib_subdirs); do \
+		make -C $${i} ROOT=$(ROOT) OPT=1; \
+	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE=$(METHPIPE) OPT=1; \
+		make -C $${i} ROOT=$(ROOT)  OPT=1; \
 	done;
 
 install:
-	@make -C common METHPIPE=$(METHPIPE) OPT=1
+	@for i in $(lib_subdirs); do \
+		make -C $${i} ROOT=$(ROOT) OPT=1; \
+	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE=$(METHPIPE) OPT=1 install; \
+		make -C $${i} ROOT=$(ROOT)  OPT=1 install; \
 	done;
 
 test:
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE=$(METHPIPE) test; \
+		make -C $${i} ROOT=$(ROOT) test; \
 	done;
 
 clean:
-	@make -C smithlab_cpp METHPIPE=$(METHPIPE) OPT=1 clean
-	@make -C common METHPIPE=$(METHPIPE) OPT=1 clean
-	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE=$(METHPIPE) OPT=1 clean; \
+	@for i in $(all_subdirs); do \
+		make -C $${i} ROOT=$(ROOT) clean; \
 	done;
