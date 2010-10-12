@@ -1,4 +1,4 @@
-\documentclass[11pt]{report}
+\documentclass{article}
 
 \usepackage{times,fullpage,graphicx,amsmath, subfigure}
 \usepackage[pdfborder={0 0 0}]{hyperref}
@@ -11,45 +11,127 @@
 
 \section{Pre-mapping processing}
 \label{sec:premapping}
-
-\subsection{trim-adapter}
-\label{sec:trim-adapter}
-
-\subsection{quality-profile}
-\label{sec:qual-profile}
-
+\begin{description}
+\item[read-quality-prof.cpp]
+This program take a fastq file as input and output the base composition and 
+quality scores for each column
+\item[quality-prof.R]
+This R script define a function that takes the output of read-quality-prof.cpp as input 
+and draw the figure of base composition
+\item[trim-adapter.cpp] 
+This program expects a fastq file as input and trim the adapter sequence from the 3' end
+of reads if there is.
+\item[visireads.cpp]
+This program takes a fastq file as input and output a BED file displaying Cs in 
+the sequences
+\end{description}
 
 
 \section{Mapping}
 \label{sec:mapping}
-
-\subsection{rmapbs}
-\label{sec:rmapbs}
-
+\begin{description}
+\item[rmapbs.cpp]
+This program takes fastq file as input and output mapped read file
+\end{description}
 
 \section{Post-mapping processing}
 \label{sec:postmapping}
 
-\subsection{revcomp}
-\label{sec:revcomp}
+\begin{description}
+\item[merge.cpp]
+merge sorted MappedRead file, with option to control whether remove redundant file
 
-\subsection{check-overlap}
-\label{sec:check-overlap}
+\item[mask-overlap.cpp]
+mask overlapping region of paired-reads, also generate summary of fragment length,
+number of unpaired reads
 
-\subsection{sortmappedread}
-\label{sec:sort}
+\item[unique.cpp ]
+filter program to remove duplicate reads
 
-\subsection{merge}
-\label{sec:merge}
+\item[ sort.cpp ]
+sort MappedRead file: either by genomic location or by name
+
+\item[ revcomp.cpp ]
+do reverse complement operation on MappedRead
+
+\end{description}
 
 \section{Analysis}
 \label{sec:analysis}
 
-\subsection{Methcounts}
-\label{sec:methcount}
+\begin{description}
+\item[methcount.cpp]
+This program reads mapped read file and output methylation frequency
+for each CpG site.
 
-\subsection{bsrate}
-\label{sec:bsrate}
+\item[bsrate.cpp]
+This program reads mapped read file and estimate bisulfite conversion
+rate by checking methylation status of non-CpG C's
+
+\end{description}
+
+\section{A sample work flow}
+This part shows how these tools are connected to get the methylation
+profile. Suppose we have the following BS-Seq library
+\begin{verbatim}
+reads/s_1_1.txt reads/s_1_2.txt reads/s_2_1.txt reads/s_2_2.txt
+\end{verbatim}
+
+The final result can be obtained as following. For clarity, we show
+all the intermediate result. In real application, some intermediate
+files can be avoided by using pipes.
+
+\begin{verbatim}
+# Pre-mapping processing #
+
+## trim adapter ##
+$ ./trim-adapter reads/s_1_1.txt preprocessed/s_1_1.txt
+$ ./trim-adapter reads/s_1_2.txt preprocessed/s_1_2.txt
+$ ./trim-adapter reads/s_2_1.txt preprocessed/s_2_1.txt
+$ ./trim-adapter reads/s_2_2.txt preprocessed/s_2_2.txt
+
+# Mapping #
+$ ./rmapbs -c genome_seq_dir -o mapped/s_1_1.mr preprocessed/s_1_1.txt
+$ ./rmapbs -c genome_seq_dir -o mapped/s_1_2.mr preprocessed/s_1_2.txt
+$ ./rmapbs -c genome_seq_dir -o mapped/s_2_1.mr preprocessed/s_2_1.txt
+$ ./rmapbs -c genome_seq_dir -o mapped/s_2_2.mr preprocessed/s_2_2.txt
+
+# post-mapping processing
+
+## reverse complement A-rich strand ##
+$ ./revcomp mapped/s_1_2.mr > tmpfile && mv tmpfile mapped/s_1_2.mr
+$ ./revcomp mapped/s_2_2.mr > tmpfile && mv tmpfile mapped/s_2_2.mr
+
+## mask overlapping ##
+#### first sort by name ####
+$ ./sort -N mapped/s_1_1.mr -o tmpfile && mv tmpfile  mapped/s_1_1.mr 
+$ ./sort -N mapped/s_1_2.mr -o tmpfile && mv tmpfile  mapped/s_1_2.mr 
+$ ./sort -N mapped/s_2_1.mr -o tmpfile && mv tmpfile  mapped/s_2_1.mr 
+$ ./sort -N mapped/s_2_2.mr -o tmpfile && mv tmpfile  mapped/s_2_2.mr 
+
+#### masking ####
+$ ./mask-overlap mapped/s_1_1.mr mapped/s_1_2.mr masked/s_1_1.mr masked/s_1_2.mr
+$ ./mask-overlap mapped/s_2_1.mr mapped/s_2_2.mr masked/s_2_1.mr masked/s_2_2.mr
+
+#### sort by genomic location ####
+$ ./sort masked/s_1_1.mr -o tmpfile && mv tmpfile  masked/s_1_1.mr 
+$ ./sort masked/s_1_2.mr -o tmpfile && mv tmpfile  masked/s_1_2.mr 
+$ ./sort masked/s_2_1.mr -o tmpfile && mv tmpfile  masked/s_2_1.mr 
+$ ./sort masked/s_2_2.mr -o tmpfile && mv tmpfile  masked/s_2_2.mr 
+
+## combine all result ##
+#### merge ####
+$ ./merge -o all.mr masked/s_1_1.mr masked/s_1_2.mr masked/s_2_1.mr masked/s_2_2.mr 
+
+#### jackpot removal #####
+$ ./unique all.mr -o tmpfile && mv tmpfile all.mr
+
+
+# analysis #
+## methcounts ##
+$ ./methcounts -c genome_sequence_file -o all-methcounts.bed all.mr 
+\end{verbatim}
+
 
 \end{document}
 
