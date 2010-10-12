@@ -19,16 +19,19 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+ifndef ROOT
+$(error Must define ROOT variable)
+endif
+
 HEADERS = $(shell ls *.hpp)
 SOURCES = $(shell ls *.cpp)
 OBJECTS = $(subst .cpp,.o,$(SOURCES))
 
-BINDIR = $(ROOT)/bin
-LIBDIR = $(ROOT)/lib
-INCLUDEDIR = $(ROOT)/include
+STATIC_LIB = lib$(shell basename $$PWD).a
+DYNAMIC_LIB = lib$(shell basename $$PWD).so
 
-STATIC_LIB = libmethpipe.a
-DYNAMIC_LIB = libmethpipe.so
+INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 CXX = g++
 CXXFLAGS = -Wall -fPIC -fmessage-length=50 
@@ -47,13 +50,14 @@ ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
 endif
 
+all: $(DYNAMIC_LIB) $(STATIC_LIB)
 
 install: $(DYNAMIC_LIB) $(STATIC_LIB)
-	@mkdir -p $(LIBDIR)
-	@mkdir -p $(INCLUDEDIR)
-	@install -m 755 $(DYNAMIC_LIB) $(LIBDIR)
-	@install -m 644 $(STATIC_LIB) $(LIBDIR)
-	@install -m 644 $(HEADERS) $(INCLUDEDIR)
+#	@mkdir -p $(LIBDIR)
+#	@mkdir -p $(INCLUDEDIR)
+#	@install -m 755 $(DYNAMIC_LIB) $(LIBDIR)
+#	@install -m 644 $(STATIC_LIB) $(LIBDIR)
+#	@install -m 644 $(HEADERS) $(INCLUDEDIR)
 
 
 $(DYNAMIC_LIB): $(OBJECTS)
@@ -63,7 +67,7 @@ $(STATIC_LIB): $(OBJECTS)
 	ar cru $@ $^
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< -I$(INCLUDEDIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDEARGS) -c  -o $@ $<
 
 .PHONY: clean
 clean: 
