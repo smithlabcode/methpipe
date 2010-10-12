@@ -1,8 +1,15 @@
-This is the README file for the directory src/readqc in the methpipe project.
+1. read-quality-prof.cpp
+This program take a fastq file as input and output the base composition and 
+quality scores for each column
 
-Steps:
-1) Count reads
-2) Quality profiles
-3) Bse composition profiles
-4) Adaptors (count, distribution, clip)
-5) Number of "bad" reads, and define what "bad" means.
+2. quality_prof.R
+This R script define a function that takes the output of read-quality_prof.cpp as input 
+and draw the figure of base composition
+
+3. trim-adapter.cpp 
+This program expects a fastq file as input and trim the adapter sequence from the 3' end
+of reads if there is.
+
+4. visireads.cpp
+This program takes a fastq file as input and output a BED file displaying Cs in 
+the sequences
