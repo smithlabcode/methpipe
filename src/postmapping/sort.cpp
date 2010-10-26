@@ -99,13 +99,16 @@ int main(int argc, const char **argv)
         const string input_file_name =
             leftover_args.size() ? leftover_args.front() : "";
         /**********************************************************************/
-        
         vector<MappedRead> mrs;
         std::istream *in = input_file_name.empty() ?
             &std::cin : new std::ifstream(input_file_name.c_str());
-        std::copy(std::istream_iterator<MappedRead>(*in),
+        /*std::copy(std::istream_iterator<MappedRead>(*in),
                   std::istream_iterator<MappedRead>(),
-                  std::back_inserter(mrs));
+                  std::back_inserter(mrs));*/
+	MappedRead tmp;
+	while(*in >> tmp && in->good()){
+		mrs.push_back(tmp);
+	}
         if (in != &std::cin) delete in;
         
         if (SORT_ON_NAME)
