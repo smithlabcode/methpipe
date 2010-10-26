@@ -2,7 +2,7 @@ quality_plot <- function(datafile, baseplot = "", qualplot = "",
 						make_baseplot = TRUE, make_qualplot = FALSE)
 {
 	cols = c("red", "green", "blue", "yellow", "black");
-	cols = rainbow(5);
+#	cols = rainbow(5);
 
 	d = read.table(datafile, header=T);
 	read_len = length(d[[1]]);	
