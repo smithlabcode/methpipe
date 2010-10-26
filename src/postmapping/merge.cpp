@@ -152,7 +152,7 @@ main(int argc, const char **argv)
                                "sorted similarly containing the corresponding sequences.",
                                "<file with names of bed-files>");
         opt_parse.add_opt("output", 'o', "Name of maps output file", 
-                          true, map_outfile);
+                           false, map_outfile);
         opt_parse.add_opt("dups", 'D', "Allow duplicate fragments",
                           false, ALLOW_DUPLICATES);
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -224,7 +224,7 @@ main(int argc, const char **argv)
                 mapped_ties.push_back((*itrs[file_id]->get_first()));
             }
             a.pop();
-            itrs[file_id]->increment_first();
+            itrs[file_id]->increment();
             if (itrs[file_id]->first_is_good())
                 a.push(make_pair((*itrs[file_id]->get_first()).r, file_id));
         }
