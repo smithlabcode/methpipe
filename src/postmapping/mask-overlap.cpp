@@ -36,18 +36,7 @@
 #include "rmap_os.hpp"
 #include "MappedRead.hpp"
 
-using std::tr1::unordered_map;
-
-using std::string;
-using std::vector;
-using std::pair;
-using std::make_pair;
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::ifstream;
-using std::numeric_limits;
-using std::ofstream;
+using namespace std;
 
 inline static size_t 
 get_distance(const MappedRead &a, const MappedRead &b) 
@@ -103,14 +92,24 @@ name_smaller(const MappedRead &a, const MappedRead &b)
 static void
 mask_less_informative(MappedRead &one, MappedRead &two) 
 {
-    const size_t informative_one = one.seq.length() - 
-        count(one.seq.begin(), one.seq.end(), 'N') - one.r.get_score();
-    const size_t informative_two = two.seq.length() - 
-        count(two.seq.begin(), two.seq.end(), 'N') - two.r.get_score();
+    const size_t informative_one =
+        one.seq.length() - 
+        count(one.seq.begin(), one.seq.end(), 'N') -
+        static_cast<size_t>(one.r.get_score());
+    const size_t informative_two =
+        two.seq.length() - 
+        count(two.seq.begin(), two.seq.end(), 'N') -
+        static_cast<size_t>(two.r.get_score());
     if (informative_one > informative_two) fix_overlap(one, two);
     else fix_overlap(two, one);
 }
 
+inline size_t
+frag_len(const MappedRead &lhs, const MappedRead &rhs)
+{
+    return max(lhs.r.get_end(), rhs.r.get_end()) - 
+        min(lhs.r.get_start(), rhs.r.get_start());
+}
 
 int 
 main(int argc, const char **argv) 
@@ -118,14 +117,14 @@ main(int argc, const char **argv)
     try 
     {
         bool VERBOSE = false;
-        bool REVCOMP = true;
+        bool REVCOMP = false;
         size_t max_distance = 500;
         string histogram_file;
         string end_one_file; 
         string end_two_file;
         string end_one_out;
         string end_two_out; 
-
+        string fraglen_file;
   
         /****************** COMMAND LINE OPTIONS ********************/
         OptionParser opt_parse(argv[0], "a program for identifying overlapping ends of "
@@ -134,11 +133,13 @@ main(int argc, const char **argv)
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
         opt_parse.add_opt("ahist", 'h', "print frag size histogram in this file", 
                           false, histogram_file);
-        opt_parse.add_opt("reverse-complement", 'r',
+        opt_parse.add_opt("revcomp", 'r',
                           "Reverse complement A-rich strand before masking", 
                           false, histogram_file);
         opt_parse.add_opt("max-dist", 'm', "max distance to print", 
                           false, max_distance);
+        opt_parse.add_opt("frag-len", 'f', "File name of fragment length", 
+                          false, fraglen_file);
         vector<string> leftover_args;
         opt_parse.parse(argc, argv, leftover_args);
         if (argc == 1 || opt_parse.help_requested()) 
@@ -165,66 +166,79 @@ main(int argc, const char **argv)
         end_one_file = leftover_args[0]; 
         end_two_file = leftover_args[1];
         end_one_out = leftover_args[2];
-        end_two_out = leftover_args.back(); 
+        end_two_out = leftover_args[3]; 
         /****************** END COMMAND LINE OPTIONS *****************/
 
-        const bool HISTOGRAM = !histogram_file.empty();
-    
         ifstream in_one(end_one_file.c_str());
         ifstream in_two(end_two_file.c_str());
     
         ofstream out_one(end_one_out.c_str());
         ofstream out_two(end_two_out.c_str());
-    
+        
+        ofstream out_fraglen;
+        if (!fraglen_file.empty())
+            out_fraglen.open(fraglen_file.c_str());
+
+        bool is_paired = false;
         MappedRead one, two;
     
-        unordered_map<size_t, size_t> distance_hist;
-
         in_two >> two;
         if (REVCOMP) revcomp(two);
         while (!in_one.eof() && !in_two.eof()) 
         {
             in_one >> one;
+            is_paired = false;
             while (!in_two.eof() && name_smaller(two, one)) 
             {
                 out_two << two << '\n';
+                if (out_fraglen.is_open())
+                    out_fraglen << two.r.get_name() << "\t"
+                                << "ERROR: missed T-rich read" << endl;
                 in_two >> two;
                 if (REVCOMP) revcomp(two);
             }
             if (same_read(one, two)) 
             {
+                is_paired = true;
+                if (out_fraglen.is_open())
+                {
+                    if (one.r.get_chrom() != two.r.get_chrom())
+                        out_fraglen << one.r.get_name() << "\t"
+                                    << "ERROR: different chromosomes" << endl;
+                    else if (one.r.get_strand() != two.r.get_strand())
+                        out_fraglen << one.r.get_name() << "\t"
+                                    << "ERROR: different strands" << endl;
+                    else
+                        out_fraglen << one.r.get_name() << "\t"
+                                    << frag_len(one, two) << endl;
+                }
+                
                 if (one.r.overlaps(two.r))
                     mask_less_informative(one, two);
-                if (HISTOGRAM) 
-                {
-                    const size_t distance = get_distance(one, two);
-                    if (distance_hist.find(distance) == distance_hist.end())
-                        distance_hist[distance] = 0;
-                    distance_hist[distance]++;
-                }
             }
             out_one << one << '\n';
+            if (out_fraglen.is_open() && !is_paired)
+                out_fraglen << one.r.get_name() << "\t"
+                            << "ERROR: missed A-rich read" << endl;
+            
         }
         out_two << two << '\n';
         while (!in_two.eof()) 
         {
             in_two >> two;
             if (REVCOMP) revcomp(two);
+            if (out_fraglen.is_open())
+                out_fraglen << two.r.get_name() << "\t"
+                            << "ERROR: missed T-rich read" << endl;
             out_two << two << '\n';
         }
         while (!in_one.eof()) 
         {
             in_one >> one;
             out_one << one << '\n';
-        }
-        
-        if (HISTOGRAM) 
-        {
-            ofstream out(histogram_file.c_str());
-            for (size_t i = 0; i <= max_distance; ++i)
-                out << i << "\t" 
-                    << ((distance_hist.find(i) != distance_hist.end()) ?
-                        distance_hist[i] : 0) << endl;
+            if (out_fraglen.is_open())
+                out_fraglen << one.r.get_name() << "\t"
+                            << "ERROR: missed A-rich read" << endl;
         }
     }
     catch (const RMAPException &e) 
