@@ -4,27 +4,125 @@
 \usepackage[pdfborder={0 0 0}]{hyperref}
 
 \title{Methpipe Manual}
-\date{}
 
 \begin{document}
 \maketitle
+The methpipe software package is a comprehensive tool chain for
+analyzing whole genome bisulfite sequencing data (BS-Seq).  This
+documentation will guide you step by step to learn how to perform the
+data analysis in a BS-Seq project with methpipe. To facilitate
+understanding of the work flow, we divide the analysis procedure into
+four steps: (1) Pre-mapping processing: this step include assessing
+read quality and pre-processing reads, such as trimming adapters; (2)
+Mapping: this step maps sequence reads to a reference genome; (3)
+Analyzing methylation status at single site: in this step, we will
+estimate methylation frequency at single site, either CpG sites or
+non-CpG sites. We will also obtain information about sequencing depth
+and bisulfite conversion rate; (4) Higher level analysis: this step
+includes higher level more biologically interesting analysis, such as
+identifying hypo-methylated regions and/or differentially methylated
+regions. Later we will describe in detail the usage of tools in each
+step.
+
+In the guide we will use a small project as example. Suppose that in
+this project you would like to study the methylation pattern in two
+cell types, B cells and neutrophiles. The B cell methylome is profiled
+with sing-end sequencing and your university's sequencing center sends
+back to you these sequence files:
+\begin{verbatim}
+bcell/s-1.fq bcell/s-2.fq bcell/s-3.fq bcell/s-4.fq.
+\end{verbatim}
+The neutrophile methylome is profiled with pair-end sequencing and you
+have the following sequences files:
+\begin{verbatim}
+neut/s-1-1.fq neut/s-1-2.fq neut/s-2-1.fq neut/s-2-2.fq,
+\end{verbatim}
+Now we are ready to uncover the interesting biology about DNA
+methylation from this dataset. 
 
 \section{Pre-mapping processing}
 \label{sec:premapping}
-\begin{description}
-\item[read-quality-prof.cpp]
-This program take a fastq file as input and output the base composition and 
-quality scores for each column
-\item[quality-prof.R]
-This R script define a function that takes the output of read-quality-prof.cpp as input 
-and draw the figure of base composition
-\item[trim-adapter.cpp] 
-This program expects a fastq file as input and trim the adapter sequence from the 3' end
-of reads if there is.
-\item[visireads.cpp]
-This program takes a fastq file as input and output a BED file displaying Cs in 
-the sequences
-\end{description}
+% \begin{description}
+% \item[read-quality-prof.cpp]
+% This program take a fastq file as input and output the base composition and 
+% quality scores for each column
+% \item[quality-prof.R]
+% This R script define a function that takes the output of read-quality-prof.cpp as input 
+% and draw the figure of base composition
+% \item[trim-adapter.cpp] 
+% This program expects a fastq file as input and trim the adapter sequence from the 3' end
+% of reads if there is.
+% \item[visireads.cpp]
+% This program takes a fastq file as input and output a BED file displaying Cs in 
+% the sequences
+% \end{description}
+
+Before mapping sequenced reads to a reference genome, we need to
+pre-process the raw read sequences, in particular we need to trim
+possible adapter sequences retained in the 3' end of raw
+reads. Further we may be interested in examining the quality of reads
+in our library and visualizing raw reads in UCSC Genome Browser. 
+
+\subsection{Trim adapters}
+\label{sec:trim-adapter}
+As the length of reads that sequencing technology is able to produce
+has been increasing all the time, it is possible there are adapter
+sequences in the 3' end of some reads. These retained adapter
+sequences affects the mappability of such reads. Even if they are
+somehow mapped to the reference genome, the adapter sequences may
+introduce bias to our estimate of methylation frequency. Therefore it
+is necessary to trim these retained adapter sequences. 
+
+The program \textbf{trim-adapter} is used to trim adapter sequences,
+if any, from the 3' end of raw reads. Suppose the adapter sequences is
+\textit{GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG}, we trim
+the adapter sequences from raw reads in the file bcell/s-1.fq with the
+following command:
+\begin{verbatim}
+$ ./trim-adapter  s-1.fq -o s-1-clipped.fq  
+-a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG  
+\end{verbatim}
+
+If you would like to check the effective read length after trimming
+adapter sequences and Ns from 3' end, you can add \textbf{-l} options
+to specify the output file for effective read length, for example,
+\begin{verbatim}
+$ ./trim-adapter  s-1.fq -o s-1-clipped.fq  -l s-1-length.txt
+-a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG  
+\end{verbatim}
+The file s-1-length.txt lists the effective read length of each read
+after trimming adapter sequences and Ns, which can be used to compute
+the statistics of effective reads lengths with any general purpose
+statistical package, such as R.  
+
+\subsection{Assessing read quality}
+\label{sec:read-qual-assessm}
+It is optional to assess read quality before mapping, however such
+assessment may help us to spot potential problems during library
+preparation and/or bisulfite sequencing. The program
+\textbf{read-quality-prof} is used to generate an average summary of
+base composition and quality scores from 5' to 3' along all
+reads.  We run \textbf{read-quality-prof} as following 
+\begin{verbatim}
+$ ./read-quality-prof  < s-1.fq > s-1-qual.txt
+\end{verbatim}
+The output file s-1-qual.txt can be visualized with the R software. 
+Fig. \ref{fig:base-composition} shows the base composition profile in
+the pair-end sequencing sample, where the left panel shows  T-rich
+reads and the right panel A-rich reads. Note the small proportion of C
+and G reflects the effect of bisulfite conversion.   
+
+\begin{figure}[htbp]
+  \centering
+\subfigure[T-rich reads]{
+  \includegraphics[width=2.8in]{figs/T-rich-base-composition.pdf}
+}
+\subfigure[A-rich reads]{
+  \includegraphics[width=2.8in]{figs/A-rich-base-composition.pdf}
+}
+  \caption{Base composition}
+  \label{fig:base-composition}
+\end{figure}
 
 
 \section{Mapping}
@@ -70,6 +168,12 @@ rate by checking methylation status of non-CpG C's
 
 \end{description}
 
+\section{Visualization}
+\label{sec:visualization}
+
+
+
+
 \section{A sample work flow}
 This part shows how these tools are connected to get the methylation
 profile. Suppose we have the following BS-Seq library
@@ -92,9 +196,9 @@ $ ./trim-adapter reads/s_2_2.txt preprocessed/s_2_2.txt
 
 # Mapping #
 $ ./rmapbs -c genome_seq_dir -o mapped/s_1_1.mr preprocessed/s_1_1.txt
-$ ./rmapbs -c genome_seq_dir -o mapped/s_1_2.mr preprocessed/s_1_2.txt
+$ ./rmapbs -A -c genome_seq_dir -o mapped/s_1_2.mr preprocessed/s_1_2.txt
 $ ./rmapbs -c genome_seq_dir -o mapped/s_2_1.mr preprocessed/s_2_1.txt
-$ ./rmapbs -c genome_seq_dir -o mapped/s_2_2.mr preprocessed/s_2_2.txt
+$ ./rmapbs -A -c genome_seq_dir -o mapped/s_2_2.mr preprocessed/s_2_2.txt
 
 # post-mapping processing
 
@@ -126,12 +230,10 @@ $ ./merge -o all.mr masked/s_1_1.mr masked/s_1_2.mr masked/s_2_1.mr masked/s_2_2
 #### jackpot removal #####
 $ ./unique all.mr -o tmpfile && mv tmpfile all.mr
 
-
 # analysis #
 ## methcounts ##
 $ ./methcounts -c genome_sequence_file -o all-methcounts.bed all.mr 
 \end{verbatim}
-
 
 \end{document}
 
