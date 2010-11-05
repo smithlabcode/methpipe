@@ -35,7 +35,7 @@ bcell/s-1.fq bcell/s-2.fq bcell/s-3.fq bcell/s-4.fq.
 The neutrophile methylome is profiled with pair-end sequencing and you
 have the following sequences files:
 \begin{verbatim}
-neut/s-1-1.fq neut/s-1-2.fq neut/s-2-1.fq neut/s-2-2.fq,
+neut/s-1-1.fq neut/s-1-2.fq neut/s-2-1.fq neut/s-2-2.fq.
 \end{verbatim}
 Now we are ready to uncover the interesting biology about DNA
 methylation from this dataset. 
@@ -93,7 +93,9 @@ $ ./trim-adapter  s-1.fq -o s-1-clipped.fq  -l s-1-length.txt
 The file s-1-length.txt lists the effective read length of each read
 after trimming adapter sequences and Ns, which can be used to compute
 the statistics of effective reads lengths with any general purpose
-statistical package, such as R.  
+statistical package, such as R. Perform this trimming adapter
+processing on all sequences files and for convenience we assume the
+processed sequences files have their original file names thereafter.
 
 \subsection{Assessing read quality}
 \label{sec:read-qual-assessm}
@@ -127,10 +129,80 @@ and G reflects the effect of bisulfite conversion.
 
 \section{Mapping}
 \label{sec:mapping}
-\begin{description}
-\item[rmapbs.cpp]
-This program takes fastq file as input and output mapped read file
-\end{description}
+
+% \begin{description}
+% \item[rmapbs.cpp]
+% This program takes fastq file as input and output mapped read file
+% \end{description}
+
+In the mapping step, you will map sequence reads to a reference
+genome. During bisulfite treatment, unmethylated cytosines in the
+original DNA sequences are converted to uracils, which are in turn
+incorporated as thymines during PCR amplification. We call such strand
+T-rich and its complementary strand A-rich (adenine-rich).  When
+mapping T-rich reads to the reference genome, either a cytosine (C) or
+a thymine (T) in reads is considered valid match to a cytosine in the
+reference genome. But for A-rich reads, a adenine or a guanine is
+consider valid match to a guanine in the reference genome.    
+
+If using single-end sequencing, you will get T-rich reads only. If
+using pair-end sequencing, you will get both T-rich reads and A-rich
+reads. Next we will learn how to map bisulfite treated reads with
+\textbf{rmapbs} from either single-end sequencing or pair-end
+sequencing. 
+
+\subsection{Mapping single-end sequencing reads}
+\label{sec:mapping-single-end}
+Mapping read sequences to the reference genome is done by
+\textbf{rmapbs}. Before mapping, you need to get he genome sequences
+of appropriate organism and assembly, which is usually downloadable
+from \href{http://hgdownload.cse.ucsc.edu/downloads.html}{UCSC Genome
+  Browser download portal} or other specific repositories of genome
+sequences, such as \href{http://www.arabidopsis.org/}{TAIR} for
+Arabidopsis \textit{thaliana}. Suppose that you have already
+downloaded the appropriate genome sequences, in our example human
+genome hg18, in the directory \textit{human-genome}, to map the reads
+in bcell/s-1.fq to the reference genome we run
+\begin{verbatim}
+$ ./rmapbs -c human-genome -s fa -m 4 -o bcell/s-1.bed bcell/s-1.fq -v. 
+\end{verbatim}
+Here we briefly explain some commonly used options of
+\textbf{rmapbs}. The option \textbf{-c} specifies the direcotory
+holding the reference genome and the \textbf{-s} specifies the suffix
+of sequence file names. The option \textbf{-m} gives the maximum
+number of mismatches allowed. The option \textbf{-o} specifies the
+output file. 
+
+\subsection{Mapping pair-end sequencing reads}
+\label{sec:mapping-pair-end}
+
+
+
+\subsection{Parallel mapping}
+\label{sec:parallel-mapping}
+Mapping is the most time-consuming and resource-demanding step in the
+methpipe pipeline. Fortunately we may adopt a ``divide and conquer''
+strategy to speed up this step.  In brief, we first divide large
+sequence files into smaller ones, map them separately in parallel and
+finally combining the mapped files.
+
+A large sequence file is divided into smaller ones with the
+\textbf{split} utility which is a standard utility in any UNIX-like
+platforms. By running
+\begin{verbatim}
+$ split -l 16000000 bcell/s-1.fq s-1
+\end{verbatim}
+you will get a series of smaller files: s-1aa, s-1ab, s-1ac, etc,
+which can be mapped with \textbf{rmapbs} separately as described
+above. To learn about the detailed usage of \textbf{split}, you may
+read its man page. In brief, the \textbf{-l} option specifies the
+number of lines in each smaller file. Since FASTQ format requires that
+each read consist of four lines, i.e. name line, sequence line, name
+line and score line, the number of lines should be multipliers of
+4. The optimal number depends on the time constraints and memory
+contraints of your computing platform. For your information, mapping
+$28$ millions reads to the Arabidopsis \textit{thaliana} genome with
+\textbf{rmapbs} uses about 40 minutes and 5Gb memory. 
 
 \section{Post-mapping processing}
 \label{sec:postmapping}
