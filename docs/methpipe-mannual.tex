@@ -166,17 +166,31 @@ in bcell/s-1.fq to the reference genome we run
 \begin{verbatim}
 $ ./rmapbs -c human-genome -s fa -m 4 -o bcell/s-1.bed bcell/s-1.fq -v. 
 \end{verbatim}
-Here we briefly explain some commonly used options of
-\textbf{rmapbs}. The option \textbf{-c} specifies the direcotory
-holding the reference genome and the \textbf{-s} specifies the suffix
-of sequence file names. The option \textbf{-m} gives the maximum
-number of mismatches allowed. The option \textbf{-o} specifies the
-output file. 
+The option \textbf{-c} specifies the direcotory holding the reference
+genome and the \textbf{-s} specifies the suffix of sequence file
+names. The option \textbf{-m} gives the maximum number of mismatches
+allowed. The option \textbf{-o} specifies the output file. There are
+other options to fine tune the behavior of \textbf{rmapbs} which are
+explained on methpipe website.  
 
 \subsection{Mapping pair-end sequencing reads}
 \label{sec:mapping-pair-end}
-
-
+When mapping reads from the pair-end sequencing procedure, we map
+T-rich reads in the same way as for single end-reads. However when we
+map the A-rich reads, we need to use A/G wildcards, i.e. a adenine or
+a guanine is considered valid match to a guanine in the reference
+genome. The \textbf{rmapbs}, given the option \textbf{-A}, run in A/G
+wildcard mode. Therefore to map T-rich reads, for example,
+neut/s-1-1.fq, we run
+\begin{verbatim}
+$ ./rmapbs -c human-genome -s fa -m 4 -o neut/s-1-1.bed neut/s-1-1.fq -v. 
+\end{verbatim}
+To map A-rich reads, for example neut/s-1-2.fq, we run 
+\begin{verbatim}
+$ ./rmapbs -c human-genome -s fa -m 4 -o neut/s-1-2.bed neut/s-1-2.fq -v -A. 
+\end{verbatim}
+The other options have the same meaning in both C/T wildcard mode and
+A/G wildcard mode.   
 
 \subsection{Parallel mapping}
 \label{sec:parallel-mapping}
@@ -207,24 +221,71 @@ $28$ millions reads to the Arabidopsis \textit{thaliana} genome with
 \section{Post-mapping processing}
 \label{sec:postmapping}
 
-\begin{description}
-\item[merge.cpp]
-merge sorted MappedRead file, with option to control whether remove redundant file
+% \begin{description}
+% \item[merge.cpp]
+% merge sorted MappedRead file, with option to control whether remove redundant file
 
-\item[mask-overlap.cpp]
-mask overlapping region of paired-reads, also generate summary of fragment length,
-number of unpaired reads
+% \item[mask-overlap.cpp]
+% mask overlapping region of paired-reads, also generate summary of fragment length,
+% number of unpaired reads
 
-\item[unique.cpp ]
-filter program to remove duplicate reads
+% \item[unique.cpp ]
+% filter program to remove duplicate reads
 
-\item[ sort.cpp ]
-sort MappedRead file: either by genomic location or by name
+% \item[ sort.cpp ]
+% sort MappedRead file: either by genomic location or by name
 
-\item[ revcomp.cpp ]
-do reverse complement operation on MappedRead
+% \item[ revcomp.cpp ]
+% do reverse complement operation on MappedRead
 
-\end{description}
+% \end{description}
+
+If everything goes well, you should already have pre-processed raw
+sequence reads and mapped them to the reference genome. Suppose the
+mapped reads files of B cell sample are
+\begin{verbatim}
+bcell/s-1.bed bcell/s-2.bed bcell/s-3.bed bcell/s-4.bed,
+\end{verbatim}
+and the mapped reads files of the neutrophile sample methylome are
+\begin{verbatim}
+neut/s-1-1.bed neut/s-1-2.bed neut/s-2-1.bed neut/s-2-2.bed.
+\end{verbatim}
+We will discuss some necessary processing steps, including converting
+A-rich reads to T-rich reads in pair-end sequencing, masking
+overlapping regions of paired reads, handling duplicate reads and
+utilities to sort and/or merge mapped reads. 
+
+\subsection{Converting A-rich reads to T-rich reads}
+\label{sec:conv-rich-reads}
+As has been noted before, if using pair-end sequencing, you will get
+both T-rich reads and A-rich reads. When estimating methylation
+frequency of a cytosine residue, we count the number of cytosines,
+which originate from methylated cytosines, and the number of thymines,
+which originate from unmethylated cytosines, and the use the ratio
+$\frac{\#C}{\#C+\#T}$ as the estimate of methylation frequency of that
+base. Therefore, A-rich reads need to be converted to T-rich reads
+before we are able to leverage the information from these A-rich
+reads. This conversion is easily done with the program
+\textbf{revcomp}, for example  
+\begin{verbatim}
+$ ./revcomp < neut/s-2-2.bed > neut/s-2-2-revcomp.bed
+\end{verbatim}
+Note this conversion applies to and only applies to A-rich reads in
+pair-end sequencing. For notation convenience, we again assume you
+rename the converted reads file name to its original file name
+thereafter.
+
+\subsection{Masking overlapping regions of paired reads}
+\label{sec:mask-overl-regi}
+
+
+
+\subsection{Processing duplicate reads}
+\label{sec:proc-dupl-reads}
+
+\subsection{Auxiliary utilities}
+\label{sec:auxiliary-utilities}
+
 
 \section{Analysis}
 \label{sec:analysis}
