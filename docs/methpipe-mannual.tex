@@ -175,10 +175,11 @@ explained on methpipe website.
 
 \subsection{Mapping pair-end sequencing reads}
 \label{sec:mapping-pair-end}
-When mapping reads from the pair-end sequencing procedure, we map
-T-rich reads in the same way as for single end-reads. However when we
-map the A-rich reads, we need to use A/G wildcards, i.e. a adenine or
-a guanine is considered valid match to a guanine in the reference
+At present our pipeline map R-rich reads and A-rich reasd separately
+when mapping reads from the pair-end sequencing procedure. We map
+T-rich reads in the same way as for single end-reads. However we use
+A/G wildcards when mapping the A-rich reads, i.e. a adenine or a
+guanine is considered valid match to a guanine in the reference
 genome. The \textbf{rmapbs}, given the option \textbf{-A}, run in A/G
 wildcard mode. Therefore to map T-rich reads, for example,
 neut/s-1-1.fq, we run
@@ -277,32 +278,134 @@ thereafter.
 
 \subsection{Masking overlapping regions of paired reads}
 \label{sec:mask-overl-regi}
+With pair-end sequencing, we obtain two reads: a T-rich read from 3'
+end of the orignal segments and an A-rich read from 5' end. After
+converting A-rich read to T-rich read, we have two T-rich reads from
+the orignal DNA segment, which possibly overlap for certain
+proportion. This overlapped region, if left as-is, will result in bias
+that cytosines (or thymines if unmethylated) from the same DNA
+molecule are counted twice. 
 
+The program \textbf{mask-overlap} identifies and masks overlapped
+regions. In our example project, neut/s-1-1.bed and neut/s-1-2.bed
+contain T-rich reads and A-rich reads (converted) respectively. We
+first sort the reads in these two files by name by running
+\begin{verbatim}
+$ ./sort -N neut/s-1-1.bed -o tmpfile && mv tmpfile neut/s-1-1.bed
+$ ./sort -N neut/s-1-2.bed -o tmpfile && mv tmpfile neut/s-1-2.bed,
+\end{verbatim}
+And then we run \textbf{mask-overlap} to mask overlapping regions of
+reads from these two files
+\begin{verbatim}
+$ ./mask-overlap neut/s-1-1.bed neut/s-1-2.bed 
+neut/s-1-1-masked.bed neut/s-1-2-masked.bed.
+\end{verbatim}
+Note the commandline argument to \textbf{mask-overlap} are
+input-file-1, input-file-2, output-file-1 and output-file-2. 
 
+The program \textbf{mask-overlap} can also be used to obtain the
+following information about the pair-end sequencing data, such as the
+DNA fragment length distribution and the number of unpaired reads
+after mapping. This is done by specifying the fragment length file
+with the \textbf{-f} option. For example,
+\begin{verbatim}
+$ ./mask-overlap -f neut/s-1-length.txt  neut/s-1-1.bed neut/s-1-2.bed 
+neut/s-1-1-masked.bed neut/s-1-2-masked.bed.
+\end{verbatim}
+In the file neut/s-1-length.txt \textbf{mask-overlap} write the
+fragment length based on each pair of reads. This file can then be
+analyzed with statistical software and standard *NIX text-processing
+utilities. 
 
-\subsection{Processing duplicate reads}
+\subsection{Sorting reads}
+\label{sec:sorting-reads}
+The \textbf{sort} utility is used to sort mapped reads according to
+different criterion. The usage of \textbf{sort} is quite
+straightforward. To sort reads according to their genomic locations,
+we run
+\begin{verbatim}
+$ ./sort bcell/s-1.bed -o output-file.
+\end{verbatim}
+To sort reads according to their names we run 
+\begin{verbatim}
+$ ./sort -N bcell/s-1.bed -o output-file.
+\end{verbatim}
+
+\subsection{Merging read files}
+\label{sec:merging-reads-files}
+The final step before estimating methylation frequency and performing
+other higher level analysis is to merge read files from different
+sequencing lanes and/or flowcells. 
+
+If all read files are generated from the same biological library, this
+step is quite straightforward. We sort all read files by genomic
+locations with \textbf{sort} (Section \ref{sec:sorting-reads}), merge
+those files with \textbf{merge} and then remove duplicate reads with
+\textbf{unique} (Section \ref{sec:proc-dupl-reads}). We show how to
+merge read files in the B cell data below.
+\begin{verbatim}
+$ # sort read files
+$ ./sort bcell/s-1.bed -o tmpfile && mv tmpfile bcell/s-1.bed
+$ ./sort bcell/s-2.bed -o tmpfile && mv tmpfile bcell/s-2.bed
+$ ./sort bcell/s-3.bed -o tmpfile && mv tmpfile bcell/s-3.bed
+$ ./sort bcell/s-4.bed -o tmpfile && mv tmpfile bcell/s-4.bed
+$ ./merge bcell/s-*bed |./unique > bcell/bcell.bed 
+\end{verbatim}
+
+If the read files are from different libraries, it takes some extra
+step. The reason is that: even if two reads from different biological
+libraries are mapped to the same location, they are not originated
+from the same DNA molecule, therefore both should be kept for
+downstream analysis. For each library, we pool reads from this library
+and remove duplicate reads. Then we merge reads from different
+libraries. 
+
+\subsection{Removing duplicate reads}
 \label{sec:proc-dupl-reads}
+Because of PCR bias and other unknown causes, there are tens of
+thousands of reads mapped to exactly the same location in some regions
+of the genome while the average sequencing depth is usually below
+20. These large amounts of reads are likely orginated from the same
+DNA segments and will possibly bias the estimation of methylation
+frequency. One approach to alleviate this bias, though not completely
+justifiable, is to keep only one distint read at each starting
+position. This task is done by the program unique \textbf{unique}. For
+example if we would like to remove duplicate reads from the file
+bcell/s-1.bed, we can run 
+\begin{verbatim}
+$ ./unique bcell/s-1.bed -o bcell/s-1-unique.bed
+\end{verbatim}
 
-\subsection{Auxiliary utilities}
-\label{sec:auxiliary-utilities}
+\section{Methylation frequency and bisulfite conversion rate}
+\label{sec:estim-methyl-freq}
+% \begin{description}
+% \item[methcount.cpp]
+% This program reads mapped read file and output methylation frequency
+% for each CpG site.
+% \item[bsrate.cpp]
+% This program reads mapped read file and estimate bisulfite conversion
+% rate by checking methylation status of non-CpG C's
+% \end{description}
 
+\subsection{Estimating methylation frequency}
+\label{sec:estim-methyl-freq}
 
-\section{Analysis}
-\label{sec:analysis}
+\subsection{Estimating busilfite conversion rate}
+\label{sec:estim-busilf-conv}
 
-\begin{description}
-\item[methcount.cpp]
-This program reads mapped read file and output methylation frequency
-for each CpG site.
+\section{Higher level analysis}
+\label{sec:high-level-analys}
 
-\item[bsrate.cpp]
-This program reads mapped read file and estimate bisulfite conversion
-rate by checking methylation status of non-CpG C's
+\subsection{Identifying hypo-methylated regions}
+\label{sec:ident-hypo-methyl}
 
-\end{description}
+\subsection{Identifying differentially methylated regions}
+\label{sec:ident-diff-methyl}
+
 
 \section{Visualization}
 \label{sec:visualization}
+
 
 
 
