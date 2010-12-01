@@ -4,6 +4,7 @@
 \usepackage[pdfborder={0 0 0}]{hyperref}
 
 \title{Methpipe Manual}
+\author{Song Qiang}
 
 \begin{document}
 \maketitle
@@ -12,13 +13,13 @@ analyzing whole genome bisulfite sequencing data (BS-Seq).  This
 documentation will guide you step by step to learn how to perform the
 data analysis in a BS-Seq project with methpipe. To facilitate
 understanding of the work flow, we divide the analysis procedure into
-four steps: (1) Pre-mapping processing: this step include assessing
+four steps: (1) Pre-mapping processing: This step include assessing
 read quality and pre-processing reads, such as trimming adapters; (2)
-Mapping: this step maps sequence reads to a reference genome; (3)
-Analyzing methylation status at single site: in this step, we will
+Mapping: This step maps sequence reads to a reference genome; (3)
+Analyzing methylation status at single site: In this step we will
 estimate methylation frequency at single site, either CpG sites or
 non-CpG sites. We will also obtain information about sequencing depth
-and bisulfite conversion rate; (4) Higher level analysis: this step
+and bisulfite conversion rate; (4) Higher level analysis: This step
 includes higher level more biologically interesting analysis, such as
 identifying hypo-methylated regions and/or differentially methylated
 regions. Later we will describe in detail the usage of tools in each
@@ -386,12 +387,77 @@ $ ./unique bcell/s-1.bed -o bcell/s-1-unique.bed
 % This program reads mapped read file and estimate bisulfite conversion
 % rate by checking methylation status of non-CpG C's
 % \end{description}
+At this step, we have precessed mapped reads and combines reads from
+different lanes and/or flowcells into a single file, which means that
+we have a bcell/bcell.bed containing all reads from the B cell sample
+and a neut/neut.bed containing all reads from the neutrophile
+sample. From now on, we will be working with these two aggregated
+files. In this section and the following section, we will proceed from
+analyzing methylation status at single loci to identifying higher
+methylation patterns such as hypo-methylated regions. 
 
 \subsection{Estimating methylation frequency}
 \label{sec:estim-methyl-freq}
+In this section we will learn how to estimate the methylation
+probability at a single cytosine loci. In mammals, DNA methylation
+exists mostly at cytosines in the context of CpG dinucleotides. This
+kind of methylation is symmetric because the cytosine on the
+complementary strand, which is base-paired with the guanine, is also
+methylated due to the interesting property of maintenance DNA
+methyltransferases. In mammalian stem cells and particularly in plant
+cells, cytosines in sequence contexts other than CpG dinucleotides,
+such as CpHpG (H denotes adenines, thymines or cytosines), may also be
+methylated. This type of methylation is called asymmetric as the
+cytosines on the complementary strand are unnecessarily
+methylated. Symmetric methylation and asymmetric methylation requires
+different methods to estimate the methylation frequency. Simply put,
+in the case of asymmetric methylation we can use only reads mapped to
+one strand while we can use reads mapped to both strands in the case
+of symmetric methylation. Later we will describe the estimation
+methods for these two cases separately, first the case of asymmetric
+methylation and then the case of symmetric methylation. 
+ 
+After bisulfite sodium treatment, unmethylated cytosines in the
+original DNA sequences are converted to thymines while methylated
+cytosines remain the same. For convenience, we assume the bisulfite
+conversion is perfect for now. For a cytosine in the non-CpG context,
+we count the number of cytosines, which originate from methylated
+cytosines, and the number of thymines, which originate from
+unmethylated cytosines, from reads in the same strand as the
+cytosine. The unbiased estimator of the methylation frequency at this
+cytosine is simply the ratio of the number of cytosines to the number
+of cytosines and thymines combined. This task is carried out with the
+program \textbf{methcount} as following:
+\begin{verbatim}
+$ ./methcounts -c human_genome -non -o bcell/bcell.bed bcell/bcell-methcounts.bed,  
+\end{verbatim}
+where the \textbf{-c} options specifies the direcotory containing the
+human genome sequences and the \textbf{-non} options indicates the
+program should run in non-CpG mode. For each cytosine, the program
+reports the number of cytosines, the number of thymines and the
+estimation of methylation frequency in the output file
+bcell/bcell-methcounts.bed. 
+
+For cytosines in the context of CpG dinucleotides, we are able to use
+reads mapped to both strands, which means better coverage and
+therefore reduces variance of our estimation. We count the number of
+cytosines and thymines in all reads that overlap cytosines either in
+the positive strand or in the negative strand. And the estimator of
+methylation frequency is still the ratio of the number of cytosines to
+the number of cytosines and thymines combined. This task is done
+simiarly to the case of non-CpG methylation except that we ignore the
+\textbf{-non} option of the \textbf{methcount} program, for example, 
+\begin{verbatim}
+$ ./methcounts -c human_genome -o bcell/bcell.bed bcell/bcell-methcounts.bed.  
+\end{verbatim}
+The methcount program report the methylation status of only those
+cytosines in the CpG context. 
+
 
 \subsection{Estimating busilfite conversion rate}
 \label{sec:estim-busilf-conv}
+
+
 
 \section{Higher level analysis}
 \label{sec:high-level-analys}
