@@ -118,7 +118,7 @@ main(int argc, const char **argv)
                                "mapped to the same location and the same strand"
                                "<file with names of bed-files>");
         opt_parse.add_opt("output", 'o', "Name of maps output file", 
-                          true, outfile);
+                          false, outfile);
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
         vector<string> leftover_args;
         opt_parse.parse(argc, argv, leftover_args);
