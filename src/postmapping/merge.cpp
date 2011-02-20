@@ -177,7 +177,8 @@ main(int argc, const char **argv)
         
         vector<string> mapped_files;
         const string mapped_file_names_file(leftover_args.front());
-        if (mapped_file_names_file.find(".mr") == string::npos)
+        if (mapped_file_names_file.find(".mr") == string::npos
+            && mapped_file_names_file.find(".bed") == string::npos)
             read_filename_file(mapped_file_names_file.c_str(), mapped_files);
         else 
             std::copy(leftover_args.begin(), leftover_args.end(),
