@@ -120,12 +120,12 @@ struct ComparePairs
     {
         const GenomicRegion &lhs  = a.first;
         const GenomicRegion &rhs  = b.first;
-        return !((lhs.get_chrom() < rhs.get_chrom()) ||
-                 (lhs.get_chrom() == rhs.get_chrom() &&
-                  lhs.get_start() < rhs.get_start()) || 
-                 (lhs.get_chrom() == rhs.get_chrom() &&
-                  lhs.get_start() == rhs.get_start() &&
-                  lhs.get_strand() < rhs.get_strand()));
+        return (lhs.get_chrom() < rhs.get_chrom()) ||
+            (lhs.get_chrom() == rhs.get_chrom() &&
+             lhs.get_start() < rhs.get_start()) || 
+            (lhs.get_chrom() == rhs.get_chrom() &&
+             lhs.get_start() == rhs.get_start() &&
+             lhs.get_strand() < rhs.get_strand());
     }
 };
 
@@ -177,12 +177,12 @@ main(int argc, const char **argv)
         
         vector<string> mapped_files;
         const string mapped_file_names_file(leftover_args.front());
-        if (mapped_file_names_file.find(".mr") == string::npos
-            && mapped_file_names_file.find(".bed") == string::npos)
-            read_filename_file(mapped_file_names_file.c_str(), mapped_files);
-        else 
+        if (mapped_file_names_file.find(".mr") != string::npos
+            || mapped_file_names_file.find(".bed") != string::npos)
             std::copy(leftover_args.begin(), leftover_args.end(),
                       std::back_inserter(mapped_files));
+        else 
+            read_filename_file(mapped_file_names_file.c_str(), mapped_files);
 
         vector<FileIterator<MappedRead> *> itrs;
         if (VERBOSE)

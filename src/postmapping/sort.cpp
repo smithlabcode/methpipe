@@ -44,12 +44,12 @@ struct genome_location_cmp
     {
         const GenomicRegion &lhs  = a.r;
         const GenomicRegion &rhs  = b.r;
-        return !((lhs.get_chrom() < rhs.get_chrom()) ||
-                 (lhs.get_chrom() == rhs.get_chrom() &&
-                  lhs.get_start() < rhs.get_start()) || 
-                 (lhs.get_chrom() == rhs.get_chrom() &&
-                  lhs.get_start() == rhs.get_start() &&
-                  lhs.get_strand() < rhs.get_strand())) ;
+        return (lhs.get_chrom() < rhs.get_chrom()) ||
+            (lhs.get_chrom() == rhs.get_chrom() &&
+             lhs.get_start() < rhs.get_start()) || 
+            (lhs.get_chrom() == rhs.get_chrom() &&
+             lhs.get_start() == rhs.get_start() &&
+             lhs.get_strand() < rhs.get_strand());
     }
 };
 
