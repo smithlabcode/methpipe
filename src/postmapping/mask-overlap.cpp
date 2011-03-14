@@ -182,32 +182,21 @@ main(int argc, const char **argv)
         bool is_paired = false;
         MappedRead one, two;
     
+        in_one >> one;
         in_two >> two;
         if (REVCOMP) revcomp(two);
-        while (!in_one.eof() && !in_two.eof()) 
+        while (in_one.good() && in_two.good()) 
         {
-            in_one >> one;
-            is_paired = false;
-            while (!in_two.eof() && name_smaller(two, one)) 
+            if (same_read(one, two)) // one and tow are mates
             {
-                out_two << two << '\n';
-                if (out_fraglen.is_open())
-                    out_fraglen << two.r.get_name() << "\t"
-                                << "ERROR: missed T-rich read" << endl;
-                in_two >> two;
-                if (REVCOMP) revcomp(two);
-            }
-            if (same_read(one, two)) 
-            {
-                is_paired = true;
                 if (out_fraglen.is_open())
                 {
                     if (one.r.get_chrom() != two.r.get_chrom())
                         out_fraglen << one.r.get_name() << "\t"
-                                    << "ERROR: different chromosomes" << endl;
+                                    << "WARNING: different chromosomes" << endl;
                     else if (one.r.get_strand() != two.r.get_strand())
                         out_fraglen << one.r.get_name() << "\t"
-                                    << "ERROR: different strands" << endl;
+                                    << "WARNING: different strands" << endl;
                     else
                         out_fraglen << one.r.get_name() << "\t"
                                     << frag_len(one, two) << endl;
@@ -215,30 +204,51 @@ main(int argc, const char **argv)
                 
                 if (one.r.overlaps(two.r))
                     mask_less_informative(one, two);
+                
+                out_one << one << endl; 
+                out_two << two << endl;
+                
+                in_one >> one;
+                in_two >> two;
+                if (REVCOMP) revcomp(two);
+            } 
+            else
+            {
+                if (name_smaller(one, two))
+                {
+                    out_one << one << endl;
+                    if (out_fraglen.is_open())
+                        out_fraglen << one.r.get_name() << "\t"
+                                    << "WARNING: missed A-rich read" << endl;
+                    in_one >> one;
+                }
+                else
+                {
+                    out_two << two << endl;
+                    if (out_fraglen.is_open())
+                        out_fraglen << two.r.get_name() << "\t"
+                                    << "WARNING: missed T-rich read" << endl;
+                    in_two >> two;
+                    if (REVCOMP) revcomp(two);
+                }
             }
-            out_one << one << '\n';
-            if (out_fraglen.is_open() && !is_paired)
-                out_fraglen << one.r.get_name() << "\t"
-                            << "ERROR: missed A-rich read" << endl;
-            
         }
-        out_two << two << '\n';
-        while (!in_two.eof()) 
+        while (in_one.good()) 
         {
-            in_two >> two;
-            if (REVCOMP) revcomp(two);
+            out_one << one << endl;
+            if (out_fraglen.is_open())
+                out_fraglen << one.r.get_name() << "\t"
+                            << "WARNING: missed A-rich read" << endl;
+            in_one >> one;
+        }
+        while (in_two.good()) 
+        {
+            out_two << two << endl;
             if (out_fraglen.is_open())
                 out_fraglen << two.r.get_name() << "\t"
-                            << "ERROR: missed T-rich read" << endl;
-            out_two << two << '\n';
-        }
-        while (!in_one.eof()) 
-        {
+                            << "WARNING: missed T-rich read" << endl;
             in_one >> one;
-            out_one << one << '\n';
-            if (out_fraglen.is_open())
-                out_fraglen << one.r.get_name() << "\t"
-                            << "ERROR: missed A-rich read" << endl;
+            if (REVCOMP) revcomp(two);
         }
     }
     catch (const RMAPException &e) 
