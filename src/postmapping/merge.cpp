@@ -120,12 +120,12 @@ struct ComparePairs
     {
         const GenomicRegion &lhs  = a.first;
         const GenomicRegion &rhs  = b.first;
-        return (lhs.get_chrom() < rhs.get_chrom()) ||
+        return (lhs.get_chrom() > rhs.get_chrom()) ||
             (lhs.get_chrom() == rhs.get_chrom() &&
-             lhs.get_start() < rhs.get_start()) || 
+             lhs.get_start() > rhs.get_start()) || 
             (lhs.get_chrom() == rhs.get_chrom() &&
              lhs.get_start() == rhs.get_start() &&
-             lhs.get_strand() < rhs.get_strand());
+             lhs.get_strand() > rhs.get_strand());
     }
 };
 
