@@ -106,7 +106,7 @@ int main(int argc, const char **argv)
                   std::istream_iterator<MappedRead>(),
                   std::back_inserter(mrs));*/
 	MappedRead tmp;
-	while(*in >> tmp && in->good()){
+	while(in->good() && (*in >> tmp)){
 		mrs.push_back(tmp);
 	}
         if (in != &std::cin) delete in;

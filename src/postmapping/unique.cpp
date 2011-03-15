@@ -151,7 +151,7 @@ main(int argc, const char **argv)
         vector<MappedRead> mapped_ties;
         MappedRead mr;
 
-        while ((*in >> mr) && (in->good())) 
+        while (in->good() && (*in >> mr)) 
         {
             if (!mapped_ties.empty() && 
                 !is_duplicate_read(mapped_ties.front(), mr)) 

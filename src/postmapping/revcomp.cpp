@@ -81,7 +81,7 @@ main(int argc, const char **argv)
             &std::cout : new std::ofstream(outfile.c_str());
         
         MappedRead mr;
-        while (*in >> mr && in->good())
+        while (in->good() && *in >> mr)
         {
             revcomp(mr);
             *out << mr << endl;
