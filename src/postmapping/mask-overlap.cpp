@@ -247,7 +247,7 @@ main(int argc, const char **argv)
             if (out_fraglen.is_open())
                 out_fraglen << two.r.get_name() << "\t"
                             << "WARNING: missed T-rich read" << endl;
-            in_one >> one;
+            in_two >> two;
             if (REVCOMP) revcomp(two);
         }
     }
