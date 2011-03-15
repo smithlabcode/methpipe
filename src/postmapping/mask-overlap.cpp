@@ -179,13 +179,15 @@ main(int argc, const char **argv)
         if (!fraglen_file.empty())
             out_fraglen.open(fraglen_file.c_str());
 
-        bool is_paired = false;
         MappedRead one, two;
-    
-        in_one >> one;
-        in_two >> two;
+        bool one_is_good = true, two_is_good = true;
+        
+        try { in_one >> one; }
+        catch (const RMAPException &e) { one_is_good = false;}
+        try { in_two >> two; }
+        catch (const RMAPException &e) { two_is_good = false;}
         if (REVCOMP) revcomp(two);
-        while (in_one.good() && in_two.good()) 
+        while (one_is_good && two_is_good) 
         {
             if (same_read(one, two)) // one and tow are mates
             {
@@ -208,8 +210,10 @@ main(int argc, const char **argv)
                 out_one << one << endl; 
                 out_two << two << endl;
                 
-                in_one >> one;
-                in_two >> two;
+                try { in_one >> one; }
+                catch (const RMAPException &e) { one_is_good = false;}
+                try { in_two >> two; }
+                catch (const RMAPException &e) { two_is_good = false;}
                 if (REVCOMP) revcomp(two);
             } 
             else
@@ -220,7 +224,9 @@ main(int argc, const char **argv)
                     if (out_fraglen.is_open())
                         out_fraglen << one.r.get_name() << "\t"
                                     << "WARNING: missed A-rich read" << endl;
-                    in_one >> one;
+
+                    try { in_one >> one; }
+                    catch (const RMAPException &e) { one_is_good = false;}
                 }
                 else
                 {
@@ -228,26 +234,32 @@ main(int argc, const char **argv)
                     if (out_fraglen.is_open())
                         out_fraglen << two.r.get_name() << "\t"
                                     << "WARNING: missed T-rich read" << endl;
-                    in_two >> two;
+
+                    try { in_two >> two; }
+                    catch (const RMAPException &e) { two_is_good = false;}
                     if (REVCOMP) revcomp(two);
                 }
             }
         }
-        while (in_one.good()) 
+        while (one_is_good) 
         {
             out_one << one << endl;
             if (out_fraglen.is_open())
                 out_fraglen << one.r.get_name() << "\t"
                             << "WARNING: missed A-rich read" << endl;
-            in_one >> one;
+
+            try { in_one >> one; }
+            catch (const RMAPException &e) { one_is_good = false;}
         }
-        while (in_two.good()) 
+        while (two_is_good) 
         {
             out_two << two << endl;
             if (out_fraglen.is_open())
                 out_fraglen << two.r.get_name() << "\t"
                             << "WARNING: missed T-rich read" << endl;
-            in_two >> two;
+
+            try { in_two >> two; }
+            catch (const RMAPException &e) { two_is_good = false;}
             if (REVCOMP) revcomp(two);
         }
     }
