@@ -157,7 +157,7 @@ main(int argc, const char **argv)
                           false, histogram_file);
         opt_parse.add_opt("revcomp", 'r',
                           "Reverse complement A-rich strand before masking", 
-                          false, histogram_file);
+                          false, REVCOMP);
         opt_parse.add_opt("max-dist", 'm', "max distance to print", 
                           false, max_distance);
         opt_parse.add_opt("frag-len", 'f', "File name of fragment length", 
@@ -191,7 +191,7 @@ main(int argc, const char **argv)
         end_one_file = leftover_args[0]; 
         end_two_file = leftover_args[1];
         end_one_out = leftover_args.size() >= 3 ? leftover_args[2] : "/dev/null";
-        end_one_out = leftover_args.size() >= 4 ? leftover_args[3] : "/dev/null";
+        end_two_out = leftover_args.size() >= 4 ? leftover_args[3] : "/dev/null";
         /****************** END COMMAND LINE OPTIONS *****************/
 
         ifstream in_one(end_one_file.c_str());
