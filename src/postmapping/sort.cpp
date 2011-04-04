@@ -49,6 +49,10 @@ struct genome_location_cmp
              lhs.get_start() < rhs.get_start()) || 
             (lhs.get_chrom() == rhs.get_chrom() &&
              lhs.get_start() == rhs.get_start() &&
+             lhs.get_end() < rhs.get_end()) ||
+            (lhs.get_chrom() == rhs.get_chrom() &&
+             lhs.get_start() == rhs.get_start() &&
+             lhs.get_end() == rhs.get_end() &&
              lhs.get_strand() < rhs.get_strand());
     }
 };
