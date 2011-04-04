@@ -111,11 +111,31 @@ frag_len(const MappedRead &lhs, const MappedRead &rhs)
         min(lhs.r.get_start(), rhs.r.get_start());
 }
 
+inline string
+collapse_mapped_reads(const MappedRead &mr,
+                      const string delimiter = "\26")
+{
+    return
+        mr.r.get_chrom() + delimiter
+        + rmap::toa(mr.r.get_start()) + delimiter
+        + rmap::toa(mr.r.get_end()) + delimiter
+        + mr.r.get_name() + delimiter
+        + rmap::toa(mr.r.get_score()) + delimiter
+        + (mr.r.get_strand() == '+' ? "+" : "-") + delimiter
+        + mr.seq + delimiter
+        + mr.scr;
+}
+
 int 
 main(int argc, const char **argv) 
 {
     try 
     {
+        static const int WARNING_DIFF_CHROM = -1;
+        static const int WARNING_DIFF_STRAND = -2;
+        static const int WARNING_MISS_T_MATE = -3;
+        static const int WARNING_MISS_A_MATE = -4;
+        
         bool VERBOSE = false;
         bool REVCOMP = false;
         size_t max_distance = 500;
@@ -125,6 +145,8 @@ main(int argc, const char **argv)
         string end_one_out;
         string end_two_out; 
         string fraglen_file;
+        string outfile;
+        string delimiter = "\26";
   
         /****************** COMMAND LINE OPTIONS ********************/
         OptionParser opt_parse(argv[0], "a program for identifying overlapping ends of "
@@ -139,7 +161,10 @@ main(int argc, const char **argv)
         opt_parse.add_opt("max-dist", 'm', "max distance to print", 
                           false, max_distance);
         opt_parse.add_opt("frag-len", 'f', "File name of fragment length", 
-                          false, fraglen_file);
+                          false, outfile); // to be discontinued. only for 
+                                           // backward compatibilities
+        opt_parse.add_opt("outfile", 'o', "Output file name", 
+                          false, outfile);
         vector<string> leftover_args;
         opt_parse.parse(argc, argv, leftover_args);
         if (argc == 1 || opt_parse.help_requested()) 
@@ -165,8 +190,8 @@ main(int argc, const char **argv)
 
         end_one_file = leftover_args[0]; 
         end_two_file = leftover_args[1];
-        end_one_out = leftover_args[2];
-        end_two_out = leftover_args[3]; 
+        end_one_out = leftover_args.size() >= 3 ? leftover_args[2] : "/dev/null";
+        end_one_out = leftover_args.size() >= 4 ? leftover_args[3] : "/dev/null";
         /****************** END COMMAND LINE OPTIONS *****************/
 
         ifstream in_one(end_one_file.c_str());
@@ -175,10 +200,9 @@ main(int argc, const char **argv)
         ofstream out_one(end_one_out.c_str());
         ofstream out_two(end_two_out.c_str());
         
-        ofstream out_fraglen;
-        if (!fraglen_file.empty())
-            out_fraglen.open(fraglen_file.c_str());
-
+        std::ostream *out = outfile.empty() ?
+            &std::cout : new std::ofstream(outfile.c_str());
+        
         MappedRead one, two;
         bool one_is_good = true, two_is_good = true;
         
@@ -191,24 +215,63 @@ main(int argc, const char **argv)
         {
             if (same_read(one, two)) // one and tow are mates
             {
-                if (out_fraglen.is_open())
-                {
-                    if (one.r.get_chrom() != two.r.get_chrom())
-                        out_fraglen << one.r.get_name() << "\t"
-                                    << "WARNING: different chromosomes" << endl;
-                    else if (one.r.get_strand() != two.r.get_strand())
-                        out_fraglen << one.r.get_name() << "\t"
-                                    << "WARNING: different strands" << endl;
-                    else
-                        out_fraglen << one.r.get_name() << "\t"
-                                    << frag_len(one, two) << endl;
-                }
-                
                 if (one.r.overlaps(two.r))
                     mask_less_informative(one, two);
-                
-                out_one << one << endl; 
+
+                out_one << one << endl; // for backward compatibilities
                 out_two << two << endl;
+                
+                if (one.r.get_chrom() != two.r.get_chrom())
+                {
+                    *out << one.r.get_chrom() << "\t"
+                         << one.r.get_start() << "\t"
+                         << one.r.get_end() << "\t"
+                         <<  "FRAG:UNPAIRED" << "\t"
+                         << WARNING_DIFF_CHROM << "\t"
+                         << one.r.get_strand() << "\t"
+                         << collapse_mapped_reads(one) << "\t"
+                         << "different-chromosomes" << endl;
+                    *out << two.r.get_chrom() << "\t"
+                         << two.r.get_start() << "\t"
+                         << two.r.get_end() << "\t"
+                         <<  "FRAG:UNPAIRED" << "\t"
+                         << WARNING_DIFF_CHROM << "\t"
+                         << two.r.get_strand() << "\t"
+                         << collapse_mapped_reads(two) << "\t"
+                         << "different-chromosomes" << endl;
+                }
+                else if (one.r.get_strand() != two.r.get_strand())
+                {
+                    *out << one.r.get_chrom() << "\t"
+                         << one.r.get_start() << "\t"
+                         << one.r.get_end() << "\t"
+                         <<  "FRAG:UNPAIRED" << "\t"
+                         << WARNING_DIFF_STRAND << "\t"
+                         << one.r.get_strand() << "\t"
+                         << collapse_mapped_reads(one) << "\t"
+                         << "different-strands" << endl;
+                    *out << two.r.get_chrom() << "\t"
+                         << two.r.get_start() << "\t"
+                         << two.r.get_end() << "\t"
+                         <<  "FRAG:UNPAIRED" << "\t"
+                         << WARNING_DIFF_STRAND << "\t"
+                         << two.r.get_strand() << "\t"
+                         << collapse_mapped_reads(two) << "\t"
+                         << "different-strands" << endl;
+                }
+                else
+                {
+                    *out << one.r.get_chrom() << "\t"
+                         << std::min(one.r.get_start(),
+                                     two.r.get_start()) << "\t"
+                         << std::max(one.r.get_end(),
+                                     two.r.get_end()) << "\t"
+                         << "FRAG:PAIRED" << "\t"
+                         << frag_len(one, two) << "\t"
+                         << one.r.get_strand() << "\t"
+                         << collapse_mapped_reads(one) << "\t"
+                         << collapse_mapped_reads(two) << endl;
+                }
                 
                 try { in_one >> one; }
                 catch (const RMAPException &e) { one_is_good = false;}
@@ -216,48 +279,66 @@ main(int argc, const char **argv)
                 catch (const RMAPException &e) { two_is_good = false;}
                 if (REVCOMP) revcomp(two);
             } 
-            else
+            else if (name_smaller(one, two))
             {
-                if (name_smaller(one, two))
-                {
-                    out_one << one << endl;
-                    if (out_fraglen.is_open())
-                        out_fraglen << one.r.get_name() << "\t"
-                                    << "WARNING: missed A-rich read" << endl;
+                *out << one.r.get_chrom() << "\t"
+                     << one.r.get_start() << "\t"
+                     << one.r.get_end() << "\t"
+                     <<  "FRAG:UNPAIRED" << "\t"
+                     << WARNING_MISS_A_MATE << "\t"
+                     << one.r.get_strand() << "\t"
+                     << collapse_mapped_reads(one) << "\t"
+                     << "miss-A-mate" << endl;
+                
+                out_one << one << endl; // for backward compatibilities
 
-                    try { in_one >> one; }
-                    catch (const RMAPException &e) { one_is_good = false;}
-                }
-                else
-                {
-                    out_two << two << endl;
-                    if (out_fraglen.is_open())
-                        out_fraglen << two.r.get_name() << "\t"
-                                    << "WARNING: missed T-rich read" << endl;
-
-                    try { in_two >> two; }
-                    catch (const RMAPException &e) { two_is_good = false;}
-                    if (REVCOMP) revcomp(two);
-                }
+                try { in_one >> one; }
+                catch (const RMAPException &e) { one_is_good = false;}
+            }
+            else // one comes after two
+            {
+                *out << two.r.get_chrom() << "\t"
+                     << two.r.get_start() << "\t"
+                     << two.r.get_end() << "\t"
+                     <<  "FRAG:UNPAIRED" << "\t"
+                     << WARNING_MISS_T_MATE << "\t"
+                     << two.r.get_strand() << "\t"
+                     << collapse_mapped_reads(two) << "\t"
+                     << "miss-T-mate" << endl;
+                out_two << two << endl; // for backward compatibilities
+                
+                try { in_two >> two; }
+                catch (const RMAPException &e) { two_is_good = false;}
+                if (REVCOMP) revcomp(two);
             }
         }
         while (one_is_good) 
         {
-            out_one << one << endl;
-            if (out_fraglen.is_open())
-                out_fraglen << one.r.get_name() << "\t"
-                            << "WARNING: missed A-rich read" << endl;
-
+            *out << one.r.get_chrom() << "\t"
+                 << one.r.get_start() << "\t"
+                 << one.r.get_end() << "\t"
+                 <<  "FRAG:UNPAIRED" << "\t"
+                 << WARNING_MISS_A_MATE << "\t"
+                 << one.r.get_strand() << "\t"
+                 << collapse_mapped_reads(one) << "\t"
+                 << "miss-A-mate" << endl;
+            out_one << one << endl; // for backward compatibilities
+            
             try { in_one >> one; }
             catch (const RMAPException &e) { one_is_good = false;}
         }
         while (two_is_good) 
         {
-            out_two << two << endl;
-            if (out_fraglen.is_open())
-                out_fraglen << two.r.get_name() << "\t"
-                            << "WARNING: missed T-rich read" << endl;
-
+            *out << two.r.get_chrom() << "\t"
+                 << two.r.get_start() << "\t"
+                 << two.r.get_end() << "\t"
+                 <<  "FRAG:UNPAIRED" << "\t"
+                 << WARNING_MISS_T_MATE << "\t"
+                 << two.r.get_strand() << "\t"
+                 << collapse_mapped_reads(two) << "\t"
+                 << "miss-T-mate" << endl;
+            out_two << two << endl; // for backward compatibilities
+            
             try { in_two >> two; }
             catch (const RMAPException &e) { two_is_good = false;}
             if (REVCOMP) revcomp(two);
@@ -275,3 +356,4 @@ main(int argc, const char **argv)
     }
     return EXIT_SUCCESS;
 }
+
