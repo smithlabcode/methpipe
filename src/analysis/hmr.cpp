@@ -186,9 +186,10 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
       reset_points.push_back(i);
     prev_cpg = cpgs[i].get_start();
   }
+  reset_points.push_back(cpgs.size());
   if (VERBOSE)
     cerr << "CPGS RETAINED: " << cpgs.size() << endl
-	 << "DESERTS REMOVED: " << reset_points.size() << endl << endl;
+	 << "DESERTS REMOVED: " << reset_points.size() - 2 << endl << endl;
 }
 
 
