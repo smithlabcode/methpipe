@@ -251,7 +251,8 @@ static void
 assign_p_values(const vector<double> &random_scores, 
 		const vector<double> &observed_scores, 
 		vector<double> &p_values) {
-  const double n_randoms = random_scores.size();
+  const double n_randoms =
+      random_scores.size() == 0 ? 1 : random_scores.size() == 0;
   for (size_t i = 0; i < observed_scores.size(); ++i)
     p_values.push_back((random_scores.end() - 
 			upper_bound(random_scores.begin(),
@@ -494,6 +495,7 @@ main(int argc, const char **argv) {
       
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
+
     for (size_t i = 0; i < domains.size(); ++i) {
       if (p_values[i] < fdr_cutoff) {
 	domains[i].set_score(domain_scores[i]);
