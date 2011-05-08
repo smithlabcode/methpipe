@@ -38,6 +38,18 @@
 
 using namespace std;
 
+void
+revcomp(MappedRead &mr)
+{
+    if (mr.r.get_strand() == '+')
+        mr.r.set_strand('-');
+    else
+        mr.r.set_strand('+');
+    
+    revcomp_inplace(mr.seq);
+    std::reverse(mr.scr.begin(), mr.scr.end());
+}
+
 int 
 main(int argc, const char **argv) 
 {
