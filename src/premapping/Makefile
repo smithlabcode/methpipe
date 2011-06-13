@@ -28,11 +28,12 @@ SOURCES = $(shell find . -name "*.cpp")
 OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
-STATLIBS = $(shell find $(ROOT) -name "*.a")
-INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+SMITHLAB_DIR = ../smithlab_cpp/
+COMMON_DIR = ../common/
+INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS += -Wl,-Bdynamic  -lgsl -lgslcblas 
+LIBS = -Wl,-Bdynamic  -lgsl -lgslcblas 
 
 CXX = g++
 CFLAGS = -Wall -fPIC -fmessage-length=50
@@ -54,8 +55,17 @@ install: $(PROGS)
 	@mkdir -p $(ROOT)/bin
 	@install -m 755 $(PROGS) $(ROOT)/bin
 
+read-quality-prof: $(addprefix $(SMITHLAB_DIR), \
+	OptionParser.o rmap_os.o rmap_utils.o QualityScore.o GenomicRegion.o)
+
+trim-adapter: $(addprefix $(SMITHLAB_DIR), \
+	OptionParser.o rmap_os.o rmap_utils.o clip_adaptor_from_reads.o GenomicRegion.o)
+
+visireads: $(addprefix $(SMITHLAB_DIR), \
+	OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o MappedRead.o)
+
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $< $(INCLUDEARGS) $(STATLIBS) $(LIBS)
+	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

@@ -28,8 +28,9 @@ SOURCES = $(shell find . -name "*.cpp")
 OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
-STATLIBS = $(shell find $(ROOT) -name "*.a")
-INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+SMITHLAB_DIR = ../smithlab_cpp/
+COMMON_DIR = ../common/
+INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS += -Wl,-Bdynamic  -lgsl -lgslcblas 
@@ -50,12 +51,17 @@ endif
 
 all: $(PROGS)
 
-install: $(PROGS)
+install: all
 	@mkdir -p $(ROOT)/bin
 	@install -m 755 $(PROGS) $(ROOT)/bin
 
+rmapbs: $(addprefix $(SMITHLAB_DIR), SeedMaker.o GenomicRegion.o \
+	rmap_os.o rmap_utils.o OptionParser.o QualityScore.o \
+	FastRead.o FastReadQuality.o FastReadWC.o load_reads.o \
+	clip_adaptor_from_reads.o)
+
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $< $(INCLUDEARGS) $(STATLIBS) $(LIBS)
+	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

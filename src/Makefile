@@ -23,10 +23,9 @@ ifndef ROOT
 $(error Must define ROOT variable)
 endif
 
-all_subdirs=$(shell find $(ROOT)/src -maxdepth 2 -mindepth 2 -name "Makefile"|\
-xargs -n 1 dirname|sort|uniq)
-lib_subdirs=$(shell find $(ROOT)/src -maxdepth 2 -name "*hpp"|xargs -n 1 dirname|sort|uniq)
-app_subdirs=$(filter-out $(lib_subdirs),$(all_subdirs))
+all_subdirs=analysis cytosines mapper premapping common postmapping smithlab_cpp 
+lib_subdirs=common smithlab_cpp
+app_subdirs=analysis cytosines mapper premapping postmapping 
 
 ## COMMENT: The smithlab_cpp directory is only appearing in the
 ## "clean" target below because the compilation of object files inside

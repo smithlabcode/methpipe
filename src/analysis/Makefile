@@ -28,11 +28,12 @@ SOURCES = $(shell find . -name "*.cpp")
 OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
-STATLIBS = $(shell find $(ROOT) -name "*.a")
-INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+SMITHLAB_DIR = ../smithlab_cpp/
+COMMON_DIR = ../common/
+INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS += -Wl,-Bdynamic  -lgsl -lgslcblas 
+LIBS = -Wl,-Bdynamic  -lgsl -lgslcblas 
 
 CXX = g++
 CFLAGS = -Wall -fPIC -fmessage-length=50
@@ -54,8 +55,47 @@ install: $(PROGS)
 	@mkdir -p $(ROOT)/bin
 	@install -m 755 $(PROGS) $(ROOT)/bin
 
+amr: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	FileIterator.o MappedRead.o) 
+
+bsrate:	$(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	FileIterator.o MappedRead.o QualityScore.o)
+
+dmr: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+
+hmr: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o) \
+	$(addprefix $(COMMON_DIR), TwoStateHMM.o)
+
+merge-counts: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	RNG.o FileIterator.o MappedRead.o QualityScore.o)		
+
+methcounts: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	FileIterator.o MappedRead.o QualityScore.o)		
+
+methdiff: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+
+sortreads: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+
+## To be depreciated
+checkoverlap: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
+
+mergelanes: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o RNG.o)
+
+roimethstat: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $< $(INCLUDEARGS) $(STATLIBS) $(LIBS)
+	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

@@ -27,10 +27,9 @@ HEADERS = $(shell ls *.hpp)
 SOURCES = $(shell ls *.cpp)
 OBJECTS = $(subst .cpp,.o,$(SOURCES))
 
-STATIC_LIB = lib$(shell basename $$PWD).a
-DYNAMIC_LIB = lib$(shell basename $$PWD).so
-
-INCLUDEDIRS = $(shell find $(ROOT) -name "*.hpp"|xargs -n 1 dirname|sort|uniq)
+SMITHLAB_DIR = ../smithlab_cpp/
+COMMON_DIR = ../common/
+INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 CXX = g++
@@ -50,21 +49,9 @@ ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
 endif
 
-all: $(DYNAMIC_LIB) $(STATIC_LIB)
+all: $(OBJECTS)
 
-install: $(DYNAMIC_LIB) $(STATIC_LIB)
-#	@mkdir -p $(LIBDIR)
-#	@mkdir -p $(INCLUDEDIR)
-#	@install -m 755 $(DYNAMIC_LIB) $(LIBDIR)
-#	@install -m 644 $(STATIC_LIB) $(LIBDIR)
-#	@install -m 644 $(HEADERS) $(INCLUDEDIR)
-
-
-$(DYNAMIC_LIB): $(OBJECTS)
-	$(CXX) -shared $(CXXFLAGS) -o $@ $^
-
-$(STATIC_LIB): $(OBJECTS)
-	ar cru $@ $^
+install: all
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) $(INCLUDEARGS) -c  -o $@ $<
