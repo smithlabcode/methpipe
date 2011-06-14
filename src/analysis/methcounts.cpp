@@ -550,7 +550,7 @@ main(int argc, const char **argv) {
     string outfile;
     string fasta_suffix = "fa";
     
-    size_t BUFFER_SIZE = 3; //100000;
+    size_t BUFFER_SIZE = 100000;
     double max_mismatches = std::numeric_limits<double>::max();
 
     double cutoff = -std::numeric_limits<double>::max();
