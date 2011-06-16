@@ -61,8 +61,7 @@ same_name(const MappedRead &a, const MappedRead &b) {
 static bool
 mapped_correctly(const MappedRead &a, const MappedRead &b)
 {
- return ( a.r.same_chrom(b.r) && ((b.r.get_start() >= a.r.get_start() && b.r.get_start() < a.r.get_end()) ||
-        (a.r.get_start() >= b.r.get_start() && a.r.get_start() < b.r.get_end())));
+ return ( a.r.same_chrom(b.r) && ((b.r.get_start() >= a.r.get_start() && b.r.get_start() < a.r.get_end()) || (a.r.get_start() >= b.r.get_start() && a.r.get_start() < b.r.get_end())));
 }
 
 static bool
@@ -93,8 +92,6 @@ mask_N(MappedRead &one, MappedRead &two, const size_t overlap_start_one, const s
    //one_plus is true if first mate is mapped to positive
 
    size_t j = two.seq.length() - overlap_start_two - 1 ;
-cout << "overlap_start_tw-= " << overlap_start_two << ", overlap_size = " << overlap_size
-<< ", two.length = " << two.seq.length() << ", j = " << j << endl;
    for(size_t i = overlap_start_one; i < overlap_start_one + overlap_size; i++){
      if(one_plus){
        if(is_N(one.seq[i]))
@@ -136,8 +133,6 @@ clip(MappedRead &one, MappedRead &two, size_t &clipped_count){
      }
       
    }//if mapped correctly and overlap
-else
-cout << "Mapped not correctly" << endl;
 }
 
 static void
