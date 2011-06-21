@@ -48,6 +48,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::max;
+using std::ifstream;
 
 /***********************************************************************
  * FUNCTIONS BELOW ARE FOR FASTQRecord OJBECTS AND *NOT* USING THE
