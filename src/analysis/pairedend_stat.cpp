@@ -209,13 +209,13 @@ try {
   /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], "a program to calculate paired-end mapped statistics.",
 			   "");
-    opt_parse.add_opt("output", 'o', "output statistics (default: stdout)", 
+    opt_parse.add_opt("output", 'd', "output statistics (default: stdout)", 
 		      false, output);
     opt_parse.add_opt("mates1", 'u', "mapped results with mapped mates1 ", 
 		      false , results1);
     opt_parse.add_opt("mates2", 'c', "mapped results with mapped mates2 ", 
 		      false , results2);
-    opt_parse.add_opt("min_fragm_size", 'i', "min fragment size (default: 0)",
+    opt_parse.add_opt("min_fragm_size", 'l', "min fragment size (default: 0)",
                       false , set_min);
     opt_parse.add_opt("max_fragm_size", 'a', "max fragment size (default: 1000)",
                       false , set_max);
