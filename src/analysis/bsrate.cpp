@@ -82,6 +82,7 @@ add_contribution_c(const size_t offset, const MappedRead &r,
   if (r.r.pos_strand()) {
     const size_t position = offset - r.r.get_start();
     assert(position < r.seq.length());
+assert(position >= 0);
     if (is_cytosine(r.seq[position])) ++unconv[position];
     else if (is_thymine(r.seq[position])) ++conv[position];
     else ++err[position];
@@ -96,6 +97,7 @@ add_contribution_g(const size_t offset, const MappedRead &r,
   if (r.r.neg_strand()) {
     const size_t position = r.seq.length() - (offset - r.r.get_start() + 1);
     assert(position < r.seq.length());
+assert(position >= 0);
     if (is_cytosine(r.seq[position])) ++unconv[position];
     else if (is_thymine(r.seq[position])) ++conv[position];
     else ++err[position];
@@ -111,6 +113,7 @@ add_contribution_c(const QualityChecker &qc,
   if (r.r.pos_strand()) {
     const size_t position = offset - r.r.get_start();
     assert(position < r.seq.length());
+assert(position >= 0);
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++unconv[position];
       else if (is_thymine(r.seq[position])) ++conv[position];
@@ -129,6 +132,7 @@ add_contribution_g(const QualityChecker &qc,
   if (r.r.neg_strand()) {
     const size_t position = r.seq.length() - (offset - r.r.get_start() + 1);
     assert(position < r.seq.length());
+assert(position >= 0);
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++unconv[position];
       else if (is_thymine(r.seq[position])) ++conv[position];
@@ -170,6 +174,33 @@ advance(const size_t first, const size_t last,
   //     throw RMAPException("read and map files seem out of sync");
 }
 
+template< class T >
+static void
+grew_buffer(size_t read_len, vector<T> &buffer)
+{
+  size_t init_value = 0ul;
+  T cur = static_cast<T>(init_value);
+
+  vector<T> newbuffer(read_len, cur);
+  copy(buffer.begin(), buffer.end(), newbuffer.begin());
+  buffer.swap(newbuffer);
+}
+
+static void
+update_size(size_t read_len, vector<size_t> &unconv_count_pos, vector<size_t> &conv_count_pos,
+                vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
+                vector<size_t> &err_pos, vector<size_t> &err_neg,
+                vector<double> &qual_pos, vector<double> &qual_neg)
+{
+   grew_buffer(read_len, unconv_count_pos);
+   grew_buffer(read_len, conv_count_pos);
+   grew_buffer(read_len, unconv_count_neg);
+   grew_buffer(read_len, conv_count_neg);
+   grew_buffer(read_len, err_pos);
+   grew_buffer(read_len, err_neg);
+   grew_buffer(read_len, qual_pos);
+   grew_buffer(read_len, qual_neg);
+}//update_size
 
 static void
 scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
@@ -179,28 +210,44 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
 		vector<size_t> &err_pos, vector<size_t> &err_neg,
 		vector<double> &qual_pos, vector<double> &qual_neg) {
+  size_t read_len = unconv_count_pos.size();
+
   const string chrom_name(chrom_region.get_chrom());
-  
+
   for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions);
+
     if (is_cytosine(chrom[i]) && !is_guanine(chrom[i + 1])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j) {
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+	}//if	
 	if (j->r.get_score() <= max_mismatches)
-	  add_contribution_c(i, *j, 
+{	  add_contribution_c(i, *j, 
 			     unconv_count_pos, conv_count_pos, 
-			     err_pos, qual_pos);
-      }
-    }
+				err_pos, qual_pos);
+}//if			    
+      }//for
+    }//if
     if (is_guanine(chrom[i]) && !is_cytosine(chrom[i - 1])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j)
+	   j != regions.get_last(); ++j){
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+        
 	if (j->r.get_score() <= max_mismatches)
-	  add_contribution_g(i, *j, 
+{	  add_contribution_g(i, *j, 
 			     unconv_count_neg, conv_count_neg, 
 			     err_neg, qual_neg);
-    }
-  }
+}     }//for
+    }//if
+  }//for
 }
 
 
@@ -212,27 +259,45 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
 		    vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
 		    vector<size_t> &err_pos, vector<size_t> &err_neg,
 		    vector<double> &qual_pos, vector<double> &qual_neg) {
+
+  size_t read_len = unconv_count_pos.size();
+
   const string chrom_name(chrom_region.get_chrom());
-  
   for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions);
     if (is_cytosine(chrom[i])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j) {
-	if (j->r.get_score() <= max_mismatches)
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
+	if (j->r.get_score() <= max_mismatches){
 	  add_contribution_c(i, *j, 
 			     unconv_count_pos, conv_count_pos, 
 			     err_pos, qual_pos);
+        }
       }
     }
     if (is_guanine(chrom[i])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j)
-	if (j->r.get_score() <= max_mismatches)
+	   j != regions.get_last(); ++j){
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
+	if (j->r.get_score() <= max_mismatches){
 	  add_contribution_g(i, *j,
 			     unconv_count_neg, conv_count_neg, 
 			     err_neg, qual_neg);
+        }
+      }//for
     }
+
   }
 }
 
@@ -245,13 +310,20 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
 		vector<size_t> &err_pos, vector<size_t> &err_neg,
 		vector<double> &qual_pos, vector<double> &qual_neg) {
+
   const string chrom_name(chrom_region.get_chrom());
-  
+  size_t read_len = unconv_count_pos.size();  
   for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions);
     if (is_cytosine(chrom[i]) && !is_guanine(chrom[i + 1])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j) {
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
 	if (j->r.get_score() <= max_mismatches)
 	  add_contribution_c(qc, i, *j, 
 			     unconv_count_pos, conv_count_pos, 
@@ -260,11 +332,19 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
     }
     if (is_guanine(chrom[i]) && !is_cytosine(chrom[i - 1])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j)
-	if (j->r.get_score() <= max_mismatches)
+	   j != regions.get_last(); ++j){
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
+	if (j->r.get_score() <= max_mismatches){
 	  add_contribution_g(qc, i, *j,
 			     unconv_count_neg, conv_count_neg, 
 			     err_neg, qual_neg);
+        }//if
+     }//for
     }
   }
 }
@@ -280,26 +360,42 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
 		    vector<size_t> &err_pos, vector<size_t> &err_neg,
 		    vector<double> &qual_pos, vector<double> &qual_neg) {
   const string chrom_name(chrom_region.get_chrom());
-  
+  size_t read_len = unconv_count_pos.size();  
   for (size_t i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     advance(i, i, chrom_region, regions);
     if (is_cytosine(chrom[i])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j) {
-	if (j->r.get_score() <= max_mismatches)
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
+	if (j->r.get_score() <= max_mismatches){
 	  add_contribution_c(qc, i, *j, 
 			     unconv_count_pos, conv_count_pos, 
 			     err_pos, qual_pos);
+	}
       }
     }
     if (is_guanine(chrom[i])) {
       for (vector<MappedRead>::const_iterator j(regions.get_first());
-	   j != regions.get_last(); ++j)
-	if (j->r.get_score() <= max_mismatches)
+	   j != regions.get_last(); ++j){
+        if(read_len < j->r.get_width()){
+          read_len = j->r.get_width();
+          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
+            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+        }//if  
+
+	if (j->r.get_score() <= max_mismatches){
 	  add_contribution_g(qc, i, *j, 
 			     unconv_count_neg, conv_count_neg, 
 			     err_neg, qual_neg);
+   	}
+      }//for
     }
+
   }
 }
 
@@ -344,7 +440,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
 	    const string &outfile, const vector<string> &chrom_files, 
 	    FileIterator<MappedRead> &regions) {
 
-  const size_t read_len = regions.get_first()->r.get_width();
+  size_t read_len = regions.get_first()->r.get_width();
   
   vector<size_t> unconv_count_pos(read_len, 0ul);
   vector<size_t> conv_count_pos(read_len, 0ul);
@@ -395,6 +491,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
        << "ERRRATE" << '\t'
        << "QUAL" << endl;
   static const size_t precision_val = 5;
+  read_len = unconv_count_pos.size();
   for (size_t i = 0; i < read_len; ++i) {
     const double total_pos = unconv_count_pos[i] + conv_count_pos[i];
     const double total_neg = unconv_count_neg[i] + conv_count_neg[i];
@@ -606,10 +703,12 @@ main(int argc, const char **argv) {
     sort(chrom_files.begin(), chrom_files.end());
     
     FileIterator<MappedRead> regions(mapped_reads_file, BUFFER_SIZE);
+
     if (cutoff != -std::numeric_limits<double>::max()) {
       const QualityChecker qc(score_format, cutoff);
       scan_chroms(VERBOSE, PROCESS_CPGS, qc, max_mismatches,
 		  outfile, chrom_files, regions);
+
     }
     else scan_chroms(VERBOSE, PROCESS_CPGS, max_mismatches,
 		     outfile, chrom_files, regions);

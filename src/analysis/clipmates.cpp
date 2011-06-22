@@ -195,11 +195,17 @@ mask_overlap(string input1, string input2, string output1, string output2,
       }//one > two
    }//while 
 
-   while(!in1.eof() && in1 >> one){
+   in1.peek();
+   while(!in1.eof()){
+     in1 >> one;
+     reads_count++;
      out1 << one << endl;
      in1.peek();
    }
-   while(!in2.eof() && in2 >> two){
+   in2.peek();
+   while(!in2.eof()){
+     in2 >> two;
+     reads_count++;
      out2 << two << endl;
      in2.peek();
    }
