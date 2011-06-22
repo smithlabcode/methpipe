@@ -121,12 +121,15 @@ mask_overlap(string input1, string input2,
        reads_count++;
       }//one > two
    }//while 
-
-   while(!in1.eof() && in1 >> one){
+   in1.peek();
+   while(!in1.eof()){
+     in1 >> one;
      reads_count++;
      in1.peek();
    }
-   while(!in2.eof() && in2 >> two){
+   in2.peek();
+   while(!in2.eof()){
+     in2 >> two;
      reads_count++;
      in2.peek();
    }
@@ -166,7 +169,7 @@ stat_fragm_size(vector<size_t> &fragm_distr, double &ave_fs, double &median,
    }
    
    std_fs = (asize - 1 > 0 ? sum / (asize - 1.0) : 0);
-
+   std_fs = sqrt(std_fs);
 }
 
 static void
