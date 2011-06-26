@@ -356,7 +356,7 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], "A program for segmenting DNA "
-			   "methylation data"
+			   "methylation data",
 			   "<cpg-BED-file>");
     opt_parse.add_opt("out", 'o', "output file (BED format)", 
 		      false, outfile);
