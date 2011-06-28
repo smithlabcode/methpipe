@@ -113,18 +113,6 @@ is_duplicate_read(const GenomicRegion &lhs,
 //     }
 // }
 
-static inline bool
-is_paired_fragment(const MappedRead &mr)
-{
-    return mr.r.get_name() == "FRAG:PAIRED";
-}
-
-static inline bool
-is_paired_frag(const GenomicRegion &gr)
-{
-    return gr.get_name() == "FRAG:PAIRED";
-}
-
 // This is really messy. This is approximately right
 // The unpaired reads on the negative strand is really messy
 // and this progrma tends to retain them
@@ -132,70 +120,21 @@ static inline bool
 is_duplicate_fragment(const GenomicRegion &lhs,
                       const GenomicRegion &rhs)
 {
-    if (is_paired_frag(lhs) && is_paired_frag(rhs))
-    {
-        return 
-            lhs.get_chrom() == rhs.get_chrom() &&
-            lhs.get_start() == rhs.get_start() &&
-            lhs.get_end() == rhs.get_end() &&
-            lhs.get_strand() == rhs.get_strand();
-    }
-    else if (!is_paired_frag(lhs) && is_paired_frag(rhs))
-    {
-        return
-            (lhs.get_strand() == '+' &&   // being strigent on positive reads
-             rhs.get_strand() == '+' &&
-             lhs.get_chrom() == rhs.get_chrom()  &&
-             lhs.get_start() == rhs.get_start())
-            ||
-            (lhs.get_strand() == '-' &&  // being a little conservative on
-             rhs.get_strand() == '-' &&  // negative reads
-             lhs.get_chrom() == rhs.get_chrom()  &&
-             lhs.get_end() == rhs.get_end());
-    } 
-    else if (is_paired_frag(lhs) && !is_paired_frag(rhs))
-    {
-        return
-            (lhs.get_strand() == '+' &&   // being strigent on positive reads
-             rhs.get_strand() == '+' &&
-             lhs.get_chrom() == rhs.get_chrom()  &&
-             lhs.get_start() == rhs.get_start())
-            ||
-            (lhs.get_strand() == '-' &&  // being a little conservative on
-             rhs.get_strand() == '-' &&  // negative reads
-             lhs.get_chrom() == rhs.get_chrom()  &&
-             lhs.get_end() == rhs.get_end());
-    } 
-    else // (!is_paired_fragment(lhs) && !is_paired_fragment(rhs))
-    {
-        return // the same behavior as without fragments
-            lhs.get_chrom() == rhs.get_chrom() &&
-            lhs.get_start() == rhs.get_start() &&
-            lhs.get_strand() == rhs.get_strand();
-    }
+    return lhs.get_chrom() == rhs.get_chrom() &&
+        lhs.get_start() == rhs.get_start() &&
+        lhs.get_end() == rhs.get_end() &&
+        lhs.get_strand() == rhs.get_strand();
 }
 
 void
 consensus_mappedread(vector<MappedRead> &mapped_ties,
                      MappedRead &consensus_mr)
 {
-    static const size_t random_number_seed = numeric_limits<size_t>::max();
-    static const Runif rng(random_number_seed);
+    static const Runif rng(time(NULL));
 
-    vector<MappedRead>::iterator iter =
-        std::partition(mapped_ties.begin(), mapped_ties.end(),
-                       is_paired_fragment);
-    if (iter != mapped_ties.begin())
-    {
-        const size_t rand_idx = rng.runif(0, iter - mapped_ties.begin());
-        consensus_mr = mapped_ties[rand_idx];
-    }
-    else
-    {
-        const size_t rand_idx =
-            rng.runif(0, static_cast<int>(mapped_ties.size()));
-        consensus_mr = mapped_ties[rand_idx];
-    }
+    const size_t rand_idx = rng.runif(static_cast<size_t>(0),
+                                      mapped_ties.size());
+    consensus_mr = mapped_ties[rand_idx];
 }
 
 struct ComparePairs 
