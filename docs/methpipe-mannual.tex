@@ -98,6 +98,11 @@ statistical package, such as R. Perform this trimming adapter
 processing on all sequences files and for convenience we assume the
 processed sequences files have their original file names thereafter.
 
+While we provide this \textbf{trim-adapter} as a standalone program
+for describing the adapter-triming step, its functionality is included
+in the \textbf{rmapbs} program by giving the \textbf{-adapter}
+function. 
+
 \subsection{Assessing read quality}
 \label{sec:read-qual-assessm}
 It is optional to assess read quality before mapping, however such
@@ -277,89 +282,74 @@ pair-end sequencing. For notation convenience, we again assume you
 rename the converted reads file name to its original file name
 thereafter.
 
-\subsection{Masking overlapping regions of paired reads}
+\subsection{Joining paired reads}
 \label{sec:mask-overl-regi}
-With pair-end sequencing, we obtain two reads: a T-rich read from 3'
+With pair-end sequencing, we obtain two reads: a T-rich read from 5'
 end of the orignal segments and an A-rich read from 5' end. After
-converting A-rich read to T-rich read, we have two T-rich reads from
+converting A-rich reads to T-rich reads, we have two T-rich reads from
 the orignal DNA segment, which possibly overlap for certain
 proportion. This overlapped region, if left as-is, will result in bias
 that cytosines (or thymines if unmethylated) from the same DNA
-molecule are counted twice. 
+molecule are counted twice.
 
-The program \textbf{mask-overlap} identifies and masks overlapped
-regions. In our example project, neut/s-1-1.bed and neut/s-1-2.bed
-contain T-rich reads and A-rich reads (converted) respectively. We
-first sort the reads in these two files by name by running
+The program \textbf{clipmates} identifies overlapped regions between
+two mates, join these two mates and output the DNA segment from which
+these two mates are originated. In our example project, neut/s-1-1.bed
+and neut/s-1-2.bed contain T-rich reads and A-rich reads (assume
+already converted to T-rich) respectively. We first sort the reads in
+these two files by name by running
 \begin{verbatim}
-$ ./sort -N neut/s-1-1.bed -o tmpfile && mv tmpfile neut/s-1-1.bed
-$ ./sort -N neut/s-1-2.bed -o tmpfile && mv tmpfile neut/s-1-2.bed,
+$ sort -k4,4 neut/s-1-1.bed -o tmpfile && mv tmpfile neut/s-1-1.bed
+$ sort -k4,4 neut/s-1-2.bed -o tmpfile && mv tmpfile neut/s-1-2.bed,
 \end{verbatim}
-And then we run \textbf{mask-overlap} to mask overlapping regions of
-reads from these two files
+And then we run \textbf{clipmates} to join the T-rich mate and A-rich
+mate, 
 \begin{verbatim}
-$ ./mask-overlap neut/s-1-1.bed neut/s-1-2.bed 
-neut/s-1-1-masked.bed neut/s-1-2-masked.bed.
+$ ./clipmates neut/s-1-1.bed neut/s-1-2.bed -o neut/s-1.bed
 \end{verbatim}
-Note the commandline argument to \textbf{mask-overlap} are
-input-file-1, input-file-2, output-file-1 and output-file-2. 
+Note the input files to \textbf{clipmates}, input-file-1 and
+input-file-2, should strictly follow the order of T-rich and
+A-rich. The output file, specified by the option \textbf{-o}, contains
+the DNA segments after joining paired T-rich and A-rich mates. If two
+mates are mismatched (such as on different chromosomes or strands) or
+one mate is missing, \textbf{clipmates} simply outputs the original
+mates. 
 
-The program \textbf{mask-overlap} can also be used to obtain the
-following information about the pair-end sequencing data, such as the
-DNA fragment length distribution and the number of unpaired reads
-after mapping. This is done by specifying the fragment length file
-with the \textbf{-f} option. For example,
+The program \textbf{clipmates} also provide statistical
+information about the pair-end sequencing data, such as the DNA
+fragment length distribution and the number of unpaired reads after
+mapping. This is done by specifying the fragment length file with the
+\textbf{-f} option. For example,
 \begin{verbatim}
-$ ./mask-overlap -f neut/s-1-length.txt  neut/s-1-1.bed neut/s-1-2.bed 
-neut/s-1-1-masked.bed neut/s-1-2-masked.bed.
+$ ./clipmates -f neut/s-1-len.txt -o neut/s-1.bed neut/s-1-1.bed neut/s-1-2.bed 
 \end{verbatim}
-In the file neut/s-1-length.txt \textbf{mask-overlap} write the
-fragment length based on each pair of reads. This file can then be
-analyzed with statistical software and standard *NIX text-processing
-utilities. 
+In the file neut/s-1-len.txt \textbf{clipmates} writes the fragment
+length based on each pair of reads and marked reads that are
+unpaired. This file can be analyzed with standard UNIX text-processing
+utilities and statistical software.
 
 \subsection{Sorting reads}
 \label{sec:sorting-reads}
-The \textbf{sort} utility is used to sort mapped reads according to
-different criterion. The usage of \textbf{sort} is quite
-straightforward. To sort reads according to their genomic locations,
-we run
-\begin{verbatim}
-$ ./sort bcell/s-1.bed -o output-file.
-\end{verbatim}
-To sort reads according to their names we run 
-\begin{verbatim}
-$ ./sort -N bcell/s-1.bed -o output-file.
-\end{verbatim}
+During the post-mapping processign of mapped reads, we may need to
+sort reads according to different criterions. This is done with the
+\textbf{sort} utility provided in UNIX environment. 
 
-\subsection{Merging read files}
-\label{sec:merging-reads-files}
-The final step before estimating methylation frequency and performing
-other higher level analysis is to merge read files from different
-sequencing lanes and/or flowcells. 
-
-If all read files are generated from the same biological library, this
-step is quite straightforward. We sort all read files by genomic
-locations with \textbf{sort} (Section \ref{sec:sorting-reads}), merge
-those files with \textbf{merge} and then remove duplicate reads with
-\textbf{unique} (Section \ref{sec:proc-dupl-reads}). We show how to
-merge read files in the B cell data below.
+In our pipeline, we store mapped reads in an extended BED format. The
+first six column are the same as the standard six-column BED format,
+which gives the chromosome name, starting position, ending position,
+read name, mismatches and strand. The seventh column gives the
+sequence of that read and the eighth reads the Solexa quality
+score. In order to sort reads according to their genomic locations, we
+run
 \begin{verbatim}
-$ # sort read files
-$ ./sort bcell/s-1.bed -o tmpfile && mv tmpfile bcell/s-1.bed
-$ ./sort bcell/s-2.bed -o tmpfile && mv tmpfile bcell/s-2.bed
-$ ./sort bcell/s-3.bed -o tmpfile && mv tmpfile bcell/s-3.bed
-$ ./sort bcell/s-4.bed -o tmpfile && mv tmpfile bcell/s-4.bed
-$ ./merge bcell/s-*bed |./unique > bcell/bcell.bed 
+$ sort -k1,1 -k2,3n -k6,6 bcell/s-1.bed > output-file.
+\end{verbatim}
+%%
+To sort reads according to their names,  we run 
+\begin{verbatim}
+$ sort -k4,4 bcell/s-1.bed > output-file.
 \end{verbatim}
 
-If the read files are from different libraries, it takes some extra
-step. The reason is that: even if two reads from different biological
-libraries are mapped to the same location, they are not originated
-from the same DNA molecule, therefore both should be kept for
-downstream analysis. For each library, we pool reads from this library
-and remove duplicate reads. Then we merge reads from different
-libraries. 
 
 \subsection{Removing duplicate reads}
 \label{sec:proc-dupl-reads}
@@ -367,15 +357,55 @@ Because of PCR bias and other unknown causes, there are tens of
 thousands of reads mapped to exactly the same location in some regions
 of the genome while the average sequencing depth is usually below
 20. These large amounts of reads are likely orginated from the same
-DNA segments and will possibly bias the estimation of methylation
-frequency. One approach to alleviate this bias, though not completely
-justifiable, is to keep only one distint read at each starting
-position. This task is done by the program unique \textbf{unique}. For
-example if we would like to remove duplicate reads from the file
-bcell/s-1.bed, we can run 
+DNA segments and will bias the estimation of methylation
+frequency. One approach to alleviate this bias is to randomly pick one
+read from multiple reads that are generated the same genomic
+position. This task is done by the program unique
+\textbf{noduplicates}. For example if we would like to remove
+duplicate reads from the file bcell/s-1.bed, we run
 \begin{verbatim}
-$ ./unique bcell/s-1.bed -o bcell/s-1-unique.bed
+$ ./noduplicates bcell/s-1.bed -o bcell/s-1-unique.bed
 \end{verbatim}
+
+
+\subsection{Merging read files}
+\label{sec:merging-reads-files}
+The final step before estimating methylation frequency and performing
+other higher level analysis is to merge read files from different
+sequencing lanes and/or flowcells. 
+
+If all read files are generated from the same biological library, we
+first sort all read files by genomic locations with \textbf{sort}
+(Section \ref{sec:sorting-reads}), merge those files with
+\textbf{mergelanes} and then remove duplicate reads with
+\textbf{noduplicates} (Section \ref{sec:proc-dupl-reads}). We show how
+to merge read files in the B cell data below.
+\begin{verbatim}
+$ # sort read files
+$ sort -k1,1 -k2,3n -k6,6 bcell/s-1.bed > tmpfile && mv tmpfile bcell/s-1.bed
+$ sort -k1,1 -k2,3n -k6,6 bcell/s-2.bed > tmpfile && mv tmpfile bcell/s-2.bed
+$ sort -k1,1 -k2,3n -k6,6 bcell/s-3.bed > tmpfile && mv tmpfile bcell/s-3.bed
+$ sort -k1,1 -k2,3n -k6,6 bcell/s-4.bed > tmpfile && mv tmpfile bcell/s-4.bed
+$ ./mergelanes bcell/s-*bed |./noduplicates > bcell/bcell.bed 
+\end{verbatim}
+
+If reads are generated from different biological libraries, it takes
+some extra step. The reason is that: even if two reads from different
+biological libraries are mapped to the same location, they are not
+originated from the same DNA molecule, therefore both should be kept
+for downstream analysis. Therefore, for reads from the same biological
+library, we pool reads and remove duplicates as described above. Then
+we just pool reads from different biological libraries without
+removing duplicates. This is controlled by the \textbf{-D} option of
+\textbf{mergelanes}. By default, \textbf{mergelanes} removes duplicate
+reads. If we would like to keep duplicate reads from different
+libraries, we specify this \textbf{-D} option. For example, we want to
+combine reads in \textit{s-1-lib1.bed} from the first library and
+reads in \textit{s-1-lib2.bed} from the second library, we run
+\begin{verbatim}
+$ ./mergelanes s-1-lib1.bed s-1-lib2.bed -o s-1.bed,  
+\end{verbatim}
+The file \textit{s-1.bed} contains reads from the two libraries. 
 
 \section{Methylation frequency and bisulfite conversion rate}
 \label{sec:estim-methyl-freq}
@@ -416,6 +446,9 @@ one strand while we can use reads mapped to both strands in the case
 of symmetric methylation. Later we will describe the estimation
 methods for these two cases separately, first the case of asymmetric
 methylation and then the case of symmetric methylation. 
+
+\subsubsection{Methylation level in non-CpG cytosines}
+\label{sec:methyl-level-non}
  
 After bisulfite sodium treatment, unmethylated cytosines in the
 original DNA sequences are converted to thymines while methylated
@@ -438,9 +471,12 @@ reports the number of cytosines, the number of thymines and the
 estimation of methylation frequency in the output file
 bcell/bcell-methcounts.bed. 
 
+\subsubsection{Methylation level in CpG cytosines}
+\label{sec:methyl-level-cpg}
+
 For cytosines in the context of CpG dinucleotides, we are able to use
 reads mapped to both strands, which means better coverage and
-therefore reduces variance of our estimation. We count the number of
+therefore reduces variance. We count the number of
 cytosines and thymines in all reads that overlap cytosines either in
 the positive strand or in the negative strand. And the estimator of
 methylation frequency is still the ratio of the number of cytosines to
@@ -448,17 +484,68 @@ the number of cytosines and thymines combined. This task is done
 simiarly to the case of non-CpG methylation except that we ignore the
 \textbf{-non} option of the \textbf{methcount} program, for example, 
 \begin{verbatim}
-$ ./methcounts -c human_genome -o bcell/bcell.bed bcell/bcell-methcounts.bed.  
+$ ./methcounts -c human_genome -o bcell/bcell-methcounts.bed bcell/bcell.bed.  
 \end{verbatim}
 The methcount program report the methylation status of only those
 cytosines in the CpG context. 
 
-
-\subsection{Estimating busilfite conversion rate}
+\subsection{Estimating bisulfite conversion rate}
 \label{sec:estim-busilf-conv}
+By bisulfite sodiom treatment, unmethylated cytosines are converted to
+uracils, which are later read out as thymines. However this conversion
+may be incomplete due to various reasons, such as insufficient
+concentration, insufficient time of treatment or sequencing
+error. Therefore, bisulfite conversion rate, defined as ratio of
+converted unmethylated cytosines to all unmethylated cytosines, is an
+important parameter to assess the data quality of a BS-Seq
+experiment. To stimate bisulfite conversion rate, we need first to
+have some cytosines in the genome that are unmethylated. This includes
+three scenarios: (i) non-CpG cytosines in most mammalian tissues, (ii)
+spike-in Lamda genome and (iii) the chloroplast genome in plants. In
+these three scenarios, unmethylated cytosines should all be converted
+if the bisulfite treatment is perfect. Otherwise, some cytosines are
+left as-is. Therefore we count the number of cytosines covering these
+unmethylated cytosines and the number of thymines, the ratio of
+thymines to cytosines and thymines combined is the estimator of the
+bisulfite conversion rate.
 
+\paragraph{Estimating bisulfite conversion rate from non-CpG cytosines
+  in mammals:} In most mammalian tissues, non-CpG cytosines are free
+from methylation (though significant proportion of non-CpG methylation
+is observed in human stem cells), therefore we assume non-CpG
+cytosines are unmethylated and use the \textbf{bsrate} program to
+estimate conversion rate as following:
+\begin{verbatim}
+$ ./bsrate -c human_genome -o bcell/conversion-rate.txt bcell/bcell.bed.  
+\end{verbatim}
+The output file \textit{conversion-rate.txt} gives the conversion rate
+according to strands and locations. 
+  
+\paragraph{Estimating bisulfite conversion rate from spike-in Lambda
+  genome:} The genome of Lambda phage is free from
+methylation. Therefore in some experiment setting, certain amount of
+Lambda phage genome are added to the biological sample of interest,
+subject to the same bisulfite treatment and sequencing.  Suppose that
+the DNA sequences for Lambda phage are stored in the directory
+\textit{lambda-genome} and the reads mapped to the Lambda genome are
+stored in the file \textit{lambda.bed}, we issue the \textbf{bsrate}
+program as following:
+\begin{verbatim}
+$ ./bsrate -c lambda-genome -o conversion-rate.txt -A lambda.bed.  
+\end{verbatim}
+Note the \textbf{-A} option: it tells \textbf{bsrate} to use
+information of all cytosines since all cytosines in the Lambda genome,
+no matter their sequence context, are unmethylated.
 
-
+\paragraph{Estimating bisulfite conversion rate from chloroplast
+  genome in plants:} If you are working with plants with chloroplast
+genome, we can also use cytosines there to estimate bisulfite
+conversion rate because chloroplast genome are unmethylated. The
+command is similar with above, i.e., 
+\begin{verbatim}
+$ ./bsrate -c plant-genome -o conversion-rate.txt -A plan-chloroplast.bed.  
+\end{verbatim}
+ 
 \section{Higher level analysis}
 \label{sec:high-level-analys}
 
