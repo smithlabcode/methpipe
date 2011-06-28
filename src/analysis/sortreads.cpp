@@ -319,6 +319,16 @@ main(int argc, const char **argv) {
 
   try {
 
+
+      cerr << "############################################################" << endl
+           << "############         sortreads               ###############" << endl
+           << "############################################################" << endl
+           << "THIS PROGRAM sortreads IS TO BE DEPRECIATED" << endl
+           << "it is no longer necessary after we introduce the MappedRead format" << endl 
+           << "############################################################" << endl
+           << "############################################################" << endl
+           << "############################################################" << endl;
+
     bool VERBOSE = false;
     string mapped_file;
     string outfile;
