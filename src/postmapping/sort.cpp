@@ -72,6 +72,21 @@ int main(int argc, const char **argv)
 
     try 
     {
+        cerr << "############################################################" << endl
+             << "######################   sort     ##########################" << endl
+             << "############################################################" << endl
+             << "THIS PROGRAM sort IS TO BE DEPRECIATED" << endl
+             << "Instead, use the unix utility provided by the UNIX system" << endl 
+             << endl
+             << "To sort by genomic location, run:" << endl 
+             << "$ sort -k1,1 -k2,2g-k3,3g-k6,6 input.bed > output.bed" << endl 
+             << endl
+             << "To sort by names, run:" << endl 
+             << "$ sort -k4,4 input.bed > output.bed" << endl 
+             << "############################################################" << endl
+             << "############################################################" << endl
+             << "############################################################" << endl;
+
         /* FILES */
         string outfile;
         bool SORT_ON_NAME = false;
