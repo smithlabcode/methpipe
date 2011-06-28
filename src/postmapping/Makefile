@@ -33,7 +33,7 @@ COMMON_DIR = ../common/
 INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -Wl,-Bdynamic  -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas 
 
 CXX = g++
 CFLAGS = -Wall -fPIC -fmessage-length=50
@@ -59,6 +59,9 @@ frag2mr: $(addprefix $(SMITHLAB_DIR), \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)		
 
 mask-overlap: $(addprefix $(SMITHLAB_DIR), \
+	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
+
+clipmates: $(addprefix $(SMITHLAB_DIR), \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
 
 merge: $(addprefix $(SMITHLAB_DIR), \
