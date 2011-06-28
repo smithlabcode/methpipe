@@ -4,7 +4,7 @@
  *    Copyright (C) 2010 University of Southern California and
  *                       Andrew D. Smith
  *
- *    Authors: Andrew D. Smith
+ *    Authors: Andrew D. Smith, Song Qiang
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,6 @@ revcomp(MappedRead &mr)
     revcomp_inplace(mr.seq);
     std::reverse(mr.scr.begin(), mr.scr.end());
 }
-
 
 inline static size_t 
 get_distance(const MappedRead &a, const MappedRead &b) 
@@ -144,6 +143,14 @@ main(int argc, const char **argv)
 {
     try 
     {
+        cerr << "############################################################" << endl
+             << "######################   mask-overlap  #####################" << endl
+             << "############################################################" << endl
+             << "THIS PROGRAM IS TO BE RENAMED clipmates" << endl
+             << "############################################################" << endl
+             << "############################################################" << endl
+             << "############################################################" << endl;
+        
         static const int WARNING_DIFF_CHROM = -1;
         static const int WARNING_DIFF_STRAND = -2;
         static const int WARNING_MISS_T_MATE = -3;
