@@ -33,7 +33,7 @@ COMMON_DIR = ../common/
 INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -Wl,-Bdynamic  -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas 
 
 CXX = g++
 CFLAGS = -Wall -fPIC -fmessage-length=50
@@ -81,11 +81,14 @@ methcounts: $(addprefix $(SMITHLAB_DIR), \
 methdiff: $(addprefix $(SMITHLAB_DIR), \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
 
+## To be depreciated
 sortreads: $(addprefix $(SMITHLAB_DIR), \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
 
-## To be depreciated
 checkoverlap: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
+
+clipmates: $(addprefix $(SMITHLAB_DIR), \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
 
 mergelanes: $(addprefix $(SMITHLAB_DIR), \
@@ -93,6 +96,9 @@ mergelanes: $(addprefix $(SMITHLAB_DIR), \
 
 roimethstat: $(addprefix $(SMITHLAB_DIR), \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+
+pairedend_stat: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
 
 %: %.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
