@@ -93,10 +93,17 @@ main(int argc, const char **argv)
             &std::cout : new std::ofstream(outfile.c_str());
         
         MappedRead mr;
-        while (in->good() && *in >> mr)
+        bool read_is_good = true;
+
+        try { *in >> mr; }
+        catch (const RMAPException &e) { read_is_good = false;}
+        
+        while (read_is_good)
         {
             revcomp(mr);
-            *out << mr << endl;
+
+            try { *in >> mr; }
+            catch (const RMAPException &e) { read_is_good = false;}
         }
         
         if (in != &std::cin) delete in;
