@@ -70,43 +70,33 @@ is_N(char c)
    return c == 'N' || c == 'n';
 }
 
-static char
-revcompl(char c){
-   if(c == 'A' || c == 'a')
-     return 'T';
-   else if(c == 'T' || c == 't')
-     return 'A';
-   else if(c == 'C' || c == 'c')
-     return 'G';
-   else if(c == 'G' || c == 'g')
-     return 'C';
-   else 
-     return 'N';
-}
-
 static void
 mask_N(MappedRead &one, MappedRead &two, const size_t overlap_start_one, const size_t overlap_start_two,
        const size_t overlap_size, bool one_plus)
 {
    //one is mapped to positive strand, and two to negative
    //one_plus is true if first mate is mapped to positive
-
-   size_t j = two.seq.length() - overlap_start_two - 1 ;
-   for(size_t i = overlap_start_one; i < overlap_start_one + overlap_size; i++){
-     if(one_plus){
-       if(is_N(one.seq[i]))
-         one.seq[i] = revcompl(two.seq[j]);
-     }//if
-     else{
-       if(is_N(two.seq[j]))
-         two.seq[j] = revcompl(one.seq[i]);
-     }//else
-     j--;
-   }//for i
+   if(one_plus){
+      size_t j = overlap_start_two;
+      for(size_t i = overlap_start_one ; i < overlap_start_one + overlap_size; i++){
+         if(is_N(one.seq[i]))
+            one.seq[i] = two.seq[j];
+         j++;
+      }//for
+   }//if +
+   else{
+      size_t j = two.seq.length() - overlap_start_two - 1;
+      size_t stop = one.seq.length() - overlap_start_one - 1 - overlap_size;
+      for(size_t i = one.seq.length() - overlap_start_one - 1; i > stop; i--){
+         if(is_N(one.seq[i]))
+            one.seq[i] = two.seq[j];
+         j--;
+      }//for
+   }
    if(one_plus)
-     fill_n(two.seq.begin() + (two.seq.length() - overlap_start_two - overlap_size), overlap_size, 'N');
+     fill_n(two.seq.begin() + overlap_start_two, overlap_size, 'N');
    else
-     fill_n(one.seq.begin() + overlap_start_one, overlap_size, 'N'); 
+     fill_n(two.seq.begin() + (two.seq.length() - overlap_start_two - overlap_size), overlap_size, 'N');
 }
 
 static void
@@ -129,7 +119,7 @@ clip(MappedRead &one, MappedRead &two, size_t &clipped_count){
        overlap_size = two.seq.length() - overlap_start_two;
        if(two.r.get_end() > one.r.get_end())
          overlap_size -= two.r.get_end() - one.r.get_end();
-       mask_N(two, one, overlap_start_two, overlap_start_one, overlap_size, false);
+       mask_N(one, two, overlap_start_one, overlap_start_two, overlap_size, false);
      }
       
    }//if mapped correctly and overlap
@@ -252,7 +242,7 @@ try {
 
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    cout << "Warning: clipmates must be used before revcompl" << endl;
+    cout << "Warning: clipmates must be used after revcompl" << endl;
     size_t clipped_count = 0;
     size_t reads_count = 0;
     size_t same_name_count = 0;
