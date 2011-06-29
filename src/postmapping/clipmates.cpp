@@ -40,7 +40,25 @@
 
 using namespace std;
 
-void
+static void
+check_sorted_by_ID(MappedRead &prev_mr,
+                   const MappedRead &mr)
+{
+    if(prev_mr.r.get_name() > mr.r.get_name())
+    {
+        cerr << "CLIPMATES ERROR: "
+             << "reads are not sorted by reads' ID" << endl
+             << "---------------------------------------------" << endl
+             << prev_mr << endl
+             << mr << endl 
+             << "---------------------------------------------" << endl;
+        exit(EXIT_FAILURE);
+    }
+    else
+        prev_mr = mr;
+}
+
+static void
 revcomp(MappedRead &mr)
 {
     if (mr.r.get_strand() == '+')
@@ -119,7 +137,7 @@ mask_less_informative(MappedRead &one, MappedRead &two)
     else fix_overlap(two, one);
 }
 
-void
+static void
 merge_mates(const MappedRead &one, const MappedRead &two,
             MappedRead &merged, int &len,
             const int MAX_SEGMENT_LENGTH)
@@ -203,7 +221,7 @@ merge_mates(const MappedRead &one, const MappedRead &two,
 }
 
 
-inline string
+static inline string
 collapse_mapped_reads(const MappedRead &mr,
                       const string delimiter = "\26")
 {
@@ -310,12 +328,16 @@ main(int argc, const char **argv)
         if (!fraglen_file.empty())
             fraglen_out =  new std::ofstream(fraglen_file.c_str());
         
-        MappedRead one, two;
-        bool one_is_good = true, two_is_good = true;
+        MappedRead one, two, prev_one, prev_two;
+        prev_one.r.set_name("");
+        prev_two.r.set_name("");
         
-        try { in_one >> one; }
+        bool one_is_good = true, two_is_good = true;
+        try { in_one >> one; check_sorted_by_ID(prev_one, one);}
         catch (const RMAPException &e) { one_is_good = false;}
-        try { in_two >> two; }
+        
+
+        try { in_two >> two; check_sorted_by_ID(prev_two, two); }
         catch (const RMAPException &e) { two_is_good = false;}
         if (REVCOMP) revcomp(two);
         while (one_is_good && two_is_good) 
@@ -366,9 +388,9 @@ main(int argc, const char **argv)
                                      << len << endl;
                 }
                 
-                try { in_one >> one; }
+                try { in_one >> one; check_sorted_by_ID(prev_one, one); }
                 catch (const RMAPException &e) { one_is_good = false;}
-                try { in_two >> two; }
+                try { in_two >> two; check_sorted_by_ID(prev_two, two); }
                 catch (const RMAPException &e) { two_is_good = false;}
                 if (REVCOMP) revcomp(two);
             } 
@@ -383,7 +405,7 @@ main(int argc, const char **argv)
                 
                 out_one << one << endl; // for backward compatibilities
 
-                try { in_one >> one; }
+                try { in_one >> one; check_sorted_by_ID(prev_one, one); }
                 catch (const RMAPException &e) { one_is_good = false;}
             }
             else // one comes after two
@@ -397,7 +419,7 @@ main(int argc, const char **argv)
                 
                 out_two << two << endl; // for backward compatibilities
 
-                try { in_two >> two; }
+                try { in_two >> two; check_sorted_by_ID(prev_two, two); }
                 catch (const RMAPException &e) { two_is_good = false;}
                 if (REVCOMP) revcomp(two);
             }
@@ -413,7 +435,7 @@ main(int argc, const char **argv)
             
             out_one << one << endl; // for backward compatibilities
             
-            try { in_one >> one; }
+            try { in_one >> one; check_sorted_by_ID(prev_one, one); }
             catch (const RMAPException &e) { one_is_good = false;}
         }
         while (two_is_good) 
@@ -427,7 +449,7 @@ main(int argc, const char **argv)
             
             out_two << two << endl; // for backward compatibilities
             
-            try { in_two >> two; }
+            try { in_two >> two; check_sorted_by_ID(prev_two, two); }
             catch (const RMAPException &e) { two_is_good = false;}
             if (REVCOMP) revcomp(two);
         }
