@@ -167,6 +167,17 @@ struct ComparePairs
 int 
 main(int argc, const char **argv) 
 {
+        cerr << "############################################################" << endl
+             << "######################   merged     ##########################" << endl
+             << "############################################################" << endl
+             << "THIS PROGRAM sort IS TO BE DEPRECIATED" << endl
+             << "Instead, use the unix sort utility provided by the UNIX system" << endl 
+             << endl
+             << "For example, to merge 1.bed 2.bed and 3.bed (assuming sorted)" << endl 
+             << "$ sort -k1,1 -k2,3g -k6,6 1.bed 2.bed 3.bed -o merged.bed" << endl 
+             << "############################################################" << endl
+             << "############################################################" << endl
+             << "############################################################" << endl;
 
     try 
     {
