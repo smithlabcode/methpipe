@@ -1,5 +1,5 @@
-/*    unique: a program to select unique reads mapped to the same location  
- *    and the same strand  
+/*    duplicate-remover: a program to select unique reads mapped to
+ *    the same location and the same strand
  *
  *    Copyright (C) 2009 University of Southern California and
  *                       Andrew D. Smith
@@ -58,6 +58,22 @@ using std::numeric_limits;
 using std::ofstream;
 
 
+static inline bool
+check_sorted(const MappedRead &prev_mr,
+             const MappedRead &mr)
+{
+    return (prev_mr.r.get_chrom() < mr.r.get_chrom())
+        || (prev_mr.r.get_chrom() == mr.r.get_chrom()
+            && prev_mr.r.get_start() < mr.r.get_start())
+        || (prev_mr.r.get_chrom() == mr.r.get_chrom()
+            && prev_mr.r.get_start() == mr.r.get_start()
+            && prev_mr.r.get_end() < mr.r.get_end())
+        ||  (prev_mr.r.get_chrom() == mr.r.get_chrom()
+             && prev_mr.r.get_start() == mr.r.get_start()
+             && prev_mr.r.get_end() == mr.r.get_end()
+             && prev_mr.r.get_strand() <= mr.r.get_strand());
+}
+
 static inline bool 
 is_duplicate_read(const MappedRead &lhs,
                   const MappedRead &rhs)
@@ -73,6 +89,8 @@ is_paired_fragment(const MappedRead &mr)
 {
     return mr.r.get_name().substr(0, 5) == "FRAG:";
 }
+
+
 
 // This is really messy. This is approximately right
 // The unpaired reads on the negative strand is really messy
@@ -195,14 +213,32 @@ main(int argc, const char **argv)
             &std::cout : new ofstream(outfile.c_str());
     
         vector<MappedRead> mapped_ties;
-        MappedRead mr;
+        MappedRead mr, prev_mr;
+
+        prev_mr.r.set_chrom("");
+        prev_mr.r.set_start(0);
+        prev_mr.r.set_end(0);
+        prev_mr.r.set_strand('\0');
+
         bool read_is_good = true;
-        
         try { *in >> mr; }
         catch (const RMAPException &e) { read_is_good = false;}
 
         while (read_is_good) 
         {
+            if (!check_sorted(prev_mr, mr))
+            {
+                cerr << "DUPLICATE-REMOVER ERROR: "
+                     << "reads are not sorted by genomic locations" << endl
+                     << "---------------------------------------------" << endl
+                     << prev_mr << endl
+                     << mr << endl 
+                     << "---------------------------------------------" << endl;
+                exit(EXIT_FAILURE);
+            }
+            else
+                prev_mr = mr;
+
             if (!mapped_ties.empty() && 
                 !is_duplicate_fragment(mapped_ties.front(), mr)) 
             {
