@@ -74,7 +74,7 @@ revcomp: $(addprefix $(SMITHLAB_DIR), \
 sort: $(addprefix $(SMITHLAB_DIR), \
 	MappedRead.o OptionParser.o GenomicRegion.o rmap_utils.o)	
 
-unique: $(addprefix $(SMITHLAB_DIR), \
+duplicate-remover: $(addprefix $(SMITHLAB_DIR), \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)	
 

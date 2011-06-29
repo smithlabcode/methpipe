@@ -71,13 +71,13 @@ is_duplicate_read(const MappedRead &lhs,
 static inline bool
 is_paired_fragment(const MappedRead &mr)
 {
-    return mr.r.get_name() == "FRAG:PAIRED";
+    return mr.r.get_name().substr(0, 5) == "FRAG:";
 }
 
 // This is really messy. This is approximately right
 // The unpaired reads on the negative strand is really messy
 // and this progrma tends to retain them
-static inline bool 
+static bool 
 is_duplicate_fragment(const MappedRead &lhs,
                       const MappedRead &rhs)
 {
@@ -120,17 +120,17 @@ is_duplicate_fragment(const MappedRead &lhs,
         return // the same behavior as without fragments
             lhs.r.get_chrom() == rhs.r.get_chrom() &&
             lhs.r.get_start() == rhs.r.get_start() &&
+            lhs.r.get_end() == rhs.r.get_end() &&
             lhs.r.get_strand() == rhs.r.get_strand();
     }
 }
 
 
-void
+static void
 consensus_mappedread(vector<MappedRead> &mapped_ties,
                      MappedRead &consensus_mr)
 {
-    static const size_t random_number_seed = numeric_limits<size_t>::max();
-    static const Runif rng(random_number_seed);
+    static const Runif rng(time(NULL));
 
     vector<MappedRead>::iterator iter =
         std::partition(mapped_ties.begin(), mapped_ties.end(),
@@ -148,55 +148,12 @@ consensus_mappedread(vector<MappedRead> &mapped_ties,
     }
 }
 
-// void
-// consensus_mappedread(const vector<MappedRead> &mapped_ties,
-//                MappedRead &consensus_mr)
-// {
-//     consensus_mr.r = mapped_ties.front().r;
-//     const size_t num = mapped_ties.size();
-//     const size_t read_len = mapped_ties.front().seq.size();
-
-    
-    
-//     for (size_t i = 0; i < read_len; ++i)
-//     {
-//         vector<double> quality_scores(5, 0);
-//         for (size_t j = 0; j < num; ++j)
-//         {
-//             const int base_id = base2int(mapped_ties[j].seq[i]);
-//             const double prob = char2prob_solexa(mapped_ties[j].scr[i]);
-//             quality_scores[base_id] += prob;
-//         }
-        
-//         const double all_prob = std::accumulate(quality_scores.begin(),
-//                                                 quality_scores.end(),
-//                                                 0.0);
-//         const size_t idx =
-//             std::max_element(quality_scores.begin(),
-//                              quality_scores.end())
-//             - quality_scores.begin();
-        
-//         consensus_mr.seq[i] = int2base(idx);
-//         consensus_mr.scr[i] = prob2char_solexa(quality_scores[idx] / all_prob);
-//     }
-// }
-
-
 int 
 main(int argc, const char **argv) 
 {
 
     try 
     {
-        cerr << "############################################################" << endl
-             << "######################   unique  ##########################" << endl
-             << "############################################################" << endl
-             << "THIS PROGRAM sort IS TO BE RENAMED" << endl
-             << "It is renamed to noduplicates" << endl
-             << "############################################################" << endl
-             << "############################################################" << endl
-             << "############################################################" << endl;
-
         bool VERBOSE = false;
         string infile;
         string outfile;
@@ -204,8 +161,8 @@ main(int argc, const char **argv)
         /****************** COMMAND LINE OPTIONS ********************/
         OptionParser opt_parse(argv[0], 
                                "A program to select a unique read from multiple reads "
-                               "mapped to the same location and the same strand"
-                               "<file with names of bed-files>");
+                               "mapped to the same location and the same strand",
+                               "< bed-files>");
         opt_parse.add_opt("output", 'o', "Name of maps output file", 
                           false, outfile);
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -239,22 +196,30 @@ main(int argc, const char **argv)
     
         vector<MappedRead> mapped_ties;
         MappedRead mr;
+        bool read_is_good = true;
+        
+        try { *in >> mr; }
+        catch (const RMAPException &e) { read_is_good = false;}
 
-        while (in->good() && (*in >> mr)) 
+        while (read_is_good) 
         {
             if (!mapped_ties.empty() && 
                 !is_duplicate_fragment(mapped_ties.front(), mr)) 
             {
-                static MappedRead consensus_mr(mapped_ties.front());
+                MappedRead consensus_mr(mapped_ties.front());
                 consensus_mappedread(mapped_ties, consensus_mr);
                 *out << consensus_mr << endl;
                 mapped_ties.clear();
             }
             mapped_ties.push_back(mr);
+
+            try { *in >> mr; }
+            catch (const RMAPException &e) { read_is_good = false;}
         }
+
         if (!mapped_ties.empty()) 
         {
-            static  MappedRead consensus_mr(mapped_ties.front());
+            MappedRead consensus_mr(mapped_ties.front());
             consensus_mappedread(mapped_ties, consensus_mr);
             *out << consensus_mr << endl;
         }
