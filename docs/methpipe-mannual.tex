@@ -403,7 +403,7 @@ libraries, we specify this \textbf{-D} option. For example, we want to
 combine reads in \textit{s-1-lib1.bed} from the first library and
 reads in \textit{s-1-lib2.bed} from the second library, we run
 \begin{verbatim}
-$ ./mergelanes s-1-lib1.bed s-1-lib2.bed -o s-1.bed,  
+$ ./mergelanes -D s-1-lib1.bed s-1-lib2.bed -o s-1.bed,  
 \end{verbatim}
 The file \textit{s-1.bed} contains reads from the two libraries. 
 
@@ -549,19 +549,17 @@ $ ./bsrate -c plant-genome -o conversion-rate.txt -A plan-chloroplast.bed.
 \section{Higher level analysis}
 \label{sec:high-level-analys}
 
-\subsection{Identifying hypo-methylated regions}
+\subsection{Hypo-methylated regions}
 \label{sec:ident-hypo-methyl}
 
-\subsection{Identifying differentially methylated regions}
+\subsection{Differentially methylated regions}
 \label{sec:ident-diff-methyl}
+\subsection{Allelic-specifically methylated regions }
+\label{"waiting for reftex-label call..."}
 
 
-\section{Visualization}
-\label{sec:visualization}
-
-
-
-
+\section{Summary and Visualization}
+\label{sec:summary-visualization}
 
 \section{A sample work flow}
 This part shows how these tools are connected to get the methylation
