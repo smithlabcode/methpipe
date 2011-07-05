@@ -56,12 +56,13 @@ using std::endl;
 using std::ifstream;
 using std::numeric_limits;
 using std::ofstream;
-
+using std::ios;
 
 static inline bool
 check_sorted(const MappedRead &prev_mr,
-             const MappedRead &mr)
+             const MappedRead &mr, bool BROKEN_DUPL)
 {
+ if(!BROKEN_DUPL){
     return (prev_mr.r.get_chrom() < mr.r.get_chrom())
         || (prev_mr.r.get_chrom() == mr.r.get_chrom()
             && prev_mr.r.get_start() < mr.r.get_start())
@@ -72,6 +73,19 @@ check_sorted(const MappedRead &prev_mr,
              && prev_mr.r.get_start() == mr.r.get_start()
              && prev_mr.r.get_end() == mr.r.get_end()
              && prev_mr.r.get_strand() <= mr.r.get_strand());
+ }
+ else{
+    return (prev_mr.r.get_chrom() < mr.r.get_chrom())
+        || (prev_mr.r.get_chrom() == mr.r.get_chrom()
+            && prev_mr.r.get_end() < mr.r.get_end())
+        || (prev_mr.r.get_chrom() == mr.r.get_chrom()
+            && prev_mr.r.get_end() == mr.r.get_end()
+            && prev_mr.r.get_start() < mr.r.get_start())
+        ||  (prev_mr.r.get_chrom() == mr.r.get_chrom()
+             && prev_mr.r.get_start() == mr.r.get_start()
+             && prev_mr.r.get_end() == mr.r.get_end()
+             && prev_mr.r.get_strand() <= mr.r.get_strand());
+ }
 }
 
 static inline bool 
@@ -90,16 +104,14 @@ is_paired_fragment(const MappedRead &mr)
     return mr.r.get_name().substr(0, 5) == "FRAG:";
 }
 
-
-
-// This is really messy. This is approximately right
-// The unpaired reads on the negative strand is really messy
-// and this progrma tends to retain them
 static bool 
 is_duplicate_fragment(const MappedRead &lhs,
-                      const MappedRead &rhs)
+                      const MappedRead &rhs, const bool BROKEN_DUPL)
 {
-    if (is_paired_fragment(lhs) && is_paired_fragment(rhs))
+    bool is_lfragm = is_paired_fragment(lhs);
+    bool is_rfragm = is_paired_fragment(rhs);
+
+    if ((is_lfragm && is_rfragm) || (!is_lfragm && !is_rfragm))
     {
         return 
             lhs.r.get_chrom() == rhs.r.get_chrom() &&
@@ -107,8 +119,9 @@ is_duplicate_fragment(const MappedRead &lhs,
             lhs.r.get_end() == rhs.r.get_end() &&
             lhs.r.get_strand() == rhs.r.get_strand();
     }
-    else if (!is_paired_fragment(lhs) && is_paired_fragment(rhs))
+    else
     {
+      if(!BROKEN_DUPL){
         return
             (lhs.r.get_strand() == '+' &&   // being strigent on positive reads
              rhs.r.get_strand() == '+' &&
@@ -119,28 +132,21 @@ is_duplicate_fragment(const MappedRead &lhs,
              rhs.r.get_strand() == '-' &&  // negative reads
              lhs.r.get_chrom() == rhs.r.get_chrom()  &&
              lhs.r.get_end() == rhs.r.get_end());
-    } 
-    else if (is_paired_fragment(lhs) && !is_paired_fragment(rhs))
-    {
+      }//if
+      else{
         return
             (lhs.r.get_strand() == '+' &&   // being strigent on positive reads
              rhs.r.get_strand() == '+' &&
              lhs.r.get_chrom() == rhs.r.get_chrom()  &&
-             lhs.r.get_start() == rhs.r.get_start())
+             lhs.r.get_end() == rhs.r.get_end())
             ||
             (lhs.r.get_strand() == '-' &&  // being a little conservative on
              rhs.r.get_strand() == '-' &&  // negative reads
              lhs.r.get_chrom() == rhs.r.get_chrom()  &&
-             lhs.r.get_end() == rhs.r.get_end());
+             lhs.r.get_start() == rhs.r.get_start());
+
+      }
     } 
-    else // (!is_paired_fragment(lhs) && !is_paired_fragment(rhs))
-    {
-        return // the same behavior as without fragments
-            lhs.r.get_chrom() == rhs.r.get_chrom() &&
-            lhs.r.get_start() == rhs.r.get_start() &&
-            lhs.r.get_end() == rhs.r.get_end() &&
-            lhs.r.get_strand() == rhs.r.get_strand();
-    }
 }
 
 
@@ -166,6 +172,66 @@ consensus_mappedread(vector<MappedRead> &mapped_ties,
     }
 }
 
+static void
+remove_dupl(std::istream *in, std::ostream *out, bool BROKEN_DUPL,
+	size_t &total_reads, size_t &total_bases, size_t &total_valid_bases, size_t &total_mism)
+{
+        vector<MappedRead> mapped_ties;
+        MappedRead mr, prev_mr;
+
+        prev_mr.r.set_chrom("");
+        prev_mr.r.set_start(0);
+        prev_mr.r.set_end(0);
+        prev_mr.r.set_strand('\0');
+
+        bool read_is_good = true;
+        try { *in >> mr; }
+        catch (const RMAPException &e) { read_is_good = false;}
+
+        while (read_is_good)
+        {
+            if (!check_sorted(prev_mr, mr, BROKEN_DUPL))
+            {
+                cerr << "DUPLICATE-REMOVER ERROR: "
+                     << "reads are not sorted by genomic locations (chr, start, end, strand)" << endl
+                     << "---------------------------------------------" << endl
+                     << prev_mr << endl
+                     << mr << endl
+                     << "---------------------------------------------" << endl;
+                exit(EXIT_FAILURE);
+            }
+            else
+                prev_mr = mr;
+
+            if (!mapped_ties.empty() &&
+                !is_duplicate_fragment(mapped_ties.front(), mr, BROKEN_DUPL))
+            {
+                MappedRead consensus_mr(mapped_ties.front());
+                consensus_mappedread(mapped_ties, consensus_mr);
+                *out << consensus_mr << endl;
+                mapped_ties.clear();
+            }
+            mapped_ties.push_back(mr);
+
+            try { *in >> mr; }
+            catch (const RMAPException &e) { read_is_good = false;}
+        }
+
+        if (!mapped_ties.empty())
+        {
+            MappedRead consensus_mr(mapped_ties.front());
+            consensus_mappedread(mapped_ties, consensus_mr);
+	    total_reads++;
+	    total_bases += consensus_mr.seq.length();
+            size_t Ns = count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'N') +
+			count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'n');
+            total_valid_bases += total_bases - Ns;
+	    total_mism += static_cast<size_t>(consensus_mr.r.get_score());
+            *out << consensus_mr << endl;
+        }
+
+}
+
 int 
 main(int argc, const char **argv) 
 {
@@ -175,7 +241,8 @@ main(int argc, const char **argv)
         bool VERBOSE = false;
         string infile;
         string outfile;
-        
+	string out_stat;
+        bool BROKEN_DUPL = false;//remove duplicates by end
         /****************** COMMAND LINE OPTIONS ********************/
         OptionParser opt_parse(argv[0], 
                                "A program to select a unique read from multiple reads "
@@ -183,6 +250,11 @@ main(int argc, const char **argv)
                                "< bed-files>");
         opt_parse.add_opt("output", 'o', "Name of maps output file", 
                           false, outfile);
+        opt_parse.add_opt("output", 'B', "Flag to remove broken copy-duplicates, used with paired-end",
+                          false, outfile);
+        opt_parse.add_opt("out_stat", 'S', "statistics file",
+                          false, out_stat);
+
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
         vector<string> leftover_args;
         opt_parse.parse(argc, argv, leftover_args);
@@ -210,58 +282,27 @@ main(int argc, const char **argv)
             &std::cin : new std::ifstream(infile.c_str());
 
         std::ostream *out = (outfile.empty()) ?
-            &std::cout : new ofstream(outfile.c_str());
-    
-        vector<MappedRead> mapped_ties;
-        MappedRead mr, prev_mr;
-
-        prev_mr.r.set_chrom("");
-        prev_mr.r.set_start(0);
-        prev_mr.r.set_end(0);
-        prev_mr.r.set_strand('\0');
-
-        bool read_is_good = true;
-        try { *in >> mr; }
-        catch (const RMAPException &e) { read_is_good = false;}
-
-        while (read_is_good) 
-        {
-            if (!check_sorted(prev_mr, mr))
-            {
-                cerr << "DUPLICATE-REMOVER ERROR: "
-                     << "reads are not sorted by genomic locations" << endl
-                     << "---------------------------------------------" << endl
-                     << prev_mr << endl
-                     << mr << endl 
-                     << "---------------------------------------------" << endl;
-                exit(EXIT_FAILURE);
-            }
-            else
-                prev_mr = mr;
-
-            if (!mapped_ties.empty() && 
-                !is_duplicate_fragment(mapped_ties.front(), mr)) 
-            {
-                MappedRead consensus_mr(mapped_ties.front());
-                consensus_mappedread(mapped_ties, consensus_mr);
-                *out << consensus_mr << endl;
-                mapped_ties.clear();
-            }
-            mapped_ties.push_back(mr);
-
-            try { *in >> mr; }
-            catch (const RMAPException &e) { read_is_good = false;}
-        }
-
-        if (!mapped_ties.empty()) 
-        {
-            MappedRead consensus_mr(mapped_ties.front());
-            consensus_mappedread(mapped_ties, consensus_mr);
-            *out << consensus_mr << endl;
-        }
+        &std::cout : new ofstream(outfile.c_str());
+   
+	size_t total_reads = 0, total_bases = 0, total_valid_bases = 0, total_mism = 0;
+	
+	remove_dupl(in, out, BROKEN_DUPL, total_reads, total_bases, total_valid_bases, total_mism); 
 
         if (in != &std::cin) delete in;
         if (out != &std::cout) delete out;
+        if(!out_stat.empty()){
+	   ofstream out2;
+	   out2.open(out_stat.c_str(), ios::out);
+           
+           out2 << "TOTAL READS:\t" << total_reads << endl;
+	   out2 << "TOTAL BASES:\t" << total_bases << endl;
+	   out2 << "TOTAL VALID BASES:\t" << total_valid_bases << endl;
+           out2 << "TOTAL MISMATCHES:\t" << total_mism << endl;
+ 
+           double error_rate = (total_bases > 0 ? static_cast<double>(total_mism)/static_cast<double>(total_bases) : 0);
+           out2 << "ERROR RATE:\t" << error_rate << endl;
+	   out2.close();
+        }
     }
     catch (const RMAPException &e) 
     {
