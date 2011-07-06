@@ -290,6 +290,8 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
+
+
     const string mapped_file_names_file(leftover_args.front());
     vector<string> mapped_files;
     if (!mapped_file_names_file.empty())
@@ -298,37 +300,9 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-  /* Old format
-  const string read_file_names_file(leftover_args.back());
-    vector<string> reads_files;
-    if (!read_file_names_file.empty())
-      read_filename_file(read_file_names_file.c_str(), reads_files);
-    else {
-      cerr << opt_parse.help_message() << endl;
-      return EXIT_SUCCESS;
-    }
-*/
+
 
     /****************** END COMMAND LINE OPTIONS *****************/
-    /*
-    vector<FileIterator<GenomicRegion> *> itrs;
-    if (VERBOSE)
-      cerr << "[MAPPED READS FILES:]" << endl;
-    for (size_t i = 0; i < mapped_files.size(); ++i) {
-      if (VERBOSE)
-	cerr << mapped_files[i] << endl;
-      itrs.push_back(new FileIterator<GenomicRegion>(mapped_files[i], BUFFER_SIZE));
-    }
-    
-    vector<FileIterator<FASTQRecord> *> read_itrs;
-    if (VERBOSE)
-      cerr << "[FASTQ READS FILES:]" << endl;
-    for (size_t i = 0; i < reads_files.size(); ++i) {
-      if (VERBOSE)
-	cerr << reads_files[i] << endl;
-      read_itrs.push_back(new FileIterator<FASTQRecord>(reads_files[i], BUFFER_SIZE));
-    }
-    */
 
 	//same as above, but for MappedRead
 	

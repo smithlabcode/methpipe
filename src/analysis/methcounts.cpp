@@ -49,11 +49,78 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::ifstream;
+using std::ofstream;
+using std::ios;
 
 /***********************************************************************
  * FUNCTIONS BELOW ARE FOR FASTQRecord OJBECTS AND *NOT* USING THE
  * QUALITY INFORAMTION
  */
+
+struct MethStat{
+   MethStat();
+   size_t total_sites;
+   size_t total_covered;
+   size_t total_methylated;
+   size_t min_cov;
+   size_t max_cov;
+   size_t sum_cov;
+   size_t sum_cov_meth;
+   size_t sum_cov_Cs;
+};
+MethStat::MethStat()
+{
+   total_sites = 0;
+   total_covered = 0;
+   total_methylated = 0;
+   min_cov = 1000000000;
+   max_cov = 0;
+   sum_cov = 0;
+   sum_cov_meth = 0;
+   sum_cov_Cs = 0;
+}
+
+static void
+collect_stat(const size_t &meth_count, const double &total, MethStat &ms_obj)
+{
+   ms_obj.total_sites++;
+   if(total > 0){
+     ms_obj.total_covered++;
+     if(ms_obj.min_cov > total)
+        ms_obj.min_cov = static_cast<size_t>(total);
+     if(ms_obj.max_cov < total)
+        ms_obj.max_cov = static_cast<size_t>(total);
+     ms_obj.sum_cov += static_cast<size_t>(total);
+   }
+   if(meth_count > 0){
+     ms_obj.total_methylated++;
+     ms_obj.sum_cov_meth += static_cast<size_t>(total);
+     ms_obj.sum_cov_Cs += meth_count;
+   }
+   
+}//collect_stat()
+
+static void
+print_stat(const string &out_stat, const MethStat &ms_obj)
+{
+   ofstream out;
+   out.open(out_stat.c_str(), ios::out);
+   double overall_meth_level = (ms_obj.sum_cov > 0 ?  static_cast<double>(ms_obj.sum_cov_Cs)/static_cast<double>(ms_obj.sum_cov) : 0);
+   double meth_level_over_methylated = (ms_obj.sum_cov_meth > 0 ? static_cast<double>(ms_obj.sum_cov_Cs)/static_cast<double>(ms_obj.sum_cov_meth) : 0);
+   double overall_cov = (ms_obj.total_sites > 0 ? static_cast<double>(ms_obj.sum_cov)/static_cast<double>(ms_obj.total_sites) : 0);
+   double cov_over_covered = (ms_obj.total_covered > 0 ? static_cast<double>(ms_obj.sum_cov)/static_cast<double>(ms_obj.total_covered) : 0);
+   out << "TOTAL SITES:\t" << ms_obj.total_sites << endl;
+   out << "TOTAL SITES WITH NON-ZERO COVERAGE:\t" << ms_obj.total_covered << endl;
+   out << "TOTAL METHYLATED SITES (number of Cs mapped to a site >= 1):\t" << ms_obj.total_methylated << endl;
+   out << "MINIMUM NON-ZERO COVERAGE (Ts + Cs per site):\t" << ms_obj.min_cov << endl;
+   out << "MAXIMUM COVERAGE (Ts + Cs per site):\t" << ms_obj.max_cov << endl;
+   out << "OVERALL AVERAGE COVERAGE:\t" << overall_cov << endl;
+   out << "AVERAGE COVERAGE OVER COVERED SITES (sites with non-zero coverage):\t" << cov_over_covered << endl;
+   out << "OVERALL AVERAGE METHYLATION LEVEL ( total Cs mapped to sites / (total Cs + total Ts) ):\t" << overall_meth_level << endl;
+   out << "AVERAGE METHYLATION LEVEL OVER METHYLATED SITES (number of Cs mapped to a site >= 1):\t" << meth_level_over_methylated << endl;
+
+   out.close();   
+}
 
 static void
 content_cpg(const string &chrom, size_t i, size_t chr_len, char strand, string &content)
@@ -274,7 +341,7 @@ scan_chromosome_cpg(const QualityChecker &qc,
 		    const GenomicRegion &chrom_region,
 		    const double max_mismatches,
 		    FileIterator<MappedRead> &regions,
-		    std::ostream &out) {
+		    std::ostream &out, MethStat &ms_obj) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0;
   for ( i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
@@ -287,6 +354,7 @@ scan_chromosome_cpg(const QualityChecker &qc,
 	if (j->r.get_score() <= max_mismatches)
 	  add_contribution_cpg(qc, i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }//if
@@ -294,6 +362,7 @@ scan_chromosome_cpg(const QualityChecker &qc,
   for(;  i < chrom.length() - 1; ++i){
     if (is_cpg(chrom, i)) {
       size_t total = 0;
+      collect_stat(total, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
           << total << "\t" << total << "\t+\n";
     }//if
@@ -307,7 +376,7 @@ scan_chromosome(const QualityChecker &qc,
 		const string &chrom, const GenomicRegion &chrom_region,
 		const double max_mismatches,
 		FileIterator<MappedRead> &regions, 
-		std::ostream &out) {
+		std::ostream &out, MethStat &ms_obj) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0; 
   size_t chrom_len = chrom.length();
@@ -322,6 +391,7 @@ scan_chromosome(const QualityChecker &qc,
       const double total = meth_count + unmeth_count;
       string content("CG");
       content_cpg(chrom, i, chrom_len, '+', content);
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }
@@ -334,6 +404,7 @@ scan_chromosome(const QualityChecker &qc,
       const double total = meth_count + unmeth_count;
       string content("CG");
       content_cpg(chrom, i, chrom_len, '-', content);
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t-\n";
     }
@@ -343,13 +414,15 @@ scan_chromosome(const QualityChecker &qc,
     if(is_cytosine(chrom[i])) {
       string content("CG");
       content_cpg(chrom, i, chrom_len, '+', content);
+      collect_stat(total, total, ms_obj);
        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
            << total << "\t" << total << "\t+\n";
     }
     if(is_guanine(chrom[i])) {
       string content("CG");
       content_cpg(chrom, i, chrom_len, '-', content);
-       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
+      collect_stat(total, total, ms_obj);
+      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
            << total << "\t" <<  total << "\t-\n";
     }
   }//for
@@ -361,7 +434,7 @@ scan_chromosome_cpg(const string &chrom,
 		    const GenomicRegion &chrom_region,
 		    const double max_mismatches,
 		    FileIterator<MappedRead> &regions, 
-		    std::ostream &out) {
+		    std::ostream &out, MethStat &ms_obj) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0;
   for ( i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
@@ -374,6 +447,7 @@ scan_chromosome_cpg(const string &chrom,
 	if (j->r.get_score() <= max_mismatches)
 	  add_contribution_cpg(i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }//if
@@ -382,6 +456,7 @@ scan_chromosome_cpg(const string &chrom,
   for(;  i < chrom.length() - 1; ++i){
     if (is_cpg(chrom, i)) {
       size_t total = 0;
+      collect_stat(total, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
           << total << "\t" << total << "\t+\n";
     }//if
@@ -393,7 +468,7 @@ static void
 scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		const double max_mismatches,
 		FileIterator<MappedRead> &regions, 
-		std::ostream &out) {
+		std::ostream &out, MethStat &ms_obj) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0; 
   size_t chrom_len = chrom.length();
@@ -408,6 +483,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
       const double total = meth_count + unmeth_count;
       string content("CG");
       content_cpg(chrom, i, chrom_len, '+', content);
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
     }
@@ -420,6 +496,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
       const double total = meth_count + unmeth_count;
       string content("CG");
       content_cpg(chrom, i, chrom_len, '-', content);
+      collect_stat(meth_count, total, ms_obj);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t-\n";
     }
@@ -429,13 +506,15 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
     if(is_cytosine(chrom[i])) {
       string content("CG");
       content_cpg(chrom, i, chrom_len, '+', content);
-       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
+      collect_stat(total, total, ms_obj);      
+      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
            << total << "\t" << total << "\t+\n";
     }
     if(is_guanine(chrom[i])) {
       string content("CG");
       content_cpg(chrom, i, chrom_len, '-', content);
-       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
+      collect_stat(total, total, ms_obj);       
+      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" << content << ":"
            << total << "\t" <<  total << "\t-\n";
     }
   }//for
@@ -482,7 +561,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const QualityChecker &qc,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
-	    FileIterator<MappedRead> &regions) {
+	    FileIterator<MappedRead> &regions, MethStat &ms_obj) {
   
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
   for (size_t i = 0; i < chrom_files.size(); ++i) {
@@ -498,9 +577,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(qc, chroms[j], chrom_region, max_mismatches,
-			regions, *out);
+			regions, *out, ms_obj);
       else scan_chromosome_cpg(qc, chroms[j], chrom_region, max_mismatches,
-			       regions, *out);
+			       regions, *out, ms_obj);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
@@ -513,7 +592,7 @@ void
 scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
-	    FileIterator<MappedRead> &regions) {
+	    FileIterator<MappedRead> &regions, MethStat &ms_obj) {
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
   for (size_t i = 0; i < chrom_files.size(); ++i) {
     const string fn(strip_path_and_suffix(chrom_files[i]));
@@ -528,9 +607,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(chroms[j], chrom_region, max_mismatches,
-			regions, *out);
+			regions, *out, ms_obj);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
-			       regions, *out);
+			       regions, *out, ms_obj);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
@@ -552,6 +631,7 @@ main(int argc, const char **argv) {
     string fasta_suffix = "fa";
     
     size_t BUFFER_SIZE = 100000;
+    string out_stat;
     double max_mismatches = std::numeric_limits<double>::max();
 
     double cutoff = -std::numeric_limits<double>::max();
@@ -576,6 +656,9 @@ main(int argc, const char **argv) {
 		      false , max_mismatches);
     opt_parse.add_opt("cutoff", 'C', "cutoff for high-quality bases (assumes fastq reads)", 
 		      false , cutoff);
+    opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
+                      false , out_stat);
+   
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -618,15 +701,19 @@ main(int argc, const char **argv) {
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
     sort(chrom_files.begin(), chrom_files.end());
+
+    MethStat ms_obj;
     
     FileIterator<MappedRead> regions(mapped_reads_file, BUFFER_SIZE);
     if (cutoff != -std::numeric_limits<double>::max()) {
       const QualityChecker qc(score_format, cutoff);
       scan_chroms(VERBOSE, PROCESS_NON_CPGS, qc, max_mismatches, 
-		  outfile, chrom_files, regions);
+		  outfile, chrom_files, regions, ms_obj);
     }
     else scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
-		     outfile, chrom_files, regions);
+		     outfile, chrom_files, regions, ms_obj);
+    if(!out_stat.empty())
+       print_stat(out_stat, ms_obj);
   }
   catch (const RMAPException &e) {
     cerr << e.what() << endl;
