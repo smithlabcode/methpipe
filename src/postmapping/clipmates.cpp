@@ -265,9 +265,9 @@ main(int argc, const char **argv)
         opt_parse.add_opt("out_stat", 'S', "Name of file with statistics output", 
                           false, out_stat); 
         opt_parse.add_opt("T_rich_mates", 'T', "Name of input file with T-rich mates, mates1",
-                          false, end_one_file); 
+                          true, end_one_file); 
         opt_parse.add_opt("A_rich_mates", 'A', "Name of input file with A-rich mates, mates2",
-                          false, end_two_file); 
+                          true, end_two_file); 
 
         opt_parse.add_opt("outfile", 'o', "Output file name", 
                           false, outfile);
