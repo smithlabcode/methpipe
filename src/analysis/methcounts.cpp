@@ -168,7 +168,7 @@ add_contribution_cpg(const size_t offset, const MappedRead &r,
       (r.r.get_start() <= offset)) {
     const size_t position = offset - r.r.get_start();
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 //    assert(position < r.seq.length());
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -179,7 +179,7 @@ add_contribution_cpg(const size_t offset, const MappedRead &r,
     const size_t position = (r.seq.length() - 1) - 
       ((offset + 1) - r.r.get_start());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
 //    assert(position < r.seq.length());
     if (is_cytosine(r.seq[position])) ++meth;
@@ -194,7 +194,7 @@ add_contribution_c(const size_t offset, const MappedRead &r,
     const size_t position = offset - r.r.get_start();
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -208,7 +208,7 @@ add_contribution_g(const size_t offset, const MappedRead &r,
     const size_t position = (r.seq.length() - 1) - (offset - r.r.get_start());
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -241,7 +241,7 @@ add_contribution_cpg(const QualityChecker &qc,
     const size_t position = offset - r.r.get_start();
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -253,7 +253,7 @@ add_contribution_cpg(const QualityChecker &qc,
       ((offset + 1) - r.r.get_start());
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -270,7 +270,7 @@ add_contribution_c(const QualityChecker &qc,
     const size_t position = offset - r.r.get_start();
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -287,7 +287,7 @@ add_contribution_g(const QualityChecker &qc,
     const size_t position = (r.seq.length() - 1) - (offset - r.r.get_start());
 //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw RMAPException("ERROR: Reads must be sorted by chromosome and start position.");
+      throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
