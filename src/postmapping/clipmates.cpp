@@ -241,49 +241,34 @@ main(int argc, const char **argv)
 {
     try 
     {
-        cerr << "############################################################" << endl
-             << "######################   clipmates  ########################" << endl
-             << "############################################################" << endl
-             << "THIS PROGRAM is Song Qiang's version of clipmates" << endl
-             << "It intends to replace check-overlap and mask-overlap" << endl
-             << "############################################################" << endl
-             << "############################################################" << endl
-             << "############################################################" << endl;
 
-        static const int WARNING_DIFF_CHROM = -1;
-        static const int WARNING_DIFF_STRAND = -2;
-        static const int WARNING_MISS_T_MATE = -3;
-        static const int WARNING_MISS_A_MATE = -4;
         int MAX_SEGMENT_LENGTH = 1000;
         
         bool VERBOSE = false;
-        bool REVCOMP = false;
-        size_t max_distance = 500;
+        bool REVCOMP = true;
         string histogram_file;
         string end_one_file; 
         string end_two_file;
         string end_one_out;
         string end_two_out; 
-        string fraglen_file;
+        string out_stat;
         string outfile;
         string delimiter = "\26";
   
         /****************** COMMAND LINE OPTIONS ********************/
         OptionParser opt_parse(argv[0], "a program for identifying overlapping ends of "
                                "mapped paired end reads.",
-                               "<end-1-in> <end-2-in> <end-1-out> <end-2-out>");
+                               "");
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-        opt_parse.add_opt("ahist", 'h', "print frag size histogram in this file", 
-                          false, histogram_file);
-        opt_parse.add_opt("revcomp", 'r',
-                          "Reverse complement A-rich strand before masking", 
-                          false, REVCOMP);
-        opt_parse.add_opt("max-dist", 'm', "max distance to print", 
-                          false, max_distance);
         opt_parse.add_opt("max-frag-len", 'L', "Maximum fragment length", 
                           false, MAX_SEGMENT_LENGTH); 
-        opt_parse.add_opt("frag-len", 'f', "File name of fragment length", 
-                          false, fraglen_file); 
+        opt_parse.add_opt("out_stat", 'S', "Name of file with statistics output", 
+                          false, out_stat); 
+        opt_parse.add_opt("T_rich_mates", 'T', "Name of input file with T-rich mates, mates1",
+                          false, end_one_file); 
+        opt_parse.add_opt("A_rich_mates", 'A', "Name of input file with A-rich mates, mates2",
+                          false, end_two_file); 
+
         opt_parse.add_opt("outfile", 'o', "Output file name", 
                           false, outfile);
         vector<string> leftover_args;
@@ -303,31 +288,25 @@ main(int argc, const char **argv)
             cerr << opt_parse.option_missing_message() << endl;
             return EXIT_SUCCESS;
         }
-        if (leftover_args.size() < 2) 
-        {
-            cerr << opt_parse.help_message() << endl;
-            return EXIT_SUCCESS;
-        }
 
-        end_one_file = leftover_args[0]; 
-        end_two_file = leftover_args[1];
-        end_one_out = leftover_args.size() >= 3 ? leftover_args[2] : "/dev/null";
-        end_two_out = leftover_args.size() >= 4 ? leftover_args[3] : "/dev/null";
         /****************** END COMMAND LINE OPTIONS *****************/
 
         ifstream in_one(end_one_file.c_str());
         ifstream in_two(end_two_file.c_str());
     
-        ofstream out_one(end_one_out.c_str());
-        ofstream out_two(end_two_out.c_str());
-        
         std::ostream *out = outfile.empty() ?
             &std::cout : new std::ofstream(outfile.c_str());
 
-        std::ostream *fraglen_out;
-        if (!fraglen_file.empty())
-            fraglen_out =  new std::ofstream(fraglen_file.c_str());
-        
+	/*************Used for collecting statistics***************/
+	vector<size_t> fragm_len_distr(MAX_SEGMENT_LENGTH + 1, 0);
+  	size_t correctly_pairs = 0;
+ 	size_t incorrectly_chr = 0;
+	size_t incorrectly_strand = 0;
+	size_t incorrectly_orient = 0;
+	size_t incorrectly_fragm_size = 0;
+	size_t broken_pairs = 0;
+	/*************End for collecting statistics**************/
+
         MappedRead one, two, prev_one, prev_two;
         prev_one.r.set_name("");
         prev_two.r.set_name("");
@@ -347,45 +326,34 @@ main(int argc, const char **argv)
                 if (one.r.overlaps(two.r))
                     mask_less_informative(one, two);
 
-                out_one << one << endl; // for backward compatibilities
-                out_two << two << endl;
-                
                 if (one.r.get_chrom() != two.r.get_chrom())
-                {
+                {   
+                    incorrectly_chr++;
                     *out << one << endl << two << endl;
-                    if (!fraglen_file.empty())
-                        *fraglen_out << one.r.get_name() << "\t"
-                                     <<  "MATE1:different-chromosomes" << "\t"
-                                     << WARNING_DIFF_CHROM << endl
-                                     << two.r.get_name() << "\t"
-                                     <<  "MATE2:different-chromosomes" << "\t"
-                                     << WARNING_DIFF_CHROM << endl;
                 }
                 else if (one.r.get_strand() != two.r.get_strand())
                 {
+     		    incorrectly_strand++;
                     *out << one << endl << two << endl;
-                    if (!fraglen_file.empty())
-                        *fraglen_out << one.r.get_name() << "\t"
-                                     <<  "MATE1:different-strands" << "\t"
-                                     << WARNING_DIFF_STRAND << endl
-                                     << two.r.get_name() << "\t"
-                                     <<  "MATE2:different-strands" << "\t"
-                                     << WARNING_DIFF_STRAND << endl;
                 }
                 else
                 {
                     MappedRead merged;
                     int len;
                     merge_mates(one, two, merged, len, MAX_SEGMENT_LENGTH);
-                    if (len > 0 && len < MAX_SEGMENT_LENGTH)
+                    if (len > 0 && len < MAX_SEGMENT_LENGTH){
+                        correctly_pairs++;
+			fragm_len_distr[len]++;
                         *out << merged << endl;
-                    else
+		    }
+                    else{
                         *out << one << endl << two << endl;
+			if(len < 0 )
+			   incorrectly_orient++;
+		        else
+ 			   incorrectly_fragm_size++;
+		    }
 
-                    if (!fraglen_file.empty())
-                        *fraglen_out << one.r.get_name() << "\t"
-                                     << "FRAGMENT-LENGTH" << "\t"
-                                     << len << endl;
                 }
                 
                 try { in_one >> one; check_sorted_by_ID(prev_one, one); }
@@ -397,13 +365,7 @@ main(int argc, const char **argv)
             else if (name_smaller(one, two))
             {
                 *out << one << endl;
-
-                if (!fraglen_file.empty())
-                    *fraglen_out << one.r.get_name() << "\t"
-                                 << "MATE1:MISS-A-RICH" << "\t"
-                                 << WARNING_MISS_A_MATE << endl;
-                
-                out_one << one << endl; // for backward compatibilities
+		broken_pairs++;
 
                 try { in_one >> one; check_sorted_by_ID(prev_one, one); }
                 catch (const RMAPException &e) { one_is_good = false;}
@@ -411,13 +373,7 @@ main(int argc, const char **argv)
             else // one comes after two
             {
                 *out << two << endl;
-
-                if (!fraglen_file.empty())
-                    *fraglen_out << two.r.get_name() << "\t"
-                                 << "MATE1:MISS-T-RICH" << "\t"
-                                 << WARNING_MISS_T_MATE << endl;
-                
-                out_two << two << endl; // for backward compatibilities
+		broken_pairs++;
 
                 try { in_two >> two; check_sorted_by_ID(prev_two, two); }
                 catch (const RMAPException &e) { two_is_good = false;}
@@ -427,13 +383,7 @@ main(int argc, const char **argv)
         while (one_is_good) 
         {
             *out << one << endl;
-            
-            if (!fraglen_file.empty())
-                *fraglen_out << one.r.get_name() << "\t"
-                             << "MATE1:MISS-A-RICH" << "\t"
-                             << WARNING_MISS_A_MATE << endl;
-            
-            out_one << one << endl; // for backward compatibilities
+	    broken_pairs++;            
             
             try { in_one >> one; check_sorted_by_ID(prev_one, one); }
             catch (const RMAPException &e) { one_is_good = false;}
@@ -441,18 +391,28 @@ main(int argc, const char **argv)
         while (two_is_good) 
         {
             *out << two << endl;
-            
-            if (!fraglen_file.empty())
-                *fraglen_out << two.r.get_name() << "\t"
-                             << "MATE1:MISS-T-RICH" << "\t"
-                             << WARNING_MISS_T_MATE << endl;
-            
-            out_two << two << endl; // for backward compatibilities
+            broken_pairs++;
             
             try { in_two >> two; check_sorted_by_ID(prev_two, two); }
             catch (const RMAPException &e) { two_is_good = false;}
             if (REVCOMP) revcomp(two);
         }
+
+	if(!out_stat.empty()){
+           ofstream outst(out_stat.c_str());
+    	   outst << "TOTAL CORRECTLY MAPPED PAIRS (count in pairs):\t" << correctly_pairs << endl;
+	   outst << "INCORRECTLY MAPPED TO DIFFERENT CHROM:\t" << incorrectly_chr << endl;
+	   outst << "INCORRECTLY MAPPED DUE TO STRAND INCOMPATIBILITY:\t" << incorrectly_strand << endl;
+	   outst << "INCORRECTLY MAPPED DUE TO ORIENTATION:\t" << incorrectly_orient << endl;
+	   outst << "INCORRECTLY MAPPED DUE TO FRAGMENT SIZE:\t" << incorrectly_fragm_size << endl;
+	   outst << "TOTAL MAPPED BROKEN PAIRS (with missing mates, single-end count):\t" << broken_pairs << endl;
+	   outst << "FRAGM_LEN:\t" << "PAIRS_WITH_THIS_FRAGM_SIZE:" << endl;
+	   long int i = 0;
+	   for(i = 0; i < MAX_SEGMENT_LENGTH + 1; i++){
+		 outst << i << "\t" << fragm_len_distr[i] << endl;
+	   }//for
+	}//if stat file
+        if (out != &cout) delete out;     
     }
     catch (const RMAPException &e) 
     {
