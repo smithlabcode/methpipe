@@ -84,6 +84,9 @@ main(int argc, const char **argv)
         std::ostream *out_readlen = readlen_file.empty() ?
             0 : new std::ofstream(readlen_file.c_str());
 
+	const size_t MAX_READ_LEN = 1000; 
+	vector<size_t> len_distr(MAX_READ_LEN + 1, 0)
+
         string name_1, seq, name_2, scr;
         while (in->good())
         {
@@ -101,13 +104,29 @@ main(int argc, const char **argv)
                      << seq << endl
                      << name_2 << endl
                      << scr << endl;
-                if (out_readlen)
-                    *out_readlen << name_1 << "\t"
-                                 << effective_read_length(seq, NS, COUNT_N)
-                                 << endl;
+                if (out_readlen){
+                   size_t cur_len = effective_read_length(seq, NS, COUNT_N);
+		   if(cur_len < MAX_READ_LEN)
+			len_distr[cur_len]++;
+		   else
+			len_distr[MAX_READ_LEN]++;
+		}//if
             }
         }
+	
+	if(out_readlen){
+		size_t i = MAX_READ_LEN;
+		for( i = MAX_READ_LEN; i >=0 ; i--)
+		{
+			if(len_distr[i] > 0)
+				break;
+		}//for
+		size_t stop_iter = i;
+		*out_readlen << "EFFECTIVE_READ_LENGTH:\t" << "COUNT_OF_READS_WITH_THIS_LENGTH:" << endl;
 
+		for(i = 0; i <= stop_iter; i++)
+		   *out_readlen << i << len_distr[i] << endl; 
+	}
         if (in != &std::cin) delete in;
         if (out != &std::cout) delete out;
         if (out_readlen != 0) delete out_readlen;
