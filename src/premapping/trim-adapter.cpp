@@ -46,8 +46,8 @@ main(int argc, const char **argv)
                                "<fast[a/q]-reads-file>");
         opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
                           false , outfile);
-        opt_parse.add_opt("readlen", 'l',
-                          "Name of output file of effective read lengths"  
+        opt_parse.add_opt("readlen", 'S',
+                          "Name of output file with distribution of effective read lengths"  
                           "after triming adapters", 
                           false , readlen_file);
         opt_parse.add_opt("count-N", 'N', "Count trailing N's when report read length", 
