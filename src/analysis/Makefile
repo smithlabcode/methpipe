@@ -100,6 +100,9 @@ roimethstat: $(addprefix $(SMITHLAB_DIR), \
 pairedend_stat: $(addprefix $(SMITHLAB_DIR), \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
 
+mappedstat: $(addprefix $(SMITHLAB_DIR), \
+	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
+
 %: %.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
