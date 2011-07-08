@@ -8,38 +8,66 @@
 
 \begin{document}
 \maketitle
-The methpipe software package is a comprehensive tool chain for
+The Methpipe software package is a comprehensive tool chain for
 analyzing whole genome bisulfite sequencing data (BS-Seq).  This
-documentation will guide you step by step to learn how to perform the
-data analysis in a BS-Seq project with methpipe. To facilitate
+documentation will guide you step by step how to perform the
+data analysis in a BS-Seq project with Methpipe. To facilitate
 understanding of the work flow, we divide the analysis procedure into
-four steps: (1) Pre-mapping processing: This step include assessing
-read quality and pre-processing reads, such as trimming adapters; (2)
-Mapping: This step maps sequence reads to a reference genome; (3)
-Analyzing methylation status at single site: In this step we will
-estimate methylation frequency at single site, either CpG sites or
-non-CpG sites. We will also obtain information about sequencing depth
-and bisulfite conversion rate; (4) Higher level analysis: This step
-includes higher level more biologically interesting analysis, such as
-identifying hypo-methylated regions and/or differentially methylated
-regions. Later we will describe in detail the usage of tools in each
-step.
+four steps: (1) Pre-mapping processing includes assessing
+read quality and  trimming adapters (if users use rmapbs for mapping, then 
+trimming adapters as a separate step is not necessary); (2)
+Mapping sequenced reads to a reference genome; (3)
+Analyzing methylation level at a single site (CpG sites or
+non-CpG cytosines). (4) Higher level analysis includes
+identifying scores profiles (differential methylation or allelic methylation) 
+and methylation characteristic regions (hypomethylated regions or 
+differentially methylated regions). 
 
-In the guide we will use a small project as example. Suppose that in
-this project you would like to study the methylation pattern in two
-cell types, B cells and neutrophiles. The B cell methylome is profiled
-with sing-end sequencing and your university's sequencing center sends
-back to you these sequence files:
+Fig. \ref{fig:workflow}  shows detailed work flow of analysis with Methpipe.
+Processes and corresponding tools are shown with rectangles: incoming and outgoing 
+arrows represent the number of input and output files respectively.
+Files with intermediate input or output data are shown as parallelograms
+and files with the final results are shown as ovals.
+The order of processes is important.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=6.3in]{figs/Methpipe_work_flow.pdf}
+  \caption{Methpipe's Workflow}
+  \label{fig:workflow}
+\end{figure}
+ 
+We will use provided test data as an example how to run our tools.
+ Suppose that in
+a project you would like to analyze methylomes of two
+cell types, ESC and NHFF. There are paired-end sequenced reads for ESC
+and single-end reads for NHFF: 
 \begin{verbatim}
-bcell/s-1.fq bcell/s-2.fq bcell/s-3.fq bcell/s-4.fq.
+test_ESC_1.fastq, test_ESC_2.fastq, test_NHFF.fastq
 \end{verbatim}
-The neutrophile methylome is profiled with pair-end sequencing and you
-have the following sequences files:
-\begin{verbatim}
-neut/s-1-1.fq neut/s-1-2.fq neut/s-2-1.fq neut/s-2-2.fq.
-\end{verbatim}
-Now we are ready to uncover the interesting biology about DNA
-methylation from this dataset. 
+We will discuss tools in the same order as they appear in Fig. \ref{fig:workflow}. For each
+tool, we will describe what it does, the tool's options, and input/output formats.
+Most of the tools use files in BED format, therefore we will provide BED format now, and 
+later only refer to it by the name.
+
+
+BED format:
+\begin{itemize}
+\item
+reference name \textless string\textgreater
+\item
+start position within reference \textless integer\textgreater: starts with 0
+\item
+end position within reference \textless integer\textgreater: starts with 0
+\item
+name \textless string\textgreater : depends on the file (read ID, C-- content, HMR ID, DMR ID, etc.)
+\item
+score \textless float\textgreater : dependes on the file (number of mismatches, methylation level, score of HMR or DMR, etc.)
+\item
+strand \textless string\textgreater
+\end{itemize}
+
+\begin{flushleft}We will start with the tools for pre-mapping analysis (not shown in the workflow).
+\end{flushleft}
 
 \section{Pre-mapping processing}
 \label{sec:premapping}
@@ -59,49 +87,64 @@ methylation from this dataset.
 % \end{description}
 
 Before mapping sequenced reads to a reference genome, we need to
-pre-process the raw read sequences, in particular we need to trim
-possible adapter sequences retained in the 3' end of raw
-reads. Further we may be interested in examining the quality of reads
+pre-process the raw read sequences. In particular, we need to trim
+adapter sequences retained in the 3' end of raw
+reads. Further, we may be interested in examining the quality of reads
 in our library and visualizing raw reads in UCSC Genome Browser. 
 
 \subsection{Trim adapters}
 \label{sec:trim-adapter}
-As the length of reads that sequencing technology is able to produce
+As the length of sequenced reads
 has been increasing all the time, it is possible there are adapter
 sequences in the 3' end of some reads. These retained adapter
-sequences affects the mappability of such reads. Even if they are
+sequences affect the mappability of the reads. Even if the reads are
 somehow mapped to the reference genome, the adapter sequences may
 introduce bias to our estimate of methylation frequency. Therefore it
 is necessary to trim these retained adapter sequences. 
 
 The program \textbf{trim-adapter} is used to trim adapter sequences,
-if any, from the 3' end of raw reads. Suppose the adapter sequences is
-\textit{GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG}, we trim
-the adapter sequences from raw reads in the file bcell/s-1.fq with the
+if any, from the 3' end of raw reads. Suppose the adapter sequence is
+\textit{GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG}, we mask
+the adapter sequences from raw reads in the file
+ \textit{test\_NHFF.fastq} with the
 following command:
 \begin{verbatim}
-$ ./trim-adapter  s-1.fq -o s-1-clipped.fq  
--a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG  
+$ ./trim-adapter -o test_NHFF_adapter_masked.fastq   
+-a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG test_NHFF.fastq  
 \end{verbatim}
 
-If you would like to check the effective read length after trimming
-adapter sequences and Ns from 3' end, you can add \textbf{-l} options
-to specify the output file for effective read length, for example,
+If you would like to know the effective read length distribution after trimming
+adapter sequences and Ns from 3' end, you can add \textbf{-S} option
+to specify the output file for the distribution of effective read lengths. For example,
 \begin{verbatim}
-$ ./trim-adapter  s-1.fq -o s-1-clipped.fq  -l s-1-length.txt
--a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG  
+./trim-adapter -S test_NHFF_read_length_distr.txt -o test_NHFF_adapter_masked.fastq
+-a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG test_NHFF.fastq
 \end{verbatim}
-The file s-1-length.txt lists the effective read length of each read
-after trimming adapter sequences and Ns, which can be used to compute
-the statistics of effective reads lengths with any general purpose
-statistical package, such as R. Perform this trimming adapter
-processing on all sequences files and for convenience we assume the
-processed sequences files have their original file names thereafter.
+The file \textit{test\_NHFF\_read\_length\_distr.txt} contains distribution of effective reads
+lengths after masking adapter sequences. Effective read length is the length of a read 
+ without Ns at the end of the read.
 
 While we provide this \textbf{trim-adapter} as a standalone program
-for describing the adapter-triming step, its functionality is included
-in the \textbf{rmapbs} program by giving the \textbf{-adapter}
-function. 
+for users who choose to map reads with another tool than rmapbs, its functionality is included
+in the \textbf{rmapbs} tool.
+
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-a} \textless string\textgreater : adapter sequence
+\item
+\textbf{-o} \textless string\textgreater : output file (default: stdout) 
+\item
+\textbf{-S} \textless string\textgreater : output file with effective read length distribution
+\item
+\textbf{-N} : for counting effective read length (without this option effective length includes
+the length of read without masked adapter sequence if any, and with this option it also includes
+the length of read without Ns at the end of the read)
+\end{itemize}
+
+INPUT: reads in FASTQ format.
+
+OUTPUT: reads in FASTQ format.
 
 \subsection{Assessing read quality}
 \label{sec:read-qual-assessm}
@@ -112,13 +155,14 @@ preparation and/or bisulfite sequencing. The program
 base composition and quality scores from 5' to 3' along all
 reads.  We run \textbf{read-quality-prof} as following 
 \begin{verbatim}
-$ ./read-quality-prof  < s-1.fq > s-1-qual.txt
+$ ./read-quality-prof -o test_NHFF_qual.txt test_NHFF.fastq
 \end{verbatim}
-The output file s-1-qual.txt can be visualized with the R software. 
+
+The output file \textit{test\_NHFF\_qual.txt} can be visualized with the R software.
 Fig. \ref{fig:base-composition} shows the base composition profile in
 the pair-end sequencing sample, where the left panel shows  T-rich
 reads and the right panel A-rich reads. Note the small proportion of C
-and G reflects the effect of bisulfite conversion.   
+and G reflects the effect of bisulfite conversion.
 
 \begin{figure}[htbp]
   \centering
@@ -132,6 +176,15 @@ and G reflects the effect of bisulfite conversion.
   \label{fig:base-composition}
 \end{figure}
 
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : output file (default: stdout)
+\end{itemize}
+
+INPUT: reads in FASTQ format.
+
+OUTPUT: self-explanatory column names are provided in the output file
 
 \section{Mapping}
 \label{sec:mapping}
@@ -177,7 +230,7 @@ genome and the \textbf{-s} specifies the suffix of sequence file
 names. The option \textbf{-m} gives the maximum number of mismatches
 allowed. The option \textbf{-o} specifies the output file. There are
 other options to fine tune the behavior of \textbf{rmapbs} which are
-explained on methpipe website.  
+explained on Methpipe website.  
 
 \subsection{Mapping pair-end sequencing reads}
 \label{sec:mapping-pair-end}
@@ -202,7 +255,7 @@ A/G wildcard mode.
 \subsection{Parallel mapping}
 \label{sec:parallel-mapping}
 Mapping is the most time-consuming and resource-demanding step in the
-methpipe pipeline. Fortunately we may adopt a ``divide and conquer''
+Methpipe pipeline. Fortunately we may adopt a ``divide and conquer''
 strategy to speed up this step.  In brief, we first divide large
 sequence files into smaller ones, map them separately in parallel and
 finally combining the mapped files.
