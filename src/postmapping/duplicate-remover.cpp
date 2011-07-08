@@ -192,9 +192,13 @@ remove_dupl(std::istream *in, std::ostream *out, bool BROKEN_DUPL,
         {
             if (!check_sorted(prev_mr, mr, BROKEN_DUPL))
             {
-                cerr << "DUPLICATE-REMOVER ERROR: "
-                     << "reads are not sorted by genomic locations (chr, start, end, strand)" << endl
-                     << "---------------------------------------------" << endl
+                cerr << "DUPLICATE-REMOVER ERROR: ";
+		if(!BROKEN_DUPL)
+                   cerr  << "reads are not sorted by genomic locations (chr, start, end, strand)" << endl;
+		else
+		   cerr  << "reads are not sorted by genomic locations (chr, end, start, strand)" << endl;
+                
+		cerr << "---------------------------------------------" << endl
                      << prev_mr << endl
                      << mr << endl
                      << "---------------------------------------------" << endl;
