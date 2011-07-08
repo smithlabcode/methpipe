@@ -250,8 +250,11 @@ main(int argc, const char **argv)
                                "< bed-files>");
         opt_parse.add_opt("output", 'o', "Name of maps output file", 
                           false, outfile);
-        opt_parse.add_opt("output", 'B', "Flag to remove broken copy-duplicates, used with paired-end",
-                          false, outfile);
+        opt_parse.add_opt("output", 'B', "With paired-end reads duplicate-remover"
+					" must be used twice: first time on sorted reads by"
+				" chr, start, end, strand; second time with option B on sorted reads by"
+				" chr, end, start, strand",
+                          false, BROKEN_DUPL);
         opt_parse.add_opt("out_stat", 'S', "statistics file",
                           false, out_stat);
 
