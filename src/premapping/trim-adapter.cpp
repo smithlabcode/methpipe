@@ -125,7 +125,7 @@ main(int argc, const char **argv)
 		*out_readlen << "EFFECTIVE_READ_LENGTH:\t" << "COUNT_OF_READS_WITH_THIS_LENGTH:" << endl;
 
 		for(i = 0; i <= stop_iter; i++)
-		   *out_readlen << i << len_distr[i] << endl; 
+		   *out_readlen << i << "\t" << len_distr[i] << endl; 
 	}
         if (in != &std::cin) delete in;
         if (out != &std::cout) delete out;
