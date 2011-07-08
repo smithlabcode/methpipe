@@ -55,6 +55,7 @@ main(int argc, const char **argv)
 {
     try 
     {
+        
         string infile;
         string outfile;
         bool VERBOSE = false;
@@ -101,7 +102,8 @@ main(int argc, const char **argv)
         while (read_is_good)
         {
             revcomp(mr);
-
+            *out << mr << endl;
+            
             try { *in >> mr; }
             catch (const RMAPException &e) { read_is_good = false;}
         }
