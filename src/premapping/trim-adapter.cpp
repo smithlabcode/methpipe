@@ -85,7 +85,8 @@ main(int argc, const char **argv)
             0 : new std::ofstream(readlen_file.c_str());
 
 	const size_t MAX_READ_LEN = 1000; 
-	vector<size_t> len_distr(MAX_READ_LEN + 1, 0)
+	vector<size_t> len_distr(MAX_READ_LEN + 1, 0);
+    
 
         string name_1, seq, name_2, scr;
         while (in->good())
