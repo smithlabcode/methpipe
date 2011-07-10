@@ -20,8 +20,8 @@
 #
 ### ==========================
 
-ifndef ROOT
-$(error Must define ROOT variable)
+ifndef METHPIPE_ROOT
+$(error Must define METHPIPE_ROOT variable)
 endif
 
 SOURCES = $(shell find . -name "*.cpp")
@@ -33,11 +33,11 @@ COMMON_DIR = ../common/
 INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS += -Wl,-Bdynamic  -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas 
 
 CXX = g++
-CFLAGS = -Wall -fPIC -fmessage-length=50
-CXXFLAGS = -Wall -fPIC -fmessage-length=50
+CFLAGS = -Wall -fmessage-length=50
+CXXFLAGS = -Wall -fmessage-length=50
 OPTFLAGS = -O2
 DEBUGFLAGS = -g -lefence -L$(HOME)/lib
 
@@ -52,8 +52,8 @@ endif
 all: $(PROGS)
 
 install: all
-	@mkdir -p $(ROOT)/bin
-	@install -m 755 $(PROGS) $(ROOT)/bin
+	@mkdir -p $(METHPIPE_ROOT)/bin
+	@install -m 755 $(PROGS) $(METHPIPE_ROOT)/bin
 
 rmapbs: $(addprefix $(SMITHLAB_DIR), SeedMaker.o GenomicRegion.o \
 	rmap_os.o rmap_utils.o OptionParser.o QualityScore.o \
@@ -61,7 +61,7 @@ rmapbs: $(addprefix $(SMITHLAB_DIR), SeedMaker.o GenomicRegion.o \
 	clip_adaptor_from_reads.o)
 
 %: %.cpp
-	$(CXX) $(CFLAGS) -o $@ $^ $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

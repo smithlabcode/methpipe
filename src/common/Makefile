@@ -19,8 +19,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef ROOT
-$(error Must define ROOT variable)
+ifndef METHPIPE_ROOT
+$(error Must define METHPIPE_ROOT variable)
 endif
 
 HEADERS = $(shell ls *.hpp)
@@ -33,8 +33,8 @@ INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 CXX = g++
-CXXFLAGS = -Wall -fPIC -fmessage-length=50 
-OPTFLAGS = -O3
+CXXFLAGS = -Wall -fmessage-length=50 
+OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
 ifeq "$(shell uname)" "Darwin"

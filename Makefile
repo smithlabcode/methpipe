@@ -19,21 +19,21 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ROOT = $(shell pwd)
+METHPIPE_ROOT = $(shell pwd)
 
 
 all:
-	@make -C src ROOT=$(ROOT) OPT=1
+	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2
 
 install:
-	@make -C src ROOT=$(ROOT) OPT=1 install
+	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2 install
 
 clean:
-	@make -C src ROOT=$(ROOT) clean
+	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) clean
 .PHONY: clean
 
 distclean: clean
-	@rm -rf $(ROOT)/bin
-	@rm -rf $(ROOT)/lib
-	@rm -rf $(ROOT)/include
+	@rm -rf $(METHPIPE_ROOT)/bin
+	@rm -rf $(METHPIPE_ROOT)/lib
+	@rm -rf $(METHPIPE_ROOT)/include
 .PHONY: distclean

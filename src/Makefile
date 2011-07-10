@@ -19,8 +19,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef ROOT
-$(error Must define ROOT variable)
+ifndef METHPIPE_ROOT
+$(error Must define METHPIPE_ROOT variable)
 endif
 
 all_subdirs=analysis cytosines mapper premapping common postmapping smithlab_cpp 
@@ -35,26 +35,26 @@ app_subdirs=analysis cytosines mapper premapping postmapping
 
 all:
 	@for i in $(lib_subdirs); do \
-		make -C $${i} ROOT=$(ROOT) OPT=1; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2; \
 	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} ROOT=$(ROOT)  OPT=1; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT)  OPT=2; \
 	done;
 
 install:
 	@for i in $(lib_subdirs); do \
-		make -C $${i} ROOT=$(ROOT) OPT=1; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2; \
 	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} ROOT=$(ROOT)  OPT=1 install; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT)  OPT=2 install; \
 	done;
 
 test:
 	@for i in $(app_subdirs); do \
-		make -C $${i} ROOT=$(ROOT) test; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) test; \
 	done;
 
 clean:
 	@for i in $(all_subdirs); do \
-		make -C $${i} ROOT=$(ROOT) clean; \
+		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) clean; \
 	done;
