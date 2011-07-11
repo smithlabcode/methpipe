@@ -38,8 +38,8 @@
 
 using namespace std;
 
-/*
-void
+
+static void
 revcomp(MappedRead &mr)
 {
     if (mr.r.get_strand() == '+')
@@ -50,7 +50,7 @@ revcomp(MappedRead &mr)
     revcomp_inplace(mr.seq);
     std::reverse(mr.scr.begin(), mr.scr.end());
 }
-*/
+
 
 inline static size_t 
 get_distance(const MappedRead &a, const MappedRead &b) 
