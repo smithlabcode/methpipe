@@ -24,7 +24,7 @@ ifndef METHPIPE_ROOT
 $(error Must define METHPIPE_ROOT variable)
 endif
 
-SOURCES = $(shell find . -name "*.cpp")
+SOURCES = $(wildcard *.cpp)
 OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
