@@ -38,7 +38,7 @@
 
 using namespace std;
 
-void
+static void
 revcomp(MappedRead &mr)
 {
     if (mr.r.get_strand() == '+')
