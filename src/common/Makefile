@@ -23,8 +23,8 @@ ifndef METHPIPE_ROOT
 $(error Must define METHPIPE_ROOT variable)
 endif
 
-HEADERS = $(shell ls *.hpp)
-SOURCES = $(shell ls *.cpp)
+HEADERS = $(wildcard *.hpp)
+SOURCES = $(wildcard *.cpp)
 OBJECTS = $(subst .cpp,.o,$(SOURCES))
 
 SMITHLAB_DIR = ../smithlab_cpp/
