@@ -38,7 +38,14 @@
 #include "rmap_os.hpp"
 #include "MappedRead.hpp"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::max;
+using std::ofstream;
+using std::ifstream;
 
 static void
 check_sorted_by_ID(MappedRead &prev_mr,
