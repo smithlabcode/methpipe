@@ -152,7 +152,8 @@ merge_mates(const MappedRead &one, const MappedRead &two,
         static_cast<size_t>(two.r.get_score());
     
     merged = one;
-    size_t start_one, end_one, start_two, end_two, start_overlap, end_overlap;
+    size_t start_one = 0, end_one = 0, start_two = 0, 
+	end_two = 0, start_overlap = 0, end_overlap = 0;
     if (merged.r.pos_strand())
     {
         start_overlap = std::max(one.r.get_start(), two.r.get_start());
