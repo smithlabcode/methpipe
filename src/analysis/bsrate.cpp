@@ -656,7 +656,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
 		      "(assumes -c indicates dir)", 
 		      false , fasta_suffix);
-    opt_parse.add_opt("all", 'A', "process all Cs", 
+    opt_parse.add_opt("all", 'N', "process all Cs", 
 		      false , PROCESS_CPGS);
     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
 		      false , BUFFER_SIZE);
