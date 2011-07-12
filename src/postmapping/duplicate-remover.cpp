@@ -213,6 +213,13 @@ remove_dupl(std::istream *in, std::ostream *out, bool BROKEN_DUPL,
                 MappedRead consensus_mr(mapped_ties.front());
                 consensus_mappedread(mapped_ties, consensus_mr);
                 *out << consensus_mr << endl;
+            total_reads++;
+            total_bases += consensus_mr.seq.length();
+            size_t Ns = count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'N') +
+                        count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'n');
+            total_valid_bases += consensus_mr.seq.length() - Ns;
+            total_mism += static_cast<size_t>(consensus_mr.r.get_score());
+
                 mapped_ties.clear();
             }
             mapped_ties.push_back(mr);
@@ -229,7 +236,7 @@ remove_dupl(std::istream *in, std::ostream *out, bool BROKEN_DUPL,
 	    total_bases += consensus_mr.seq.length();
             size_t Ns = count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'N') +
 			count(consensus_mr.seq.begin(), consensus_mr.seq.end(), 'n');
-            total_valid_bases += total_bases - Ns;
+            total_valid_bases += consensus_mr.seq.length() - Ns;
 	    total_mism += static_cast<size_t>(consensus_mr.r.get_score());
             *out << consensus_mr << endl;
         }
