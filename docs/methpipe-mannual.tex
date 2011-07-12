@@ -4,7 +4,6 @@
 \usepackage[pdfborder={0 0 0}]{hyperref}
 
 \title{Methpipe Manual}
-\author{Song Qiang}
 
 \begin{document}
 \maketitle
@@ -23,7 +22,7 @@ identifying scores profiles (differential methylation or allelic methylation)
 and methylation characteristic regions (hypomethylated regions or 
 differentially methylated regions). 
 
-Fig. \ref{fig:workflow}  shows detailed work flow of analysis with Methpipe.
+Next figure  shows detailed work flow of analysis with Methpipe.
 Processes and corresponding tools are shown with rectangles: incoming and outgoing 
 arrows represent the number of input and output files respectively.
 Files with intermediate input or output data are shown as parallelograms
@@ -44,9 +43,10 @@ and single-end reads for NHFF:
 \begin{verbatim}
 test_ESC_1.fastq, test_ESC_2.fastq, test_NHFF.fastq
 \end{verbatim}
+Two test references are in the directory \textit{test\_ref\_dir}.
 We will discuss tools in the same order as they appear in Fig. \ref{fig:workflow}. For each
 tool, we will describe what it does, the tool's options, and input/output formats.
-Most of the tools use files in BED format, therefore we will provide BED format now, and 
+Most of the tools use files in BED format and in Mapped Reads format, therefore we will provide these formats first, and 
 later only refer to it by the name.
 
 
@@ -64,6 +64,26 @@ name \textless string\textgreater : depends on the file (read ID, C-- content, H
 score \textless float\textgreater : dependes on the file (number of mismatches, methylation level, score of HMR or DMR, etc.)
 \item
 strand \textless string\textgreater
+\end{itemize}
+
+Mapped Reads format:
+\begin{itemize}
+\item
+reference name \textless string\textgreater
+\item
+start position within reference \textless integer\textgreater: starts with 0
+\item
+end position within reference \textless integer\textgreater: starts with 0
+\item
+name \textless string\textgreater : depends on the file (read ID, C-- content, HMR ID, DMR ID, etc.)
+\item
+score \textless float\textgreater : dependes on the file (number of mismatches, methylation level, score of HMR or DMR, etc.)
+\item
+strand \textless string\textgreater
+\item
+read \textless string\textgreater
+\item
+score \textless string\textgreater
 \end{itemize}
 
 \begin{flushleft}We will start with the tools for pre-mapping analysis (not shown in the workflow).
@@ -117,8 +137,9 @@ If you would like to know the effective read length distribution after trimming
 adapter sequences and Ns from 3' end, you can add \textbf{-S} option
 to specify the output file for the distribution of effective read lengths. For example,
 \begin{verbatim}
-./trim-adapter -S test_NHFF_read_length_distr.txt -o test_NHFF_adapter_masked.fastq
--a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG test_NHFF.fastq
+./trim-adapter -a GATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCG 
+	       -S test_NHFF_read_length_distr.txt 
+               -o test_NHFF_adapter_masked.fastq test_NHFF.fastq
 \end{verbatim}
 The file \textit{test\_NHFF\_read\_length\_distr.txt} contains distribution of effective reads
 lengths after masking adapter sequences. Effective read length is the length of a read 
@@ -206,343 +227,288 @@ consider valid match to a guanine in the reference genome.
 
 If using single-end sequencing, you will get T-rich reads only. If
 using pair-end sequencing, you will get both T-rich reads and A-rich
-reads. Next we will learn how to map bisulfite treated reads with
+reads (also referred to as $5^{\prime}$ end and $3^{\prime}$ mates respectively,
+or as simply mates 1 and mates 2). 
+Next we will learn how to map bisulfite treated reads with
 \textbf{rmapbs} from either single-end sequencing or pair-end
 sequencing. 
 
 \subsection{Mapping single-end sequencing reads}
 \label{sec:mapping-single-end}
 Mapping read sequences to the reference genome is done by
-\textbf{rmapbs}. Before mapping, you need to get he genome sequences
-of appropriate organism and assembly, which is usually downloadable
-from \href{http://hgdownload.cse.ucsc.edu/downloads.html}{UCSC Genome
-  Browser download portal} or other specific repositories of genome
-sequences, such as \href{http://www.arabidopsis.org/}{TAIR} for
-Arabidopsis \textit{thaliana}. Suppose that you have already
-downloaded the appropriate genome sequences, in our example human
-genome hg18, in the directory \textit{human-genome}, to map the reads
-in bcell/s-1.fq to the reference genome we run
-\begin{verbatim}
-$ ./rmapbs -c human-genome -s fa -m 4 -o bcell/s-1.bed bcell/s-1.fq -v. 
-\end{verbatim}
-The option \textbf{-c} specifies the direcotory holding the reference
-genome and the \textbf{-s} specifies the suffix of sequence file
-names. The option \textbf{-m} gives the maximum number of mismatches
-allowed. The option \textbf{-o} specifies the output file. There are
-other options to fine tune the behavior of \textbf{rmapbs} which are
-explained on Methpipe website.  
+\textbf{rmapbs}. To map paired-end reads, use \textbf{rmapbs} separately for 
+$5^{\prime}$ end mates and for $3^{\prime}$ end mates. \textbf{IMPORTANT}:
+use \textbf{-A} option when mapping mates 2. Failure to use option \textbf{-A}
+with A-rich mates will result in mapping significantly less reads.
 
-\subsection{Mapping pair-end sequencing reads}
-\label{sec:mapping-pair-end}
-At present our pipeline map R-rich reads and A-rich reasd separately
-when mapping reads from the pair-end sequencing procedure. We map
-T-rich reads in the same way as for single end-reads. However we use
-A/G wildcards when mapping the A-rich reads, i.e. a adenine or a
-guanine is considered valid match to a guanine in the reference
-genome. The \textbf{rmapbs}, given the option \textbf{-A}, run in A/G
-wildcard mode. Therefore to map T-rich reads, for example,
-neut/s-1-1.fq, we run
 \begin{verbatim}
-$ ./rmapbs -c human-genome -s fa -m 4 -o neut/s-1-1.bed neut/s-1-1.fq -v. 
+$ ./rmapbs -o test_ESC_1_mapped.mr -c test_ref_dir -m 3 -y test_ESC_1.fastq
+$ ./rmapbs -o test_ESC_2_mapped.mr -c test_ref_dir -m 3 -y -A test_ESC_2.fastq
 \end{verbatim}
-To map A-rich reads, for example neut/s-1-2.fq, we run 
+
+\begin{flushleft} To map single end reads, run the command: \end{flushleft}
 \begin{verbatim}
-$ ./rmapbs -c human-genome -s fa -m 4 -o neut/s-1-2.bed neut/s-1-2.fq -v -A. 
+$ ./rmapbs -o test_NHFF_mapped.mr -c test_ref_dir -m 3 -y test_NHFF.fastq
 \end{verbatim}
-The other options have the same meaning in both C/T wildcard mode and
-A/G wildcard mode.   
 
-\subsection{Parallel mapping}
-\label{sec:parallel-mapping}
-Mapping is the most time-consuming and resource-demanding step in the
-Methpipe pipeline. Fortunately we may adopt a ``divide and conquer''
-strategy to speed up this step.  In brief, we first divide large
-sequence files into smaller ones, map them separately in parallel and
-finally combining the mapped files.
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-y} : allow N in read to match anything
+\item
+\textbf{-o} \textless string\textgreater : output file (default: stdout)
+\item
+\textbf{-c} \textless string\textgreater : FASTA file or directory containing files with chromosomes in 
+	FASTA format (if option \textbf{-s} is not used, files with chromosomes must have
+	\textbf{.fa} extension) 
+\item
+\textbf{-s} \textless string\textgreater : suffix of FASTA files (assumes -c indicates dir) 
+\item
+\textbf{-F} \textless string\textgreater : file listing names of chromosome files (absolute paths to
+	chromosome files) 
+\item
+\textbf{-S} \textless integer\textgreater : number of seeds 
+\item
+\textbf{-h} \textless integer\textgreater : weight of hit 
+\item
+\textbf{-w} \textless integer\textgreater : width of the shortest reads in the input
+\item
+\textbf{-m} \textless integer\textgreater : maximum allowed mismatches 
+\item
+\textbf{-a} \textless string\textgreater : file to write names of ambiguously mapped reads 
+\item
+\textbf{-M} \textless integer\textgreater :  maximum allowed mappings for a read 
+\item
+\textbf{-W} : run in wildcard matching mode 
+\item
+\textbf{-P} \textless float\textgreater : wildcard cutoff probability 
+\item
+\textbf{-Q} : use quality scores (input must be FASTQ) 
+\item
+\textbf{-A} : map using A/G bisulfite wildcards (ALWAYS use with mates 2) 
+\item
+\textbf{-B} : allow CpG non-conversion to assist 
+\item
+\textbf{-f} : use faster seeds (sensitive to 2 mismatches) 
+\item
+\textbf{-C} \textless string\textgreater : clip the specified adaptor 
+\item
+\textbf{-v} : print more run info 
+\item
+\textbf{-G} : use original output format (BED)
+\end{itemize}
 
-A large sequence file is divided into smaller ones with the
-\textbf{split} utility which is a standard utility in any UNIX-like
-platforms. By running
-\begin{verbatim}
-$ split -l 16000000 bcell/s-1.fq s-1
-\end{verbatim}
-you will get a series of smaller files: s-1aa, s-1ab, s-1ac, etc,
-which can be mapped with \textbf{rmapbs} separately as described
-above. To learn about the detailed usage of \textbf{split}, you may
-read its man page. In brief, the \textbf{-l} option specifies the
-number of lines in each smaller file. Since FASTQ format requires that
-each read consist of four lines, i.e. name line, sequence line, name
-line and score line, the number of lines should be multipliers of
-4. The optimal number depends on the time constraints and memory
-contraints of your computing platform. For your information, mapping
-$28$ millions reads to the Arabidopsis \textit{thaliana} genome with
-\textbf{rmapbs} uses about 40 minutes and 5Gb memory. 
+INPUT: Reads are in FASTQ or FASTA format, and references are in FASTA format.
 
+OUTPUT: Mapped Reads format.
+ 
 \section{Post-mapping processing}
 \label{sec:postmapping}
 
-% \begin{description}
-% \item[merge.cpp]
-% merge sorted MappedRead file, with option to control whether remove redundant file
+\subsection{Paired-end reads}
+\label{sec:pairedend_reads}
 
-% \item[mask-overlap.cpp]
-% mask overlapping region of paired-reads, also generate summary of fragment length,
-% number of unpaired reads
-
-% \item[unique.cpp ]
-% filter program to remove duplicate reads
-
-% \item[ sort.cpp ]
-% sort MappedRead file: either by genomic location or by name
-
-% \item[ revcomp.cpp ]
-% do reverse complement operation on MappedRead
-
-% \end{description}
-
-If everything goes well, you should already have pre-processed raw
-sequence reads and mapped them to the reference genome. Suppose the
-mapped reads files of B cell sample are
-\begin{verbatim}
-bcell/s-1.bed bcell/s-2.bed bcell/s-3.bed bcell/s-4.bed,
-\end{verbatim}
-and the mapped reads files of the neutrophile sample methylome are
-\begin{verbatim}
-neut/s-1-1.bed neut/s-1-2.bed neut/s-2-1.bed neut/s-2-2.bed.
-\end{verbatim}
-We will discuss some necessary processing steps, including converting
-A-rich reads to T-rich reads in pair-end sequencing, masking
-overlapping regions of paired reads, handling duplicate reads and
-utilities to sort and/or merge mapped reads. 
-
-\subsection{Converting A-rich reads to T-rich reads}
-\label{sec:conv-rich-reads}
+Next we will discuss some necessary processing steps that are applied to
+paired-end reads only.
 As has been noted before, if using pair-end sequencing, you will get
 both T-rich reads and A-rich reads. When estimating methylation
 frequency of a cytosine residue, we count the number of cytosines,
 which originate from methylated cytosines, and the number of thymines,
-which originate from unmethylated cytosines, and the use the ratio
-$\frac{\#C}{\#C+\#T}$ as the estimate of methylation frequency of that
-base. Therefore, A-rich reads need to be converted to T-rich reads
-before we are able to leverage the information from these A-rich
-reads. This conversion is easily done with the program
-\textbf{revcomp}, for example  
-\begin{verbatim}
-$ ./revcomp < neut/s-2-2.bed > neut/s-2-2-revcomp.bed
-\end{verbatim}
-Note this conversion applies to and only applies to A-rich reads in
-pair-end sequencing. For notation convenience, we again assume you
-rename the converted reads file name to its original file name
-thereafter.
+which originate from unmethylated cytosines, and then we use the ratio
+$\frac{\#C}{\#C+\#T}$ as the estimate of methylation level of that
+base. Since A-rich reads are complementary to the original DNA fragments, 
+from which they were sequenced, A-rich reads reflect methylation status
+of the cytosines on the strand, from which DNA fragments were originated.
+To avoid a bias in calculating methylation level, A-rich reads need to be 
+converted to T-rich reads
+before we count Cs and Ts from these reads. 
+Another bias in counting may arise from overlapping regions of two mates; to avoid
+this we mask overlapping region in one mate with Ns preserving all valid information.
+Conversion of A-rich reads to T-rich reads (taking reverse-complement of A-rich 
+reads and switching the strand to which they mapped) and masking overlapping regions
+is done by \textbf{clipmates}. This tool works on sorted by read id (read name) mapped
+reads. 
 
-\subsection{Joining paired reads}
-\label{sec:mask-overl-regi}
-With pair-end sequencing, we obtain two reads: a T-rich read from 5'
-end of the orignal segments and an A-rich read from 5' end. After
-converting A-rich reads to T-rich reads, we have two T-rich reads from
-the orignal DNA segment, which possibly overlap for certain
-proportion. This overlapped region, if left as-is, will result in bias
-that cytosines (or thymines if unmethylated) from the same DNA
-molecule are counted twice.
-
-The program \textbf{clipmates} identifies overlapped regions between
-two mates, join these two mates and output the DNA segment from which
-these two mates are originated. In our example project, neut/s-1-1.bed
-and neut/s-1-2.bed contain T-rich reads and A-rich reads (assume
-already converted to T-rich) respectively. We first sort the reads in
-these two files by name by running
+To sort mapped paired-end reads by read id, use \textbf{sort (unix)}:
 \begin{verbatim}
-$ sort -k4,4 neut/s-1-1.bed -o tmpfile && mv tmpfile neut/s-1-1.bed
-$ sort -k4,4 neut/s-1-2.bed -o tmpfile && mv tmpfile neut/s-1-2.bed,
+$ sort -k 4,4 test_ESC_1_mapped.mr > test_ESC_1_sortname.mr
+$ sort -k 4,4 test_ESC_2_mapped.mr > test_ESC_2_sortname.mr
 \end{verbatim}
-And then we run \textbf{clipmates} to join the T-rich mate and A-rich
-mate, 
+\begin{flushleft}Then use \textbf{clipmates} that takes two input files: one
+with T-rich mates and the other with A-rich mates.\end{flushleft}
 \begin{verbatim}
-$ ./clipmates neut/s-1-1.bed neut/s-1-2.bed -o neut/s-1.bed
+$ ./clipmates -T test_ESC_1_sortname.mr -A test_ESC_2_sortname.mr
+              -S test_ESC_clipmates_stat.txt -o test_ESC_clipmates.mr -L 500
 \end{verbatim}
-Note the input files to \textbf{clipmates}, input-file-1 and
-input-file-2, should strictly follow the order of T-rich and
-A-rich. The output file, specified by the option \textbf{-o}, contains
-the DNA segments after joining paired T-rich and A-rich mates. If two
-mates are mismatched (such as on different chromosomes or strands) or
-one mate is missing, \textbf{clipmates} simply outputs the original
-mates. 
+\begin{flushleft}This tool finds corresponding mates (whose names except for the last character
+match), and if such mates exist and are mapped correctly (to the same chromosome, to
+correct strands, with correct orientation) and within specified distance from each other
+(option \textbf{-L}, maximum fragment size), then the mates are combined into 
+a single fragment with Ns filled between the mates if there is a gap between them. If 
+mates could not be matched, then each mate is present in the output. Thus, the output
+file has Mapped Reads format and contains both entire DNA fragments or single mates.
+Note that this tool takes reverse-complement and switches the strands for mates 2. \end{flushleft}
 
-The program \textbf{clipmates} also provide statistical
-information about the pair-end sequencing data, such as the DNA
-fragment length distribution and the number of unpaired reads after
-mapping. This is done by specifying the fragment length file with the
-\textbf{-f} option. For example,
-\begin{verbatim}
-$ ./clipmates -f neut/s-1-len.txt -o neut/s-1.bed neut/s-1-1.bed neut/s-1-2.bed 
-\end{verbatim}
-In the file neut/s-1-len.txt \textbf{clipmates} writes the fragment
-length based on each pair of reads and marked reads that are
-unpaired. This file can be analyzed with standard UNIX text-processing
-utilities and statistical software.
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-T} \textless string\textgreater : file with mates 1 (T-rich mates)
+\item
+\textbf{-A} \textless string\textgreater : file with mates 2 (A-rich mates)
+\item
+\textbf{-S} \textless string\textgreater : file with mapping statistics for paired-end reads
+\item 
+\textbf{-o} \textless string\textgreater : output file 
+\item
+\textbf{-L} \textless integer\textgreater : maximum length of DNA fragment (default: 1000)
+\end{itemize}
+ 
+INPUT: Two files with mates 1 and mates 2 in Mapped Reads format.
 
-\subsection{Sorting reads}
-\label{sec:sorting-reads}
+OUTPUT: Mapped Reads format with merged fragments and single mates. File with
+paired-end mapping statistics has self-explanatory content.
+ 
+\subsection{Paired-end and Single-end reads}
+\label{sec:paired_single_reads}
 During the post-mapping processign of mapped reads, we may need to
 sort reads according to different criterions. This is done with the
 \textbf{sort} utility provided in UNIX environment. 
+Before calculating methylation level, users might consider removing
+copy-duplicates, the reads that were mapped to the same genomic location and
+ that most likely are by-product of PCR rather than representatives of 
+two distinct DNA molecules. To remove copy-duplicates, users must aplly the following
+steps: (1) sort reads by genomic location (chrom, start, end, strand), 
+(2) merge files with reads that came from the same DNA library and the same PCR
+and therefore likely to have shared copy-duplicates (3) run duplicate-remover 
+that removes copy-duplicates mapped to the same start, (4)
+sort reads by genomic location (chrom, end, start, strand), and (5)
+run duplicate-remover with option \textbf{-B} that removes copy-duplicates
+mapped to the same end positions. 
 
-In our pipeline, we store mapped reads in an extended BED format. The
-first six column are the same as the standard six-column BED format,
-which gives the chromosome name, starting position, ending position,
-read name, mismatches and strand. The seventh column gives the
-sequence of that read and the eighth reads the Solexa quality
-score. In order to sort reads according to their genomic locations, we
-run
+\begin{enumerate}
+\item
+Sort reads by genomic location: chrom, start, end, strand.
 \begin{verbatim}
-$ sort -k1,1 -k2,3n -k6,6 bcell/s-1.bed > output-file.
+$ sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 
+       test_ESC_clipmates.mr > test_ESC_sorted_start.mr
+$ sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 
+       test_NHFF_mapped.mr > test_NHFF_sorted_start.mr
 \end{verbatim}
-%%
-To sort reads according to their names,  we run 
+\item
+Merge sorted files using \textbf{merge -m (unix)}. (We do not provide test data for this 
+function)
+\item
+Run \textbf{duplicate-remover} to remove copy-duplicates sharing the same start position.
 \begin{verbatim}
-$ sort -k4,4 bcell/s-1.bed > output-file.
+$ ./duplicate-remover -S test_ESC_duplremove_start_stat.txt
+                      -o test_ESC_duplremove_start.mr  test_ESC_sorted_start.mr
 \end{verbatim}
-
-
-\subsection{Removing duplicate reads}
-\label{sec:proc-dupl-reads}
-Because of PCR bias and other unknown causes, there are tens of
-thousands of reads mapped to exactly the same location in some regions
-of the genome while the average sequencing depth is usually below
-20. These large amounts of reads are likely orginated from the same
-DNA segments and will bias the estimation of methylation
-frequency. One approach to alleviate this bias is to randomly pick one
-read from multiple reads that are generated the same genomic
-position. This task is done by the program unique
-\textbf{noduplicates}. For example if we would like to remove
-duplicate reads from the file bcell/s-1.bed, we run
+\item
+Sort reads by genomic location: chrom, end, start, strand.
 \begin{verbatim}
-$ ./noduplicates bcell/s-1.bed -o bcell/s-1-unique.bed
+$ sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 
+       test_ESC_duplremove_start.mr > test_ESC_sorted_end.mr
+$ sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 
+       test_NHFF_duplremove_start.mr > test_NHFF_sorted_end.mr
 \end{verbatim}
-
-
-\subsection{Merging read files}
-\label{sec:merging-reads-files}
-The final step before estimating methylation frequency and performing
-other higher level analysis is to merge read files from different
-sequencing lanes and/or flowcells. 
-
-If all read files are generated from the same biological library, we
-first sort all read files by genomic locations with \textbf{sort}
-(Section \ref{sec:sorting-reads}), merge those files with
-\textbf{mergelanes} and then remove duplicate reads with
-\textbf{noduplicates} (Section \ref{sec:proc-dupl-reads}). We show how
-to merge read files in the B cell data below.
+\item
+Run \textbf{duplicate-remover} to remove copy-duplicates sharing the same end position.
 \begin{verbatim}
-$ # sort read files
-$ sort -k1,1 -k2,3n -k6,6 bcell/s-1.bed > tmpfile && mv tmpfile bcell/s-1.bed
-$ sort -k1,1 -k2,3n -k6,6 bcell/s-2.bed > tmpfile && mv tmpfile bcell/s-2.bed
-$ sort -k1,1 -k2,3n -k6,6 bcell/s-3.bed > tmpfile && mv tmpfile bcell/s-3.bed
-$ sort -k1,1 -k2,3n -k6,6 bcell/s-4.bed > tmpfile && mv tmpfile bcell/s-4.bed
-$ ./mergelanes bcell/s-*bed |./noduplicates > bcell/bcell.bed 
-\end{verbatim}
+$ ./duplicate-remover -S test_ESC_duplremove_end_stat.txt
+                       -o test_ESC_distinct.mr -B test_ESC_sorted_end.mr
 
-If reads are generated from different biological libraries, it takes
-some extra step. The reason is that: even if two reads from different
-biological libraries are mapped to the same location, they are not
-originated from the same DNA molecule, therefore both should be kept
-for downstream analysis. Therefore, for reads from the same biological
-library, we pool reads and remove duplicates as described above. Then
-we just pool reads from different biological libraries without
-removing duplicates. This is controlled by the \textbf{-D} option of
-\textbf{mergelanes}. By default, \textbf{mergelanes} removes duplicate
-reads. If we would like to keep duplicate reads from different
-libraries, we specify this \textbf{-D} option. For example, we want to
-combine reads in \textit{s-1-lib1.bed} from the first library and
-reads in \textit{s-1-lib2.bed} from the second library, we run
-\begin{verbatim}
-$ ./mergelanes -D s-1-lib1.bed s-1-lib2.bed -o s-1.bed,  
+$ ./duplicate-remover -S test_NHFF_duplremove_end_stat.txt
+                       -o test_NHFF_distinct.mr -B test_NHFF_sorted_end.mr
 \end{verbatim}
-The file \textit{s-1.bed} contains reads from the two libraries. 
+\end{enumerate}
 
-\section{Methylation frequency and bisulfite conversion rate}
+The tool \textbf{duplicate-remover} collects reads and fragments mapped to the same
+genomic location (start or end), and chooses a random one to be the representative of 
+the original DNA fragment. If there are any fragments (both mates are mapped and matched, and 
+merged into a fragment), then the representative is chosen from fragments. When considering
+fragments mapped to the same genomic location, say fragments sharing same start, 
+we treat fragments of different lengths as distinct DNA fragments. Below we provide options, 
+and input/output format information for \textbf{duplicate-remover}.
+
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : output file
+\item
+\textbf{-S} \textless string\textgreater : file with mapping statistics
+\item
+\textbf{-B} : With paired-end reads duplicate-remover must be used twice. This option is used
+	when we run duplicate-remover for the second time on reads sorted by chrom, end, start, strand.
+	This option assumes this sorted order and removes copy-duplicates that share the same
+	end position.
+\end{itemize}
+
+INPUT: A single file in Mapped Reads format.
+
+OUTPUT: Output file is in Mapped Reads format and statistics file has self-explanatory output.
+
+\section{Methylation level}
 \label{sec:estim-methyl-freq}
 % \begin{description}
 % \item[methcount.cpp]
 % This program reads mapped read file and output methylation frequency
 % for each CpG site.
-% \item[bsrate.cpp]
-% This program reads mapped read file and estimate bisulfite conversion
-% rate by checking methylation status of non-CpG C's
 % \end{description}
-At this step, we have precessed mapped reads and combines reads from
-different lanes and/or flowcells into a single file, which means that
-we have a bcell/bcell.bed containing all reads from the B cell sample
-and a neut/neut.bed containing all reads from the neutrophile
-sample. From now on, we will be working with these two aggregated
-files. In this section and the following section, we will proceed from
-analyzing methylation status at single loci to identifying higher
-methylation patterns such as hypo-methylated regions. 
-
-\subsection{Estimating methylation frequency}
-\label{sec:estim-methyl-freq}
+The tool for calculating methylation level, \textbf{methcounts}, 
+takes a single input file. Therefore, for a single methylome, users 
+might need to merge multiple files from different libraries, and for this 
+task please use \textbf{merge -m (unix)}.
 In this section we will learn how to estimate the methylation
 probability at a single cytosine loci. In mammals, DNA methylation
 exists mostly at cytosines in the context of CpG dinucleotides. This
 kind of methylation is symmetric because the cytosine on the
 complementary strand, which is base-paired with the guanine, is also
 methylated due to the interesting property of maintenance DNA
-methyltransferases. In mammalian stem cells and particularly in plant
+methyltransferases. In mammalian stem cells and in plant
 cells, cytosines in sequence contexts other than CpG dinucleotides,
-such as CpHpG (H denotes adenines, thymines or cytosines), may also be
+such as CHG or CHH (H denotes adenines, thymines or cytosines), may also be
 methylated. This type of methylation is called asymmetric as the
 cytosines on the complementary strand are unnecessarily
-methylated. Symmetric methylation and asymmetric methylation requires
-different methods to estimate the methylation frequency. Simply put,
-in the case of asymmetric methylation we can use only reads mapped to
-one strand while we can use reads mapped to both strands in the case
-of symmetric methylation. Later we will describe the estimation
-methods for these two cases separately, first the case of asymmetric
-methylation and then the case of symmetric methylation. 
-
-\subsubsection{Methylation level in non-CpG cytosines}
-\label{sec:methyl-level-non}
- 
-After bisulfite sodium treatment, unmethylated cytosines in the
-original DNA sequences are converted to thymines while methylated
-cytosines remain the same. For convenience, we assume the bisulfite
-conversion is perfect for now. For a cytosine in the non-CpG context,
-we count the number of cytosines, which originate from methylated
-cytosines, and the number of thymines, which originate from
-unmethylated cytosines, from reads in the same strand as the
-cytosine. The unbiased estimator of the methylation frequency at this
-cytosine is simply the ratio of the number of cytosines to the number
-of cytosines and thymines combined. This task is carried out with the
-program \textbf{methcount} as following:
+methylated. To calculate methylation level, use \textbf{methcounts}. 
+This tool calculates methylation level for CpG sites by default; to calculate
+methylation level for all cytosines, please use option \textbf{-N}.
 \begin{verbatim}
-$ ./methcounts -c human_genome -non -o bcell/bcell.bed bcell/bcell-methcounts.bed,  
+$ ./methcounts -M 40 -c test_ref_dir 
+               -o test_ESC_methcounts.bed test_ESC_distinct.mr
+$ ./methcounts -N -M 40 -c test_ref_dir 
+               -o test_NHFF_methcounts.bed test_NHFF_distinct.mr
 \end{verbatim}
-where the \textbf{-c} options specifies the direcotory containing the
-human genome sequences and the \textbf{-non} options indicates the
-program should run in non-CpG mode. For each cytosine, the program
-reports the number of cytosines, the number of thymines and the
-estimation of methylation frequency in the output file
-bcell/bcell-methcounts.bed. 
 
-\subsubsection{Methylation level in CpG cytosines}
-\label{sec:methyl-level-cpg}
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file (default: stdout) 
+\item
+\textbf{-c} \textless string\textgreater : FASTA file or directory containing chromosome(s) 
+\item
+\textbf{-s} \textless string\textgreater : suffix of FASTA files (assumes -c indicates dir) 
+\item
+\textbf{-N} : process non-CpG cytosines 
+\item
+\textbf{-B} \textless integer\textgreater : buffer size (in records, not bytes; default: 100000) 
+\item
+\textbf{-M} \textless integer or float\textgreater : max mismatches (can be fractional) 
+\item
+\textbf{-C} \textless float\textgreater : cutoff for high-quality bases (assumes fastq reads) 
+\item
+\textbf{-S} \textless string\textgreater : Output file with methylation statistics 
+\item
+\textbf{-v} : print more run info 
+\end{itemize}
 
-For cytosines in the context of CpG dinucleotides, we are able to use
-reads mapped to both strands, which means better coverage and
-therefore reduces variance. We count the number of
-cytosines and thymines in all reads that overlap cytosines either in
-the positive strand or in the negative strand. And the estimator of
-methylation frequency is still the ratio of the number of cytosines to
-the number of cytosines and thymines combined. This task is done
-simiarly to the case of non-CpG methylation except that we ignore the
-\textbf{-non} option of the \textbf{methcount} program, for example, 
-\begin{verbatim}
-$ ./methcounts -c human_genome -o bcell/bcell-methcounts.bed bcell/bcell.bed.  
-\end{verbatim}
-The methcount program report the methylation status of only those
-cytosines in the CpG context. 
+INPUT: A single file in Mapped Reads format.
 
-\subsection{Estimating bisulfite conversion rate}
+OUTPUT: Output file is in BED format. File with statistics has self-explanatory content.
+Field \textbf{name} has format \textbf{CpG:X}, where \textbf{CpG} is cytosine content and has 
+three possible values, namely \textbf{CpG, CHH, CHG}, and \textbf{X} is the total number of 
+Cs and Ts mapped to the site. Field \textbf{score} is methylation level.
+
+\section{Estimating bisulfite conversion rate}
 \label{sec:estim-busilf-conv}
 By bisulfite sodiom treatment, unmethylated cytosines are converted to
 uracils, which are later read out as thymines. However this conversion
@@ -557,123 +523,197 @@ three scenarios: (i) non-CpG cytosines in most mammalian tissues, (ii)
 spike-in Lamda genome and (iii) the chloroplast genome in plants. In
 these three scenarios, unmethylated cytosines should all be converted
 if the bisulfite treatment is perfect. Otherwise, some cytosines are
-left as-is. Therefore we count the number of cytosines covering these
+unchanged. Therefore we count the number of cytosines covering these
 unmethylated cytosines and the number of thymines, the ratio of
 thymines to cytosines and thymines combined is the estimator of the
 bisulfite conversion rate.
+To estimate bisulfite conversion rate in mammals (over non-CpG cytosines), run:
+\begin{verbatim}
+$ ./bsrate -c test_ref_dir -M 40 -o test_ESC_bsrate.txt test_ESC_distinct.mr
+$ ./bsrate -c test_ref_dir -M 40 -o test_NHFF_bsrate.txt test_NHFF_distinct.mr
+\end{verbatim}
+\begin{flushleft}To estimate bisulfite conversion rate over all cytosines, use
+option \textbf{-N}.\end{flushleft}
 
-\paragraph{Estimating bisulfite conversion rate from non-CpG cytosines
-  in mammals:} In most mammalian tissues, non-CpG cytosines are free
-from methylation (though significant proportion of non-CpG methylation
-is observed in human stem cells), therefore we assume non-CpG
-cytosines are unmethylated and use the \textbf{bsrate} program to
-estimate conversion rate as following:
-\begin{verbatim}
-$ ./bsrate -c human_genome -o bcell/conversion-rate.txt bcell/bcell.bed.  
-\end{verbatim}
-The output file \textit{conversion-rate.txt} gives the conversion rate
-according to strands and locations. 
-  
-\paragraph{Estimating bisulfite conversion rate from spike-in Lambda
-  genome:} The genome of Lambda phage is free from
-methylation. Therefore in some experiment setting, certain amount of
-Lambda phage genome are added to the biological sample of interest,
-subject to the same bisulfite treatment and sequencing.  Suppose that
-the DNA sequences for Lambda phage are stored in the directory
-\textit{lambda-genome} and the reads mapped to the Lambda genome are
-stored in the file \textit{lambda.bed}, we issue the \textbf{bsrate}
-program as following:
-\begin{verbatim}
-$ ./bsrate -c lambda-genome -o conversion-rate.txt -A lambda.bed.  
-\end{verbatim}
-Note the \textbf{-A} option: it tells \textbf{bsrate} to use
-information of all cytosines since all cytosines in the Lambda genome,
-no matter their sequence context, are unmethylated.
-
-\paragraph{Estimating bisulfite conversion rate from chloroplast
-  genome in plants:} If you are working with plants with chloroplast
-genome, we can also use cytosines there to estimate bisulfite
-conversion rate because chloroplast genome are unmethylated. The
-command is similar with above, i.e., 
-\begin{verbatim}
-$ ./bsrate -c plant-genome -o conversion-rate.txt -A plan-chloroplast.bed.  
-\end{verbatim}
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file with bs-rate statistics
+\item
+\textbf{-c} \textless string\textgreater : FASTA file or directory containing chromosome(s)
+\item
+\textbf{-s} \textless string\textgreater : suffix of FASTA files (assumes -c indicates dir) 
+\item
+\textbf{-N} : process all Cs
+\item
+\textbf{-B} \textless integer\textgreater : buffer size (in records; default: 100000)
+\item
+\textbf{-C} \textless integer\textgreater : cutoff for high-quality bases
+\item
+\textbf{-M} \textless integer\textgreater : max mismatches (can be fractional)
+\item
+\textbf{-v} : print more run info
+\end{itemize}
  
+INPUT: Mapped Reads format.
+
+OUTPUT: Self-explanatory content.
+
 \section{Higher level analysis}
 \label{sec:high-level-analys}
 
-\subsection{Hypo-methylated regions}
+\subsection{Allelic methylation scores}
+\label{sec:allelic_scores}
+
+We provide two tools to calculate methylation scores profiles. The tool \textbf{allelicmeth}
+calculates allelic-specific methylation score for each CpG site. The higher score,
+the more likely that the site has allelic-specific methylation. The allelic scores profile
+can be visualized using a genome browser. Use the following command to generate 
+allelic scores profile:
+\begin{verbatim}
+$ ./allelicmeth -M 40 -c test_ref_dir 
+                -o test_ESC_allelicmeth.bed test_ESC_distinct.mr
+$ ./allelicmeth -N -M 40 -c test_ref_dir 
+                -o test_NHFF_allelicmeth.bed test_NHFF_distinct.mr
+\end{verbatim}
+
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file
+\item
+\textbf{-c} \textless string\textgreater : FASTA file or directory containing chromosome(s)
+\item
+\textbf{-s} \textless string\textgreater : suffix of FASTA files (assumes -c indicates dir)
+\item
+\textbf{-N} : process all Cs
+\item
+\textbf{-B} \textless integer\textgreater : buffer size (in records; default: 100000)
+\item
+\textbf{-C} \textless integer\textgreater : cutoff for high-quality bases
+\item
+\textbf{-M} \textless integer\textgreater : max mismatches (can be fractional)
+\item
+\textbf{-v} : print more run info
+\end{itemize}
+
+INPUT: Mapped Reads format.
+
+OUTPUT FORMAT:
+\begin{itemize}
+\item
+reference name \textless string\textgreater
+\item
+start position within reference \textless integer\textgreater: starts with 0
+\item
+end position within reference \textless integer\textgreater: starts with 0
+\item
+name \textless string\textgreater : in format \textbf{CpG:X}, where \textbf{X} is total number
+of reads mapped to the site
+\item
+score \textless float\textgreater : allelic methylation score
+\item
+mm \textless integer\textgreater : total number of reads with methylation status of two consecutive CpGs methylated and methylated
+\item
+mu \textless integer\textgreater : total number of reads with methylation status of two consecutive CpGs methylated and unmethylated
+\item
+um \textless integer\textgreater : total number of reads with methylation status of two consecutive CpGs unmethylated and methylated
+\item
+uu \textless integer\textgreater : total number of reads with methylation status of two consecutive CpGs unmethylated and unmethylated
+\end{itemize}
+
+\subsection{Differential methylation scores}
+\label{sec:methyldiff}
+
+Our tool \textbf{methyldiff} generates differential methylation scores profile between
+two methylomes. Given two methylomes (the result of \textbf{methcounts}), it calculates
+the probability that a CpG is significantly less methylated in one methylome than in the other.
+To generate differential methylation scores profile, run \textbf{methyldiff}:
+
+\begin{verbatim}
+$ ./methdiff -o test_NHFF_ESC_methdiff.bed 
+             test_NHFF_methcounts.bed test_ESC_methcounts.bed
+\end{verbatim}
+
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file.
+\item
+\textbf{-p} \textless integer\textgreater : pseudocount for the contingency table
+\item
+\textbf{-v} : print more run info
+\end{itemize}
+
+INPUT: Two files in BED format, the results of \textbf{methcounts}.
+
+OUTPUT: BED format file, with field \textbf{name} having format \textbf{CpG:X:Y}, 
+where \textbf{X} is the total number of reads mapped to the site in one methylome, 
+and \textbf{Y} is the total number of reads mapped to the site in the other methylome.
+Field \textbf{score} contains differential methylation score.
+
+\subsection{Hypomethylated regions, HMRs}
 \label{sec:ident-hypo-methyl}
 
-\subsection{Differentially methylated regions}
-\label{sec:ident-diff-methyl}
-\subsection{Allelic-specifically methylated regions }
-\label{"waiting for reftex-label call..."}
-
-
-\section{Summary and Visualization}
-\label{sec:summary-visualization}
-
-\section{A sample work flow}
-This part shows how these tools are connected to get the methylation
-profile. Suppose we have the following BS-Seq library
+Hypomethylated regions, HMRs, are contiguous regions with very low methylation.
+To identify HMRs, use the results of \textbf{methcounts} as input and run
+\textbf{hmr\_finder}:
 \begin{verbatim}
-reads/s_1_1.txt reads/s_1_2.txt reads/s_2_1.txt reads/s_2_2.txt
+$ ./hmr_finder -i 20 -o test_ESC_HMR.bed test_ESC_methcounts.bed
+$ ./hmr_finder -i 20 -o test_NHFF_HMR.bed test_NHFF_methcounts.bed
 \end{verbatim}
 
-The final result can be obtained as following. For clarity, we show
-all the intermediate result. In real application, some intermediate
-files can be avoided by using pipes.
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file
+\item
+\textbf{-i} \textless integer\textgreater : maximum number of iterations 
+\item
+\textbf{-P} \textless string\textgreater : input file with parameters for HMM
+\item
+\textbf{-p} \textless string\textgreater : output file with parameters for HMM
+\item
+\textbf{-v} : print more run info 
+\end{itemize}
 
+INPUT: BED format file, results of \textbf{methcounts}.
+
+OUTPUT: BED format file with HMRs.
+
+\subsection{Differentially methylated regions, DMRs}
+\label{sec:dmr}
+Once differential methylation scores are calculated, the tool \textbf{dmr\_finder} can be
+ used to identify differentially methylated regions, DMRs.
+Option \textbf{-l} regulates the output: without this option, DMRs are calculated, in 
+which methylation is less in one methylome, and with this option DMRs are calculated with methylation
+less in the other methylome. Run \textbf{dmr\_finder} to identify DMRs.
 \begin{verbatim}
-# Pre-mapping processing #
-
-## trim adapter ##
-$ ./trim-adapter reads/s_1_1.txt preprocessed/s_1_1.txt
-$ ./trim-adapter reads/s_1_2.txt preprocessed/s_1_2.txt
-$ ./trim-adapter reads/s_2_1.txt preprocessed/s_2_1.txt
-$ ./trim-adapter reads/s_2_2.txt preprocessed/s_2_2.txt
-
-# Mapping #
-$ ./rmapbs -c genome_seq_dir -o mapped/s_1_1.mr preprocessed/s_1_1.txt
-$ ./rmapbs -A -c genome_seq_dir -o mapped/s_1_2.mr preprocessed/s_1_2.txt
-$ ./rmapbs -c genome_seq_dir -o mapped/s_2_1.mr preprocessed/s_2_1.txt
-$ ./rmapbs -A -c genome_seq_dir -o mapped/s_2_2.mr preprocessed/s_2_2.txt
-
-# post-mapping processing
-
-## reverse complement A-rich strand ##
-$ ./revcomp mapped/s_1_2.mr > tmpfile && mv tmpfile mapped/s_1_2.mr
-$ ./revcomp mapped/s_2_2.mr > tmpfile && mv tmpfile mapped/s_2_2.mr
-
-## mask overlapping ##
-#### first sort by name ####
-$ ./sort -N mapped/s_1_1.mr -o tmpfile && mv tmpfile  mapped/s_1_1.mr 
-$ ./sort -N mapped/s_1_2.mr -o tmpfile && mv tmpfile  mapped/s_1_2.mr 
-$ ./sort -N mapped/s_2_1.mr -o tmpfile && mv tmpfile  mapped/s_2_1.mr 
-$ ./sort -N mapped/s_2_2.mr -o tmpfile && mv tmpfile  mapped/s_2_2.mr 
-
-#### masking ####
-$ ./mask-overlap mapped/s_1_1.mr mapped/s_1_2.mr masked/s_1_1.mr masked/s_1_2.mr
-$ ./mask-overlap mapped/s_2_1.mr mapped/s_2_2.mr masked/s_2_1.mr masked/s_2_2.mr
-
-#### sort by genomic location ####
-$ ./sort masked/s_1_1.mr -o tmpfile && mv tmpfile  masked/s_1_1.mr 
-$ ./sort masked/s_1_2.mr -o tmpfile && mv tmpfile  masked/s_1_2.mr 
-$ ./sort masked/s_2_1.mr -o tmpfile && mv tmpfile  masked/s_2_1.mr 
-$ ./sort masked/s_2_2.mr -o tmpfile && mv tmpfile  masked/s_2_2.mr 
-
-## combine all result ##
-#### merge ####
-$ ./merge -o all.mr masked/s_1_1.mr masked/s_1_2.mr masked/s_2_1.mr masked/s_2_2.mr 
-
-#### jackpot removal #####
-$ ./unique all.mr -o tmpfile && mv tmpfile all.mr
-
-# analysis #
-## methcounts ##
-$ ./methcounts -c genome_sequence_file -o all-methcounts.bed all.mr 
+$ ./dmr_finder -o test_NHFF_ESC_DMR.bed -d 500 -b 10 -C 10 -m 200 
+               -c 0.7 test_NHFF_ESC_methdif.bed
 \end{verbatim}
+
+OPTIONS:
+\begin{itemize}
+\item
+\textbf{-o} \textless string\textgreater : Output file
+\item
+\textbf{-b} \textless integer\textgreater : bandwidth in bases used for smoothing scores profile
+\item
+\textbf{-c} \textless float\textgreater : cutoff for peak confidence score
+\item
+\textbf{-C} \textless integer\textgreater : minimum number of CpGs per DMR
+\item
+\textbf{-m} \textless integer\textgreater : minimum size of DMR in bases
+\item
+\textbf{-l} : use lower cutoff (< 1 - cutoff)
+\item
+\textbf{-v} : print more run info
+\end{itemize}
+
+INPUT: BED format file, the result of \textbf{methdiff}.
+
+OUTPUT: BED format file with DMRs.
 
 \end{document}
 
