@@ -1,10 +1,9 @@
-/*    checkoverlap: a program for identifying overlapping ends of
- *                  mapped paired end reads.
+/*    clipmates: a program for merging mates in paired-end BS-seq data
  *
- *    Copyright (C) 2010 University of Southern California and
+ *    Copyright (C) 2011 University of Southern California and
  *                       Andrew D. Smith
  *
- *    Authors: Andrew D. Smith, Song Qiang
+ *    Authors: Andrew D. Smith, Song Qiang and Elena Harris
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -20,16 +19,16 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cassert>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
-#include <unistd.h>
 #include <iostream>
 #include <iterator>
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <cassert>
 
 #include <tr1/unordered_map>
 
@@ -46,393 +45,280 @@ using std::endl;
 using std::max;
 using std::ofstream;
 using std::ifstream;
+using std::copy;
 
-static void
-check_sorted_by_ID(MappedRead &prev_mr,
-                   const MappedRead &mr)
-{
-    if(prev_mr.r.get_name() > mr.r.get_name())
-    {
-        cerr << "CLIPMATES ERROR: "
-             << "reads are not sorted by reads' ID" << endl
-             << "---------------------------------------------" << endl
-             << prev_mr << endl
-             << mr << endl 
-             << "---------------------------------------------" << endl;
-        exit(EXIT_FAILURE);
-    }
-    else
-        prev_mr = mr;
-}
-
-static void
-revcomp(MappedRead &mr)
-{
-    if (mr.r.get_strand() == '+')
-        mr.r.set_strand('-');
-    else
-        mr.r.set_strand('+');
-    
-    revcomp_inplace(mr.seq);
-    std::reverse(mr.scr.begin(), mr.scr.end());
+static bool
+check_sorted_by_ID(MappedRead &prev_mr, const MappedRead &mr) {
+  if (prev_mr.r.get_name() > mr.r.get_name()) {
+    // return false;
+    std::ostringstream oss;
+    oss << "READS NOT SORTED: " << endl
+	<< prev_mr << endl
+	<< mr << endl;
+    throw RMAPException(oss.str());
+  }
+  prev_mr = mr;
+  return true;
 }
 
 
-// inline static size_t 
-// get_distance(const MappedRead &a, const MappedRead &b) 
-// {
-//     return (a.r.pos_strand()) ? b.r.get_end() - a.r.get_start() :
-//         a.r.get_end() - b.r.get_start();
-// }
-
-
-// static void
-// fix_overlap(const MappedRead &a, MappedRead &b) 
-// {
-//     if (a.r.get_strand() == b.r.get_strand()) 
-//     {
-//         if (a.r.get_start() < b.r.get_start()) 
-//         {
-//             const size_t overlap = a.r.get_end() - b.r.get_start();
-//             assert(overlap > 0);
-//             b.seq = (a.r.pos_strand()) ?
-//                 string(overlap, 'N') + b.seq.substr(overlap) :
-//                 b.seq.substr(0, b.seq.length() - overlap) + string(overlap, 'N');
-//         }
-//         else 
-//         {
-//             const size_t overlap = b.r.get_end() - a.r.get_start();
-//             assert(overlap > 0);
-//             b.seq = (a.r.pos_strand()) ? 
-//                 b.seq.substr(0, b.seq.length() - overlap) + string(overlap, 'N') :
-//                 string(overlap, 'N') + b.seq.substr(overlap);
-//         }
-//     }
-// }
+static void
+revcomp(MappedRead &mr) {
+  // set the strand to the opposite of the current value
+  mr.r.set_strand(mr.r.pos_strand() ? '-' : '+');
+  // reverse complement the sequence, and reverse the quality scores
+  revcomp_inplace(mr.seq);
+  std::reverse(mr.scr.begin(), mr.scr.end());
+}
 
 
 inline static bool
-same_read(const MappedRead &a, const MappedRead &b) 
-{
-    const string sa(a.r.get_name());
-    const string sb(b.r.get_name());
-    return std::equal(sa.begin(), sa.end() - 1, sb.begin());
+same_read(const MappedRead &a, const MappedRead &b) {
+  const string sa(a.r.get_name());
+  const string sb(b.r.get_name());
+  return std::equal(sa.begin(), sa.end() - 1, sb.begin());
 }
+
 
 inline static bool
-name_smaller(const MappedRead &a, const MappedRead &b) 
-{
-    const string sa(a.r.get_name());
-    const string sb(b.r.get_name());
-    return std::lexicographical_compare(sa.begin(), sa.end() - 1, 
-                                        sb.begin(), sb.end() - 1);
+name_smaller(const MappedRead &a, const MappedRead &b) {
+  const string sa(a.r.get_name());
+  const string sb(b.r.get_name());
+  return std::lexicographical_compare(sa.begin(), sa.end() - 1, 
+				      sb.begin(), sb.end() - 1);
 }
 
-
-// static void
-// mask_less_informative(MappedRead &one, MappedRead &two) 
-// {
-//     const size_t informative_one =
-//         one.seq.length() - 
-//         count(one.seq.begin(), one.seq.end(), 'N') -
-//         static_cast<size_t>(one.r.get_score());
-//     const size_t informative_two =
-//         two.seq.length() - 
-//         count(two.seq.begin(), two.seq.end(), 'N') -
-//         static_cast<size_t>(two.r.get_score());
-//     if (informative_one > informative_two) fix_overlap(one, two);
-//     else fix_overlap(two, one);
-// }
 
 static void
-merge_mates(const MappedRead &one, const MappedRead &two,
-            MappedRead &merged, int &len,
-            const int MAX_SEGMENT_LENGTH)
-{
-    const size_t info_one =
-        one.seq.length() - 
-        count(one.seq.begin(), one.seq.end(), 'N') -
-        static_cast<size_t>(one.r.get_score());
-    const size_t info_two =
-        two.seq.length() - 
-        count(two.seq.begin(), two.seq.end(), 'N') -
-        static_cast<size_t>(two.r.get_score());
+merge_mates(const size_t MAX_SEGMENT_LENGTH,
+	    const MappedRead &one, const MappedRead &two,
+            MappedRead &merged, int &len) {
+  
+  merged = one;
+  size_t start_one = 0, end_one = 0, start_two = 0, 
+    end_two = 0, start_overlap = 0, end_overlap = 0;
+  if (merged.r.pos_strand()) {
+    start_overlap = std::max(one.r.get_start(), two.r.get_start());
+    end_overlap = std::min(one.r.get_end(), two.r.get_end());
+    start_one = one.r.get_start();
+    end_one = std::min(start_overlap, one.r.get_end());
+    start_two = std::max(end_overlap, two.r.get_start());
+    end_two = two.r.get_end();
+    len = end_two - start_one;
+    merged.r.set_start(start_one);
+    merged.r.set_end(end_two);
+  }
+  else { // if (merged.r.neg_strand())
+    start_overlap = std::max(one.r.get_start(), two.r.get_start());
+    end_overlap = std::min(one.r.get_end(), two.r.get_end());
+    start_one = std::max(end_overlap, one.r.get_start());
+    end_one = one.r.get_end();
+    start_two = two.r.get_start();
+    end_two = std::min(start_overlap, two.r.get_end());
+    len = end_one - start_two;
+    merged.r.set_start(start_two);
+    merged.r.set_end(end_one);
+  }
+  
+  assert(end_one >= start_one && end_two >= start_two);
+  assert(start_overlap >= end_overlap || 
+	 static_cast<size_t>(len) == end_one - start_one
+	 + end_two - start_two + end_overlap - start_overlap);
+  
+  merged.r.set_score(one.r.get_score() + two.r.get_score());
+  
+  if (len > 0 && len < static_cast<int>(MAX_SEGMENT_LENGTH)) {
+    merged.seq = string(len, 'N');
+    merged.scr = string(len, 'B');
+    const string name(one.r.get_name());
+    merged.r.set_name("FRAG:" + name.substr(0, name.size() - 1));
+
+    // lim_one ios the offset within the merged sequence where the
+    // overlapping portion begins
+    const size_t lim_one = end_one - start_one;
+    copy(one.seq.begin(), one.seq.begin() + lim_one, merged.seq.begin());
+    copy(one.scr.begin(), one.scr.begin() + lim_one, merged.scr.begin());
+    const size_t lim_two = end_two - start_two;
+    copy(two.seq.end() - lim_two, two.seq.end(), merged.seq.end() - lim_two);
+    copy(two.scr.end() - lim_two, two.scr.end(), merged.scr.end() - lim_two);
     
-    merged = one;
-    size_t start_one = 0, end_one = 0, start_two = 0, 
-        end_two = 0, start_overlap = 0, end_overlap = 0;
-    if (merged.r.pos_strand())
-    {
-        start_overlap = std::max(one.r.get_start(), two.r.get_start());
-        end_overlap = std::min(one.r.get_end(), two.r.get_end());
-        start_one = one.r.get_start();
-        end_one = std::min(start_overlap, one.r.get_end());
-        start_two = std::max(end_overlap, two.r.get_start());
-        end_two = two.r.get_end();
-        len = end_two - start_one;
-        merged.r.set_start(start_one);
-        merged.r.set_end(end_two);
-    }
-    else if (merged.r.neg_strand())
-    {
-        start_overlap = std::max(one.r.get_start(), two.r.get_start());
-        end_overlap = std::min(one.r.get_end(), two.r.get_end());
-        start_one = std::max(end_overlap, one.r.get_start());
-        end_one = one.r.get_end();
-        start_two = two.r.get_start();
-        end_two = std::min(start_overlap, two.r.get_end());
-        len = end_one - start_two;
-        merged.r.set_start(start_two);
-        merged.r.set_end(end_one);
-    }
-    assert(end_one >= start_one && end_two >= start_two);
-    if (start_overlap < end_overlap )
-        assert(static_cast<size_t>(len) == end_one - start_one
-               + end_two - start_two + end_overlap - start_overlap);
+    // deal with overlapping part
+    if (start_overlap < end_overlap) {
 
-    merged.r.set_score(one.r.get_score() + two.r.get_score());
-    if (len > 0 && len < MAX_SEGMENT_LENGTH)
-    {
-        merged.seq = string(len, 'N');
-        merged.scr = string(len, 'B');
-        const string name = one.r.get_name();
-        merged.r.set_name("FRAG:" + name.substr(0, name.size() - 1));
-            
-        std::copy(one.seq.begin(), one.seq.begin() + end_one - start_one,
-                  merged.seq.begin());
-        std::copy(one.scr.begin(), one.scr.begin() + end_one - start_one,
-                  merged.scr.begin());
-        std::copy(two.seq.end() + start_two - end_two, two.seq.end(),
-                  merged.seq.end() + start_two - end_two);
-        std::copy(two.scr.end() + start_two - end_two, two.scr.end(),
-                  merged.scr.end() + start_two - end_two);
+      const size_t info_one = one.seq.length() - 
+	count(one.seq.begin(), one.seq.end(), 'N') - 
+	static_cast<size_t>(one.r.get_score());
+      const size_t info_two = two.seq.length() - 
+	count(two.seq.begin(), two.seq.end(), 'N') - 
+	static_cast<size_t>(two.r.get_score());
 
-        // deal with overlapping part
-        if (start_overlap < end_overlap && info_one >= info_two)
-        {
-            std::copy(one.seq.begin() + start_overlap - one.r.get_start(),
-                      one.seq.begin() + end_overlap - one.r.get_start(),
-                      merged.seq.begin() + end_one  - start_one);
-            std::copy(one.scr.begin() + start_overlap - one.r.get_start(),
-                      one.scr.begin() + end_overlap - one.r.get_start(),
-                      merged.scr.begin() + end_one  - start_one);
-        }
-        else if (start_overlap < end_overlap && info_two > info_one)
-        {
-            std::copy(two.seq.begin() + start_overlap - two.r.get_start(),
-                      two.seq.begin() + end_overlap -  two.r.get_start(),
-                      merged.seq.begin() + end_one  - start_one);
-            std::copy(two.scr.begin() + start_overlap -  two.r.get_start(),
-                      two.scr.begin() + end_overlap - two.r.get_start(),
-                      merged.scr.begin() + end_one  - start_one);
-        }
+      // use the mate with the most information ("info") to fill in
+      // the overlapping portion
+      if (info_one >= info_two) {
+	const size_t source_start = merged.r.pos_strand() ?
+	  (start_overlap - one.r.get_start()) : (one.r.get_end() - end_overlap);
+	const size_t source_end = merged.r.pos_strand() ?
+	  (end_overlap -  one.r.get_start()) : (one.r.get_end() - start_overlap);
+	copy(one.seq.begin() + source_start, one.seq.begin() + source_end,
+	     merged.seq.begin() + lim_one);
+	copy(one.scr.begin() + source_start, one.scr.begin() + source_end,
+	     merged.scr.begin() + lim_one);
+      }
+      else { // if (info_two > info_one)
+	const size_t source_start = merged.r.pos_strand() ?
+	  (start_overlap - two.r.get_start()) : (two.r.get_end() - end_overlap);
+	const size_t source_end = merged.r.pos_strand() ?
+	  (end_overlap -  two.r.get_start()) : (two.r.get_end() - start_overlap);
+	copy(two.seq.begin() + source_start, two.seq.begin() + source_end,
+	     merged.seq.begin() + lim_one);
+	copy(two.scr.begin() + source_start, two.scr.begin() + source_end,
+	     merged.scr.begin() + lim_one);
+      }
     }
+  }
 }
 
-
-static inline string
-collapse_mapped_reads(const MappedRead &mr,
-                      const string delimiter = "\26")
-{
-    return
-        mr.r.get_chrom() + delimiter
-        + rmap::toa(mr.r.get_start()) + delimiter
-        + rmap::toa(mr.r.get_end()) + delimiter
-        + mr.r.get_name() + delimiter
-        + rmap::toa(mr.r.get_score()) + delimiter
-        + (mr.r.get_strand() == '+' ? "+" : "-") + delimiter
-        + mr.seq + delimiter
-        + mr.scr;
-}
 
 int 
-main(int argc, const char **argv) 
-{
-    try 
-    {
+main(int argc, const char **argv)  {
+  try {
 
-        int MAX_SEGMENT_LENGTH = 1000;
+    size_t MAX_SEGMENT_LENGTH = 1000;
         
-        bool VERBOSE = false;
-        bool REVCOMP = true;
-        string histogram_file;
-        string end_one_file; 
-        string end_two_file;
-        string end_one_out;
-        string end_two_out; 
-        string out_stat;
-        string outfile;
-        string delimiter = "\26";
-  
-        /****************** COMMAND LINE OPTIONS ********************/
-        OptionParser opt_parse(argv[0], "a program for identifying overlapping ends of "
-                               "mapped paired end reads.",
-                               "");
-        opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-        opt_parse.add_opt("max-frag-len", 'L', "Maximum fragment length", 
-                          false, MAX_SEGMENT_LENGTH); 
-        opt_parse.add_opt("out_stat", 'S', "Name of file with statistics output", 
-                          false, out_stat); 
-        opt_parse.add_opt("T_rich_mates", 'T', "Name of input file with T-rich mates, mates1",
-                          true, end_one_file); 
-        opt_parse.add_opt("A_rich_mates", 'A', "Name of input file with A-rich mates, mates2",
-                          true, end_two_file); 
+    bool VERBOSE = false;
+    bool REVCOMP = true;
+    string histogram_file;
+    string end_one_file, end_two_file; // mapped read input
+    string end_one_out, end_two_out;  // mapped read output
+    string out_stat;
+    string outfile;
+      
+    /****************** COMMAND LINE OPTIONS ********************/
+    OptionParser opt_parse(argv[0], "a program to merge paired-end BS-seq reads");
+    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size", 
+		      false, MAX_SEGMENT_LENGTH); 
+    opt_parse.add_opt("out_stat", 'S', "statistics output file", false, out_stat); 
+    opt_parse.add_opt("t-rich", 'T', "input file for T-rich mates (s_*_1_...)",
+		      true, end_one_file); 
+    opt_parse.add_opt("a-rich", 'A', "input file for A-rich mates (s_*_2_...)",
+		      true, end_two_file); 
+    opt_parse.add_opt("outfile", 'o', "Output file name", false, outfile);
+    vector<string> leftover_args;
+    opt_parse.parse(argc, argv, leftover_args);
+    if (argc == 1 || opt_parse.help_requested()) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    /****************** END COMMAND LINE OPTIONS *****************/
 
-        opt_parse.add_opt("outfile", 'o', "Output file name", 
-                          false, outfile);
-        vector<string> leftover_args;
-        opt_parse.parse(argc, argv, leftover_args);
-        if (argc == 1 || opt_parse.help_requested()) 
-        {
-            cerr << opt_parse.help_message() << endl;
-            return EXIT_SUCCESS;
-        }
-        if (opt_parse.about_requested()) 
-        {
-            cerr << opt_parse.about_message() << endl;
-            return EXIT_SUCCESS;
-        }
-        if (opt_parse.option_missing()) 
-        {
-            cerr << opt_parse.option_missing_message() << endl;
-            return EXIT_SUCCESS;
-        }
-
-        /****************** END COMMAND LINE OPTIONS *****************/
-
-        ifstream in_one(end_one_file.c_str());
-        ifstream in_two(end_two_file.c_str());
+    ifstream in_one(end_one_file.c_str());
+    ifstream in_two(end_two_file.c_str());
     
-        std::ostream *out = outfile.empty() ?
-            &std::cout : new std::ofstream(outfile.c_str());
+    std::ofstream of;
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    
+    /*************Used for collecting statistics***************/
+    vector<size_t> frag_len_distr(MAX_SEGMENT_LENGTH + 1, 0);
+    size_t merged_pairs = 0;
+    size_t incorrect_chr = 0;
+    size_t incorrect_strand = 0;
+    size_t incorrect_orient = 0;
+    size_t incorrect_frag_size = 0;
+    size_t broken_pairs = 0;
+    /*************End for collecting statistics**************/
 
-        /*************Used for collecting statistics***************/
-        vector<size_t> fragm_len_distr(MAX_SEGMENT_LENGTH + 1, 0);
-        size_t correctly_pairs = 0;
-        size_t incorrectly_chr = 0;
-        size_t incorrectly_strand = 0;
-        size_t incorrectly_orient = 0;
-        size_t incorrectly_fragm_size = 0;
-        size_t broken_pairs = 0;
-        /*************End for collecting statistics**************/
-
-        MappedRead one, two, prev_one, prev_two;
-        prev_one.r.set_name("");
-        prev_two.r.set_name("");
-        
-        bool one_is_good = true, two_is_good = true;
-        try { in_one >> one; check_sorted_by_ID(prev_one, one);}
-        catch (const RMAPException &e) { one_is_good = false;}
-        
-
-        try { in_two >> two; check_sorted_by_ID(prev_two, two); }
-        catch (const RMAPException &e) { two_is_good = false;}
-        if (REVCOMP) revcomp(two);
-        while (one_is_good && two_is_good) 
-        {
-            if (same_read(one, two)) // one and tow are mates
-            {
-                // if (one.r.overlaps(two.r))
-                //     mask_less_informative(one, two);
-
-                if (one.r.get_chrom() != two.r.get_chrom())
-                {   
-                    incorrectly_chr++;
-                    *out << one << endl << two << endl;
-                }
-                else if (one.r.get_strand() != two.r.get_strand())
-                {
-                    incorrectly_strand++;
-                    *out << one << endl << two << endl;
-                }
-                else
-                {
-                    MappedRead merged;
-                    int len;
-                    merge_mates(one, two, merged, len, MAX_SEGMENT_LENGTH);
-                    if (len > 0 && len < MAX_SEGMENT_LENGTH){
-                        correctly_pairs++;
-                        fragm_len_distr[len]++;
-                        *out << merged << endl;
-                    }
-                    else{
-                        *out << one << endl << two << endl;
-                        if(len < 0 )
-                            incorrectly_orient++;
-                        else
-                            incorrectly_fragm_size++;
-                    }
-
-                }
-                
-                try { in_one >> one; check_sorted_by_ID(prev_one, one); }
-                catch (const RMAPException &e) { one_is_good = false;}
-                try { in_two >> two; check_sorted_by_ID(prev_two, two); }
-                catch (const RMAPException &e) { two_is_good = false;}
-                if (REVCOMP) revcomp(two);
-            } 
-            else if (name_smaller(one, two))
-            {
-                *out << one << endl;
-                broken_pairs++;
-
-                try { in_one >> one; check_sorted_by_ID(prev_one, one); }
-                catch (const RMAPException &e) { one_is_good = false;}
-            }
-            else // one comes after two
-            {
-                *out << two << endl;
-                broken_pairs++;
-
-                try { in_two >> two; check_sorted_by_ID(prev_two, two); }
-                catch (const RMAPException &e) { two_is_good = false;}
-                if (REVCOMP) revcomp(two);
-            }
-        }
-        while (one_is_good) 
-        {
-            *out << one << endl;
-            broken_pairs++;            
-            
-            try { in_one >> one; check_sorted_by_ID(prev_one, one); }
-            catch (const RMAPException &e) { one_is_good = false;}
-        }
-        while (two_is_good) 
-        {
-            *out << two << endl;
-            broken_pairs++;
-            
-            try { in_two >> two; check_sorted_by_ID(prev_two, two); }
-            catch (const RMAPException &e) { two_is_good = false;}
-            if (REVCOMP) revcomp(two);
-        }
-
-        if(!out_stat.empty()){
-            ofstream outst(out_stat.c_str());
-            outst << "TOTAL CORRECTLY MAPPED PAIRS (count in pairs):\t" << correctly_pairs << endl;
-            outst << "INCORRECTLY MAPPED TO DIFFERENT CHROM:\t" << incorrectly_chr << endl;
-            outst << "INCORRECTLY MAPPED DUE TO STRAND INCOMPATIBILITY:\t" << incorrectly_strand << endl;
-            outst << "INCORRECTLY MAPPED DUE TO ORIENTATION:\t" << incorrectly_orient << endl;
-            outst << "INCORRECTLY MAPPED DUE TO FRAGMENT SIZE:\t" << incorrectly_fragm_size << endl;
-            outst << "TOTAL MAPPED BROKEN PAIRS (with missing mates, single-end count):\t" << broken_pairs << endl;
-            outst << "FRAGM_LEN:\t" << "PAIRS_WITH_THIS_FRAGM_SIZE:" << endl;
-            long int i = 0;
-            for(i = 0; i < MAX_SEGMENT_LENGTH + 1; i++){
-                outst << i << "\t" << fragm_len_distr[i] << endl;
-            }//for
-        }//if stat file
-        if (out != &cout) delete out;     
+    MappedRead one, two, prev_one, prev_two;
+    prev_one.r.set_name("");
+    prev_two.r.set_name("");
+    
+    bool one_is_good = ((in_one >> one) && check_sorted_by_ID(prev_one, one));
+    bool two_is_good = ((in_two >> two) && check_sorted_by_ID(prev_two, two));
+    if (REVCOMP) revcomp(two);
+      
+    while (one_is_good && two_is_good) {
+      if (same_read(one, two)) { // one and tow are mates
+	
+	if (!one.r.same_chrom(two.r)) {
+	  incorrect_chr++;
+	  out << one << endl << two << endl;
+	}
+	else if (one.r.get_strand() != two.r.get_strand()) {
+	  incorrect_strand++;
+	  out << one << endl << two << endl;
+	}
+	else {
+	  MappedRead merged;
+	  int len = 0;
+	  merge_mates(MAX_SEGMENT_LENGTH, one, two, merged, len);
+	  if (len > 0 && len < static_cast<int>(MAX_SEGMENT_LENGTH)) {
+	    merged_pairs++;
+	    frag_len_distr[len]++;
+	    out << merged << endl;
+	  }
+	  else {
+	    out << one << endl << two << endl;
+	    if (len < 0) incorrect_orient++;
+	    else incorrect_frag_size++;
+	  }
+	}
+	one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
+	two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
+	if (REVCOMP) revcomp(two);
+      } 
+      else if (name_smaller(one, two)) {
+	out << one << endl;
+	broken_pairs++;
+	one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
+      }
+      else { // one comes after two
+	out << two << endl;
+	broken_pairs++;
+	two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
+	if (REVCOMP) revcomp(two);
+      }
     }
-    catch (const RMAPException &e) 
-    {
-        cerr << e.what() << endl;
-        return EXIT_FAILURE;
+    while (one_is_good) {
+      out << one << endl;
+      broken_pairs++;            
+      one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
     }
-    catch (std::bad_alloc &ba) 
-    {
-        cerr << "ERROR: could not allocate memory" << endl;
-        return EXIT_FAILURE;
+    while (two_is_good) {
+      out << two << endl;
+      broken_pairs++;
+      two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
+      if (REVCOMP) revcomp(two);
     }
-    return EXIT_SUCCESS;
+      
+    if (!out_stat.empty()) {
+      ofstream outst(out_stat.c_str());
+      outst << "TOTAL MERGED PAIRS (# OF PAIRS):\t" << merged_pairs << endl
+	    << "INCORRECTLY MAPPED TO DIFFERENT CHROM:\t" << incorrect_chr << endl
+	    << "UNMERGED BY STRAND INCOMPATIBILITY:\t" << incorrect_strand << endl
+	    << "UNMERGED BY INCONSISTENT ORIENTATION:\t" << incorrect_orient << endl
+	    << "UNMERGED BY INSERT SIZE:\t" << incorrect_frag_size << endl
+	    << "TOTAL MAPPED BROKEN PAIRS (MISSING MATES):\t" << broken_pairs << endl
+	    << "INSERT_LENGTH" << "\t" << "FREQUENCY" << endl;
+      for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++)
+	outst << i << "\t" << frag_len_distr[i] << endl;
+    }//if stat file
+  }
+  catch (const RMAPException &e) {
+    cerr << e.what() << endl;
+    return EXIT_FAILURE;
+  }
+  catch (std::bad_alloc &ba) {
+    cerr << "ERROR: could not allocate memory" << endl;
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
 }
-
