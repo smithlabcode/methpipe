@@ -127,7 +127,7 @@ merge_mates(const size_t MAX_SEGMENT_LENGTH,
   
   merged.r.set_score(one.r.get_score() + two.r.get_score());
   
-  if (len > 0 && len < static_cast<int>(MAX_SEGMENT_LENGTH)) {
+  if (len > 0 && len <= static_cast<int>(MAX_SEGMENT_LENGTH)) {
     merged.seq = string(len, 'N');
     merged.scr = string(len, 'B');
     const string name(one.r.get_name());
@@ -219,7 +219,6 @@ main(int argc, const char **argv)  {
       return EXIT_SUCCESS;
     }
     /****************** END COMMAND LINE OPTIONS *****************/
-
     ifstream in_one(end_one_file.c_str());
     ifstream in_two(end_two_file.c_str());
     
@@ -260,7 +259,7 @@ main(int argc, const char **argv)  {
 	  MappedRead merged;
 	  int len = 0;
 	  merge_mates(MAX_SEGMENT_LENGTH, one, two, merged, len);
-	  if (len > 0 && len < static_cast<int>(MAX_SEGMENT_LENGTH)) {
+	  if (len > 0 && len <= static_cast<int>(MAX_SEGMENT_LENGTH)) {
 	    merged_pairs++;
 	    frag_len_distr[len]++;
 	    out << merged << endl;
