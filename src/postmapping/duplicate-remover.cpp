@@ -268,7 +268,7 @@ int main(int argc, const char **argv) {
       if (!statfile.empty()) of.open(statfile.c_str());
       std::ostream out(statfile.empty() ? std::clog.rdbuf() : of.rdbuf());
       out << "TOTAL READS:\t" << total_reads << endl
-	  << "UNIQUE READS:\t" << total_reads << endl
+	  << "UNIQUE READS:\t" << unique_reads << endl
 	  << "TOTAL BASES:\t" << total_bases << endl
 	  << "VALID BASES:\t" << total_valid_bases << endl
 	  << "MISMATCHES:\t" << total_mismatches << endl
