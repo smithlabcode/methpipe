@@ -227,7 +227,7 @@ int main(int argc, const char **argv) {
 			   "<mapped-reads-file>");
     opt_parse.add_opt("output", 'o', "output file for unique reads",
 		      false, outfile);
-    opt_parse.add_opt("output", 'B', "[when PE reads are involved] "
+    opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
 		      "similar fragment check on 5' end of second mate",
 		      false, CHECK_SECOND_ENDS);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
