@@ -54,10 +54,8 @@ using std::ofstream;
 struct MethStat {
 
   MethStat() : 
-    total_sites(0), total_covered(0), total_methylated(0), 
-    min_cov(std::numeric_limits<size_t>::max()),
-    max_cov(0), sum_cov(0), 
-    sum_cov_meth(0), sum_cov_Cs(0) {}
+    total_sites(0), total_covered(0),
+    max_cov(0), sum_cov(0), sum_cov_Cs(0) {}
   
   string tostring() const;
   
@@ -65,24 +63,16 @@ struct MethStat {
     total_sites++;
     if (total > 0) {
       total_covered++;
-      min_cov = std::min(min_cov, total);
-      max_cov = std::max(max_cov, total);
+      max_cov = max(max_cov, total);
       sum_cov += total;
-    }
-    if (meth_count > 0) {
-      total_methylated++;
-      sum_cov_meth += total;
       sum_cov_Cs += meth_count;
     }
-  }//collect()
+  }
   
   size_t total_sites;
   size_t total_covered;
-  size_t total_methylated;
-  size_t min_cov;
   size_t max_cov;
   size_t sum_cov;
-  size_t sum_cov_meth;
   size_t sum_cov_Cs;
 };
 
@@ -90,32 +80,19 @@ struct MethStat {
 string
 MethStat::tostring() const {
   std::ostringstream out;
-  const double overall_meth_level = (sum_cov > 0) ?  
-    static_cast<double>(sum_cov_Cs)/static_cast<double>(sum_cov) : 0;
-  const double meth_level_over_methylated = (sum_cov_meth > 0) ? 
-    static_cast<double>(sum_cov_Cs)/static_cast<double>(sum_cov_meth) : 0;
-  const double overall_cov = (total_sites > 0) ? 
-    static_cast<double>(sum_cov)/static_cast<double>(total_sites) : 0;
-  const double cov_over_covered = (total_covered > 0) ? 
-    static_cast<double>(sum_cov)/static_cast<double>(total_covered) : 0;
-  out << "TOTAL SITES:\t"
-      << total_sites << endl;
-  out << "TOTAL SITES WITH NON-ZERO COVERAGE:\t" 
-      << total_covered << endl;
-  out << "TOTAL METHYLATED SITES (number of Cs mapped to a site >= 1):\t" 
-      << total_methylated << endl;
-  out << "MINIMUM NON-ZERO COVERAGE (Ts + Cs per site):\t" 
-      << min_cov << endl;
-  out << "MAXIMUM COVERAGE (Ts + Cs per site):\t" 
-      << max_cov << endl;
-  out << "OVERALL AVERAGE COVERAGE:\t" 
-      << overall_cov << endl;
-  out << "AVERAGE COVERAGE OVER COVERED SITES (sites with non-zero coverage):\t" 
-      << cov_over_covered << endl;
-  out << "OVERALL AVERAGE METHYLATION LEVEL ( total Cs mapped to sites / (total Cs + total Ts) ):\t" 
-      << overall_meth_level << endl;
-  out << "AVERAGE METHYLATION LEVEL OVER METHYLATED SITES (number of Cs mapped to a site >= 1):\t" 
-      << meth_level_over_methylated;
+  
+  out << "SITES:\t" << total_sites << endl
+      << "SITES COVERED:\t" << total_covered << endl
+      << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
+  
+  const double overall_cov = static_cast<double>(sum_cov)/max(1ul, total_sites);
+  const double covered_cov = static_cast<double>(sum_cov)/max(1ul, total_covered);
+  out << "MAX COVERAGE:\t" << max_cov << endl
+      << "MEAN COVERAGE:\t" << overall_cov << endl
+      << "MEAN (WHEN > 1):\t" << covered_cov << endl;
+  
+  const double meth_level = static_cast<double>(sum_cov_Cs)/max(1ul, sum_cov);
+  out << "MEAN METHYLATION:\t" << meth_level;
   return out.str();
 }
 
@@ -237,7 +214,7 @@ add_contribution_cpg(const QualityChecker &qc,
 		     size_t &meth, size_t &unmeth) {
   if (r.r.pos_strand() && (r.r.get_start() <= offset)) {
     const size_t position = offset - r.r.get_start();
-//    assert(position < r.seq.length());
+    //    assert(position < r.seq.length());
     if(position >= r.seq.length())
       throw RMAPException("ERROR: Reads must be sorted by chromosome and end position.");
 
@@ -705,8 +682,11 @@ main(int argc, const char **argv) {
     }
     else scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
 		     outfile, chrom_files, regions, meth_stat_collector);
-    if (!out_stat.empty()) {
-      ofstream out(out_stat.c_str());
+    
+    if (VERBOSE || !out_stat.empty()) {
+      std::ofstream of;
+      if (!out_stat.empty()) of.open(out_stat.c_str());
+      std::ostream out(out_stat.empty() ? cerr.rdbuf() : of.rdbuf());
       out << meth_stat_collector << endl;
     }
   }
