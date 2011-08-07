@@ -34,7 +34,7 @@ COMMON_DIR = ../common/
 INCLUDEDIRS =  $(SMITHLAB_CPP)/ $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -69,6 +69,9 @@ reorder: $(addprefix $(SMITHLAB_CPP)/, \
 duplicate-remover: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)	
+
+%.o: %.cpp %.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
