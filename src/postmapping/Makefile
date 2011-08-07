@@ -1,36 +1,37 @@
-# 
-#  Copyright (C) 2008 Cold Spring Harbor Laboratory
+#  Copyright (C) 2011 University of Southern California
+#                     and Andrew D. Smith
+#
 #  Authors: Andrew D. Smith
 # 
-#  This file is part of rmap.
-# 
-#  rmap is free software; you can redistribute it and/or modify
+#  This is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 # 
-#  rmap is distributed in the hope that it will be useful,
+#  This software is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 # 
 #  You should have received a copy of the GNU General Public License
-#  along with rmap; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#  along with this software; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+#  02110-1301 USA
 #
-### ==========================
 
-ifndef METHPIPE_ROOT
-$(error Must define METHPIPE_ROOT variable)
+ifndef SRC_ROOT
+$(error Must define SRC_ROOT variable)
+endif
+
+ifndef SMITHLAB_CPP
+$(error SMITHLAB_CPP variable undefined)
 endif
 
 SOURCES = $(wildcard *.cpp)
-OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
-SMITHLAB_DIR = ../smithlab_cpp/
 COMMON_DIR = ../common/
-INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
+INCLUDEDIRS =  $(SMITHLAB_CPP)/ $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
@@ -39,7 +40,7 @@ CXX = g++
 CFLAGS = -Wall -fmessage-length=50
 CXXFLAGS = -Wall -fmessage-length=50
 OPTFLAGS = -O2
-DEBUGFLAGS = -g -lefence -L$(HOME)/lib
+DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -52,29 +53,20 @@ endif
 all: $(PROGS)
 
 install: $(PROGS)
-	@mkdir -p $(METHPIPE_ROOT)/bin
-	@install -m 755 $(PROGS) $(METHPIPE_ROOT)/bin
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-frag2mr: $(addprefix $(SMITHLAB_DIR), \
+frag2mr: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)		
 
-mask-overlap: $(addprefix $(SMITHLAB_DIR), \
+clipmates: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
 
-clipmates: $(addprefix $(SMITHLAB_DIR), \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
-
-merge: $(addprefix $(SMITHLAB_DIR), \
+reorder: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)
 
-revcomp: $(addprefix $(SMITHLAB_DIR), \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
-
-sort: $(addprefix $(SMITHLAB_DIR), \
-	MappedRead.o OptionParser.o GenomicRegion.o rmap_utils.o)	
-
-duplicate-remover: $(addprefix $(SMITHLAB_DIR), \
+duplicate-remover: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)	
 
@@ -83,6 +75,4 @@ duplicate-remover: $(addprefix $(SMITHLAB_DIR), \
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
-
 .PHONY: clean
-
