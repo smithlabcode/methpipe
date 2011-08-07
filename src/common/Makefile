@@ -1,6 +1,4 @@
-#    Makefile from smithlab_cpp C++ code library
-#
-#    Copyright (C) 2010 University of Southern California and
+#    Copyright (C) 2011 University of Southern California and
 #                       Andrew D. Smith
 #
 #    Authors: Andrew D. Smith
@@ -19,23 +17,17 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef METHPIPE_ROOT
-$(error Must define METHPIPE_ROOT variable)
+ifndef SMITHLAB_CPP
+$(error SMITHLAB_CPP variable undefined)
 endif
-
-HEADERS = $(wildcard *.hpp)
-SOURCES = $(wildcard *.cpp)
-OBJECTS = $(subst .cpp,.o,$(SOURCES))
-
-SMITHLAB_DIR = ../smithlab_cpp/
-COMMON_DIR = ../common/
-INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
-INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 CXX = g++
 CXXFLAGS = -Wall -fmessage-length=50 
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
+
+INCLUDEDIRS =  $(SMITHLAB_CPP)/
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
@@ -49,14 +41,9 @@ ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
 endif
 
-all: $(OBJECTS)
-
-install: all
-
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) $(INCLUDEARGS) -c  -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
-.PHONY: clean
 clean: 
-	@-rm -f *.o *.so *.a *~
-
+	@-rm -f *.o *~
+.PHONY: clean
