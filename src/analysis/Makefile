@@ -1,36 +1,36 @@
-# 
-#  Copyright (C) 2008 Cold Spring Harbor Laboratory
+#  Copyright (C) 2011 University of Southern California
+#                     and Andrew D. Smith
+#
 #  Authors: Andrew D. Smith
 # 
-#  This file is part of rmap.
-# 
-#  rmap is free software; you can redistribute it and/or modify
+#  This is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 # 
-#  rmap is distributed in the hope that it will be useful,
+#  This software is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 # 
 #  You should have received a copy of the GNU General Public License
-#  along with rmap; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#  along with this software; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+#  02110-1301 USA
 #
-### ==========================
 
-ifndef METHPIPE_ROOT
-$(error Must define METHPIPE_ROOT variable)
+ifndef SRC_ROOT
+$(error Must define SRC_ROOT variable)
 endif
 
-SOURCES = $(wildcard *.cpp)
-OBJECTS = $(patsubst %.cpp,%.o,$(SOURCES))
-PROGS =  $(patsubst %.cpp,%,$(SOURCES))
+ifndef SMITHLAB_CPP
+$(error SMITHLAB_CPP variable undefined)
+endif
 
-SMITHLAB_DIR = ../smithlab_cpp/
-COMMON_DIR = ../common/
-INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
+PROGS = methcounts bsrate hmr amr dmr methdiff roimethstat
+
+COMMON_DIR = $(SRC_ROOT)/src/common/
+INCLUDEDIRS =  $(SMITHLAB_CPP)/ $(COMMON_DIR)/
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
@@ -39,7 +39,7 @@ CXX = g++
 CFLAGS = -Wall -fmessage-length=50
 CXXFLAGS = -Wall -fmessage-length=50
 OPTFLAGS = -O2
-DEBUGFLAGS = -g -lefence -L$(HOME)/lib
+DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -52,56 +52,36 @@ endif
 all: $(PROGS)
 
 install: $(PROGS)
-	@mkdir -p $(METHPIPE_ROOT)/bin
-	@install -m 755 $(PROGS) $(METHPIPE_ROOT)/bin
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-amr: $(addprefix $(SMITHLAB_DIR), \
+amr: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
 	FileIterator.o MappedRead.o) 
 
-bsrate:	$(addprefix $(SMITHLAB_DIR), \
+bsrate:	$(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
 	FileIterator.o MappedRead.o QualityScore.o)
 
-dmr: $(addprefix $(SMITHLAB_DIR), \
+dmr: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
 
-hmr: $(addprefix $(SMITHLAB_DIR), \
+hmr: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o) \
 	$(addprefix $(COMMON_DIR), TwoStateHMM.o)
 
-merge-counts: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
-	RNG.o FileIterator.o MappedRead.o QualityScore.o)		
-
-methcounts: $(addprefix $(SMITHLAB_DIR), \
+methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
 	FileIterator.o MappedRead.o QualityScore.o)		
 
-methdiff: $(addprefix $(SMITHLAB_DIR), \
+methdiff: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
 
-## To be depreciated
-sortreads: $(addprefix $(SMITHLAB_DIR), \
+roimethstat: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
 
-checkoverlap: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
-
-clipmates: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
-
-mergelanes: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o RNG.o)
-
-roimethstat: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
-
-pairedend_stat: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
-
-mappedstat: $(addprefix $(SMITHLAB_DIR), \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o MappedRead.o)
+%.o: %.cpp %.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
@@ -110,4 +90,3 @@ clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
 
 .PHONY: clean
-
