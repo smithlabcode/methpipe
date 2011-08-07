@@ -33,7 +33,7 @@ COMMON_DIR = ../common/
 INCLUDEDIRS =  $(SMITHLAB_DIR) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -71,4 +71,3 @@ clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
 
 .PHONY: clean
-
