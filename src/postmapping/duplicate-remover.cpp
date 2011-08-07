@@ -1,5 +1,4 @@
-/*    duplicate-remover: a program to select unique reads mapped to
- *    the same location and the same strand
+/*    duplicate-remover:
  *
  *    Copyright (C) 2011 University of Southern California and
  *                       Andrew D. Smith
@@ -34,11 +33,10 @@
 
 using std::string;
 using std::vector;
+using std::cin;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::ifstream;
-using std::ofstream;
 
 /**************** FOR CLARITY BELOW WHEN COMPARING MAPPED READS **************/
 static inline bool
@@ -72,145 +70,155 @@ end_less(const GenomicRegion &a, const GenomicRegion &b) {
 /******************************************************************************/
 
 
-static inline bool
-check_sorted(const MappedRead &prev_mr, const MappedRead &mr, 
-	     const bool CHECK_SECOND_ENDS) {
-  if (!CHECK_SECOND_ENDS)
-    if (chrom_less(prev_mr.r, mr.r) || 
-	(prev_mr.r.same_chrom(mr.r) &&
-	 (start_less(prev_mr.r, mr.r) ||
-	  (same_start(prev_mr.r, mr.r) &&
-	   (end_less(prev_mr.r, mr.r) ||
-	    (same_end(prev_mr.r, mr.r) && 
-	     strand_leq(prev_mr.r, mr.r)))))))
-      return true;
-    else {
-      std::ostringstream oss;
-      oss << "READS NOT SORTED: " << endl
-	  << prev_mr << endl
-	  << mr << endl;
-      throw RMAPException(oss.str());
-    }
-  else {
-    if (chrom_less(prev_mr.r, mr.r) ||
-	(prev_mr.r.same_chrom(mr.r) &&
-	 (end_less(prev_mr.r, mr.r) || 
-	  (same_end(prev_mr.r, mr.r) &&
-	   (start_less(prev_mr.r, mr.r) || 
-	    (same_start(prev_mr.r, mr.r) && 
-	     strand_leq(prev_mr.r, mr.r)))))))
-      return true;
-    else {
-      std::ostringstream oss;
-      oss << "READS NOT SORTED (OPTION -B): " << endl
-	  << prev_mr << endl << mr << endl;
-      throw RMAPException(oss.str());
-    }
+class OrderChecker {
+public:
+  bool operator()(const MappedRead &prev_mr, const MappedRead &mr) const {
+    return (CHECK_SECOND_ENDS ? end_two_check(prev_mr.r, mr.r) :
+	    end_one_check(prev_mr.r, mr.r));
   }
-  return false;
-}
+  static void 
+  set_comparison_mode(const bool m) {CHECK_SECOND_ENDS = m;}
+  
+private:
+  static bool CHECK_SECOND_ENDS;
 
-
-static void
-collect_duplicate_stats(const MappedRead &mr, size_t &total_reads, 
-			size_t &total_bases, size_t &total_valid_bases,
-			size_t &total_mismatches) {
-  ++total_reads;
-  total_bases += mr.seq.length();
-  total_valid_bases += mr.seq.length() - count(mr.seq.begin(), mr.seq.end(), 'N');
-  total_mismatches += static_cast<size_t>(mr.r.get_score());
-}
-
-
-static bool
-is_complete_fragment(const MappedRead &mr) {
-  static const char label[] = "FRAG:";
-  static const size_t label_len = 5;
-  const string name(mr.r.get_name());
-  return lexicographical_compare(name.begin(), name.begin() + label_len,
-				 label, label + label_len);
-}
-
-
-struct DuplicateFragmentTester {
-  bool CHECK_SECOND_ENDS;
-  DuplicateFragmentTester(const bool x) :
-    CHECK_SECOND_ENDS(x) {}
-  bool operator()(const MappedRead &lhs, const MappedRead &rhs) const {
-    
-    if (!same_strand(lhs.r, rhs.r) || !lhs.r.same_chrom(rhs.r)) 
-      return false;
-    
-    const bool lhs_is_frag = is_complete_fragment(lhs);
-    const bool rhs_is_frag = is_complete_fragment(rhs);
-    
-    if ((lhs_is_frag && rhs_is_frag) || (!lhs_is_frag && !rhs_is_frag))
-      return same_start(lhs.r, rhs.r) && same_end(lhs.r, rhs.r);
-    
-    if (CHECK_SECOND_ENDS)
-      return (lhs.r.pos_strand() && same_end(lhs.r, rhs.r)) ||
-	(lhs.r.neg_strand() && same_start(lhs.r, rhs.r));
-    
-    return (lhs.r.pos_strand() && same_start(lhs.r, rhs.r)) ||
-      (lhs.r.neg_strand() && same_end(lhs.r, rhs.r));
+  static bool
+  end_one_check(const GenomicRegion &prev_mr, const GenomicRegion &mr) {
+    return (chrom_less(prev_mr, mr) || 
+	    (prev_mr.same_chrom(mr) &&
+	     (start_less(prev_mr, mr) ||
+	      (same_start(prev_mr, mr) &&
+	       (end_less(prev_mr, mr) ||
+		(same_end(prev_mr, mr) && strand_leq(prev_mr, mr)))))));
+  }
+  
+  static bool 
+  end_two_check(const GenomicRegion &prev_mr, const GenomicRegion &mr) {
+    return (chrom_less(prev_mr, mr) ||
+	    (prev_mr.same_chrom(mr) &&
+	     (end_less(prev_mr, mr) || 
+	      (same_end(prev_mr, mr) &&
+	       (start_less(prev_mr, mr) || 
+		(same_start(prev_mr, mr) && strand_leq(prev_mr, mr)))))));
   }
 };
+bool OrderChecker::CHECK_SECOND_ENDS = false;
+
+class DuplicateFragmentTester {
+public:
+
+  bool operator()(const MappedRead &lhs, const MappedRead &rhs) const {
+    return the_real_test(lhs.r, rhs.r);
+  }
+
+  static void 
+  set_comparison_mode(const bool m) {CHECK_SECOND_ENDS = m;}
+
+  static bool
+  is_complete_fragment(const MappedRead &mr) {
+    return internal_is_complete_fragment(mr.r);
+  }
+private:
+
+  static bool CHECK_SECOND_ENDS;
+
+  static bool
+  the_real_test(const GenomicRegion &lhs, const GenomicRegion &rhs) {
+    if (!same_strand(lhs, rhs) || !lhs.same_chrom(rhs)) 
+      return false;
+    
+    const bool lhs_is_frag = internal_is_complete_fragment(lhs);
+    const bool rhs_is_frag = internal_is_complete_fragment(rhs);
+    
+    // if ((lhs_is_frag && rhs_is_frag) || (!lhs_is_frag && !rhs_is_frag))
+    if (lhs_is_frag == rhs_is_frag)
+      return same_start(lhs, rhs) && same_end(lhs, rhs);
+    
+    if (CHECK_SECOND_ENDS)
+      return (lhs.pos_strand() && same_end(lhs, rhs)) ||
+	(lhs.neg_strand() && same_start(lhs, rhs));
+    
+    return (lhs.pos_strand() && same_start(lhs, rhs)) ||
+      (lhs.neg_strand() && same_end(lhs, rhs));
+  }
+  static bool
+  internal_is_complete_fragment(const GenomicRegion &mr) {
+    static const char label[] = "FRAG:";
+    static const size_t label_len = 5;
+    const string name(mr.get_name());
+    return lexicographical_compare(name.begin(), name.begin() + label_len,
+				   label, label + label_len);
+  }
+
+};
+bool DuplicateFragmentTester::CHECK_SECOND_ENDS = false;
 
 
 static size_t
-get_representative_read(vector<MappedRead> &mapped_ties) {
+get_representative_read(vector<MappedRead> &candidates) {
   static const Runif rng(time(NULL) + getpid());
-  
   vector<MappedRead>::const_iterator iter =
-    std::partition(mapped_ties.begin(), mapped_ties.end(), is_complete_fragment);
-  
-  return rng.runif(0ul, (iter != mapped_ties.begin()) ?
-		   iter - mapped_ties.begin() : mapped_ties.size());
+    std::partition(candidates.begin(), candidates.end(), 
+		   &DuplicateFragmentTester::is_complete_fragment);
+  return rng.runif(0ul, (iter != candidates.begin()) ?
+		   iter - candidates.begin() : candidates.size());
+}
+
+
+static inline size_t
+count_good_bases(const MappedRead &mr) {
+  return mr.r.get_width() - count(mr.seq.begin(), mr.seq.end(), 'N');
 }
 
 
 static void
-remove_duplicates(const bool CHECK_SECOND_ENDS,
-		  const string &infile, const string &outfile, 
+remove_duplicates(const string &infile, const string &outfile, 
 		  size_t &total_reads, size_t &unique_reads,
-		  size_t &total_bases, size_t &total_valid_bases, 
-		  size_t &total_mismatches) {
+		  size_t &total_bases_in, size_t &good_bases_out) {
   
-  const DuplicateFragmentTester dft(CHECK_SECOND_ENDS);
-  
-  MappedRead mr, representative;
-  vector<MappedRead> mapped_ties;
+  DuplicateFragmentTester dft;
+  OrderChecker oc;
   
   std::ofstream of;
   if (!outfile.empty()) of.open(outfile.c_str());
   std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
   
-  std::ifstream in(infile.c_str());
+  std::ifstream ifs;
+  if (!infile.empty()) ifs.open(infile.c_str());
+  std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
   
+  MappedRead mr;
   if (!(in >> mr)) 
     throw RMAPException("mapped read file seems empty: " + infile);
   
-  mapped_ties.push_back(mr);
+  ++total_reads;
+  
+  vector<MappedRead> candidates;
+  candidates.push_back(mr);
   
   while (in >> mr) {
     ++total_reads;
-    check_sorted(mapped_ties.back(), mr, CHECK_SECOND_ENDS);
-    if (!dft(mapped_ties.front(), mr)) {
-      const size_t rep_idx = get_representative_read(mapped_ties);
-      out << mapped_ties[rep_idx] << endl;
-      collect_duplicate_stats(mapped_ties[rep_idx], unique_reads, total_bases,
-			      total_valid_bases, total_mismatches);
-      mapped_ties.clear();
+    total_bases_in += mr.r.get_width();
+    
+    if (!oc(candidates.back(), mr))
+      throw RMAPException("NOT SORTED:\n" + candidates.back().r.tostring() + 
+			  "\n" + mr.r.tostring());
+    
+    if (!dft(candidates.front(), mr)) {
+      const size_t rep_idx = get_representative_read(candidates);
+      out << candidates[rep_idx] << '\n';
+      ++unique_reads;
+      good_bases_out += count_good_bases(candidates[rep_idx]);
+      candidates.clear();
     }
-    mapped_ties.push_back(mr);
+    
+    candidates.push_back(mr);
   }
-  const size_t rep_idx = get_representative_read(mapped_ties);
-  out << mapped_ties[rep_idx] << endl;
-  collect_duplicate_stats(mapped_ties[rep_idx], unique_reads,
-			  total_bases, total_valid_bases,
-			  total_mismatches);
+  const size_t rep_idx = get_representative_read(candidates);
+  out << candidates[rep_idx] << '\n';
+  ++unique_reads;
+  good_bases_out += count_good_bases(candidates[rep_idx]);
 }
-
 
 
 int main(int argc, const char **argv) {
@@ -219,14 +227,17 @@ int main(int argc, const char **argv) {
     bool VERBOSE = false;
     string outfile;
     string statfile;
-    bool CHECK_SECOND_ENDS = false;//remove duplicates by end
-
+    
+    bool CHECK_SECOND_ENDS = false;
+    bool INPUT_FROM_STDIN = false;
+    
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], "program to remove duplicate reads from "
-			   "a sorted file of mapped reads",
-			   "<mapped-reads-file>");
+			   "sorted mapped reads", "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file for unique reads",
 		      false, outfile);
+    opt_parse.add_opt("stdin", '\0', "take input from stdin",
+		      false, INPUT_FROM_STDIN);
     opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
 		      "similar fragment check on 5' end of second mate",
 		      false, CHECK_SECOND_ENDS);
@@ -248,20 +259,23 @@ int main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.empty()) {
+    if (!INPUT_FROM_STDIN && leftover_args.size() != 1) {
       cerr << opt_parse.help_message() << endl
 	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string infile = leftover_args.front();
+    string infile;
+    if (!leftover_args.empty())
+      infile = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
     
-    size_t total_reads = 0, unique_reads = 0, total_bases = 0, 
-      total_valid_bases = 0, total_mismatches = 0;
+    size_t total_reads = 0, unique_reads = 0, total_bases_in = 0, good_bases_out = 0;
+
+    OrderChecker::set_comparison_mode(CHECK_SECOND_ENDS);
+    DuplicateFragmentTester::set_comparison_mode(CHECK_SECOND_ENDS);
     
-    remove_duplicates(CHECK_SECOND_ENDS, infile, outfile, total_reads, 
-		      unique_reads, total_bases, total_valid_bases, 
-		      total_mismatches); 
+    remove_duplicates(infile, outfile, total_reads, 
+		      unique_reads, total_bases_in, good_bases_out);
     
     if (!statfile.empty() || VERBOSE) {
       std::ofstream of;
@@ -269,11 +283,8 @@ int main(int argc, const char **argv) {
       std::ostream out(statfile.empty() ? std::clog.rdbuf() : of.rdbuf());
       out << "TOTAL READS:\t" << total_reads << endl
 	  << "UNIQUE READS:\t" << unique_reads << endl
-	  << "TOTAL BASES:\t" << total_bases << endl
-	  << "VALID BASES:\t" << total_valid_bases << endl
-	  << "MISMATCHES:\t" << total_mismatches << endl
-	  << "MISMATCH FREQ:\t" << total_mismatches/
-	std::max(1.0, static_cast<double>(total_bases)) << endl;
+	  << "ALL BASES IN:\t" << total_bases_in << endl
+	  << "GOOD BASES OUT:\t" << good_bases_out << endl;
     }
   }
   catch (const RMAPException &e) {
