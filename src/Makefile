@@ -19,13 +19,13 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef METHPIPE_ROOT
-$(error Must define METHPIPE_ROOT variable)
+ifndef SMITHLAB_CPP
+SMITHLAB_CPP=$(METHPIPE_ROOT)/src/smithlab_cpp/
 endif
 
-all_subdirs=analysis cytosines mapper premapping common postmapping smithlab_cpp 
-lib_subdirs=common smithlab_cpp
-app_subdirs=analysis cytosines mapper premapping postmapping 
+all_subdirs=smithlab_cpp common postmapping analysis rmapbs
+lib_subdirs=smithlab_cpp common
+app_subdirs=postmapping analysis rmapbs
 
 ## COMMENT: The smithlab_cpp directory is only appearing in the
 ## "clean" target below because the compilation of object files inside
@@ -34,27 +34,21 @@ app_subdirs=analysis cytosines mapper premapping postmapping
 ## needed for methpipe.
 
 all:
-	@for i in $(lib_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2; \
-	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT)  OPT=2; \
+		make -C $${i} SMITHLAB_CPP=$(SMITHLAB_CPP) SRC_ROOT=$(METHPIPE_ROOT) OPT=1; \
 	done;
 
 install:
-	@for i in $(lib_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2; \
-	done
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT)  OPT=2 install; \
+		make -C $${i} SMITHLAB_CPP=$(SMITHLAB_CPP) SRC_ROOT=$(METHPIPE_ROOT) OPT=1 install; \
 	done;
 
 test:
 	@for i in $(app_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) test; \
+		make -C $${i} SMITHLAB_CPP=$(SMITHLAB_CPP) SRC_ROOT=$(METHPIPE_ROOT) test; \
 	done;
 
 clean:
 	@for i in $(all_subdirs); do \
-		make -C $${i} METHPIPE_ROOT=$(METHPIPE_ROOT) clean; \
+		make -C $${i} SMITHLAB_CPP=$(SMITHLAB_CPP) SRC_ROOT=$(METHPIPE_ROOT) clean; \
 	done;
