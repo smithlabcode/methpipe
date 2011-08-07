@@ -29,8 +29,8 @@ endif
 
 PROGS = methcounts bsrate hmr amr dmr methdiff roimethstat
 
-COMMON_DIR = $(SRC_ROOT)/src/common/
-INCLUDEDIRS =  $(SMITHLAB_CPP)/ $(COMMON_DIR)/
+COMMON_DIR = $(SRC_ROOT)/src/common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
@@ -68,7 +68,7 @@ dmr: $(addprefix $(SMITHLAB_CPP)/, \
 
 hmr: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o) \
-	$(addprefix $(COMMON_DIR), TwoStateHMM.o)
+	$(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \

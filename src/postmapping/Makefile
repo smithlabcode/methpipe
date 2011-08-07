@@ -30,8 +30,8 @@ endif
 SOURCES = $(wildcard *.cpp)
 PROGS =  $(patsubst %.cpp,%,$(SOURCES))
 
-COMMON_DIR = ../common/
-INCLUDEDIRS =  $(SMITHLAB_CPP)/ $(COMMON_DIR)
+COMMON_DIR = $(SRC_ROOT)/src/common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas

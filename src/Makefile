@@ -20,7 +20,7 @@
 #
 
 ifndef SMITHLAB_CPP
-SMITHLAB_CPP=$(METHPIPE_ROOT)/src/smithlab_cpp/
+SMITHLAB_CPP=$(METHPIPE_ROOT)/src/smithlab_cpp
 endif
 
 all_subdirs=smithlab_cpp common postmapping analysis rmapbs
