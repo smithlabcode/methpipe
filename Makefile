@@ -21,12 +21,11 @@
 
 METHPIPE_ROOT = $(shell pwd)
 
-
 all:
-	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2
+	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=1
 
 install:
-	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=2 install
+	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=1 install
 
 clean:
 	@make -C src METHPIPE_ROOT=$(METHPIPE_ROOT) clean
@@ -34,6 +33,4 @@ clean:
 
 distclean: clean
 	@rm -rf $(METHPIPE_ROOT)/bin
-	@rm -rf $(METHPIPE_ROOT)/lib
-	@rm -rf $(METHPIPE_ROOT)/include
 .PHONY: distclean
