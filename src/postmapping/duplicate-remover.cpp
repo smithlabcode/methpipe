@@ -169,16 +169,6 @@ public:
     {return a.r.get_score() == b.r.get_score();}
 };
 
-// class SameMismatchCmp: public std::unary_function<MappedRead, bool>
-// {
-//     const MappedRead local_mr;
-// public:
-//     explicit SameMismatchCmp(const MappedRead &mr) : local_mr(mr) {}
-//     bool operator()(const MappedRead &mr) const
-//     {return local_mr.r.get_score() == mr.r.get_score();}
-// };
-
-
 static size_t
 get_representative_read(vector<MappedRead> &candidates) {
   static const Runif rng(time(NULL) + getpid());
