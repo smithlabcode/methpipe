@@ -45,7 +45,7 @@ same_strand(const GenomicRegion &a, const GenomicRegion &b) {
 }
 static inline bool
 strand_leq(const GenomicRegion &a, const GenomicRegion &b) {
-  return a.get_strand() <= a.get_strand();
+  return a.get_strand() <= b.get_strand();
 }
 static inline bool
 chrom_less(const GenomicRegion &a, const GenomicRegion &b) {
@@ -67,6 +67,7 @@ static inline bool
 end_less(const GenomicRegion &a, const GenomicRegion &b) {
   return a.get_end() < b.get_end();
 }
+
 /******************************************************************************/
 
 
@@ -154,14 +155,42 @@ private:
 bool DuplicateFragmentTester::CHECK_SECOND_ENDS = false;
 
 
+class LessMismatchCmp: public std::binary_function<MappedRead, MappedRead, bool>
+{
+public:
+    bool operator()(const MappedRead &a, const MappedRead &b) const
+    {return a.r.get_score() < b.r.get_score();}
+};
+
+class SameMismatchCmp: public std::binary_function<MappedRead, MappedRead, bool>
+{
+public:
+    bool operator()(const MappedRead &a, const MappedRead &b) const
+    {return a.r.get_score() == b.r.get_score();}
+};
+
+// class SameMismatchCmp: public std::unary_function<MappedRead, bool>
+// {
+//     const MappedRead local_mr;
+// public:
+//     explicit SameMismatchCmp(const MappedRead &mr) : local_mr(mr) {}
+//     bool operator()(const MappedRead &mr) const
+//     {return local_mr.r.get_score() == mr.r.get_score();}
+// };
+
+
 static size_t
 get_representative_read(vector<MappedRead> &candidates) {
   static const Runif rng(time(NULL) + getpid());
-  vector<MappedRead>::const_iterator iter =
+  vector<MappedRead>::iterator iter =
     std::partition(candidates.begin(), candidates.end(), 
 		   &DuplicateFragmentTester::is_complete_fragment);
-  return rng.runif(0ul, (iter != candidates.begin()) ?
-		   iter - candidates.begin() : candidates.size());
+  iter = iter != candidates.begin() ? iter : candidates.end();
+  const vector<MappedRead>::const_iterator min_mismatch_iter =
+      std::min_element(candidates.begin(), iter, LessMismatchCmp());
+  iter = std::partition(candidates.begin(), iter,
+                        bind2nd(SameMismatchCmp(), *min_mismatch_iter));
+  return rng.runif(static_cast<size_t>(0), iter - candidates.begin());
 }
 
 
