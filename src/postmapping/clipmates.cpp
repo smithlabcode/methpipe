@@ -183,7 +183,7 @@ int
 main(int argc, const char **argv)  {
   try {
 
-    size_t MAX_SEGMENT_LENGTH = 1000;
+    size_t MAX_SEGMENT_LENGTH = 500;
         
     bool VERBOSE = false;
     bool REVCOMP = true;
