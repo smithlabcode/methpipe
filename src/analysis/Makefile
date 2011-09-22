@@ -20,7 +20,7 @@
 #
 
 ifndef SRC_ROOT
-$(error Must define SRC_ROOT variable)
+SRC_ROOT=../..
 endif
 
 ifndef SMITHLAB_CPP
@@ -56,29 +56,29 @@ install: $(PROGS)
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 amr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
 	FileIterator.o MappedRead.o) 
 
 bsrate:	$(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
 	FileIterator.o MappedRead.o QualityScore.o)
 
 dmr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
 
 hmr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o) \
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o) \
 	$(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 methcounts: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o \
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
 	FileIterator.o MappedRead.o QualityScore.o)		
 
 methdiff: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
 
 roimethstat: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o rmap_os.o rmap_utils.o)
+	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

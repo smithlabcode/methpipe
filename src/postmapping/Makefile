@@ -20,7 +20,7 @@
 #
 
 ifndef SRC_ROOT
-$(error Must define SRC_ROOT variable)
+SRC_ROOT=../..
 endif
 
 ifndef SMITHLAB_CPP
@@ -57,17 +57,17 @@ install: $(PROGS)
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 frag2mr: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)		
+	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)		
 
 clipmates: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o GenomicRegion.o)
+	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)
 
 reorder: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
+	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)
 
 duplicate-remover: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o rmap_os.o rmap_utils.o \
+	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o \
 	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)	
 
 %.o: %.cpp %.hpp

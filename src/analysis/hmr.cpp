@@ -18,8 +18,8 @@
  * 02110-1301 USA
  */
 
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
 #include "TwoStateHMM.hpp"
@@ -67,8 +67,8 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
 //   else if (score < 100.0)
 //     color = "255,140,5";
 //   else color = "184,100,0";
-//   return "\t" + rmap::toa(domain.get_start()) + "\t" +
-//     rmap::toa(domain.get_end()) + "\t" + color;
+//   return "\t" + smithlab::toa(domain.get_start()) + "\t" +
+//     smithlab::toa(domain.get_end()) + "\t" + color;
 // }
 
 static void
@@ -202,7 +202,7 @@ load_cpgs(const bool VERBOSE,
   vector<GenomicRegion> cpgs_in;
   ReadBEDFile(cpgs_file, cpgs_in);
   if (!check_sorted(cpgs_in))
-    throw RMAPException("CpGs not sorted in file \"" + cpgs_file + "\"");
+    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
   
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
@@ -496,15 +496,17 @@ main(int argc, const char **argv) {
     std::ostream *out = (outfile.empty()) ? &cout : 
       new std::ofstream(outfile.c_str());
 
+    size_t domain_count = 0;
     for (size_t i = 0; i < domains.size(); ++i) {
       if (p_values[i] < fdr_cutoff) {
+	domains[i].set_name("HYPO" + smithlab::toa(domain_count));
 	domains[i].set_score(domain_scores[i]);
 	*out << domains[i] << '\n';
       }
     }
     if (out != &cout) delete out;
   }
-  catch (RMAPException &e) {
+  catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;
   }

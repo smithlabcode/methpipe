@@ -2,8 +2,9 @@
  * methylation at each CpG (or any nucleotide) differs 
  * between two conditions.
  *
- * Copyright (C) 2009 University of Southern California
+ * Copyright (C) 2011 University of Southern California
  *                    Andrew D Smith
+ *
  * Author: Andrew D. Smith
  *
  * This is free software; you can redistribute it and/or modify it
@@ -22,13 +23,12 @@
  * 02110-1301 USA
  */
 
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
 
 #include <gsl/gsl_sf_gamma.h>
-// #include <gsl/gsl_statistics_double.h>
 
 #include <cmath>
 #include <fstream>
@@ -89,46 +89,6 @@ test_greater_population(size_t meth_a, size_t unmeth_a,
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
-// static double
-// log_hyper_g(const size_t a, const size_t c, 
-// 	    const size_t b, const size_t d) {
-//   return  gsl_sf_lnfact(a + b) + gsl_sf_lnfact(c + d) + 
-//     gsl_sf_lnfact(a + c) + gsl_sf_lnfact(b + d) -
-//     gsl_sf_lnfact(a + b + c + d) - gsl_sf_lnfact(a) - 
-//     gsl_sf_lnfact(b) - gsl_sf_lnfact(c) - gsl_sf_lnfact(d);
-// }
-
-// static double
-// test_similar_population(size_t meth_a, size_t unmeth_a, 
-// 			size_t meth_b, size_t unmeth_b) {
-//   double p = 0;
-
-// //   size_t a = 0, b = 0, c = 0, d = 0;
-// //   if ((meth_a + 1)*(unmeth_b + 1) > unmeth_a*meth_b) {
-// //     a = meth_a;   c = meth_b; 
-// //     b = unmeth_a; d = unmeth_b;
-// //   }
-// //   else {
-// //     c = meth_a;   a = meth_b;   
-// //     d = unmeth_a; b = unmeth_b; 
-// //   }
-// //   while (b > 0 && c > 0) {
-// //     p = log_sum_log(p, log_hyper_g(a, c, b, d));
-// //     ++a; --b;
-// //     ++d; --c;
-// //   }
-// //   p = log_sum_log(p, log_hyper_g(a, c, b, d));
-
-
-//   while (unmeth_a > 0 && meth_b > 0) {
-//     p = log_sum_log(p, log_hyper_g(meth_a, meth_b, unmeth_a, unmeth_b));
-//     ++meth_a; --unmeth_a;
-//     ++unmeth_b; --meth_b;
-//   }
-//   p = log_sum_log(p, log_hyper_g(meth_a, meth_b, unmeth_a, unmeth_b));
-//   return exp(p);
-// }
-
 
 int
 main(int argc, const char **argv) {
@@ -180,13 +140,18 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> cpgs_a, cpgs_b;
     ReadBEDFile(cpgs_file_a, cpgs_a);
     if (VERBOSE) cerr << "[READ=" + strip_path(cpgs_file_a) + "]";
+
     if (!check_sorted(cpgs_a))
-      throw RMAPException("CpGs not sorted in file \"" + cpgs_file_a + "\"");
+      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_a + "\"");
+
     if (VERBOSE) cerr << "[SORTED]";
     ReadBEDFile(cpgs_file_b, cpgs_b);
+
     if (VERBOSE) cerr << "[READ=" + strip_path(cpgs_file_b) + "]";
+
     if (!check_sorted(cpgs_b))
-      throw RMAPException("CpGs not sorted in file \"" + cpgs_file_b + "\"");
+      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_b + "\"");
+
     if (VERBOSE)
       cerr << "[SORTED]"
 	   << "[DONE]" << endl
@@ -197,7 +162,6 @@ main(int argc, const char **argv) {
       new std::ofstream(outfile.c_str());
     size_t j = 0;
 
-//     vector<double> a, b;
     for (size_t i = 0; i < cpgs_a.size(); ++i) {
       if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
 	cerr << "processing " << cpgs_a[i].get_chrom() << endl;
@@ -214,33 +178,23 @@ main(int argc, const char **argv) {
 	get_meth_unmeth(cpgs_b[j], meth_b, unmeth_b);
 	
  	if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
-	  	  cpgs_a[i].set_name("CpG:" + toa(meth_a + unmeth_a) +   
-	  			     ":" + toa(meth_b + unmeth_b));
-	  	  meth_a += pseudocount;
-	  	  meth_b += pseudocount;
-	  	  unmeth_a += pseudocount;
-	  	  unmeth_b += pseudocount;
+	  cpgs_a[i].set_name("CpG:" + toa(meth_a + unmeth_a) +   
+			     ":" + toa(meth_b + unmeth_b));
+	  meth_a += pseudocount;
+	  meth_b += pseudocount;
+	  unmeth_a += pseudocount;
+	  unmeth_b += pseudocount;
 	  
-	  	  cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
-	  						      meth_a, unmeth_a));
-	  	  *out << cpgs_a[i] << endl;
-		  
-		  // 	  	  *out << static_cast<double>(meth_a)/(meth_a + unmeth_a) << "\t" 
-		  // 	  	       << static_cast<double>(meth_b)/(meth_b + unmeth_b) << endl;
-		  // 	  a.push_back(static_cast<double>(meth_a)/(meth_a + unmeth_a));
-		  // 	  b.push_back(static_cast<double>(meth_b)/(meth_b + unmeth_b));
+	  cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
+						      meth_a, unmeth_a));
+	  *out << cpgs_a[i] << endl;
+	  
  	}
       }
     }
-    
-//     *out << gsl_stats_covariance(&a[0], 1, &b[0], 1, a.size()) << endl
-// 	 << gsl_stats_variance(&a[0], 1, a.size()) << endl
-// 	 << gsl_stats_variance(&b[0], 1, b.size()) << endl;
-    
-    
     if (out != &cout) delete out;
   }
-  catch (RMAPException &e) {
+  catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;
   }

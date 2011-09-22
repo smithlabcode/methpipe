@@ -27,8 +27,8 @@
 #include <limits>
 
 #include "OptionParser.hpp"
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 
 using std::string;
@@ -50,7 +50,7 @@ load_cpgs(const bool VERBOSE, string cpgs_file,
   vector<GenomicRegion> cpgs_in;
   ReadBEDFile(cpgs_file, cpgs_in);
   if (!check_sorted(cpgs_in))
-    throw RMAPException("CpGs not sorted in file \"" + cpgs_file + "\"");
+    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
     prob.push_back(cpgs_in[i].get_score());
@@ -269,7 +269,7 @@ main(int argc, const char **argv) {
 	*out << dmrs[i] << endl;
     if (out != &cout) delete out;
   }
-  catch (const RMAPException &e) {
+  catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

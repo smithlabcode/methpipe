@@ -25,8 +25,8 @@
 #include <numeric>
 
 #include "OptionParser.hpp"
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "RNG.hpp"
 #include "MappedRead.hpp"
@@ -208,7 +208,7 @@ remove_duplicates(const string &infile, const string &outfile,
   
   MappedRead mr;
   if (!(in >> mr)) 
-    throw RMAPException("mapped read file seems empty: " + infile);
+    throw SMITHLABException("mapped read file seems empty: " + infile);
   
   ++total_reads;
   
@@ -220,7 +220,7 @@ remove_duplicates(const string &infile, const string &outfile,
     total_bases_in += mr.r.get_width();
     
     if (!oc(candidates.back(), mr))
-      throw RMAPException("NOT SORTED:\n" + candidates.back().r.tostring() + 
+      throw SMITHLABException("NOT SORTED:\n" + candidates.back().r.tostring() + 
 			  "\n" + mr.r.tostring());
     
     if (!dft(candidates.front(), mr)) {
@@ -306,7 +306,7 @@ int main(int argc, const char **argv) {
 	  << "GOOD BASES OUT:\t" << good_bases_out << endl;
     }
   }
-  catch (const RMAPException &e) {
+  catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

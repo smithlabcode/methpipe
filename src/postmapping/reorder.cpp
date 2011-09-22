@@ -28,8 +28,8 @@
 #include <queue>
 
 #include "OptionParser.hpp"
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "RNG.hpp"
 #include "MappedRead.hpp"
@@ -76,9 +76,9 @@ int main(int argc, const char **argv) {
 		      false, outfile);
     opt_parse.add_opt("stdin", '\0', "take input from stdin",
 		      false, INPUT_FROM_STDIN);
-    //     opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
-    // 		      "similar fragment check on 5' end of second mate",
-    // 		      false, CHECK_SECOND_ENDS);
+    // opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
+    //                   "similar fragment check on 5' end of second mate",
+    // 		         false, CHECK_SECOND_ENDS);
     opt_parse.add_opt("len", 'L', "max fragment length", false, max_frag_len);
     
     vector<string> leftover_args;
@@ -116,29 +116,22 @@ int main(int argc, const char **argv) {
     if (!INPUT_FROM_STDIN) ifs.open(infile.c_str());
     std::istream in(INPUT_FROM_STDIN ? std::cin.rdbuf() : ifs.rdbuf());
     
-    MappedRead mr; //, prev_in;
-    
+    MappedRead mr;
     while (in >> mr) {
-      // assert(pq.empty() || !mr.r.less1(prev_in.r));
       while (!pq.empty() && MappedReadOrder::is_ready(pq, mr)) {
-	// assert(prev_out.r.get_end() == 0 || prev_out.r <= pq.top().r);
-	// prev_out = pq.top();
 	out << pq.top() << '\n';
 	pq.pop();
       }
       pq.push(mr);
-      // prev_in = mr;
     }
     
     while (!pq.empty()) {
-      // assert(prev_out.r.get_end() == 0 ||prev_out.r <= pq.top().r);
-      // prev_out = pq.top();
       out << pq.top() << '\n';
       pq.pop();
     }
     
   }
-  catch (const RMAPException &e) {
+  catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

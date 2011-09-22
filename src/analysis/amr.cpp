@@ -1,5 +1,5 @@
-/*    methcounts: a program for counting the methylated and
- *    unmethylated reads mapping over each CpG or C
+/*    amr: a program to get allelic methylation scores for consecutive
+ *    pairs of CpGs
  *
  *    Copyright (C) 2009 University of Southern California and
  *                       Andrew D. Smith
@@ -31,8 +31,8 @@
 #include <tr1/unordered_map>
 
 #include "OptionParser.hpp"
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 
 #include "bsutils.hpp"
@@ -178,14 +178,14 @@ advance(const size_t first, const size_t last,
     regions.increment_last();
   }
   //   if (regions.last_is_good() != reads.last_is_good())
-  //     throw RMAPException("read and map files seem out of sync");
+  //     throw SMITHLABException("read and map files seem out of sync");
   while (regions.first_is_good() && 
 	 chrom_region.same_chrom(regions.get_first()->r) &&
 	 precedes(*regions.get_first(), first)) {
     regions.increment_first();
   }
   //   if (regions.first_is_good() != reads.first_is_good())
-  //     throw RMAPException("read and map files seem out of sync");
+  //     throw SMITHLABException("read and map files seem out of sync");
 }
 
 
@@ -397,7 +397,7 @@ main(int argc, const char **argv) {
     scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
 		outfile, chrom_files, regions);
   }
-  catch (const RMAPException &e) {
+  catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

@@ -26,7 +26,7 @@
 #include <cmath>
 
 #include <GenomicRegion.hpp>
-#include <rmap_utils.hpp>
+#include <smithlab_utils.hpp>
 
 inline bool 
 is_cytosine(char c) {return (c == 'c' || c == 'C');}
@@ -93,7 +93,7 @@ relative_sort(const std::vector<GenomicRegion> &mapped_locations,
     const std::tr1::unordered_map<std::string, size_t>::const_iterator 
       j(names_map.find(mapped_locations[i].get_name()));
     if (j == names_map.end())
-      throw RMAPException("read sequence not found for: " + names[i]);
+      throw SMITHLABException("read sequence not found for: " + names[i]);
     lookup.push_back(j->second);
   }
 }

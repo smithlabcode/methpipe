@@ -33,8 +33,8 @@
 #include <tr1/unordered_map>
 
 #include "OptionParser.hpp"
-#include "rmap_utils.hpp"
-#include "rmap_os.hpp"
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
 #include "MappedRead.hpp"
 
 using std::string;
@@ -55,7 +55,7 @@ check_sorted_by_ID(MappedRead &prev_mr, const MappedRead &mr) {
     oss << "READS NOT SORTED: " << endl
 	<< prev_mr << endl
 	<< mr << endl;
-    throw RMAPException(oss.str());
+    throw SMITHLABException(oss.str());
   }
   prev_mr = mr;
   return true;
@@ -243,7 +243,7 @@ main(int argc, const char **argv)  {
     bool one_is_good = ((in_one >> one) && check_sorted_by_ID(prev_one, one));
     bool two_is_good = ((in_two >> two) && check_sorted_by_ID(prev_two, two));
     if (REVCOMP) revcomp(two);
-      
+    
     while (one_is_good && two_is_good) {
       if (same_read(one, two)) { // one and tow are mates
 	
@@ -309,9 +309,9 @@ main(int argc, const char **argv)  {
 	    << "INSERT_LENGTH" << "\t" << "FREQUENCY" << endl;
       for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++)
 	outst << i << "\t" << frag_len_distr[i] << endl;
-    }//if stat file
+    }
   }
-  catch (const RMAPException &e) {
+  catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
