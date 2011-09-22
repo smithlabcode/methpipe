@@ -476,6 +476,16 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
   }
   
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
+
+  const double total_conv =
+      std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
+      + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
+  const double total_unconv =
+      std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
+      + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
+  *out << "OVERALL CONVERSION RATE = "
+       << total_conv / (total_conv + total_unconv) << endl;
+
   *out << "BASE" << '\t'
        << "PTOT" << '\t'
        << "PCONV" << '\t'
@@ -572,6 +582,15 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
   }
   
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
+  const double total_conv =
+      std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
+      + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
+  const double total_unconv =
+      std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
+      + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
+  *out << "OVERALL CONVERSION RATE = "
+       << total_conv / (total_conv + total_unconv) << endl;
+  
   *out << "BASE" << '\t'
        << "PTOT" << '\t'
        << "PCONV" << '\t'
