@@ -145,12 +145,12 @@ merge_mates(const size_t MAX_SEGMENT_LENGTH,
     // deal with overlapping part
     if (start_overlap < end_overlap) {
 
-      const size_t info_one = one.seq.length() - 
+      const int info_one = one.seq.length() - 
 	count(one.seq.begin(), one.seq.end(), 'N') - 
-	static_cast<size_t>(one.r.get_score());
-      const size_t info_two = two.seq.length() - 
+	static_cast<int>(one.r.get_score());
+      const int info_two = two.seq.length() - 
 	count(two.seq.begin(), two.seq.end(), 'N') - 
-	static_cast<size_t>(two.r.get_score());
+	static_cast<int>(two.r.get_score());
 
       // use the mate with the most information ("info") to fill in
       // the overlapping portion
