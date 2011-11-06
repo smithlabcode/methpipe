@@ -231,6 +231,7 @@ main(int argc, const char **argv)  {
     size_t merged_pairs = 0;
     size_t incorrect_chr = 0;
     size_t incorrect_strand = 0;
+    size_t problem_x = 0;
     size_t incorrect_orient = 0;
     size_t incorrect_frag_size = 0;
     size_t broken_pairs = 0;
@@ -252,8 +253,14 @@ main(int argc, const char **argv)  {
 	  out << one << endl << two << endl;
 	}
 	else if (one.r.get_strand() != two.r.get_strand()) {
-	  incorrect_strand++;
-	  out << one << endl << two << endl;
+	  if (one.r.get_start() == two.r.get_start()) {
+	    problem_x++;
+	    out << one << endl;
+	  }
+	  else {
+	    incorrect_strand++;
+	    out << one << endl << two << endl;
+	  }
 	}
 	else {
 	  MappedRead merged;
@@ -302,6 +309,7 @@ main(int argc, const char **argv)  {
       ofstream outst(out_stat.c_str());
       outst << "TOTAL MERGED PAIRS (# OF PAIRS):\t" << merged_pairs << endl
 	    << "INCORRECTLY MAPPED TO DIFFERENT CHROM:\t" << incorrect_chr << endl
+	    << "UNMERGED BY PROBLEM X:\t" << problem_x << endl
 	    << "UNMERGED BY STRAND INCOMPATIBILITY:\t" << incorrect_strand << endl
 	    << "UNMERGED BY INCONSISTENT ORIENTATION:\t" << incorrect_orient << endl
 	    << "UNMERGED BY INSERT SIZE:\t" << incorrect_frag_size << endl
