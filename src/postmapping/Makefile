@@ -19,10 +19,6 @@
 #  02110-1301 USA
 #
 
-ifndef SRC_ROOT
-SRC_ROOT=../..
-endif
-
 ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
