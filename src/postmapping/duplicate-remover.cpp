@@ -158,15 +158,22 @@ bool DuplicateFragmentTester::CHECK_SECOND_ENDS = false;
 class LessMismatchCmp: public std::binary_function<MappedRead, MappedRead, bool>
 {
 public:
-    bool operator()(const MappedRead &a, const MappedRead &b) const
-    {return a.r.get_score() < b.r.get_score();}
+  bool operator()(const MappedRead &a, const MappedRead &b) const
+  {
+    return ((a.r.get_width() - count(a.seq.begin(), a.seq.end(), 'N') - a.r.get_score()) > 
+	    (b.r.get_width() - count(b.seq.begin(), b.seq.end(), 'N') - b.r.get_score()));
+    // return a.r.get_score() < b.r.get_score();
+  }
 };
 
 class SameMismatchCmp: public std::binary_function<MappedRead, MappedRead, bool>
 {
 public:
-    bool operator()(const MappedRead &a, const MappedRead &b) const
-    {return a.r.get_score() == b.r.get_score();}
+  bool operator()(const MappedRead &a, const MappedRead &b) const
+  {
+    return ((a.r.get_width() - count(a.seq.begin(), a.seq.end(), 'N') - a.r.get_score()) ==
+	    (b.r.get_width() - count(b.seq.begin(), b.seq.end(), 'N') - b.r.get_score()));
+  }
 };
 
 static size_t
@@ -175,7 +182,7 @@ get_representative_read(vector<MappedRead> &candidates) {
   vector<MappedRead>::iterator iter =
     std::partition(candidates.begin(), candidates.end(), 
 		   &DuplicateFragmentTester::is_complete_fragment);
-  iter = iter != candidates.begin() ? iter : candidates.end();
+  iter = ((iter != candidates.begin()) ? iter : candidates.end());
   const vector<MappedRead>::const_iterator min_mismatch_iter =
       std::min_element(candidates.begin(), iter, LessMismatchCmp());
   iter = std::partition(candidates.begin(), iter,
@@ -201,11 +208,11 @@ remove_duplicates(const string &infile, const string &outfile,
   std::ofstream of;
   if (!outfile.empty()) of.open(outfile.c_str());
   std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-  
+
   std::ifstream ifs;
   if (!infile.empty()) ifs.open(infile.c_str());
   std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
-  
+
   MappedRead mr;
   if (!(in >> mr)) 
     throw SMITHLABException("mapped read file seems empty: " + infile);
