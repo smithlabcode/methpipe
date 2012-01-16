@@ -188,10 +188,10 @@ main(int argc, const char **argv) {
 	  cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
 						      meth_a, unmeth_a));
 	  *out << cpgs_a[i] << endl;
-	  
  	}
       }
     }
+
     if (out != &cout) delete out;
   }
   catch (SMITHLABException &e) {
