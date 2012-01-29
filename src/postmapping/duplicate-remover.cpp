@@ -187,7 +187,8 @@ get_representative_read(vector<MappedRead> &candidates) {
       std::min_element(candidates.begin(), iter, LessMismatchCmp());
   iter = std::partition(candidates.begin(), iter,
                         bind2nd(SameMismatchCmp(), *min_mismatch_iter));
-  return rng.runif(static_cast<size_t>(0), iter - candidates.begin());
+  return rng.runif(static_cast<size_t>(0), static_cast<size_t>(iter - candidates.begin()));
+  //return rng.runif(static_cast<size_t>(0), iter - candidates.begin());//////////
 }
 
 
