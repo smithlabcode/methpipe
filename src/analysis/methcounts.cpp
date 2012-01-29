@@ -85,13 +85,13 @@ MethStat::tostring() const {
       << "SITES COVERED:\t" << total_covered << endl
       << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
   
-  const double overall_cov = static_cast<double>(sum_cov)/max(1ul, total_sites);
-  const double covered_cov = static_cast<double>(sum_cov)/max(1ul, total_covered);
+  const double overall_cov = static_cast<double>(sum_cov)/max(static_cast<size_t>(1ul), total_sites);  //
+  const double covered_cov = static_cast<double>(sum_cov)/max(static_cast<size_t>(1ul), total_covered);   //
   out << "MAX COVERAGE:\t" << max_cov << endl
       << "MEAN COVERAGE:\t" << overall_cov << endl
       << "MEAN (WHEN > 1):\t" << covered_cov << endl;
   
-  const double meth_level = static_cast<double>(sum_cov_Cs)/max(1ul, sum_cov);
+  const double meth_level = static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1ul), sum_cov); //
   out << "MEAN METHYLATION:\t" << meth_level;
   return out.str();
 }
