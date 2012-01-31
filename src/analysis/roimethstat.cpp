@@ -1,5 +1,4 @@
-/*    roimethstat: a program for obtaining methylation statistics
- *    about each of a set of regions of interest (ROIs)
+/*    roimethstat: compute average methylation in each of a set of regions
  *
  *    Copyright (C) 2011 University of Southern California and
  *                       Andrew D. Smith
@@ -40,40 +39,41 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::pair;
 
 
-void
-separate_regions(const std::vector<GenomicRegion> &big_regions,
-		 const std::vector<GenomicRegion> &regions, 
-		 std::vector<std::vector<GenomicRegion> > &sep_regions) {
-  size_t rr_id = 0;
+static void
+separate_sites(const vector<GenomicRegion> &regions,
+	       const vector<GenomicRegion> &sites, 
+	       vector<pair<size_t, size_t> > &sep_sites) {
   const size_t n_regions = regions.size();
-  const size_t n_big_regions = big_regions.size();
-  sep_regions.resize(n_big_regions);
-  for (size_t i = 0; i < n_big_regions; ++i) {
-    const std::string current_chrom(big_regions[i].get_chrom());
-    const size_t current_start = big_regions[i].get_start();
-    const size_t current_end = big_regions[i].get_end();
-    while (rr_id < n_regions &&
-	   (regions[rr_id].get_chrom() < current_chrom ||
-	    (regions[rr_id].get_chrom() == current_chrom &&
-	     regions[rr_id].get_end() < current_start)))
-      ++rr_id;
-    while (rr_id < n_regions &&
-	   (regions[rr_id].get_chrom() == current_chrom &&
-	    regions[rr_id].get_start() < current_end)) {
-      sep_regions[i].push_back(regions[rr_id]);
-      ++rr_id;
-    }
+  
+  for (size_t i = 0; i < n_regions; ++i) {
+    GenomicRegion a(regions[i]);
+    a.set_end(a.get_start() + 1);
+    GenomicRegion b(regions[i]);
+    b.set_start(b.get_end());
+    b.set_end(b.get_end() + 1);
+    
+    vector<GenomicRegion>::const_iterator a_insert =
+      lower_bound(sites.begin(), sites.end(), a);
+    
+    vector<GenomicRegion>::const_iterator b_insert =
+      lower_bound(sites.begin(), sites.end(), b);
+    
+    sep_sites.push_back(std::make_pair(a_insert - sites.begin(),
+				       b_insert - sites.begin()));
   }
 }
 
 
 static void
 get_cpg_stats(const vector<GenomicRegion> &cpgs, 
+	      const size_t start_idx, const size_t end_idx,
 	      size_t &meth, size_t &reads, size_t &cpgs_with_reads) {
-  for (size_t i = 0; i < cpgs.size(); ++i) {
-    const size_t r = atoi(smithlab::split(cpgs[i].get_name(), ":").back().c_str());
+  for (size_t i = start_idx; i < end_idx; ++i) {
+    const size_t r = atoi(smithlab::split(cpgs[i].get_name(), 
+					  ":").back().c_str());
     meth += cpgs[i].get_score()*r;
     reads += r;
     cpgs_with_reads += (r > 0);
@@ -90,21 +90,21 @@ main(int argc, const char **argv) {
     bool PRINT_NAN = false;
     
     string outfile;
-    string regions_file;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse("roimethstat", "", "<cpgs-bed>");
+    OptionParser opt_parse("roimethstat", "Compute average CpG "
+			   "methylation in each of a set of genomic intervals", 
+			   "<intervals-bed> <cpgs-bed>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("regions", 'r', "file of regions of interest", 
-		      false, regions_file);
     opt_parse.add_opt("print-nan", 'P', "print all records (even if NaN score)", 
 		      false, PRINT_NAN);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -115,41 +115,47 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.empty()) {
+    if (leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string cpgs_file = leftover_args.front();
+    const string regions_file = leftover_args.front();
+    const string cpgs_file = leftover_args.back();
     /****************** END COMMAND LINE OPTIONS *****************/
     
     if (VERBOSE)
-      cerr << "format = name:cpgs:cpgs_with_reads:meth:reads" << endl;
+      cerr << "FORMAT = NAME : CPGS : CPGS_WITH_READS : "
+	"METH_READS : TOTAL_READS" << endl;
     
     vector<GenomicRegion> cpgs;
     ReadBEDFile(cpgs_file, cpgs);
     assert(check_sorted(cpgs));
+    if (!check_sorted(cpgs))
+      throw SMITHLABException("regions not sorted in file: " + cpgs_file);
     
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     assert(check_sorted(regions));
-
+    if (!check_sorted(regions))
+      throw SMITHLABException("regions not sorted in file: " + regions_file);
+    
     // separate the CpGs according to the regions in which they occur. 
-    //
-    // !!!! We assume here that the "regions" are non-overlapping, and
-    // !!!! therefore no CpG can occur in more than one of them.
-    vector<vector<GenomicRegion> > roi_cpgs;
-    separate_regions(regions, cpgs, roi_cpgs);
+    vector<pair<size_t, size_t> > roi_cpgs;
+    separate_sites(regions, cpgs, roi_cpgs);
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    
     for (size_t i = 0; i < roi_cpgs.size(); ++i) {
       size_t meth = 0, reads = 0;
       size_t cpgs_with_reads = 0;
-      get_cpg_stats(roi_cpgs[i], meth, reads, cpgs_with_reads);
+      get_cpg_stats(cpgs, roi_cpgs[i].first,
+		    roi_cpgs[i].second, meth, reads, cpgs_with_reads);
       
-      const string name = regions[i].get_name() + ":" + toa(roi_cpgs[i].size())
-	+ ":" + toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(reads);
+      const string name = regions[i].get_name() + ":" + 
+	toa(roi_cpgs[i].second - roi_cpgs[i].first) + ":" + 
+	toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(reads);
       regions[i].set_name(name);
       regions[i].set_score(static_cast<double>(meth)/reads);
       if (PRINT_NAN || std::isfinite(regions[i].get_score()))
