@@ -1,8 +1,8 @@
 /*    amr: a program to get allelic methylation scores for consecutive
  *    pairs of CpGs
  *
- *    Copyright (C) 2009 University of Southern California and
- *                       Andrew D. Smith
+ *    Copyright (C) 2009-2012 University of Southern California and
+ *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
  *
@@ -38,7 +38,6 @@
 #include "bsutils.hpp"
 #include "FileIterator.hpp"
 #include "MappedRead.hpp"
-
 
 #include <gsl/gsl_sf_gamma.h>
 
@@ -342,10 +341,9 @@ main(int argc, const char **argv) {
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program for counting the "
-			   "methylated and unmethylated reads mapping "
-			   "over each CpG or C.",
-			   "<fasta-reads>");
+    OptionParser opt_parse(strip_path(argv[0]), "a program to get allelic "
+			   "methylation scores for consecutive "
+			   "pairs of CpGs", "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
     opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing chromosome(s)", 
@@ -385,10 +383,6 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "MAX MISMATCHES=" << max_mismatches << endl;
 
-    //     const bool FASTQ = is_fastq(reads_file);
-    //     if (VERBOSE)
-    //       cerr << "READS FILE FORMAT: " << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
-    
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
     sort(chrom_files.begin(), chrom_files.end());
