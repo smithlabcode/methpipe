@@ -1,5 +1,5 @@
-/* Copyright (C) 2009 University of Southern California
- *                    Andrew D Smith
+/* Copyright (C) 2009-2012 University of Southern California
+ *                         Andrew D Smith
  * Author: Andrew D. Smith
  *
  * This is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include <numeric>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 
 using std::string;
 using std::vector;
@@ -56,30 +57,16 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
   return local[i];
 }
 
-// static string
-// format_color(const GenomicRegion domain) {
-//   const double score = domain.get_score();
-//   string color;
-//   if (score < 1.0)
-//     color = "255,190,113";
-//   else if (score < 10.0)
-//     color = "255,163,55";
-//   else if (score < 100.0)
-//     color = "255,140,5";
-//   else color = "184,100,0";
-//   return "\t" + smithlab::toa(domain.get_start()) + "\t" +
-//     smithlab::toa(domain.get_end()) + "\t" + color;
-// }
 
-static void
-write_scores_bedgraph(const string &filename,
-		      const vector<SimpleGenomicRegion> &cpgs,
-		      const vector<double> &scores) {
-  std::ofstream wigout(filename.c_str());
-  for (size_t i = 0; i < cpgs.size(); ++i)
-    wigout << cpgs[i] << "\t" << scores[i] << "\n";
-  wigout.close();
-}
+// static void
+// write_scores_bedgraph(const string &filename,
+// 		      const vector<SimpleGenomicRegion> &cpgs,
+// 		      const vector<double> &scores) {
+//   std::ofstream wigout(filename.c_str());
+//   for (size_t i = 0; i < cpgs.size(); ++i)
+//     wigout << cpgs[i] << "\t" << scores[i] << "\n";
+//   wigout.close();
+// }
 
 static void
 get_domain_scores(const vector<bool> &classes,
@@ -311,23 +298,25 @@ write_params_file(const string &outfile,
 		  const vector<double> &start_trans, 
 		  const vector<vector<double> > &trans, 
 		  const vector<double> &end_trans) {
-  std::ostream *out = (outfile.empty()) ? &cerr : 
-    new std::ofstream(outfile.c_str());
-  out->precision(30);
-  *out << "FG_ALPHA\t" << fg_alpha << endl
-       << "FG_BETA\t" << fg_beta << endl
-       << "BG_ALPHA\t" << bg_alpha << endl
-       << "BG_BETA\t" << bg_beta << endl
-       << "S_F\t" << start_trans[0] << endl
-       << "S_B\t" << start_trans[1] << endl
-       << "F_F\t" << trans[0][0] << endl
-       << "F_B\t" << trans[0][1] << endl
-       << "B_F\t" << trans[1][0] << endl
-       << "B_B\t" << trans[1][1] << endl
-       << "F_E\t" << end_trans[0] << endl
-       << "B_E\t" << end_trans[1] << endl
+
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+  
+  out.precision(30);
+  out << "FG_ALPHA\t" << fg_alpha << endl
+      << "FG_BETA\t" << fg_beta << endl
+      << "BG_ALPHA\t" << bg_alpha << endl
+      << "BG_BETA\t" << bg_beta << endl
+      << "S_F\t" << start_trans[0] << endl
+      << "S_B\t" << start_trans[1] << endl
+      << "F_F\t" << trans[0][0] << endl
+      << "F_B\t" << trans[0][1] << endl
+      << "B_F\t" << trans[1][0] << endl
+      << "B_B\t" << trans[1][1] << endl
+      << "F_E\t" << end_trans[0] << endl
+      << "B_E\t" << end_trans[1] << endl
     ;
-  if (out != &cerr) delete out;
 }
 
 
@@ -337,9 +326,8 @@ main(int argc, const char **argv) {
   try {
 
     string outfile;
-    string scores_file;
-    string trans_file;
-    string dataset_name;
+    // string scores_file;
+    // string trans_file;
     
     size_t desert_size = 1000;
     size_t max_iterations = 10;
@@ -355,27 +343,29 @@ main(int argc, const char **argv) {
     string params_out_file;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "A program for segmenting DNA "
-			   "methylation data",
-			   "<cpg-BED-file>");
-    opt_parse.add_opt("out", 'o', "output file (BED format)", 
+    OptionParser opt_parse(strip_path(argv[0]), "Program for identifying HMRs "
+			   "in methylation data", "<cpg-BED-file>");
+    opt_parse.add_opt("out", 'o', "output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("scores", 's', "scores file (WIG format)", 
-		      false, scores_file);
-    opt_parse.add_opt("trans", 't', "trans file (WIG format)", 
-		      false, trans_file);
-    opt_parse.add_opt("desert", 'd', "desert size", false, desert_size);
+    //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
+    //     opt_parse.add_opt("scores", 's', "scores file (WIG format)", 
+    // 		      false, scores_file);
+    //     opt_parse.add_opt("trans", 't', "trans file (WIG format)", 
+    // 		      false, trans_file);
+    opt_parse.add_opt("desert", 'd', "max dist btwn cpgs with reads in HMR", 
+		      false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    opt_parse.add_opt("name", 'N', "data set name", false, dataset_name);
-    
-    opt_parse.add_opt("params-in", 'P', "HMM parameters file", false, params_in_file);
-    opt_parse.add_opt("params-out", 'p', "HMM parameters file", false, params_out_file);
+    opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)", 
+		      false, params_in_file);
+    opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file", 
+		      false, params_out_file);
     
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl;
+      cerr << opt_parse.help_message() << endl
+	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -465,46 +455,45 @@ main(int argc, const char **argv) {
 
     if (!params_out_file.empty()) {
       std::ofstream out(params_out_file.c_str(), std::ios::app);
-      out.precision(30);
-      out << "FDR_CUTOFF\t" << fdr_cutoff << endl;
+      out << "FDR_CUTOFF\t" 
+	  << std::setprecision(30) << fdr_cutoff << endl;
       out.close();
     }
     
     /***********************************
      * STEP 6: WRITE THE RESULTS
      */
-    if (!scores_file.empty())
-      write_scores_bedgraph(scores_file, cpgs, scores);
-    if (!trans_file.empty()) {
-      vector<double> fg_to_bg_scores;
-      hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
-			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
-			       1, fg_to_bg_scores);
-      vector<double> bg_to_fg_scores;
-      hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
-			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
-			       2, bg_to_fg_scores);
-      for (size_t i = 0; i < fg_to_bg_scores.size(); ++i)
-	fg_to_bg_scores[i] = max(fg_to_bg_scores[i], bg_to_fg_scores[i]);
-      write_scores_bedgraph(trans_file, cpgs, fg_to_bg_scores);
-    }
+    //     if (!scores_file.empty())
+    //       write_scores_bedgraph(scores_file, cpgs, scores);
+    //     if (!trans_file.empty()) {
+    //       vector<double> fg_to_bg_scores;
+    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
+    // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
+    // 			       1, fg_to_bg_scores);
+    //       vector<double> bg_to_fg_scores;
+    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
+    // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
+    // 			       2, bg_to_fg_scores);
+    //       for (size_t i = 0; i < fg_to_bg_scores.size(); ++i)
+    // 	fg_to_bg_scores[i] = max(fg_to_bg_scores[i], bg_to_fg_scores[i]);
+    //       write_scores_bedgraph(trans_file, cpgs, fg_to_bg_scores);
+    //     }
     
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores,
 		  reset_points, classes, domains);
-      
-    std::ostream *out = (outfile.empty()) ? &cout : 
-      new std::ofstream(outfile.c_str());
-
-    size_t domain_count = 0;
-    for (size_t i = 0; i < domains.size(); ++i) {
+    
+    std::ofstream of;
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+    
+    size_t good_hmr_count = 0;
+    for (size_t i = 0; i < domains.size(); ++i)
       if (p_values[i] < fdr_cutoff) {
-	domains[i].set_name("HYPO" + smithlab::toa(domain_count));
+	domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
 	domains[i].set_score(domain_scores[i]);
-	*out << domains[i] << '\n';
+	out << domains[i] << '\n';
       }
-    }
-    if (out != &cout) delete out;
   }
   catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
