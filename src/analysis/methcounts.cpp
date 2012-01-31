@@ -85,13 +85,16 @@ MethStat::tostring() const {
       << "SITES COVERED:\t" << total_covered << endl
       << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
   
-  const double overall_cov = static_cast<double>(sum_cov)/max(static_cast<size_t>(1ul), total_sites);  //
-  const double covered_cov = static_cast<double>(sum_cov)/max(static_cast<size_t>(1ul), total_covered);   //
+  const double overall_cov = 
+    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_sites);
+  const double covered_cov = 
+    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_covered);
   out << "MAX COVERAGE:\t" << max_cov << endl
       << "MEAN COVERAGE:\t" << overall_cov << endl
       << "MEAN (WHEN > 1):\t" << covered_cov << endl;
   
-  const double meth_level = static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1ul), sum_cov); //
+  const double meth_level = 
+    static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1), sum_cov);
   out << "MEAN METHYLATION:\t" << meth_level;
   return out.str();
 }
@@ -369,7 +372,8 @@ scan_chromosome(const QualityChecker &qc,
       meth_stat_collector.collect(meth_count, total);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
 	  << cytosine_type_tag(chrom, i, '+') << ":"
-	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
+	  << total << "\t" 
+	  << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
     }
     if (is_guanine(chrom[i])) { // && !is_cytosine(chrom[i - 1])) {
       size_t meth_count = 0, unmeth_count = 0;
@@ -381,7 +385,8 @@ scan_chromosome(const QualityChecker &qc,
       meth_stat_collector.collect(meth_count, total);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
 	  << cytosine_type_tag(chrom, i, '-') << ":" 
-	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
+	  << total << "\t" 
+	  << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
     }
   }//for
   for (; i < chrom_len - 1 ; ++i){
@@ -533,7 +538,11 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const string &outfile, const vector<string> &chrom_files, 
 	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector) {
   
-  std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
+  // Get the output stream
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+  
   for (size_t i = 0; i < chrom_files.size(); ++i) {
     const string fn(strip_path_and_suffix(chrom_files[i]));
     if (VERBOSE)
@@ -547,13 +556,12 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(qc, chroms[j], chrom_region, max_mismatches,
-			regions, *out, meth_stat_collector);
+			regions, out, meth_stat_collector);
       else scan_chromosome_cpg(qc, chroms[j], chrom_region, max_mismatches,
-			       regions, *out, meth_stat_collector);
+			       regions, out, meth_stat_collector);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
-  if (out != &cout) delete out;
 }
 
 
@@ -607,25 +615,26 @@ main(int argc, const char **argv) {
     double cutoff = -std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program for counting the "
-			   "methylated and unmethylated reads mapping "
-			   "over each CpG or C.",
-			   "<fast[a/q]-reads>");
+    OptionParser opt_parse(strip_path(argv[0]), "Program to count "
+			   "methylated/unmethylated bases in "
+			   "reads mapping over each CpG or C",
+			   "-c <chroms> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing chromosome(s)", 
+    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (FASTA format; .fa suffix)",
 		      true , chrom_file);
-    opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
-		      "(assumes -c indicates dir)", 
-		      false , fasta_suffix);
     opt_parse.add_opt("non", 'N', "process non-CpG cytosines", 
 		      false , PROCESS_NON_CPGS);
-    opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
-		      false , BUFFER_SIZE);
+    //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
+    //     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
+    // 		      false , BUFFER_SIZE);
+    //     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
+    // 		      "(assumes -c indicates dir)", 
+    // 		      false , fasta_suffix);
+    //     opt_parse.add_opt("cutoff", 'C', "cutoff for high-quality bases (assumes fastq reads)", 
+    // 		      false , cutoff);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
 		      false , max_mismatches);
-    opt_parse.add_opt("cutoff", 'C', "cutoff for high-quality bases (assumes fastq reads)", 
-		      false , cutoff);
     opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
                       false , out_stat);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
