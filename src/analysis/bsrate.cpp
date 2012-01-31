@@ -666,23 +666,24 @@ main(int argc, const char **argv) {
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "program for determining the "
-			   "rate of bisulfite conversion in a "
-			   "bisulfite sequencing experiment",
-			   "<mapped-reads>");
+    OptionParser opt_parse(strip_path(argv[0]), "Program to compute the "
+			   "bs conversion rate from BS-seq "
+			   "reads mapped to a genome",
+			   "-c <chroms> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing chromosome(s)", 
+    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (FASTA format; .fa suffix)",
 		      true , chrom_file);
-    opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
-		      "(assumes -c indicates dir)", 
-		      false , fasta_suffix);
+    //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
+    //     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
+    // 		      "(assumes -c indicates dir)", 
+    // 		      false , fasta_suffix);
+    //     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
+    // 		      false , BUFFER_SIZE);
+    //     opt_parse.add_opt("cutoff", 'C', "cutoff for high-quality bases", 
+    // 		      false , cutoff);
     opt_parse.add_opt("all", 'N', "process all Cs", 
 		      false , PROCESS_CPGS);
-    opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
-		      false , BUFFER_SIZE);
-    opt_parse.add_opt("cutoff", 'C', "cutoff for high-quality bases", 
-		      false , cutoff);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
 		      false , max_mismatches);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
