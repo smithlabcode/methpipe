@@ -1,9 +1,8 @@
 /*    bsrate: a program for determining the rate of bisulfite
- *    conversion in a bisulfite sequencing experiment, with too many
- *    reads to load into memory at once.
+ *    conversion in a bisulfite sequencing experiment
  *
- *    Copyright (C) 2009 University of Southern California and
- *                       Andrew D. Smith
+ *    Copyright (C) 2009-2012 University of Southern California and
+ *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
  *
@@ -20,10 +19,6 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-// TODO: check that the mapped locations and the read sequences are
-// equal in number.
-
 
 #include <string>
 #include <vector>
@@ -48,6 +43,7 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::max;
 
 
 /***********************************************************************
@@ -81,11 +77,11 @@ add_contribution_c(const size_t offset, const MappedRead &r,
 		   vector<size_t> &err, vector<double> &qual) {
   if (r.r.pos_strand()) {
     const size_t position = offset - r.r.get_start();
-    assert(position < r.seq.length());
-assert(position >= 0);
+    assert(position < r.seq.length() && position >= 0);
     if (is_cytosine(r.seq[position])) ++unconv[position];
     else if (is_thymine(r.seq[position])) ++conv[position];
-    else ++err[position];
+    else if (toupper(r.seq[position]) != 'N')
+      ++err[position];
   }
 }
 
@@ -96,11 +92,11 @@ add_contribution_g(const size_t offset, const MappedRead &r,
 		   vector<size_t> &err, vector<double> &qual) {
   if (r.r.neg_strand()) {
     const size_t position = r.seq.length() - (offset - r.r.get_start() + 1);
-    assert(position < r.seq.length());
-assert(position >= 0);
+    assert(position < r.seq.length() && position >= 0);
     if (is_cytosine(r.seq[position])) ++unconv[position];
     else if (is_thymine(r.seq[position])) ++conv[position];
-    else ++err[position];
+    else if (toupper(r.seq[position]) != 'N')
+      ++err[position];
   }
 }
 
@@ -112,12 +108,12 @@ add_contribution_c(const QualityChecker &qc,
 		   vector<size_t> &err, vector<double> &qual) {
   if (r.r.pos_strand()) {
     const size_t position = offset - r.r.get_start();
-    assert(position < r.seq.length());
-assert(position >= 0);
+    assert(position < r.seq.length() && position >= 0);
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++unconv[position];
       else if (is_thymine(r.seq[position])) ++conv[position];
-      else ++err[position];
+      else if (toupper(r.seq[position]) != 'N')
+	++err[position];
       qual[position] += qc.error_probability(r, position);
     }
   }
@@ -131,12 +127,12 @@ add_contribution_g(const QualityChecker &qc,
 		   vector<size_t> &err, vector<double> &qual) {
   if (r.r.neg_strand()) {
     const size_t position = r.seq.length() - (offset - r.r.get_start() + 1);
-    assert(position < r.seq.length());
-assert(position >= 0);
+    assert(position < r.seq.length() && position >= 0);
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++unconv[position];
       else if (is_thymine(r.seq[position])) ++conv[position];
-      else ++err[position];
+      else if (toupper(r.seq[position]) != 'N')
+	++err[position];
       qual[position] += qc.error_probability(r, position);
     }
   }
@@ -176,7 +172,7 @@ advance(const size_t first, const size_t last,
 
 template< class T >
 static void
-grew_buffer(size_t read_len, vector<T> &buffer)
+grow_buffer(size_t read_len, vector<T> &buffer)
 {
   size_t init_value = 0ul;
   T cur = static_cast<T>(init_value);
@@ -188,18 +184,18 @@ grew_buffer(size_t read_len, vector<T> &buffer)
 
 static void
 update_size(size_t read_len, vector<size_t> &unconv_count_pos, vector<size_t> &conv_count_pos,
-                vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
-                vector<size_t> &err_pos, vector<size_t> &err_neg,
-                vector<double> &qual_pos, vector<double> &qual_neg)
+	    vector<size_t> &unconv_count_neg, vector<size_t> &conv_count_neg,
+	    vector<size_t> &err_pos, vector<size_t> &err_neg,
+	    vector<double> &qual_pos, vector<double> &qual_neg)
 {
-   grew_buffer(read_len, unconv_count_pos);
-   grew_buffer(read_len, conv_count_pos);
-   grew_buffer(read_len, unconv_count_neg);
-   grew_buffer(read_len, conv_count_neg);
-   grew_buffer(read_len, err_pos);
-   grew_buffer(read_len, err_neg);
-   grew_buffer(read_len, qual_pos);
-   grew_buffer(read_len, qual_neg);
+  grow_buffer(read_len, unconv_count_pos);
+  grow_buffer(read_len, conv_count_pos);
+  grow_buffer(read_len, unconv_count_neg);
+  grow_buffer(read_len, conv_count_neg);
+  grow_buffer(read_len, err_pos);
+  grow_buffer(read_len, err_neg);
+  grow_buffer(read_len, qual_pos);
+  grow_buffer(read_len, qual_neg);
 }//update_size
 
 static void
@@ -223,13 +219,13 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
 	}//if	
 	if (j->r.get_score() <= max_mismatches)
-{	  add_contribution_c(i, *j, 
-			     unconv_count_pos, conv_count_pos, 
-				err_pos, qual_pos);
-}//if			    
+	  {	  add_contribution_c(i, *j, 
+				     unconv_count_pos, conv_count_pos, 
+				     err_pos, qual_pos);
+	  }//if			    
       }//for
     }//if
     if (is_guanine(chrom[i]) && !is_cytosine(chrom[i - 1])) {
@@ -237,15 +233,16 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	   j != regions.get_last(); ++j){
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
-          update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+          update_size(read_len, unconv_count_pos, 
+		      conv_count_pos, unconv_count_neg,
+		      conv_count_neg, err_pos, err_neg, 
+		      qual_pos, qual_neg);
         }//if  
-        
-	if (j->r.get_score() <= max_mismatches)
-{	  add_contribution_g(i, *j, 
-			     unconv_count_neg, conv_count_neg, 
-			     err_neg, qual_neg);
-}     }//for
+	if (j->r.get_score() <= max_mismatches) {
+	  add_contribution_g(i, *j, unconv_count_neg, 
+			     conv_count_neg, err_neg, qual_neg);
+	}     
+      }//for
     }//if
   }//for
 }
@@ -271,7 +268,7 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches){
@@ -287,7 +284,7 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches){
@@ -321,7 +318,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches)
@@ -336,7 +333,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches){
@@ -344,7 +341,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 			     unconv_count_neg, conv_count_neg, 
 			     err_neg, qual_neg);
         }//if
-     }//for
+      }//for
     }
   }
 }
@@ -369,7 +366,7 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches){
@@ -385,7 +382,7 @@ scan_chromosome_cpg(const string &chrom, const GenomicRegion &chrom_region,
         if(read_len < j->r.get_width()){
           read_len = j->r.get_width();
           update_size(read_len, unconv_count_pos, conv_count_pos, unconv_count_neg,
-            conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
+		      conv_count_neg, err_pos, err_neg, qual_pos, qual_neg);
         }//if  
 
 	if (j->r.get_score() <= max_mismatches){
@@ -475,68 +472,72 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
   
-  std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
   const double total_conv =
-      std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
-      + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
+    std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
+    + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
   const double total_unconv =
-      std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
-      + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
-  *out << "OVERALL CONVERSION RATE = "
-       << total_conv / (total_conv + total_unconv) << endl;
+    std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
+    + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
+  out << "OVERALL CONVERSION RATE = "
+      << total_conv / (total_conv + total_unconv) << endl;
 
-  *out << "BASE" << '\t'
-       << "PTOT" << '\t'
-       << "PCONV" << '\t'
-       << "PRATE" << '\t'
-       << "NTOT" << '\t'
-       << "NCONV" << '\t'
-       << "NRATE" << '\t'
-       << "BTHTOT" << '\t'
-       << "BTHCONV" << '\t'
-       << "BTHRATE" << '\t'
-       << "ERR" << '\t'
-       << "ALL" << '\t'
-       << "ERRRATE" << '\t'
-       << "QUAL" << endl;
+  out << "BASE" << '\t'
+      << "PTOT" << '\t'
+      << "PCONV" << '\t'
+      << "PRATE" << '\t'
+      << "NTOT" << '\t'
+      << "NCONV" << '\t'
+      << "NRATE" << '\t'
+      << "BTHTOT" << '\t'
+      << "BTHCONV" << '\t'
+      << "BTHRATE" << '\t'
+      << "ERR" << '\t'
+      << "ALL" << '\t'
+      << "ERRRATE"  << endl;
+  //!!!!! The quality stuff is not implemented
+  //       << '\t'
+  //       << "QUAL" << endl;
+
   static const size_t precision_val = 5;
   read_len = unconv_count_pos.size();
   for (size_t i = 0; i < read_len; ++i) {
     const double total_pos = unconv_count_pos[i] + conv_count_pos[i];
     const double total_neg = unconv_count_neg[i] + conv_count_neg[i];
     const double total = total_pos + total_neg;
-    *out << i << "\t";
-
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total_pos) << "\t" 
-	 << conv_count_pos[i] << "\t" 
-	 << conv_count_pos[i]/total_pos << "\t";
-
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total_neg) << "\t" 
-	 << conv_count_neg[i] << "\t" 
-	 << conv_count_neg[i]/total_neg << "\t";
+    out << (i + 1) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total) << "\t" 
-	 << conv_count_pos[i] + conv_count_neg[i] << "\t" 
-	 << (conv_count_pos[i] + conv_count_neg[i])/total << '\t';
+    out.precision(precision_val);
+    out << static_cast<size_t>(total_pos) << "\t" 
+	<< conv_count_pos[i] << "\t" 
+	<< conv_count_pos[i]/max(1.0, total_pos) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << err_pos[i] + err_neg[i] << "\t" 
-	 << static_cast<size_t>(total + err_pos[i] + err_neg[i]) << "\t" 
-	 << (err_pos[i] + err_neg[i])/(err_pos[i] + err_neg[i] + total) << '\t';
+    out.precision(precision_val);
+    out << static_cast<size_t>(total_neg) << "\t" 
+	<< conv_count_neg[i] << "\t" 
+	<< (conv_count_neg[i]/max(1.0, total_neg)) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << (qual_pos[i] + qual_neg[i])/total << endl;
+    out.precision(precision_val);
+    out << static_cast<size_t>(total) << "\t" 
+	<< conv_count_pos[i] + conv_count_neg[i] << "\t" 
+	<< ((conv_count_pos[i] + conv_count_neg[i])/
+	    max(1.0, total)) << '\t';
+    
+    out.precision(precision_val);
+    out << err_pos[i] + err_neg[i] << "\t" 
+	<< static_cast<size_t>(total + err_pos[i] + err_neg[i]) << "\t" 
+	<< ((err_pos[i] + err_neg[i])/
+	    max(1.0, err_pos[i] + err_neg[i] + total))
+	<< endl; //'\t';
+    
+    //!!!!! The quality stuff is not implemented
+    //     out.precision(precision_val);
+    //     out.width(precision_val + 2);
+    //     out << (qual_pos[i] + qual_neg[i])/total << endl;
   }
-  if (out != &cout) delete out;
 }
 
 static void
@@ -581,67 +582,69 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_CPGS,
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
   
-  std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
-  const double total_conv =
-      std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
-      + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
-  const double total_unconv =
-      std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
-      + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
-  *out << "OVERALL CONVERSION RATE = "
-       << total_conv / (total_conv + total_unconv) << endl;
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
-  *out << "BASE" << '\t'
-       << "PTOT" << '\t'
-       << "PCONV" << '\t'
-       << "PRATE" << '\t'
-       << "NTOT" << '\t'
-       << "NCONV" << '\t'
-       << "NRATE" << '\t'
-       << "BTHTOT" << '\t'
-       << "BTHCONV" << '\t'
-       << "BTHRATE" << '\t'
-       << "ERR" << '\t'
-       << "ALL" << '\t'
-       << "ERRRATE" << endl;
-
+  const double total_conv =
+    std::accumulate(conv_count_pos.begin(), conv_count_pos.end(), 0.0)
+    + std::accumulate(conv_count_neg.begin(), conv_count_neg.end(), 0.0); 
+  const double total_unconv =
+    std::accumulate(unconv_count_pos.begin(), unconv_count_pos.end(), 0.0)
+    + std::accumulate(unconv_count_neg.begin(), unconv_count_neg.end(), 0.0);
+  out << "OVERALL CONVERSION RATE = "
+      << total_conv / (total_conv + total_unconv) << endl;
+  
+  out << "BASE" << '\t'
+      << "PTOT" << '\t'
+      << "PCONV" << '\t'
+      << "PRATE" << '\t'
+      << "NTOT" << '\t'
+      << "NCONV" << '\t'
+      << "NRATE" << '\t'
+      << "BTHTOT" << '\t'
+      << "BTHCONV" << '\t'
+      << "BTHRATE" << '\t'
+      << "ERR" << '\t'
+      << "ALL" << '\t'
+      << "ERRRATE" << endl;
+  
   static const size_t precision_val = 5;
   for (size_t i = 0; i < read_len; ++i) {
     const double total_pos = unconv_count_pos[i] + conv_count_pos[i];
     const double total_neg = unconv_count_neg[i] + conv_count_neg[i];
     const double total = total_pos + total_neg;
-    *out << i << "\t";
-
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total_pos) << "\t" 
-	 << conv_count_pos[i] << "\t" << conv_count_pos[i]/total_pos << "\t";
+    out << (i + 1) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total_neg) << "\t" 
-	 << conv_count_neg[i] << "\t" << conv_count_neg[i]/total_neg << "\t";
+    out.precision(precision_val);
+    out << static_cast<size_t>(total_pos) << "\t" 
+	<< conv_count_pos[i] << "\t" 
+	<< conv_count_pos[i]/max(1.0, total_pos) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(total) << "\t" 
-	 << conv_count_pos[i] + conv_count_neg[i] << "\t" 
-	 << (conv_count_pos[i] + conv_count_neg[i])/total << '\t';
+    out.precision(precision_val);
+    out << static_cast<size_t>(total_neg) << "\t" 
+	<< conv_count_neg[i] << "\t" 
+	<< conv_count_neg[i]/max(1.0, total_neg) << "\t";
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << static_cast<size_t>(err_pos[i] + err_neg[i]) << "\t" 
-	 << static_cast<size_t>(total_pos + total_neg + 
-				err_pos[i] + err_neg[i]) << "\t" 
-	 << (err_pos[i] + err_neg[i])/(err_pos[i] + err_neg[i] + total) << '\t';
+    out.precision(precision_val);
+    out << static_cast<size_t>(total) << "\t" 
+	<< conv_count_pos[i] + conv_count_neg[i] << "\t" 
+	<< (conv_count_pos[i] + conv_count_neg[i])/max(1.0, total) << '\t';
     
-    out->precision(precision_val);
-    out->width(precision_val + 2);
-    *out << qual_pos[i]/total_pos << "\t" 
-	 << qual_neg[i]/total_neg << "\t" 
-	 << (qual_pos[i] + qual_neg[i])/total << endl;
+    out.precision(precision_val);
+    out << static_cast<size_t>(err_pos[i] + err_neg[i]) << "\t" 
+	<< static_cast<size_t>(total_pos + total_neg + 
+			       err_pos[i] + err_neg[i]) << "\t" 
+	<< ((err_pos[i] + err_neg[i])/
+	    max(1.0, err_pos[i] + err_neg[i] + total))
+	<< endl;
+    //!!!!! The quality stuff is not implemented
+    //     out.precision(precision_val);
+    //     out.width(precision_val + 2);
+    //     out << qual_pos[i]/total_pos << "\t" 
+    // 	<< qual_neg[i]/total_neg << "\t" 
+    // 	<< (qual_pos[i] + qual_neg[i])/total << endl;
   }
-  if (out != &cout) delete out;
 }
 
 
@@ -656,18 +659,17 @@ main(int argc, const char **argv) {
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
-
+    
     double cutoff = -std::numeric_limits<double>::max();
     
     size_t BUFFER_SIZE = 100000;
     double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program for determining the "
+    OptionParser opt_parse(strip_path(argv[0]), "program for determining the "
 			   "rate of bisulfite conversion in a "
-			   "bisulfite sequencing experiment, with "
-			   "too many reads to load into memory at once.",
-			   "<mapped_reads>");
+			   "bisulfite sequencing experiment",
+			   "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
     opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing chromosome(s)", 
@@ -709,13 +711,13 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "MAX MISMATCHES=" << max_mismatches << endl;
 
+    //!!!!!!!!  Functionality related to score format is not inplemented
     FASTQScoreType score_format = FASTQ_Solexa;
-    //       (FASTQ) ?
-    //       fastq_score_type(reads_file) : FASTQ_Solexa;
-    
-    if (VERBOSE)
-      cerr << "SCORE FORMAT: " 
-	   << ((FASTQScoreIsPhred(score_format)) ? "Phred" : "Solexa") << endl;
+    //     //       (FASTQ) ?
+    //     //       fastq_score_type(reads_file) : FASTQ_Solexa;
+    //     if (VERBOSE)
+    //       cerr << "SCORE FORMAT: " 
+    // 	   << ((FASTQScoreIsPhred(score_format)) ? "Phred" : "Solexa") << endl;
     
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
