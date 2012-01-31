@@ -628,7 +628,6 @@ main(int argc, const char **argv) {
 		      false , cutoff);
     opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
                       false , out_stat);
-   
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -655,23 +654,12 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "MAX MISMATCHES=" << max_mismatches << endl;
 
-    //     const bool FASTQ = is_fastq(reads_file);
-    //     if (VERBOSE)
-    //       cerr << "READS FILE FORMAT: " << ((FASTQ) ? "FASTQ" : "FASTA") << endl;
-
-    FASTQScoreType score_format = 
-      //       (FASTQ) ?
-      //       fastq_score_type(reads_file) : 
-      FASTQ_Solexa;
-
-    //     if (VERBOSE && FASTQ)
-    //       cerr << "SCORE FORMAT: " 
-    // 	   << ((FASTQScoreIsPhred(score_format)) ? "Phred" : "Solexa") << endl;
+    FASTQScoreType score_format = FASTQ_Solexa;
     
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
     sort(chrom_files.begin(), chrom_files.end());
-
+    
     MethStat meth_stat_collector;
     
     FileIterator<MappedRead> regions(mapped_reads_file, BUFFER_SIZE);
