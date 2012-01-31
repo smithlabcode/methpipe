@@ -19,21 +19,11 @@
 #  02110-1301 USA
 #
 
-ifndef SRC_ROOT
-SRC_ROOT=../..
-endif
-
 ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = methcounts bsrate hmr amr dmr methdiff roimethstat
-
-COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
-INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
-
-LIBS = -lgsl -lgslcblas 
+PROGS = methcounts bsrate hmr methdiff amr dmr roimethstat
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -49,36 +39,39 @@ ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
 endif
 
+COMMON_DIR = ../common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+
+ifdef BAMTOOLS_ROOT
+INCLUDEDIRS += $(BAMTOOLS_ROOT)/include
+LIBS += -lbamtools -lz -L$(BAMTOOLS_ROOT)/lib
+endif
+
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+
+LIBS = -lgsl -lgslcblas 
+
+CXX = g++
+CFLAGS = -Wall -fmessage-length=50
+CXXFLAGS = -Wall -fmessage-length=50
+OPTFLAGS = -O2
+DEBUGFLAGS = -g
+
 all: $(PROGS)
 
 install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-amr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
+	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o)
+
+amr bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	FileIterator.o MappedRead.o) 
 
-bsrate:	$(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
-	FileIterator.o MappedRead.o QualityScore.o)
+bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
-dmr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
-
-hmr: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o) \
-	$(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
-
-methcounts: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o \
-	FileIterator.o MappedRead.o QualityScore.o)		
-
-methdiff: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
-
-roimethstat: $(addprefix $(SMITHLAB_CPP)/, \
-	GenomicRegion.o OptionParser.o smithlab_os.o smithlab_utils.o)
+hmr: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
