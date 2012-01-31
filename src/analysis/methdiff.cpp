@@ -1,6 +1,5 @@
-/* methdiff: A program for determining the probability that
- *           methylation at each CpG (or any nucleotide) differs 
- *           between two conditions.
+/* methdiff: Computes probability that individual CpGs have higher
+ *           methylation in file 1 than 2
  *
  * Copyright (C) 2011 University of Southern California
  *                    Andrew D Smith
@@ -105,8 +104,8 @@ main(int argc, const char **argv) {
     OptionParser opt_parse(strip_path(argv[0]),
 			   "Computes probability that "
 			   "individual CpGs have higher methylation in "
-			   "file 1 than 2",
-			   "<cpgs-BED-file1> <cpgs-BED-file2>");
+			   "file A than B",
+			   "<cpgs-BED-file-A> <cpgs-BED-file-B>");
     opt_parse.add_opt("pseudo", 'p', "pseudocount (default: 1)", 
 		      false, pseudocount);
     opt_parse.add_opt("out", 'o', "output file (BED format)", 
@@ -175,8 +174,9 @@ main(int argc, const char **argv) {
 	get_meth_unmeth(cpgs_b[j], meth_b, unmeth_b);
 	
  	if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
-	  cpgs_a[i].set_name("CpG:" + toa(meth_a + unmeth_a) +   
-			     ":" + toa(meth_b + unmeth_b));
+	  cpgs_a[i].set_name("CpG:" + 
+			     toa(meth_a) + ":" + toa(unmeth_a) + ":" +
+			     toa(meth_b) + ":" + toa(unmeth_b));
 	  meth_a += pseudocount;
 	  meth_b += pseudocount;
 	  unmeth_a += pseudocount;
