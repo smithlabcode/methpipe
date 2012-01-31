@@ -1,6 +1,6 @@
 /* methdiff: A program for determining the probability that
- * methylation at each CpG (or any nucleotide) differs 
- * between two conditions.
+ *           methylation at each CpG (or any nucleotide) differs 
+ *           between two conditions.
  *
  * Copyright (C) 2011 University of Southern California
  *                    Andrew D Smith
@@ -102,11 +102,11 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], 
-			   "A program for determining the probability that "
-			   "methylation at each CpG (or any nucleotide) differs "
-			   "between two conditions.",
-			   "<cpgs_file_a> <cpgs_file_b>");
+    OptionParser opt_parse(strip_path(argv[0]),
+			   "Computes probability that "
+			   "individual CpGs have higher methylation in "
+			   "file 1 than 2",
+			   "<cpgs-BED-file1> <cpgs-BED-file2>");
     opt_parse.add_opt("pseudo", 'p', "pseudocount (default: 1)", 
 		      false, pseudocount);
     opt_parse.add_opt("out", 'o', "output file (BED format)", 
@@ -139,32 +139,29 @@ main(int argc, const char **argv) {
       cerr << "[READING CPGS]";
     vector<GenomicRegion> cpgs_a, cpgs_b;
     ReadBEDFile(cpgs_file_a, cpgs_a);
-    if (VERBOSE) cerr << "[READ=" + strip_path(cpgs_file_a) + "]";
-
     if (!check_sorted(cpgs_a))
       throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_a + "\"");
-
-    if (VERBOSE) cerr << "[SORTED]";
+    if (VERBOSE) 
+      cerr << "[READ=" + strip_path(cpgs_file_a) + "]" << endl;
+    
     ReadBEDFile(cpgs_file_b, cpgs_b);
-
-    if (VERBOSE) cerr << "[READ=" + strip_path(cpgs_file_b) + "]";
-
     if (!check_sorted(cpgs_b))
       throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_b + "\"");
+    if (VERBOSE) 
+      cerr << "[READ=" + strip_path(cpgs_file_b) + "]" << endl;
 
     if (VERBOSE)
-      cerr << "[SORTED]"
-	   << "[DONE]" << endl
-	   << "CPG COUNT A: " << cpgs_a.size() << endl
+      cerr << "CPG COUNT A: " << cpgs_a.size() << endl
 	   << "CPG COUNT B: " << cpgs_b.size() << endl;
     
-    std::ostream *out = (outfile.empty()) ? &cout : 
-      new std::ofstream(outfile.c_str());
-    size_t j = 0;
+    std::ofstream of;
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
+    size_t j = 0;
     for (size_t i = 0; i < cpgs_a.size(); ++i) {
       if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
-	cerr << "processing " << cpgs_a[i].get_chrom() << endl;
+	cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
       
       while (j < cpgs_b.size() && cpgs_b[j] < cpgs_a[i]) ++j;
       
@@ -187,12 +184,10 @@ main(int argc, const char **argv) {
 	  
 	  cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
 						      meth_a, unmeth_a));
-	  *out << cpgs_a[i] << endl;
+	  out << cpgs_a[i] << endl;
  	}
       }
     }
-
-    if (out != &cout) delete out;
   }
   catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
