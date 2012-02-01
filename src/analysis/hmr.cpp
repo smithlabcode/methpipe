@@ -68,6 +68,7 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
 //   wigout.close();
 // }
 
+
 static void
 get_domain_scores(const vector<bool> &classes,
 		  const vector<pair<double, double> > &meth,
@@ -180,8 +181,24 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
 }
 
 
+/*
+ * FUNCTION TO "FOLD" THE METHYLATION PROFILE SO THAT THE MIDDLE
+ * METHYLATION BECOMES LOWER METHYLATION, AND BOTH THE LOW AND HIGH
+ * METHYLATION BECOME HIGH. THIS METHOD ACTUALLY SEEMS TO WORK.
+ */
 static void
-load_cpgs(const bool VERBOSE, 
+make_partial_meth(vector<GenomicRegion> &cpgs) {
+  for (size_t i = 0; i < cpgs.size(); ++i) {
+    double cpg_meth = cpgs[i].get_score();
+    if (cpg_meth > 0.5)
+      cpg_meth = 1.0 - cpg_meth;
+    cpgs[i].set_score(1.0 - (2*cpg_meth));
+  }
+}
+
+
+static void
+load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
 	  string cpgs_file, vector<SimpleGenomicRegion> &cpgs,
 	  vector<pair<double, double> > &meth, vector<size_t> &reads) {
   if (VERBOSE)
@@ -190,6 +207,9 @@ load_cpgs(const bool VERBOSE,
   ReadBEDFile(cpgs_file, cpgs_in);
   if (!check_sorted(cpgs_in))
     throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+
+  if (PARTIAL_METH)
+    make_partial_meth(cpgs_in);
   
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
@@ -222,13 +242,9 @@ shuffle_cpgs(const TwoStateHMMB &hmm,
   random_shuffle(meth.begin(), meth.end());
   vector<bool> classes;
   vector<double> scores;
-  hmm.PosteriorDecoding(meth, reset_points, start_trans, trans, end_trans,
-			fg_alpha, fg_beta, bg_alpha, bg_beta, classes, scores);
-  random_shuffle(meth.begin(), meth.end());
-  classes.clear();
-  scores.clear();
-  hmm.PosteriorDecoding(meth, reset_points, start_trans, trans, end_trans,
-			fg_alpha, fg_beta, bg_alpha, bg_beta, classes, scores);
+  hmm.PosteriorDecoding(meth, reset_points, start_trans, trans, 
+			end_trans, fg_alpha, fg_beta, bg_alpha, 
+			bg_beta, classes, scores);
   get_domain_scores(classes, meth, reset_points, domain_scores);
   sort(domain_scores.begin(), domain_scores.end());
 }
@@ -334,6 +350,7 @@ main(int argc, const char **argv) {
     
     // run mode flags
     bool VERBOSE = false;
+    bool PARTIAL_METH = false;
     
     // corrections for small values (not parameters):
     double tolerance = 1e-10;
@@ -343,8 +360,8 @@ main(int argc, const char **argv) {
     string params_out_file;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Program for identifying HMRs "
-			   "in methylation data", "<cpg-BED-file>");
+    OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
+			   "HMRs in methylation data", "<cpg-BED-file>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)", 
 		      false, outfile);
     //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
@@ -356,6 +373,8 @@ main(int argc, const char **argv) {
 		      false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.add_opt("partial", '\0', "identify PMRs instead of HMRs", 
+		      false, PARTIAL_METH);
     opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)", 
 		      false, params_in_file);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file", 
@@ -388,7 +407,7 @@ main(int argc, const char **argv) {
     // vector<double> meth;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
-    load_cpgs(VERBOSE, cpgs_file, cpgs, meth, reads);
+    load_cpgs(VERBOSE, PARTIAL_METH, cpgs_file, cpgs, meth, reads);
     
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs
@@ -415,7 +434,8 @@ main(int argc, const char **argv) {
 		       start_trans, trans, end_trans, fdr_cutoff);
     }
     else {
-      const double n_reads = accumulate(reads.begin(), reads.end(), 0.0)/reads.size();
+      const double n_reads = 
+	accumulate(reads.begin(), reads.end(), 0.0)/reads.size();
       fg_alpha = 0.33*n_reads;
       fg_beta = 0.67*n_reads;
       bg_alpha = 0.67*n_reads;
@@ -437,8 +457,9 @@ main(int argc, const char **argv) {
      */
     vector<bool> classes;
     vector<double> scores;
-    hmm.PosteriorDecoding(meth, reset_points, start_trans, trans, end_trans,
-			  fg_alpha, fg_beta, bg_alpha, bg_beta, classes, scores);
+    hmm.PosteriorDecoding(meth, reset_points, start_trans, trans, 
+			  end_trans, fg_alpha, fg_beta, bg_alpha, 
+			  bg_beta, classes, scores);
     
     vector<double> domain_scores;
     get_domain_scores(classes, meth, reset_points, domain_scores);
@@ -467,11 +488,13 @@ main(int argc, const char **argv) {
     //       write_scores_bedgraph(scores_file, cpgs, scores);
     //     if (!trans_file.empty()) {
     //       vector<double> fg_to_bg_scores;
-    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
+    //       hmm.TransitionPosteriors(meth, reset_points, 
+    //                                start_trans, trans, end_trans, 
     // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
     // 			       1, fg_to_bg_scores);
     //       vector<double> bg_to_fg_scores;
-    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, trans, end_trans, 
+    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, 
+    //                                trans, end_trans, 
     // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
     // 			       2, bg_to_fg_scores);
     //       for (size_t i = 0; i < fg_to_bg_scores.size(); ++i)
@@ -480,8 +503,7 @@ main(int argc, const char **argv) {
     //     }
     
     vector<GenomicRegion> domains;
-    build_domains(VERBOSE, cpgs, scores,
-		  reset_points, classes, domains);
+    build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
