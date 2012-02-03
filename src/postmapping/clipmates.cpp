@@ -92,7 +92,8 @@ name_smaller(const size_t suffix_len,
 
 
 static void
-merge_mates(const size_t MAX_SEGMENT_LENGTH,
+merge_mates(const size_t suffix_len,
+	    const size_t MAX_SEGMENT_LENGTH,
 	    const MappedRead &one, const MappedRead &two,
             MappedRead &merged, int &len) {
   
@@ -133,8 +134,8 @@ merge_mates(const size_t MAX_SEGMENT_LENGTH,
     merged.seq = string(len, 'N');
     merged.scr = string(len, 'B');
     const string name(one.r.get_name());
-    merged.r.set_name("FRAG:" + name.substr(0, name.size() - 1));
-
+    merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
+    
     // lim_one ios the offset within the merged sequence where the
     // overlapping portion begins
     const size_t lim_one = end_one - start_one;
@@ -254,7 +255,6 @@ main(int argc, const char **argv)  {
     
     while (one_is_good && two_is_good) {
       if (same_read(suffix_len, one, two)) { // one and tow are mates
-	
 	if (!one.r.same_chrom(two.r)) {
 	  incorrect_chr++;
 	  out << one << endl << two << endl;
@@ -272,7 +272,7 @@ main(int argc, const char **argv)  {
 	else {
 	  MappedRead merged;
 	  int len = 0;
-	  merge_mates(MAX_SEGMENT_LENGTH, one, two, merged, len);
+	  merge_mates(suffix_len, MAX_SEGMENT_LENGTH, one, two, merged, len);
 	  if (len > 0 && len <= static_cast<int>(MAX_SEGMENT_LENGTH)) {
 	    merged_pairs++;
 	    frag_len_distr[len]++;
