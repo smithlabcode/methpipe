@@ -73,19 +73,21 @@ revcomp(MappedRead &mr) {
 
 
 inline static bool
-same_read(const MappedRead &a, const MappedRead &b) {
+same_read(const size_t suffix_len, 
+	  const MappedRead &a, const MappedRead &b) {
   const string sa(a.r.get_name());
   const string sb(b.r.get_name());
-  return std::equal(sa.begin(), sa.end() - 1, sb.begin());
+  return std::equal(sa.begin(), sa.end() - suffix_len, sb.begin());
 }
 
 
 inline static bool
-name_smaller(const MappedRead &a, const MappedRead &b) {
+name_smaller(const size_t suffix_len, 
+	     const MappedRead &a, const MappedRead &b) {
   const string sa(a.r.get_name());
   const string sb(b.r.get_name());
-  return std::lexicographical_compare(sa.begin(), sa.end() - 1, 
-				      sb.begin(), sb.end() - 1);
+  return std::lexicographical_compare(sa.begin(), sa.end() - suffix_len, 
+				      sb.begin(), sb.end() - suffix_len);
 }
 
 
@@ -192,7 +194,9 @@ main(int argc, const char **argv)  {
     string end_one_out, end_two_out;  // mapped read output
     string out_stat;
     string outfile;
-      
+
+    size_t suffix_len = 1;
+    
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], "a program to merge paired-end BS-seq reads");
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -203,6 +207,8 @@ main(int argc, const char **argv)  {
 		      true, end_one_file); 
     opt_parse.add_opt("a-rich", 'A', "input file for A-rich mates (s_*_2_...)",
 		      true, end_two_file); 
+    opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
+		      false, suffix_len); 
     opt_parse.add_opt("outfile", 'o', "Output file name", false, outfile);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -246,7 +252,10 @@ main(int argc, const char **argv)  {
     if (REVCOMP) revcomp(two);
     
     while (one_is_good && two_is_good) {
-      if (same_read(one, two)) { // one and tow are mates
+      cerr << "A>\t" << one << endl
+	   << "B>\t" << two << endl
+	   << endl;
+      if (same_read(suffix_len, one, two)) { // one and tow are mates
 	
 	if (!one.r.same_chrom(two.r)) {
 	  incorrect_chr++;
@@ -280,8 +289,8 @@ main(int argc, const char **argv)  {
 	one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
 	two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
 	if (REVCOMP) revcomp(two);
-      } 
-      else if (name_smaller(one, two)) {
+      }
+      else if (name_smaller(suffix_len, one, two)) {
 	out << one << endl;
 	broken_pairs++;
 	one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
