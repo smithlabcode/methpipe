@@ -198,7 +198,8 @@ main(int argc, const char **argv)  {
     size_t suffix_len = 1;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program to merge paired-end BS-seq reads");
+    OptionParser opt_parse(strip_path(argv[0]), 
+			   "a program to merge paired-end BS-seq reads");
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size", 
 		      false, MAX_SEGMENT_LENGTH); 
@@ -252,9 +253,6 @@ main(int argc, const char **argv)  {
     if (REVCOMP) revcomp(two);
     
     while (one_is_good && two_is_good) {
-      cerr << "A>\t" << one << endl
-	   << "B>\t" << two << endl
-	   << endl;
       if (same_read(suffix_len, one, two)) { // one and tow are mates
 	
 	if (!one.r.same_chrom(two.r)) {
