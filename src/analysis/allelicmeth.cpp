@@ -1,5 +1,5 @@
-/*    amr: a program to get allelic methylation scores for consecutive
- *    pairs of CpGs
+/*    allelicmeth: a program to get allelic methylation scores for
+ *    consecutive pairs of CpGs
  *
  *    Copyright (C) 2009-2012 University of Southern California and
  *                            Andrew D. Smith
@@ -191,7 +191,6 @@ advance(const size_t first, const size_t last,
 static void
 scan_chromosome_cpg(const string &chrom,
 		    const GenomicRegion &chrom_region,
-		    const double max_mismatches,
 		    FileIterator<MappedRead> &regions,
 		    std::ostream &out) {
   const string chrom_name(chrom_region.get_chrom());
@@ -206,17 +205,17 @@ scan_chromosome_cpg(const string &chrom,
 	  size_t unmeth_meth_count = 1, unmeth_unmeth_count = 1;
 	  for (vector<MappedRead>::const_iterator j(regions.get_first());
 	       j != regions.get_last(); ++j)
-	    if (j->r.get_score() <= max_mismatches)
-	      add_contribution_cpg(prev, i, *j, 
-				   meth_meth_count, meth_unmeth_count,
-				   unmeth_meth_count, unmeth_unmeth_count);
+	    add_contribution_cpg(prev, i, *j, 
+				 meth_meth_count, meth_unmeth_count,
+				 unmeth_meth_count, unmeth_unmeth_count);
 	  const double total = meth_meth_count + meth_unmeth_count +
 	    unmeth_meth_count + unmeth_unmeth_count;
 	  out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
 	      << total << "\t" 
-	      << test_similar_population(meth_meth_count, meth_unmeth_count,
-					 unmeth_meth_count, unmeth_unmeth_count) << "\t"
-	    //  (meth_meth_count + unmeth_unmeth_count)/max(1.0, total) << "\t+\t"
+	      << test_similar_population(meth_meth_count, 
+					 meth_unmeth_count,
+					 unmeth_meth_count, 
+					 unmeth_unmeth_count) << "\t"
 	      << meth_meth_count << "\t"
 	      << meth_unmeth_count << "\t"
 	      << unmeth_meth_count << "\t"
@@ -231,7 +230,6 @@ scan_chromosome_cpg(const string &chrom,
 
 static void
 scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
-		const double max_mismatches,
 		FileIterator<MappedRead> &regions, 
 		std::ostream &out) {
   const string chrom_name(chrom_region.get_chrom());
@@ -242,8 +240,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j)
-	if (j->r.get_score() <= max_mismatches)
-	  add_contribution_c(i, *j, meth_count, unmeth_count);
+	add_contribution_c(i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tC:"
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
@@ -252,8 +249,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j)
-	if (j->r.get_score() <= max_mismatches)
-	  add_contribution_g(i, *j, meth_count, unmeth_count);
+	add_contribution_g(i, *j, meth_count, unmeth_count);
       const double total = meth_count + unmeth_count;
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tG:" 
 	  << total << "\t" << meth_count/max(1.0, total) << "\t+\n";
@@ -298,7 +294,6 @@ advance_chromosome(const GenomicRegion &chrom_region,
 
 static void
 scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
-	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
 	    FileIterator<MappedRead> &regions) {
   std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
@@ -314,9 +309,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       const GenomicRegion chrom_region(chrom_names[j], 0, 0);
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
-	scan_chromosome(chroms[j], chrom_region, max_mismatches,
+	scan_chromosome(chroms[j], chrom_region, 
 			regions, *out);
-      else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
+      else scan_chromosome_cpg(chroms[j], chrom_region, 
 			       regions, *out);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
@@ -338,7 +333,6 @@ main(int argc, const char **argv) {
     string fasta_suffix = "fa";
     
     size_t BUFFER_SIZE = 100000;
-    double max_mismatches = std::numeric_limits<double>::max();
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "a program to get allelic "
@@ -346,17 +340,15 @@ main(int argc, const char **argv) {
 			   "pairs of CpGs", "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing chromosome(s)", 
-		      true , chrom_file);
-    opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
-		      "(assumes -c indicates dir)", 
-		      false , fasta_suffix);
+    opt_parse.add_opt("chrom", 'c', "FASTA file or dir containing "
+		      "chromosome(s)", true , chrom_file);
+    //     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
+    // 		      "(assumes -c indicates dir)", 
+    // 		      false , fasta_suffix);
+    //     opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
+    // 		      false , BUFFER_SIZE);
     opt_parse.add_opt("non", 'N', "process non-CpG cytosines", 
 		      false , PROCESS_NON_CPGS);
-    opt_parse.add_opt("buffer", 'B', "buffer size (in records, not bytes)", 
-		      false , BUFFER_SIZE);
-    opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
-		      false , max_mismatches);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -380,15 +372,12 @@ main(int argc, const char **argv) {
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    if (VERBOSE)
-      cerr << "MAX MISMATCHES=" << max_mismatches << endl;
-
     vector<string> chrom_files;
     identify_chromosomes(VERBOSE, chrom_file, fasta_suffix, chrom_files);
     sort(chrom_files.begin(), chrom_files.end());
     
     FileIterator<MappedRead> regions(mapped_reads_file, BUFFER_SIZE);
-    scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
+    scan_chroms(VERBOSE, PROCESS_NON_CPGS,
 		outfile, chrom_files, regions);
   }
   catch (const SMITHLABException &e) {
