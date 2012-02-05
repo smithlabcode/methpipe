@@ -23,14 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-SOURCES = $(wildcard *.cpp)
-PROGS =  $(patsubst %.cpp,%,$(SOURCES))
-
-COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
-INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
-
-LIBS = -lgsl -lgslcblas
+PROGS = reorder clipmates duplicate-remover
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -46,25 +39,30 @@ ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
 endif
 
+COMMON_DIR = ../common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+LIBS = -lgsl -lgslcblas
+
+ifdef BAMTOOLS_ROOT
+PROGS += mr2bam bam2mr
+INCLUDEDIRS += $(BAMTOOLS_ROOT)/include
+LIBS += -lbamtools -lz -L$(BAMTOOLS_ROOT)/lib
+endif
+
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+
 all: $(PROGS)
 
 install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-frag2mr: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)		
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
+	MappedRead.o OptionParser.o smithlab_os.o \
+	smithlab_utils.o GenomicRegion.o)
 
-clipmates: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)
-
-reorder: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o \
-	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)
-
-duplicate-remover: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o OptionParser.o smithlab_os.o smithlab_utils.o \
-	GenomicRegion.o RNG.o FileIterator.o QualityScore.o)	
+reorder duplicate-remover: \
+	$(addprefix $(SMITHLAB_CPP)/, RNG.o FileIterator.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
