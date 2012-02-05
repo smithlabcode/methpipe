@@ -31,7 +31,6 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "RNG.hpp"
 #include "MappedRead.hpp"
 
 using std::string;
@@ -43,43 +42,64 @@ using std::ifstream;
 using std::ofstream;
 using std::priority_queue;
 
-struct MappedReadOrder {
-  static bool CHECK_SECOND_ENDS;
-  static size_t max_frag_len;
-  bool operator()(const MappedRead &lhs, const MappedRead &rhs) const {
-    return rhs.r <= lhs.r;
+
+/**************** FOR CLARITY BELOW WHEN COMPARING MAPPED READS **************/
+static inline bool
+same_strand(const GenomicRegion &a, const GenomicRegion &b) {
+  return a.get_strand() == b.get_strand();
+}
+static inline bool
+strand_less(const GenomicRegion &a, const GenomicRegion &b) {
+  return a.get_strand() <= b.get_strand();
+}
+static inline bool
+start_leq(const GenomicRegion &a, const GenomicRegion &b) {
+  return a.get_start() <= b.get_start();
+}
+static inline bool
+same_end(const GenomicRegion &a, const GenomicRegion &b) {
+  return a.get_end() == b.get_end();
+}
+static inline bool
+end_less(const GenomicRegion &a, const GenomicRegion &b) {
+  return a.get_end() < b.get_end();
+}
+/******************************************************************************/
+
+
+struct OrderChecker {
+  bool operator()(const MappedRead &prev_mr, const MappedRead &mr) const {
+    return end_two_check(mr.r, prev_mr.r);
   }
   static bool 
-  is_ready(const priority_queue<MappedRead, vector<MappedRead>, MappedReadOrder> &pq,
+  is_ready(const priority_queue<MappedRead, vector<MappedRead>, OrderChecker> &pq,
 	   const MappedRead &mr) {
     return !pq.top().r.same_chrom(mr.r) || pq.top().r.get_end() < mr.r.get_start();
   }
+  static bool 
+  end_two_check(const GenomicRegion &prev_mr, const GenomicRegion &mr) {
+    return (end_less(prev_mr, mr) || 
+	    (same_end(prev_mr, mr) &&
+	     (strand_less(prev_mr, mr) ||
+	      (same_strand(prev_mr, mr) && start_leq(prev_mr, mr)))));
+  }
 };
-
-bool MappedReadOrder::CHECK_SECOND_ENDS = false;
-size_t MappedReadOrder::max_frag_len = 500;
 
 int main(int argc, const char **argv) {
   
   try {
     
     string outfile;
-    size_t max_frag_len = 500;
-    bool CHECK_SECOND_ENDS = true; //remove duplicates by end
     bool INPUT_FROM_STDIN = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program to re-sort genomic intervals "
-			   "based on start or end coordinates",
+    OptionParser opt_parse(strip_path(argv[0]), "a program to re-sort genomic "
+			   "intervals based on start or end coordinates",
 			   "<mapped-reads-file>");
     opt_parse.add_opt("output", 'o', "output file for unique reads",
 		      false, outfile);
     opt_parse.add_opt("stdin", '\0', "take input from stdin",
 		      false, INPUT_FROM_STDIN);
-    // opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
-    //                   "similar fragment check on 5' end of second mate",
-    // 		         false, CHECK_SECOND_ENDS);
-    opt_parse.add_opt("len", 'L', "max fragment length", false, max_frag_len);
     
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -104,9 +124,7 @@ int main(int argc, const char **argv) {
     const string infile = INPUT_FROM_STDIN ? "" : leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
     
-    MappedReadOrder::CHECK_SECOND_ENDS = CHECK_SECOND_ENDS;
-    MappedReadOrder::max_frag_len = max_frag_len;
-    priority_queue<MappedRead, vector<MappedRead>, MappedReadOrder> pq;
+    std::priority_queue<MappedRead, vector<MappedRead>, OrderChecker> pq;
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -118,18 +136,16 @@ int main(int argc, const char **argv) {
     
     MappedRead mr;
     while (in >> mr) {
-      while (!pq.empty() && MappedReadOrder::is_ready(pq, mr)) {
+      while (!pq.empty() && OrderChecker::is_ready(pq, mr)) {
 	out << pq.top() << '\n';
 	pq.pop();
       }
       pq.push(mr);
     }
-    
     while (!pq.empty()) {
       out << pq.top() << '\n';
       pq.pop();
     }
-    
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
