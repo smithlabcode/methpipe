@@ -7,8 +7,9 @@ from optparse import OptionParser
 SCRIPT_HEADER = """#PBS -S /bin/sh
 #PBS -e %(stderr)s
 #PBS -o %(stdout)s
-#PBS -l mem=2G
-#PBS -l pmem=2G
+#PBS -l vmem=10100M
+#PBS -l mem=10100M
+#PBS -l pmem=10100M
 #PBS -l nodes=1:ppn=1
 #PBS -l walltime=48:00:00
 #PBS -q cmb
@@ -16,22 +17,22 @@ SCRIPT_HEADER = """#PBS -S /bin/sh
 export LC_ALL=C
 
 # Set the temporary dir
-### export TMPDIR=%(tmpDirName)s
+export TMPDIR=%(tmpDirName)s
 """
 
 MAIN_SCRIPT_TEMPLATE = """
 
 # Sort the files according to name
-sort -S 2G -k 4 \\
+sort -S 10000M -k 4 \\
 -o %(endOne)s.tmp \\
 %(endOne)s
 
-sort -S 2G -k 4 \\
+sort -S 13000M -k 4 \\
 -o %(endTwo)s.tmp \\
 %(endTwo)s
 
 # Clip the ends of the mates
-%(binDir)s/clipmates -L 500 \\
+%(binDir)s/clipmates -s %(suffLen)d -L 1000 \\
 -S %(statsOut)s \\
 -o %(mergedOut)s.tmp \\
 -T %(endOne)s.tmp \\
@@ -41,7 +42,7 @@ sort -S 2G -k 4 \\
 rm %(endOne)s.tmp %(endTwo)s.tmp
 
 # Now sort the ouptut by location
-sort -S 2G -k 1,1 -k 2,2g -k 3,3g -k 6,6 \\
+sort -S 10000M -k 1,1 -k 2,2g -k 6,6 -k 3,3g \\
 -o %(mergedOut)s \\
 %(mergedOut)s.tmp
 
@@ -55,8 +56,11 @@ jobCount = 0
 def getMergedName(endOneFile, endTwoFile):
     return os.path.splitext(string.replace(endOneFile, '_1_seq', '_seq'))[0]
 
-def writeScript(binDir, workDir, endOneFile, endTwoFile):
+def writeScript(noSuff, binDir, workDir, endOneFile, endTwoFile):
     global jobCount
+    suffLen = 1
+    if noSuff:
+        suffLen = 0
     scrBase = "clipmates.%s.%s.%d" % \
         (date.today(), os.getpid(), jobCount)
     scriptFileName = scrBase + '.qsub'
@@ -74,6 +78,7 @@ def writeScript(binDir, workDir, endOneFile, endTwoFile):
     
     f.write(MAIN_SCRIPT_TEMPLATE % \
                 { "binDir" : binDir,
+                  "suffLen" : suffLen,
                   "statsOut" : statsOut,
                   "mergedOut" : mergedOut,
                   "endOne" : endOneFile,
@@ -121,6 +126,8 @@ def main(argv):
                       metavar="<dir>")
     parser.add_option("-B", "--bin", action="store", type="string",
                       dest="binDir", help="directory for binaries", metavar="<dir>")
+    parser.add_option("-N", "--no-suff", action="store_true",
+                      dest="noSuff", help="no read name suffix", metavar="<bool>")
     parser.add_option("-A", "--run", action="store_true",
                       dest="actuallyRun", help="actually run the script")
 
@@ -135,7 +142,8 @@ def main(argv):
         sys.exit(1)
 
     for i in findMatePairFiles(opt.workDir):
-        scriptFileName = writeScript(opt.binDir, opt.workDir, i[0], i[1])
+        scriptFileName = writeScript(opt.noSuff,
+                                     opt.binDir, opt.workDir, i[0], i[1])
         if opt.actuallyRun:
             os.system("qsub %s" % scriptFileName)
 

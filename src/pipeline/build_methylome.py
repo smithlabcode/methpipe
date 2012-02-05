@@ -7,6 +7,7 @@ SCRIPT_HEADER = """#PBS -S /bin/sh
 #PBS -e %(stderr)s
 #PBS -o %(stdout)s
 #PBS -l mem=%(memSize)dG
+#PBS -l vmem=%(memSize)dG
 #PBS -l pmem=%(coreMemSize)dG
 #PBS -l nodes=1:ppn=%(cores)d
 #PBS -l walltime=48:00:00
@@ -29,7 +30,7 @@ export LC_ALL=C
 
 MAIN_SCRIPT_TEMPLATE = """
 # Merge all the reads files, which are assumed to have been sorted based on their first ends
-sort -T %(tmpDirName)s --batch-size=1000 -S %(memSize)dG -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 \\
+sort -T %(tmpDirName)s --batch-size=1000 -S %(coreMemSize)dG -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \\
 %(inFileNames)s | \\
 %(binDir)s/duplicate-remover -stdin \\
 -S %(outFileName)s.u1_dup_stats | \\
@@ -113,7 +114,8 @@ def main(argv):
               'tmpDirName' : opt.tmpDir, 
               'inFileNames' : parseLibraryFiles(i),
               'outFileName' : os.path.join(opt.tmpDir, opt.methylomeName + str(counter)),
-              'memSize' : opt.memorySize }
+              'memSize' : opt.memorySize,
+              'coreMemSize' : opt.memorySize/cores }
         mergedFiles.append(os.path.join(opt.tmpDir, opt.methylomeName + str(counter)))
         counter += 1
 
