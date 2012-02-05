@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = methcounts bsrate hmr methdiff amr dmr roimethstat
+PROGS = methcounts bsrate hmr methdiff allelicmeth dmr roimethstat
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -66,7 +66,7 @@ install: $(PROGS)
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o)
 
-amr bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
+allelicmeth bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	FileIterator.o MappedRead.o) 
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
