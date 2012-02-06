@@ -48,8 +48,9 @@ using std::accumulate;
 using std::tr1::unordered_map;
 
 static void
-count_states_pos(const bool COUNT_CPGS, const string &chrom, const MappedRead &r,
-		 vector<size_t> &unconv, vector<size_t> &conv, 
+count_states_pos(const bool COUNT_CPGS, const string &chrom,
+		 const MappedRead &r,
+		 vector<size_t> &unconv, vector<size_t> &conv,
 		 vector<size_t> &err) {
   
   const size_t width = r.r.get_width();
@@ -71,8 +72,9 @@ count_states_pos(const bool COUNT_CPGS, const string &chrom, const MappedRead &r
 
 
 static void
-count_states_neg(const bool COUNT_CPGS, const string &chrom, const MappedRead &r,
-		 vector<size_t> &unconv, vector<size_t> &conv, 
+count_states_neg(const bool COUNT_CPGS, const string &chrom,
+		 const MappedRead &r,
+		 vector<size_t> &unconv, vector<size_t> &conv,
 		 vector<size_t> &err) {
   
   const size_t width = r.r.get_width();
@@ -106,30 +108,35 @@ identify_chromosomes(const string chrom_file, const string fasta_suffix,
 
 
 static void
-write_output(const string &outfile,
-	     const vector<size_t> &ucvt_count_p, const vector<size_t> &cvt_count_p,
-	     const vector<size_t> &ucvt_count_n, const vector<size_t> &cvt_count_n,
+write_output(const string &outfile, 
+	     const vector<size_t> &ucvt_count_p, 
+	     const vector<size_t> &cvt_count_p,
+	     const vector<size_t> &ucvt_count_n, 
+	     const vector<size_t> &cvt_count_n,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
   
   // Get some totals first
-  const double pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0);
-  const double neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0); 
-  const double total_cvt = pos_cvt + neg_cvt;
-  const double pos_ucvt = accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0);
-  const double neg_ucvt = accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0);
-  const double total_ucvt = pos_ucvt + neg_ucvt;
+  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0);
+  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0); 
+  const size_t total_cvt = pos_cvt + neg_cvt;
+
+  const size_t pos_ucvt = 
+    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0);
+  const size_t neg_ucvt = 
+    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0);
+  const size_t total_ucvt = pos_ucvt + neg_ucvt;
   
   std::ofstream of;
   if (!outfile.empty()) of.open(outfile.c_str());
   std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
   out << "OVERALL CONVERSION RATE = "
-      << total_cvt/(total_cvt + total_ucvt) << endl
+      << static_cast<double>(total_cvt)/(total_cvt + total_ucvt) << endl
       << "POS CONVERSION RATE = "
-      << pos_cvt/(pos_cvt + pos_ucvt) << '\t'
+      << static_cast<double>(pos_cvt)/(pos_cvt + pos_ucvt) << '\t'
       << std::fixed << static_cast<size_t>(pos_cvt + pos_ucvt) << endl
       << "NEG CONVERSION RATE = "
-      << neg_cvt/(neg_cvt + neg_ucvt) << '\t'
+      << static_cast<double>(neg_cvt)/(neg_cvt + neg_ucvt) << '\t'
       << std::fixed << static_cast<size_t>(neg_cvt + neg_ucvt) << endl;
   
   out << "BASE" << '\t'
@@ -156,28 +163,29 @@ write_output(const string &outfile,
   // Now actually output the results
   static const size_t precision_val = 5;
   for (size_t i = 0; i < output_len; ++i) {
-    const double total_p = ucvt_count_p[i] + cvt_count_p[i];
-    const double total_n = ucvt_count_n[i] + cvt_count_n[i];
-    const double total_valid = total_p + total_n;
+    const size_t total_p = ucvt_count_p[i] + cvt_count_p[i];
+    const size_t total_n = ucvt_count_n[i] + cvt_count_n[i];
+    const size_t total_valid = total_p + total_n;
     out << (i + 1) << "\t";
     
     out.precision(precision_val);
-    out << static_cast<size_t>(total_p) << '\t'
-	<< cvt_count_p[i] << '\t' << cvt_count_p[i]/max(1.0, total_p) << '\t';
+    out << total_p << '\t' << cvt_count_p[i] << '\t' 
+	<< static_cast<double>(cvt_count_p[i])/max(1ul, total_p) << '\t';
     
     out.precision(precision_val);
-    out << static_cast<size_t>(total_n) << '\t' << cvt_count_n[i] << '\t' 
-	<< cvt_count_n[i]/max(1.0, total_n) << '\t';
+    out << total_n << '\t' << cvt_count_n[i] << '\t' 
+	<< static_cast<double>(cvt_count_n[i])/max(1ul, total_n) << '\t';
     
+    const double total_cvt = cvt_count_p[i] + cvt_count_n[i];
     out.precision(precision_val);
-    out << static_cast<size_t>(total_valid) 
-	<< '\t' << cvt_count_p[i] + cvt_count_n[i] << '\t'
-	<< (cvt_count_p[i] + cvt_count_n[i])/max(1.0, total_valid) << '\t';
+    out << total_valid << '\t' << cvt_count_p[i] + cvt_count_n[i] << '\t'
+	<< total_cvt/max(1ul, total_valid) << '\t';
     
+    const double total_err = err_p[i] + err_n[i];
     out.precision(precision_val);
-    const double total = total_valid + err_p[i] + err_n[i];
+    const size_t total = total_valid + err_p[i] + err_n[i];
     out << err_p[i] + err_n[i] << '\t' << static_cast<size_t>(total) << '\t'
-	<< (err_p[i] + err_n[i])/max(1.0, total) << endl;
+	<< total_err/max(1ul, total) << endl;
   }
 }
 
@@ -227,8 +235,8 @@ main(int argc, const char **argv) {
 			   "-c <chroms> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
-    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (FASTA format; .fa suffix)",
-		      true , chrom_file);
+    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (FASTA format; "
+		      ".fa suffix)", true , chrom_file);
     //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
     //     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
     // 		      "(assumes -c indicates dir)", 
@@ -278,10 +286,6 @@ main(int argc, const char **argv) {
     vector<size_t> conv_count_neg(OUTPUT_SIZE, 0ul);
     vector<size_t> err_pos(OUTPUT_SIZE, 0ul);
     vector<size_t> err_neg(OUTPUT_SIZE, 0ul);
-    
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
     
     string chrom;
     MappedRead mr;
