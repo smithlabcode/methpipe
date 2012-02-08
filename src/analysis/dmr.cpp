@@ -109,7 +109,7 @@ smooth_diff_region(const vector<SimpleGenomicRegion> &cpgs,
   for (size_t i = start; i < end; ++i) {
     double total_diff = 0.0, total_weight = 0.0;
     for (size_t j = ((i >= start + context_size/2) ? i - context_size/2 : start);
-	 j < min(i + context_size/2, end); ++j) {
+	 j < min(i + context_size/2 + context_size%2, end); ++j) {
       const double dist = std::abs(int(i) - int(j));
       const double w = weight(dist, context_size);
       total_diff += w*diffs[j];
