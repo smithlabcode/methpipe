@@ -230,7 +230,7 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program to compute the "
-			   "bs conversion rate from BS-seq "
+			   "BS conversion rate from BS-seq "
 			   "reads mapped to a genome",
 			   "-c <chroms> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
