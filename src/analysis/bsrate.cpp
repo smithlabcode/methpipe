@@ -170,22 +170,22 @@ write_output(const string &outfile,
     
     out.precision(precision_val);
     out << total_p << '\t' << cvt_count_p[i] << '\t' 
-	<< static_cast<double>(cvt_count_p[i])/max(1ul, total_p) << '\t';
+	<< static_cast<double>(cvt_count_p[i])/max(size_t(1ul), total_p) << '\t';
     
     out.precision(precision_val);
     out << total_n << '\t' << cvt_count_n[i] << '\t' 
-	<< static_cast<double>(cvt_count_n[i])/max(1ul, total_n) << '\t';
+	<< static_cast<double>(cvt_count_n[i])/max(size_t(1ul), total_n) << '\t';
     
     const double total_cvt = cvt_count_p[i] + cvt_count_n[i];
     out.precision(precision_val);
     out << total_valid << '\t' << cvt_count_p[i] + cvt_count_n[i] << '\t'
-	<< total_cvt/max(1ul, total_valid) << '\t';
+	<< total_cvt/max(size_t(1ul), total_valid) << '\t';
     
     const double total_err = err_p[i] + err_n[i];
     out.precision(precision_val);
     const size_t total = total_valid + err_p[i] + err_n[i];
     out << err_p[i] + err_n[i] << '\t' << static_cast<size_t>(total) << '\t'
-	<< total_err/max(1ul, total) << endl;
+	<< total_err/max(size_t(1ul), total) << endl;
   }
 }
 
