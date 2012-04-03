@@ -293,7 +293,13 @@ main(int argc, const char **argv) {
     while (!in.eof() && in >> mr) {
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region))
-	get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
+        try {
+          get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
+        } catch (const SMITHLABException &e) {
+          if (e.what().find("could not find chrom") != string::npos)
+            continue;
+            throw;
+        }
       
       // do the work for this mapped read
       if (mr.r.pos_strand())
