@@ -415,7 +415,7 @@ scan_chromosome_cpg(const string &chrom,
 		    std::ostream &out, MethStat &meth_stat_collector) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0;
-  for ( i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
+  for (i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     if (is_cpg(chrom, i)) {
       /* need the "+1" below because of the 'G' in CpG */
       advance(i, i + 1, chrom_region, regions);
@@ -428,8 +428,8 @@ scan_chromosome_cpg(const string &chrom,
       meth_stat_collector.collect(meth_count, total);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
 	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
-    }//if
-  }//for
+    }
+  }
 
   for(;  i < chrom.length() - 1; ++i){
     if (is_cpg(chrom, i)) {
@@ -437,9 +437,9 @@ scan_chromosome_cpg(const string &chrom,
       meth_stat_collector.collect(total, total);
       out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
           << total << "\t" << total << "\t+\n";
-    }//if
-  }//for
-}//scan_chromosome_cpg
+    }
+  }
+}
 
 
 static void
@@ -477,7 +477,8 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	  << cytosine_type_tag(chrom, i, '-') << ":" 
 	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
     }
-  }//for
+  }
+
   for (; i < chrom_len - 1 ; ++i){
     const size_t total = 0;
     if (is_cytosine(chrom[i])) {
@@ -492,7 +493,7 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	  << cytosine_type_tag(chrom, i, '-') << ":"
 	  << total << "\t" <<  total << "\t-\n";
     }
-  }//for
+  }
 }
 
 
@@ -565,13 +566,17 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 }
 
 
-static 
-void
+static void
 scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
 	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector) {
-  std::ostream *out = (outfile.empty()) ? &cout : new std::ofstream(outfile.c_str());
+
+  // Get the output stream
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+  
   for (size_t i = 0; i < chrom_files.size(); ++i) {
     const string fn(strip_path_and_suffix(chrom_files[i]));
     if (VERBOSE)
@@ -585,13 +590,12 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(chroms[j], chrom_region, max_mismatches,
-			regions, *out, meth_stat_collector);
+			regions, out, meth_stat_collector);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
-			       regions, *out, meth_stat_collector);
+			       regions, out, meth_stat_collector);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
-  if (out != &cout) delete out;
 }
 
 
