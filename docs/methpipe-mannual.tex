@@ -535,11 +535,12 @@ $ sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
 \end{verbatim}
 
 \paragraph{Counting only CpG sites:}
-Methylation is estimated at single base resolution for every cytosine
-loci and is represented as a probability based on the ratio of
-methylated to unmethylated reads mapping to that loci. To produce
-methylation levels at each CpG site you can use commands like the
-following:
+The methylation level for every CpG site at single base resolution is
+estimated as a probability based on the ratio of methylated to
+unmethylated reads mapped to that loci. Since CpG methylation is
+symmetric, reads mapped to both strands are used to produce a single
+estimate for the CpG site. To compute methylation levels at each CpG
+site you can use commands as following:
 \begin{verbatim}
 $ ./methcounts -c hg18 -o Human_ESC_Meth.bed \
                -S Human_ESC_Meth.stats Human_ESC.mr
@@ -561,44 +562,58 @@ the Cs and Ts mapping to that position. The final column is the
 strand, and when only CpG sites are considered, this is always +.
 
 \paragraph{Counting all cytosines:}
-In mammals, DNA methylation exists mostly at cytosines in the context
-of CpG dinucleotides. This kind of methylation is always symmetric due
-to the interesting action of DNA methyltransferases, which methylate
-GpC dinucleotides on the complemtary strand of methylated CpG
-dinucleotides during DNA replication.  In mammalian stem cells and in
-plant cells, cytosines in other sequence contexts, such as CHG or CHH
-(where H denotes adenines, thymines or cytosines), may also be
-methylated. This type of methylation is often referred to as
-asymmetric since the cytosines on the complementary strand are not
-necessarily methylated. Since most mammalian methylation occurs in the
-context of CpG dinucleotides, \prog{methcounts} calculates methylation
-levels for only CpG sites by default; to calculate methylation levels
-for all cytosines, use the \op{-N} option. The following command
-calculates methylation using the \prog{methcounts} component of
-methpipe.
+While methylation usually exists in the CpG contexts, in mammalian
+stem cells and plant cells, cytosines in other sequence contexts, such
+as CHG or CHH (where H denotes adenines, thymines or cytosines), may
+also be methylated. This type of methylation is referred to as
+asymmetric since the cytosines on the complementary strand do not
+necessarily have the same methylation status. The methylation level
+for each cytosine loci is estimated individually with only reads
+mapped to the strand where that cytosine is located. The estimate of
+the methylation level is given by the number of methylated reads
+mapped to that cytosine divided by the total number of reads. Since
+most mammalian methylation occurs in the context of CpG dinucleotides,
+\prog{methcounts} calculates methylation levels for only CpG sites by
+default; to calculate methylation levels for all cytosines in an
+asymmetric way, add the \op{-N} option like the following,
+\begin{verbatim}
+$ ./methcounts -N -c hg18 -o Human_ESC_Meth_All.bed \
+               -S Human_ESC_Meth.stats Human_ESC.mr
+\end{verbatim}
 
-% \noindent OPTIONS:
-% \begin{itemize}
-% \item
-% \textbf{-o},\textbf{-output} \textless string\textgreater : name of output file (default: stdout)
-% \item
-% \textbf{-c},\textbf{-chrom}  \textless string\textgreater : name of reference genome file or directory containing reference genome broken into seperate files for each chromosome (requires FASTA format and .fa suffix)
-% \item
-% \textbf{-N},\textbf{-non}  : process non-CpG cytosines
-% \item
-% \textbf{-M},\textbf{-max}  \textless integer or float\textgreater : max mismatches (can be fractional)
-% \item
-% \textbf{-S},\textbf{-output\_stat} \textless string\textgreater : name of output file with methylation statistics
-% \item
-% \textbf{-v},\textbf{-verbose}  : be verbose; print more run info
-% \end{itemize}
+The output file contains one line per cytosine site (see below for an
+excerpt from one \prog{methcount} output file). The first three
+columns give the chromsome, starting position and ending position
+(noninclusive) of that cytosine. The 4th column indicates the sequence
+context, and the number of reads mapped over the cyosine in the same
+strand, that have either a C or a T at that position. The sequence
+context can be either CG, CHG or CHH. The first C corresponds to the
+cytosine of interest and the remaining letters are bases following
+that cytosine in the same strand from 5' to 3'. The 5th column is the
+estimated methylation level. The final column indicates the strand, either +
+or -, in which that cytosine is located.  {\small{%%
+\begin{verbatim}
+chr1    101     102     CHH:3   0.333333        +
+chr1    106     107     CHH:3   0       +
+chr1    107     108     CHG:3   0.666667        +
+chr1    108     109     CG:3    1       +
+chr1    109     110     CG:3    0.666667        -
+chr1    113     114     CHG:3   0       +
+chr1    114     115     CG:3    1       +
+chr1    115     116     CG:3    0.666667        -
+chr1    116     117     CHG:3   0       -
+chr1    120     121     CHH:3   0.333333        +
+chr1    122     123     CHG:4   1       +
+\end{verbatim}%%
+}}
 
-% \noindent \\ INPUT: A single file in mapped reads (.mr) format.\\
-
-
-% \noindent OUTPUT: Output file is in BED format. File with statistics has self-explanatory content\textbf{Address with Andrew}.
-% Field \textbf{name} has format \textbf{CpG:X}, where \textbf{CpG} is cytosine context and can be \textbf{CpG, CHH, CHG} (see above), and \textbf{X} is the total number of
-% Cs and Ts mapped to the site (i.e. site coverage). Field \textbf{score} is the methylation level.
+To examine the methylation status of cytosines a particular sequence
+context, one may use the \prog{grep} command to filter those lines
+based on the fourth column. For example, in order to pull out all
+cytosines within the CHG context, run
+\begin{verbatim}
+$ grep CHG Human_ESC_Meth_All.bed > Human_ESC_Meth_CHG.bed
+\end{verbatim}
 
 \section{Methylome analysis}
 \label{sec:high-level-analys}
