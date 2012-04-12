@@ -613,27 +613,54 @@ allele-specific methylation (ASM).
 \subsection{Hypomethylated and hypermethylated regions (HMRs)}
 \label{sec:ident-hypo-methyl}
 
-Methylomes almost always have bimodal methylation distributions, with
-one peak representing higher methylation levels and the other
-representing lower methylation levels. Statistical approaches are
-employed to estimate these peaks, calculate certain parameters, such
-as the average distance between a highly methylated site and its
-closest lowly methylated site, and ultimately determine
-probabilistically what constitutes high, intermediate, or low levels
-of methylation. Criteria for such classifications are based on the
-characteristiscs of the specific data set (i.e. methylome) being
-analyzed, and interesting genome-wide methylation patterns can often
-be identified. One such pattern is the occurence of hypomethylated
-regions (HMRs), or contiguous regions with low methylation
-levels. Methylation is often a mechanism by which gene expression is
-significantly decreased, and so regions of decreased methylation may
-signify genetically important regions with high levels of gene
-expression. To identify HMRs, execute the following command that runs
-the program \prog{hmr} on the output of \prog{methcounts}.
+The distribution of methylation levels at individual sites in a
+methylome (either CpGs or non-CpG Cs) almost always has a bimodal
+distributions with one peak low (very close to 0) and another peak
+high (close to 1). In most mammalian cells, the majority of the genome
+has high methylation, and regions of low methylation are typically
+more interesting. These are called {\em hypo-methylated regions}. In
+plants, most of the genome has low methylation, and it is they high
+parts that are interesting. These are called {\em hyper-methylated
+  regions}. For stupid historical reasons, we call both of these kinds
+of regions HMRs. One of the most important analysis tasks is
+identifying the HMRs, and we use the \prog{hmr} program for this. The
+\prog{hmr} program uses a hidden Markov model approach using a
+Beta-Binomial distribution to describe methylation levels at
+individual sites while accounting for the number of reads informing
+those levels. \prog{hmr} automatically learns the average methylation
+levels inside and outside the HMRs, and also the average size of those
+HMRs.
+
+\paragraph{Requirements on the data:} We typically like to have about
+10x coverage to fell very confident in the HMRs called in mammalian
+genomes, but the method will work with lower coverage. The difference
+is that the boundaries of HMRs will be less accurate at lower
+coverage, but overall most of the HMRs will probably be in the right
+places if you have coverage of 6-8x (depending on the methylome).
+
+\paragraph{Typical mammalian methylomes:}
+Running \prog{hmr} requires a file of methylation levels formatted
+like the output of the \prog{methcounts} program (as described
+above). The following command will work well for identifying mammalian
+HMRs if there is sufficient coverage in the underlying methylomes:
 \begin{verbatim}
 $ ./hmr -o Human_ESC_HMR.bed Human_ESC_Meth.bed
 $ ./hmr -o Human_NHFF_HMR.bed Human_NHFF_Meth.bed
 \end{verbatim}
+The output will be in BED format, and the indicated strand (always
+positive) is not informative. The name column in the output will just
+assign a unique name to each HMR.
+%% Meaning of scores
+
+%% Verbose output
+
+\paragraph{Considerations for cancer methylomes:}
+
+\paragraph{Plant (and similar) methylomes:}
+
+\paragraph{Partially methylated regions (PMRs):}
+
+%%%% Cancer
 
 % \noindent OPTIONS:
 % \begin{itemize}
