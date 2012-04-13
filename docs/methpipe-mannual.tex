@@ -630,11 +630,11 @@ allele-specific methylation (ASM).
 
 The distribution of methylation levels at individual sites in a
 methylome (either CpGs or non-CpG Cs) almost always has a bimodal
-distributions with one peak low (very close to 0) and another peak
-high (close to 1). In most mammalian cells, the majority of the genome
-has high methylation, and regions of low methylation are typically
-more interesting. These are called {\em hypo-methylated regions}. In
-plants, most of the genome has low methylation, and it is they high
+distribution with one peak low (very close to 0) and another peak high
+(close to 1). In most mammalian cells, the majority of the genome has
+high methylation, and regions of low methylation are typically more
+interesting. These are called {\em hypo-methylated regions}. In
+plants, most of the genome has low methylation, and it is the high
 parts that are interesting. These are called {\em hyper-methylated
   regions}. For stupid historical reasons, we call both of these kinds
 of regions HMRs. One of the most important analysis tasks is
@@ -671,7 +671,50 @@ assign a unique name to each HMR.
 
 \paragraph{Considerations for cancer methylomes:}
 
-\paragraph{Plant (and similar) methylomes:}
+\paragraph{Plant (and similar) methylomes:} The plant genomes,
+exemplified by Arabidopsis \textit{thaliana}, are devoid of DNA
+methylation by default, with genic regions and transposons being
+hyper-methylated, which we termed HyperMRs to stress their difference
+from \textit{hypo-methylated regions} in mammalian methylomes. DNA
+methylation in plants has been associated with expression regulation
+and transposon repression, and therefore characterizing such HyperMRs
+are of much biological relevance.
+
+The first kind of HyperMR analysis involves finding continuous blocks
+of hyper-methylated CpGs with the \prog{hmr} program. Since \prog{hmr}
+is designed to find hypo-methylated regions, one needs first to invert
+the methylation levels in the \prog{methcounts} output file as
+follows:
+\begin{verbatim}
+$ cat Col0-meth.bed|awk '{$5=1-$5; print $0}' > Col0-meth-inverted.bed
+\end{verbatim}
+Next one may use the \prog{hmr} program to find ``valleys'' in the
+inverted Arabidopsis methylome, which are the hyper-methylated regions
+in the original methylome. The command is invoked as below
+\begin{verbatim}
+$ ./hmr -o Col0-meth-HMR.bed Col0-meth-inverted.bed
+\end{verbatim}
+
+This kind of HyperMR analysis produces continous blocks of
+hyper-methylated CpGs. However in some regions, intragenic regions in
+particular, such continous blocks of hyper-methylated CpGs are
+separated by a few unmethylated CpGs, which have distinct sequence
+preference when compared to those CpGs in the majority of unmethylated
+genome. The blocks of hyper-methylated CpGs and gap CpGs together form
+composite HyperMRs. The \prog{hmr-plant} program, which implements a
+three-state HMM, is used to identify such HyperMRs. Suppose the
+\prog{methcounts} output file is  \fn{Col0-meth.bed}, to find HyperMRs
+from this dataset, run
+\begin{verbatim}
+$ ./hmr-plant -o Col0-meth-HyperMR.bed Col0-meth.bed
+\end{verbatim}
+The output file is a 6-column BED file. The first three columns give
+the chromosome, starting position and ending position of that
+HyperMR. The fourth column starts with the ``hyper:'', followed by the
+number of CpGs within this HyperMR. The fifth column is the
+accumulative methylation level of all CpGs. The last column indicates
+the strand, which is always \lit{+}.
+
 
 \paragraph{Partially methylated regions (PMRs):}
 
