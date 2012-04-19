@@ -300,7 +300,7 @@ $ sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
        Human_NHFF_3.mr.sorted_start
 \end{verbatim}
 Execute the following command to remove read duplicates sharing the
-same start position by running the  \prog{duplicate-remover} component
+same start position by running the \prog{duplicate-remover} component
 of \meth{}:
 \begin{verbatim}
 $ ./duplicate-remover -S Human_ESC_dremove_start_stat.txt \
@@ -325,10 +325,9 @@ $ ./duplicate-remover -S Human_NHFF_dremove_start_stat.txt \
                       -o Human_NHFF_dremove_end.mr -B Human_NHFF_sorted_end.mr
 \end{verbatim}
 \end{sloppypar}
-\noindent
-{\em Need to describe the output format for the stats on the number of
-  distinct reads. Also need to describe the reorder tool so that
-  re-sorting is not so painful.}
+\noindent {\em Need to describe the output format for the stats on the
+  number of distinct reads. Also need to describe the reorder tool so
+  that re-sorting is not so painful.}
 
 % \noindent OPTIONS:
 % \begin{itemize}
@@ -670,6 +669,18 @@ assign a unique name to each HMR.
 %% Verbose output
 
 \paragraph{Considerations for cancer methylomes:}
+Huge genomic blocks with abnormal hypomethylation have been 
+extensively observed in human cancer methylomes, with high enrichment in 
+intergenic regions or Lamina associated domains (LAD), which are usually 
+hypermethylated in normal tissues. These huge blocks are not homogeneously 
+hypo-methylated in most cases. Focal hype-rmethylation are also observed 
+within these blocks.  Hidden Markov Model can catch these big blocks, and is 
+also sensitive to methylation changes at a smaller scale. As a result, the 
+cancer-specific hypomethylated blocks can be identified with clusters of HMRs 
+given by the \prog{hmr} program.  These HMRs are usually longer and closer to 
+each other than normal HMRs.  Definition of blocks can be achieved by 
+merging these clustered cancer-specific HMRs.
+
 
 \paragraph{Plant (and similar) methylomes:} The plant genomes,
 exemplified by Arabidopsis \textit{thaliana}, are devoid of DNA
@@ -794,17 +805,17 @@ $ ./methdiff -o Human_ESC_NHFF_methdiff.bed \
 \label{sec:dmr}
 
 Once differential methylation scores have been calculated, the program
-\prog{dmr} can be used to identify differentially methylated
-regions, or DMRs. DMR's are regions where differential methylation
-scores indicate there are many CpGs with a high probability of being
-differentially methylated between the two methylomes.  Option
-\op{-l} regulates the output: without this option, DMRs are
-calculated, in which methylation is less in one methylome, and with
-this option DMRs are calculated with methylation less in the other
-methylome. The following command finds DMRs using the \prog{dmr}
-component of \meth{}:
+\prog{dmr} can be used to identify differentially methylated regions,
+or DMRs. DMR's are regions where differential methylation scores
+indicate there are many CpGs with a high probability of being
+differentially methylated between the two methylomes.  Option \op{-l}
+regulates the output: without this option, DMRs are calculated, in
+which methylation is less in one methylome, and with this option DMRs
+are calculated with methylation less in the other methylome. The
+following command finds DMRs using the \prog{dmr} component of
+\meth{}:
 \begin{verbatim}
-$ ./dmr -o Human_ESC_NHFF_DMR.bed -d 500 -b 10 -C 10 -m 200
+$ ./dmr -o Human_ESC_NHFF_DMR.bed -d 500 -b 10 -C 10 -m 200 \
         -c 0.7 Human_ESC_NHFF_methdiff.bed
 \end{verbatim}
 
@@ -856,23 +867,65 @@ $ ./allelicmeth -c hg18 -o Human_NHFF_allelicmeth.bed Human_NHFF.mr
 \end{verbatim}
 
 \subsubsection{Allelically methylated regions (AMRs)}
-In diploid organisms like human, the two sets of chromosomes may contain different methylation states at some regions ({\em e.g.} imprinting control regions), which are called allelically methylated regions (AMRs). The program \prog{amrfinder} scans the genome using a sliding window to identify AMRs. For a genomic interval, two statistical models are fitted to the reads mapped, respectively. One model (single-allele model) assumes the two alleles have the same methylation state, and the other (two-allele model) represents different methylation states for the two alleles. Comparing the likelihood of the two models, the interrogated genomic interval is determined whether or not an AMR. The following command shows an example to run the program \prog{amrfinder}.
+
+In diploid organisms like human, the two sets of chromosomes may
+contain different methylation states at some regions ({\em e.g.}
+imprinting control regions), which are called allelically methylated
+regions (AMRs). The program \prog{amrfinder} scans the genome using a
+sliding window to identify AMRs. For a genomic interval, two
+statistical models are fitted to the reads mapped, respectively. One
+model (single-allele model) assumes the two alleles have the same
+methylation state, and the other (two-allele model) represents
+different methylation states for the two alleles. Comparing the
+likelihood of the two models, the interrogated genomic interval is
+determined whether or not an AMR. The following command shows an
+example to run the program \prog{amrfinder}.
 \begin{verbatim}
 $ ./amrfinder -o Human_ESC_AMR.bed -i 10 -w 10 -m 1 -c hg18 Human_ESC.mr
 \end{verbatim}
-Option \op{-o} indicates the output bed file, which contain all possible AMRs in BED format. Option \op{-i} is the maximum iterations allowed in the EM procedure when calculating the likelihood for the two-allele model, and the default value is $10$. Option \op{-w} defines the size of the sliding window using the number of CpGs. Option \op{-m} is the requirement of the minimum reads covering each CpG, and the default value is $1$. There is an option \op{-E} indicating if the input file is in a special format called `Epiread' format, which consists of three columns. The first column is the chromosome of the read, the second column is the numering order of the first CpG in the read, and the last column is the CpG-only sequence of the read. Such `Epiread' format reduces the memory requirement. You can use the program \prog{methstates} to convert the mapped reads file to the epiread format as below:
+Option \op{-o} indicates the output bed file, which contain all
+possible AMRs in BED format. Option \op{-i} is the maximum iterations
+allowed in the EM procedure when calculating the likelihood for the
+two-allele model, and the default value is $10$. Option \op{-w}
+defines the size of the sliding window using the number of
+CpGs. Option \op{-m} is the requirement of the minimum reads covering
+each CpG, and the default value is $1$. There is an option \op{-E}
+indicating if the input file is in a special format called `Epiread'
+format, which consists of three columns. The first column is the
+chromosome of the read, the second column is the numering order of the
+first CpG in the read, and the last column is the CpG-only sequence of
+the read. Such `Epiread' format reduces the memory requirement. You
+can use the program \prog{methstates} to convert the mapped reads file
+to the epiread format as below:
 \begin{verbatim}
 $ ./methstates -c hg18 Human_ESC.mr | cut -f 1,2,7 > Human_ESC.txt
 \end{verbatim}
 
 
 \subsubsection{Optimizing boundaries of AMRs}
-To optimize boundaries of AMRs based on the initial genome-wide scan results, the program \prog{amrrefiner} uses a dynamic programming method to test all ways to partition a genomic interval into alternating subintervals of AMRs and non-AMRs. This program provides more precise prediction but is much more computationally expensive. Therefore, the program is not appropriate for genome-wide application, but only suitable for applying in genomic intervals where you have prior information of the existence of AMRs. For example, we know that the genomic interval around the human GNAS gene should have AMRs. The CpGs in this interval are extracted into a bed file \fn{GNAS\_cpg.bed}. Then the AMRs around GNAS can be located as below.
+
+To optimize boundaries of AMRs based on the initial genome-wide scan
+results, the program \prog{amrrefiner} uses a dynamic programming
+method to test all ways to partition a genomic interval into
+alternating subintervals of AMRs and non-AMRs. This program provides
+more precise prediction but is much more computationally
+expensive. Therefore, the program is not appropriate for genome-wide
+application, but only suitable for applying in genomic intervals where
+you have prior information of the existence of AMRs. For example, we
+know that the genomic interval around the human GNAS gene should have
+AMRs. The CpGs in this interval are extracted into a bed file
+\fn{GNAS\_cpg.bed}. Then the AMRs around GNAS can be located as below.
 \begin{verbatim}
 $ ./amrrefiner -o Human_ESC_GNAS_AMR.bed -i 10 -s 10 -m 100 -M 400 \
                -e 1 -c hg18 -E GNAS_cpg.bed Human_ESC.txt
 \end{verbatim}
-Options \op{-i} and \op{-E} are the same as the program \prog{amrfinder}. Option \op{-s} is the minimum AMR size, \op{-m} is the mean AMR size and \op{-M} is the maximum AMR size. All these three options are in terms of number of CpGs and help to estimate the size of AMR. Option \op{-e} is the expected number of AMRs in the interrogated genomic interval. The input read file \fn{Human\_ESC.txt} is in the epiread format mentioned above.
+Options \op{-i} and \op{-E} are the same as the program
+\prog{amrfinder}. Option \op{-s} is the minimum AMR size, \op{-m} is
+the mean AMR size and \op{-M} is the maximum AMR size. All these three
+options are in terms of number of CpGs and help to estimate the size
+of AMR. Option \op{-e} is the expected number of AMRs in the
+interrogated genomic interval. The input read file \fn{Human\_ESC.txt}
+is in the epiread format mentioned above.
 
 % \noindent OPTIONS:
 % \begin{itemize}
