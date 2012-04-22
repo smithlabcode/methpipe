@@ -40,13 +40,6 @@ sort -T %(tmpDirName)s --batch-size=1000 -S %(coreMemSize)dG -m -k 1,1 -k 2,2g -
 -S %(outFileName)s.u2_dup_stats
 """
 
-SCRIPT_FOOTER = """
-# Now merge all the library output files
-sort -T %(tmpDirName)s --batch-size=1000 -m -S %(memSize)dG -k 1,1 -k 3,3g -k 2,2g -k 6,6 \\
--o %(outFileName)s.mr \\
-%(toMerge)s
-""" 
-
 def parseLibraryFiles(fileOfFiles):
     return ' '.join([os.path.abspath(i.strip()) 
                      for i in open(fileOfFiles) if len(i.strip()) > 0])
@@ -118,12 +111,6 @@ def main(argv):
               'coreMemSize' : opt.memorySize/cores }
         mergedFiles.append(os.path.join(opt.tmpDir, opt.methylomeName + str(counter)))
         counter += 1
-
-    scriptText += SCRIPT_FOOTER % \
-        { 'tmpDirName' : opt.tmpDir,
-          'memSize' : opt.memorySize,
-          'outFileName' : os.path.join(opt.outDir, opt.methylomeName),
-          'toMerge' : ' '.join([i + '.mr' for i in mergedFiles]) }
 
     f = open(scriptFileName, "w")
     f.write(scriptText)
