@@ -55,7 +55,7 @@ get_meth_unmeth(const GenomicRegion &cpg, size_t &meth, size_t &unmeth) {
   const double prob = cpg.get_score();
   const string name(cpg.get_name());
   const size_t n_reads = atoi(name.substr(name.find_first_of(":") + 1).c_str());
-  meth = prob*n_reads;
+  meth = static_cast<size_t>(prob*n_reads);
   unmeth = n_reads - meth;
 }
 
@@ -64,8 +64,8 @@ get_meth_unmeth(const GenomicRegion &cpg, size_t &meth, size_t &unmeth) {
 ////////////////////////////////////////////////////////////////////////
 
 static double
-log_hyper_g_greater(size_t meth_a, size_t unmeth_a, 
-		    size_t meth_b, size_t unmeth_b, size_t k) {
+log_hyper_g_greater(double meth_a, double unmeth_a, 
+		    double meth_b, double unmeth_b, size_t k) {
   return  gsl_sf_lnchoose(meth_b + unmeth_b - 1, k) + 
     gsl_sf_lnchoose(meth_a + unmeth_a - 1, meth_a + meth_b - 1 - k) -
     gsl_sf_lnchoose(meth_a + unmeth_a + meth_b + unmeth_b - 2, 
@@ -74,8 +74,8 @@ log_hyper_g_greater(size_t meth_a, size_t unmeth_a,
   
 
 static double
-test_greater_population(size_t meth_a, size_t unmeth_a, 
-			size_t meth_b, size_t unmeth_b) {
+test_greater_population(double meth_a, double unmeth_a, 
+			double meth_b, double unmeth_b) {
   double p = 0;
   
   for (size_t k = (meth_b > unmeth_a) ? meth_b - unmeth_a : 0; k < meth_b; ++k)
@@ -177,13 +177,10 @@ main(int argc, const char **argv) {
 	  cpgs_a[i].set_name("CpG:" + 
 			     toa(meth_a) + ":" + toa(unmeth_a) + ":" +
 			     toa(meth_b) + ":" + toa(unmeth_b));
-	  meth_a += pseudocount;
-	  meth_b += pseudocount;
-	  unmeth_a += pseudocount;
-	  unmeth_b += pseudocount;
-	  
-	  cpgs_a[i].set_score(test_greater_population(meth_b, unmeth_b, 
-						      meth_a, unmeth_a));
+	  cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
+						      unmeth_b + pseudocount, 
+						      meth_a + pseudocount, 
+						      unmeth_a + pseudocount));
 	  out << cpgs_a[i] << endl;
  	}
       }
