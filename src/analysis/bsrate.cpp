@@ -47,10 +47,19 @@ using std::accumulate;
 
 using std::tr1::unordered_map;
 
+
 static void
-count_states_pos(const bool COUNT_CPGS, const string &chrom,
-		 const MappedRead &r,
-		 vector<size_t> &unconv, vector<size_t> &conv,
+revcomp(MappedRead &mr) {
+  revcomp_inplace(mr.seq);
+  if (mr.r.pos_strand())
+    mr.r.set_strand('-');
+  else mr.r.set_strand('+');
+}
+
+
+static void
+count_states_pos(const bool COUNT_CPGS, const string &chrom, const MappedRead &r,
+		 vector<size_t> &unconv, vector<size_t> &conv, 
 		 vector<size_t> &err) {
   
   const size_t width = r.r.get_width();
@@ -178,14 +187,15 @@ write_output(const string &outfile,
     
     const double total_cvt = cvt_count_p[i] + cvt_count_n[i];
     out.precision(precision_val);
-    out << total_valid << '\t' << cvt_count_p[i] + cvt_count_n[i] << '\t'
-	<< total_cvt/max(size_t(1ul), total_valid) << '\t';
+    out << static_cast<size_t>(total_valid) 
+	<< '\t' << cvt_count_p[i] + cvt_count_n[i] << '\t'
+	<< total_cvt/max(1ul, total_valid) << '\t';
     
     const double total_err = err_p[i] + err_n[i];
     out.precision(precision_val);
     const size_t total = total_valid + err_p[i] + err_n[i];
     out << err_p[i] + err_n[i] << '\t' << static_cast<size_t>(total) << '\t'
-	<< total_err/max(size_t(1ul), total) << endl;
+	<< total_err/max(1ul, total) << endl;
   }
 }
 
@@ -221,6 +231,7 @@ main(int argc, const char **argv) {
     
     bool VERBOSE = false;
     bool COUNT_CPGS = false;
+    bool A_RICH_READS = false;
     
     string chrom_file;
     string outfile;
@@ -245,6 +256,7 @@ main(int argc, const char **argv) {
 		      false , COUNT_CPGS);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
 		      false , max_mismatches);
+    opt_parse.add_opt("a-rich", 'A', "reads are A-rich", false, A_RICH_READS);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -291,6 +303,10 @@ main(int argc, const char **argv) {
     MappedRead mr;
     GenomicRegion chrom_region;
     while (!in.eof() && in >> mr) {
+
+      if (A_RICH_READS)
+	revcomp(mr);
+      
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region))
         try {
