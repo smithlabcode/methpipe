@@ -38,10 +38,6 @@ using std::numeric_limits;
 using std::max;
 using std::min;
 using std::pair;
-using std::make_pair;
-
-using std::ostream_iterator;
-using std::ofstream;
 
 double
 get_fdr_cutoff(const vector<double> &scores, const double fdr) {
@@ -56,17 +52,6 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
 	 local[i+1] < fdr*static_cast<double>(i+1)/local.size(); ++i);
   return local[i];
 }
-
-
-// static void
-// write_scores_bedgraph(const string &filename,
-// 		      const vector<SimpleGenomicRegion> &cpgs,
-// 		      const vector<double> &scores) {
-//   std::ofstream wigout(filename.c_str());
-//   for (size_t i = 0; i < cpgs.size(); ++i)
-//     wigout << cpgs[i] << "\t" << scores[i] << "\n";
-//   wigout.close();
-// }
 
 
 static void
@@ -117,7 +102,7 @@ build_domains(const bool VERBOSE,
       if (in_domain) {
 	in_domain = false;
 	domains.back().set_end(prev_end);
-	domains.back().set_score(score);
+	domains.back().set_score(n_cpgs);
 	n_cpgs = 0;
 	score = 0;
       }
@@ -135,7 +120,7 @@ build_domains(const bool VERBOSE,
     else if (in_domain) {
       in_domain = false;
       domains.back().set_end(prev_end);
-      domains.back().set_score(score);//n_cpgs);
+      domains.back().set_score(n_cpgs);
       n_cpgs = 0;
       score = 0;
     }
@@ -213,7 +198,7 @@ load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
   
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
-    meth.push_back(make_pair(cpgs_in[i].get_score(), 0.0));
+    meth.push_back(std::make_pair(cpgs_in[i].get_score(), 0.0));
     const string r(cpgs_in[i].get_name());
     reads.push_back(atoi(r.substr(r.find_first_of(":") + 1).c_str()));
     meth.back().first = int(meth.back().first * reads.back());
@@ -222,8 +207,8 @@ load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
   if (VERBOSE)
     cerr << "TOTAL CPGS: " << cpgs.size() << endl
 	 << "MEAN COVERAGE: " 
-	 << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() << endl
-	 << endl;
+	 << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
+	 << endl << endl;
 }
 
 
@@ -342,8 +327,6 @@ main(int argc, const char **argv) {
   try {
 
     string outfile;
-    // string scores_file;
-    // string trans_file;
     
     size_t desert_size = 1000;
     size_t max_iterations = 10;
@@ -364,11 +347,6 @@ main(int argc, const char **argv) {
 			   "HMRs in methylation data", "<cpg-BED-file>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)", 
 		      false, outfile);
-    //!!!!!! OPTION IS HIDDEN BECAUSE USERS DON'T NEED TO CHANGE IT...
-    //     opt_parse.add_opt("scores", 's', "scores file (WIG format)", 
-    // 		      false, scores_file);
-    //     opt_parse.add_opt("trans", 't', "trans file (WIG format)", 
-    // 		      false, trans_file);
     opt_parse.add_opt("desert", 'd', "max dist btwn cpgs with reads in HMR", 
 		      false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
@@ -481,27 +459,6 @@ main(int argc, const char **argv) {
       out.close();
     }
     
-    /***********************************
-     * STEP 6: WRITE THE RESULTS
-     */
-    //     if (!scores_file.empty())
-    //       write_scores_bedgraph(scores_file, cpgs, scores);
-    //     if (!trans_file.empty()) {
-    //       vector<double> fg_to_bg_scores;
-    //       hmm.TransitionPosteriors(meth, reset_points, 
-    //                                start_trans, trans, end_trans, 
-    // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
-    // 			       1, fg_to_bg_scores);
-    //       vector<double> bg_to_fg_scores;
-    //       hmm.TransitionPosteriors(meth, reset_points, start_trans, 
-    //                                trans, end_trans, 
-    // 			       fg_alpha, fg_beta, bg_alpha, bg_beta, 
-    // 			       2, bg_to_fg_scores);
-    //       for (size_t i = 0; i < fg_to_bg_scores.size(); ++i)
-    // 	fg_to_bg_scores[i] = max(fg_to_bg_scores[i], bg_to_fg_scores[i]);
-    //       write_scores_bedgraph(trans_file, cpgs, fg_to_bg_scores);
-    //     }
-    
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
     
@@ -513,7 +470,6 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < domains.size(); ++i)
       if (p_values[i] < fdr_cutoff) {
 	domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
-	domains[i].set_score(domain_scores[i]);
 	out << domains[i] << '\n';
       }
   }
