@@ -1,6 +1,7 @@
-/*    dmr: 
+/*    dmr2: computes DMRs based on HMRs and probability of differences
+ *    at individual CpGs
  *
- *    Copyright (C) 2010 University of Southern California and
+ *    Copyright (C) 2012 University of Southern California and
  *                       Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
@@ -24,7 +25,6 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
-#include <limits>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -36,163 +36,107 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::pair;
 using std::max;
-using std::min;
 using std::ifstream;
-using std::numeric_limits;
 
 
 static void
-load_cpgs(const bool VERBOSE, string cpgs_file, 
-	  vector<SimpleGenomicRegion> &cpgs, vector<double> &prob) {
-  if (VERBOSE)
-    cerr << "[READING CPGS AND METH PROPS]" << endl;
-  vector<GenomicRegion> cpgs_in;
-  ReadBEDFile(cpgs_file, cpgs_in);
-  if (!check_sorted(cpgs_in))
-    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
-  for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
-    prob.push_back(cpgs_in[i].get_score());
-  }
-  if (VERBOSE)
-    cerr << "TOTAL CPGS: " << cpgs.size() << endl;
-}
-
-
-template <class T> static void
-separate_regions(const bool VERBOSE, const size_t desert_size, 
-		 vector<SimpleGenomicRegion> &cpgs,
-		 vector<T> &meth, vector<size_t> &reset_points) {
-  if (VERBOSE)
-    cerr << "[SEPARATING BY CPG DESERT]" << endl;
-  // eliminate the zero-read cpgs
-  size_t j = 0;
-  for (size_t i = 0; i < cpgs.size(); ++i) {
-    cpgs[j] = cpgs[i];
-    meth[j] = meth[i];
-    ++j;
-  }
-  cpgs.erase(cpgs.begin() + j, cpgs.end());
-  meth.erase(meth.begin() + j, meth.end());
-  
-  // segregate cpgs
-  size_t prev_cpg = 0;
-  for (size_t i = 0; i < cpgs.size(); ++i) {
-    const size_t dist = (i > 0 && cpgs[i].same_chrom(cpgs[i - 1])) ? 
-      cpgs[i].get_start() - prev_cpg : numeric_limits<size_t>::max();
-    if (dist > desert_size)
-      reset_points.push_back(i);
-    prev_cpg = cpgs[i].get_start();
-  }
-  
-  if (VERBOSE)
-    cerr << "CPGS RETAINED:    " << cpgs.size() << endl
-	 << "MEAN REGION SIZE: " << cpgs.size()/reset_points.size() << endl
-	 << "DESERTS REMOVED:  " << reset_points.size() << endl << endl;
-}
-
-
-static inline double
-weight(const double dist, double bandwidth) {
-  const double u = dist/bandwidth;
-  return 0.75*(1.0 - u*u);
-}
-
-
-static void
-smooth_diff_region(const vector<SimpleGenomicRegion> &cpgs,
-		   vector<double> &diffs, 
-		   const size_t context_size, 
-		   const size_t start, const size_t end) {
-  vector<double> updated_diffs(end - start);
+complement_regions(const size_t max_end, const vector<GenomicRegion> &a, 
+		   const size_t start, const size_t end, 
+		   vector<GenomicRegion> &cmpl) {
+  cmpl.push_back(GenomicRegion(a[start]));
+  cmpl.back().set_start(0);
   for (size_t i = start; i < end; ++i) {
-    double total_diff = 0.0, total_weight = 0.0;
-    for (size_t j = ((i >= start + context_size/2) ? i - context_size/2 : start);
-	 j < min(i + context_size/2 + context_size%2, end); ++j) {
-      const double dist = std::abs(int(i) - int(j));
-      const double w = weight(dist, context_size);
-      total_diff += w*diffs[j];
-      total_weight += w;
-    }
-    updated_diffs[i - start] = total_diff/total_weight;
+    cmpl.back().set_end(a[i].get_start());
+    cmpl.push_back(GenomicRegion(a[i]));
+    cmpl.back().set_start(a[i].get_end());
   }
-  std::swap_ranges(updated_diffs.begin(), updated_diffs.end(), diffs.begin() + start);
+  cmpl.back().set_end(max_end);
 }
 
 
 static void
-smooth_diff_scores(const bool VERBOSE, const size_t context_size, 
-		   const vector<size_t> &reset_points, 
-		   const vector<SimpleGenomicRegion> &cpgs,
-		   vector<double> &diffs) {
-  size_t prev_percent = 0;
-  for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    if (VERBOSE) {
-      const size_t curr_percent = percent(i, reset_points.size());
-      if (curr_percent != prev_percent)
-	cerr << "\rSMOOTHING " << curr_percent << '%';
-      prev_percent = curr_percent;
-    }
-    smooth_diff_region(cpgs, diffs, context_size, reset_points[i], reset_points[i + 1]);
-  }
-  if (VERBOSE) 
-    cerr << "\rSMOOTHING 100%" << endl;
+get_chrom_ends(const vector<GenomicRegion> &r, vector<size_t> &ends) {
+  for (size_t i = 0; i < r.size() - 1; ++i)
+    if (!r[i].same_chrom(r[i+1]))
+      ends.push_back(i+1);
+  ends.push_back(r.size());
 }
 
 
 static void
-get_dmrs(const bool LOWER,
-	 const double cutoff,
-	 const vector<SimpleGenomicRegion> &cpgs, 
-	 const vector<double> &smooth,  
-	 const vector<double> &diffs,  
-	 const size_t start, const size_t end,
-	 vector<GenomicRegion> &dmrs) {
-  static const string DMR_LABEL("DMR:");
-  bool inside = false;
-  size_t dmr_start = 0, n_cpgs = 0;
-  double score = 0.0;
-  for (size_t i = start; i < end; ++i) {
-    if ((!LOWER && (smooth[i] > cutoff)) ||
-	(LOWER && (smooth[i] < (1.0 - cutoff)))) {
-      if (!inside) {
-	inside = true;
-	dmr_start = i;
-      }
-      score += ((LOWER) ? (1.0 - diffs[i]) : diffs[i]);
-      ++n_cpgs;
-    }
-    else if (inside) {
-      inside = false;
-      dmrs.push_back(GenomicRegion(cpgs[dmr_start]));
-      dmrs.back().set_end(cpgs[i - 1].get_end());
-      dmrs.back().set_name(DMR_LABEL + toa(n_cpgs));
-      dmrs.back().set_score(score);
-      score = 0.0;
-      n_cpgs = 0;
-    }
+complement_regions(const size_t max_end,
+		   const vector<GenomicRegion> &r, vector<GenomicRegion> &r_cmpl) {
+  
+  vector<size_t> r_chroms;
+  get_chrom_ends(r, r_chroms);
+  size_t t = 0;
+  for (size_t i = 0; i < r_chroms.size(); ++i) {
+    complement_regions(max_end, r, t, r_chroms[i], r_cmpl);
+    t = r_chroms[i];
   }
 }
 
 
-static void
-get_dmrs(const bool LOWER,
-	 const double cutoff, 
-	 const vector<size_t> &reset_points, 
-	 const vector<SimpleGenomicRegion> &cpgs, 
-	 const vector<double> &smooth,  
-	 const vector<double> &diffs,  
-	 vector<GenomicRegion> &dmrs) {
-  for (size_t i = 0; i < reset_points.size() - 1; ++i)
-    get_dmrs(LOWER, cutoff, cpgs, smooth, diffs, reset_points[i], reset_points[i+1], dmrs);
+static bool
+check_no_overlap(const vector<GenomicRegion> &regions) {
+  for (size_t i = 1; i < regions.size(); ++i)
+    if (regions[i].same_chrom(regions[i-1]) &&
+	regions[i].get_start() < regions[i - 1].get_end())
+      return false;
+  return true;
 }
 
 
-static size_t
-get_cpgs(const GenomicRegion &dmr) {
-  const string name(dmr.get_name());
-  return atoi(name.substr(name.find_first_of(":") + 1).c_str());
+static void
+separate_sites(const vector<GenomicRegion> &dmrs,
+	       const vector<GenomicRegion> &sites, 
+	       vector<pair<size_t, size_t> > &sep_sites) {
+  const size_t n_dmrs = dmrs.size();
+  
+  for (size_t i = 0; i < n_dmrs; ++i) {
+    GenomicRegion a(dmrs[i]);
+    a.set_end(a.get_start() + 1);
+    GenomicRegion b(dmrs[i]);
+    b.set_start(b.get_end());
+    b.set_end(b.get_end() + 1);
+    
+    vector<GenomicRegion>::const_iterator a_insert =
+      lower_bound(sites.begin(), sites.end(), a);
+    
+    vector<GenomicRegion>::const_iterator b_insert =
+      lower_bound(sites.begin(), sites.end(), b);
+    
+    sep_sites.push_back(std::make_pair(a_insert - sites.begin(),
+				       b_insert - sites.begin()));
+  }
+}
+
+
+template <class T> bool
+starts_before(const T &a, const T &b) {
+  return a.get_chrom() < b.get_chrom() ||
+    a.same_chrom(b) && a.get_start() < b.get_start();
+}
+
+template <class T> bool
+same_start(const T &a, const T &b) {
+  return a.same_chrom(b) && a.get_start() == b.get_start();
+}
+
+
+static void
+get_cpg_stats(const bool LOW_CUTOFF, const double sig_cutoff,
+	      const vector<GenomicRegion> &cpgs, 
+	      const size_t start_idx, const size_t end_idx,
+	      size_t &total_cpgs, size_t &total_sig) {
+  total_cpgs = end_idx - start_idx;
+  for (size_t i = start_idx; i < end_idx; ++i) {
+    if ((LOW_CUTOFF && (cpgs[i].get_score() < sig_cutoff)) ||
+	(!LOW_CUTOFF && (cpgs[i].get_score() > 1.0 - sig_cutoff)))
+      ++total_sig;
+  }
 }
 
 
@@ -202,27 +146,16 @@ main(int argc, const char **argv) {
   try {
     
     bool VERBOSE = false;
-    
-    size_t desert_size = 500;
-    size_t bandwidth = 10;
-    size_t min_size = 200;
-    double cutoff = 0.95;
-    size_t min_cpgs = 10;
-    string outfile;
-    
-    bool LOWER = false;
+    double sig_cutoff = 0.05;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "",
-			   "<diffs>");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
-		      false, outfile);
-    opt_parse.add_opt("desert", 'd', "desert size", false, desert_size);
-    opt_parse.add_opt("bw", 'b', "bandwidth", false, bandwidth);
-    opt_parse.add_opt("cut", 'c', "score cutoff", false, cutoff);
-    opt_parse.add_opt("min", 'm', "minimum size", false, min_size);
-    opt_parse.add_opt("cpgs", 'C', "minimum number of CpGs", false, min_cpgs);
-    opt_parse.add_opt("lower", 'l', "use lower cutoff (< 1 - cutoff)", false, LOWER);
+    OptionParser opt_parse(strip_path(argv[0]), "computes DMRs based on "
+			   "HMRs and probability of differences at "
+			   "individual CpGs",
+			   "<methdiffs_1_gt_2> <hmr_1> <hmr_2> "
+			   "<dmr_1_lt_2> <dmr_2_lt_1>");
+    opt_parse.add_opt("cutoff", 'c', "Significance cutoff (default: 0.05)", 
+		      false, sig_cutoff);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -239,35 +172,101 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.size() != 1) {
+    if (leftover_args.size() != 5) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string diffs_file = leftover_args.front();
+    const string diffs_file = leftover_args[0];
+    const string hmr1_file = leftover_args[1];
+    const string hmr2_file = leftover_args[2];
+    const string outfile_a = leftover_args[3];
+    const string outfile_b = leftover_args[4];
     /****************** END COMMAND LINE OPTIONS *****************/
     
-    // separate the regions by chrom and by desert
-    vector<SimpleGenomicRegion> cpgs;
-    vector<double> diffs;
-    load_cpgs(VERBOSE, diffs_file, cpgs, diffs);
+    if (VERBOSE)
+      cerr << "[LOADING HMRS] " << hmr1_file << endl;
+    
+    vector<GenomicRegion> regions_a;
+    ReadBEDFile(hmr1_file, regions_a);
+    assert(check_sorted(regions_a));
+    if (!check_sorted(regions_a))
+      throw SMITHLABException("regions not sorted in file: " + hmr1_file);
+    if (!check_no_overlap(regions_a))
+      throw SMITHLABException("regions overlap in file: " + hmr1_file);
 
-    // separate the regions by chrom and by desert, and eliminate
-    // those isolated CpGs
-    vector<size_t> reset_points;
-    separate_regions(VERBOSE, desert_size, cpgs, diffs, reset_points);
+    if (VERBOSE)
+      cerr << "[LOADING HMRS] " << hmr2_file << endl;
     
-    vector<double> smooth(diffs);
-    smooth_diff_scores(VERBOSE, bandwidth, reset_points, cpgs, smooth);
+    vector<GenomicRegion> regions_b;
+    ReadBEDFile(hmr2_file, regions_b);
+    assert(check_sorted(regions_b));
+    if (!check_sorted(regions_b))
+      throw SMITHLABException("regions not sorted in file: " + hmr2_file);
+    if (!check_no_overlap(regions_b))
+      throw SMITHLABException("regions overlap in file: " + hmr2_file);
     
-    vector<GenomicRegion> dmrs;
-    get_dmrs(LOWER, cutoff, reset_points, cpgs, smooth, diffs, dmrs);
+    if (VERBOSE)
+      cerr << "[COMPUTING SYMMETRIC DIFFERENCE]" << endl;
+
+
+    size_t max_end = 0;
+    for (size_t i = 0; i < regions_a.size(); ++i)
+      max_end = max(max_end, regions_a[i].get_end());
+    for (size_t i = 0; i < regions_b.size(); ++i)
+      max_end = max(max_end, regions_b[i].get_end());
     
-    std::ostream *out = (outfile.empty()) ? &cout : 
-      new std::ofstream(outfile.c_str());
-    for (size_t i = 0; i < dmrs.size(); ++i)
-      if (dmrs[i].get_width() >= min_size && get_cpgs(dmrs[i]) >= min_cpgs)
-	*out << dmrs[i] << endl;
-    if (out != &cout) delete out;
+    vector<GenomicRegion> a_cmpl, b_cmpl;
+    complement_regions(max_end, regions_a, a_cmpl);
+    complement_regions(max_end, regions_b, b_cmpl);
+    
+    vector<GenomicRegion> dmrs_a, dmrs_b;
+    genomic_region_intersection_by_base(regions_a, b_cmpl, dmrs_a);
+    genomic_region_intersection_by_base(regions_b, a_cmpl, dmrs_b);
+    
+    // separate the regions by chrom and by desert
+    if (VERBOSE)
+      cerr << "[READING CPG METH DIFFS]" << endl;
+    vector<GenomicRegion> cpgs;
+    ReadBEDFile(diffs_file, cpgs);
+    if (!check_sorted(cpgs))
+      throw SMITHLABException("CpGs not sorted in: " + diffs_file);
+    if (VERBOSE)
+      cerr << "[TOTAL CPGS]: " << cpgs.size() << endl;
+
+    vector<pair<size_t, size_t> > sep_sites;
+    separate_sites(dmrs_a, cpgs, sep_sites);
+
+    for (size_t i = 0; i < dmrs_a.size(); ++i) {
+      size_t total_cpgs = 0, total_sig = 0;
+      get_cpg_stats(true, sig_cutoff,
+		    cpgs, sep_sites[i].first, sep_sites[i].second,
+		    total_cpgs, total_sig);
+      dmrs_a[i].set_name(dmrs_a[i].get_name() + ":" + toa(total_cpgs));
+      dmrs_a[i].set_score(total_sig);
+    }
+    
+    sep_sites.clear();
+    separate_sites(dmrs_b, cpgs, sep_sites);
+
+    for (size_t i = 0; i < dmrs_b.size(); ++i) {
+      size_t total_cpgs = 0, total_sig = 0;
+      get_cpg_stats(false, sig_cutoff,
+		    cpgs, sep_sites[i].first, sep_sites[i].second,
+		    total_cpgs, total_sig);
+      dmrs_b[i].set_name(dmrs_b[i].get_name() + ":" + toa(total_cpgs));
+      dmrs_b[i].set_score(total_sig);
+    }
+    
+    std::ofstream out_a(outfile_a.c_str());
+    copy(dmrs_a.begin(), dmrs_a.end(), 
+	 std::ostream_iterator<GenomicRegion>(out_a, "\n"));
+    
+    std::ofstream out_b(outfile_b.c_str());
+    copy(dmrs_b.begin(), dmrs_b.end(), 
+	 std::ostream_iterator<GenomicRegion>(out_b, "\n"));
+
+    if (VERBOSE)
+      cerr << "[OUTPUT FORMAT] COL4=NAME:N_COVERED_CPGS COL5=N_SIG_CPGS" << endl;
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
