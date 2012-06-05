@@ -177,6 +177,11 @@ build_domains(const bool VERBOSE,
 
         for (size_t j = start + 1; j < end; ++j)
         {
+            if ((prev_state == hypo && classes[j] == HYPO)
+                || (prev_state == HYPO && classes[j] == hypo))
+                cerr << "WARNING: inconsist state sequences"
+                    " from posterior decoding" << endl;
+            
             if ((prev_state == hypo && classes[j] == hypo)
                 || (prev_state != hypo && classes[j] != hypo))
             {
@@ -198,11 +203,6 @@ build_domains(const bool VERBOSE,
                 if (prev_state == HYPER || prev_state == HYPO)
                     domains.push_back(domain);
 
-/////
-                if (domain.get_chrom() == "chr1" && domain.get_start() == 24187)
-                    cout << hmrcpgs << endl;
-/////
-                
                 domain = GenomicRegion(cpgs[j]);
                 n = 1;
                 hmrcpgs = cpgs[j].tostring();
