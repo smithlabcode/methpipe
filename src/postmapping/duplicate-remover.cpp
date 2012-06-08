@@ -24,6 +24,8 @@
 #include <iostream>
 #include <numeric>
 
+#include <unistd.h>
+
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
