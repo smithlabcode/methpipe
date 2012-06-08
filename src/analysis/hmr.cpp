@@ -29,6 +29,8 @@
 #include <fstream>
 #include <iomanip>
 
+#include <unistd.h>
+
 using std::string;
 using std::vector;
 using std::cout;
