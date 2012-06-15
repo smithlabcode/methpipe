@@ -1,6 +1,6 @@
 /* Copyright (C) 2009 University of Southern California
  *                    Andrew D Smith
- * Author: Andrew D. Smith
+ * Author: Song Qiang, Andrew D. Smith
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -69,6 +69,105 @@ load_cpgs(const bool VERBOSE,
              << "MEAN COVERAGE: " 
              << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() << endl
              << endl;
+}
+
+static void
+bin_by_basepair(const size_t bin_size,
+                vector<SimpleGenomicRegion> &cpgs,
+                vector< pair<double, double> > &meth,
+                vector<size_t> &reads)
+{
+    vector<SimpleGenomicRegion> bins;
+    vector<pair<double, double> > new_meth;
+    vector<size_t> new_reads;
+    
+    bins.push_back(SimpleGenomicRegion(cpgs.front().get_chrom(),
+                                       cpgs.front().get_start(),
+                                       cpgs.front().get_start() + bin_size));
+    new_meth.push_back(std::make_pair(0, 0));
+    new_reads.push_back(0);
+    size_t i = 0;
+    while (i < cpgs.size())
+    {
+        if (bins.back().contains(cpgs[i]))
+        {
+            new_meth.back().first += meth[i].first;
+            new_meth.back().second += meth[i].second;
+            ++i;
+        }
+        else
+        {
+            new_reads.back() = static_cast<size_t>(
+                new_meth.back().first + new_meth.back().second);
+
+            if (bins.back().same_chrom(cpgs[i]))
+                bins.push_back(
+                    SimpleGenomicRegion(bins.back().get_chrom(),
+                                        bins.back().get_end(),
+                                        bins.back().get_end() + bin_size));
+            else
+                bins.push_back(
+                    SimpleGenomicRegion(cpgs[i].get_chrom(),
+                                        cpgs[i].get_start(),
+                                        cpgs[i].get_start() + bin_size));
+                
+            new_meth.push_back(std::make_pair(0, 0));
+            new_reads.push_back(0);
+        }
+    }
+    new_reads.back() = static_cast<size_t>(
+        new_meth.back().first + new_meth.back().second);
+
+    std::swap(cpgs, bins);
+    std::swap(meth, new_meth);
+    std::swap(reads, new_reads);
+}
+
+static void
+bin_by_loci(const size_t bin_size,
+            vector<SimpleGenomicRegion> &cpgs,
+            vector< pair<double, double> > &meth,
+            vector<size_t> &reads)
+{
+    vector<SimpleGenomicRegion> bins;
+    vector<pair<double, double> > new_meth;
+    vector<size_t> new_reads;
+    
+    bins.push_back(cpgs.front());
+    new_meth.push_back(meth.front());
+    new_reads.push_back(reads.front());
+    size_t n = 1;
+    
+    size_t i = 1;
+    while (i < cpgs.size())
+    {
+        if (bins.back().same_chrom(cpgs[i]) && n < bin_size)
+        {
+            bins.back().set_end(cpgs[i].get_end());
+            new_meth.back().first += meth[i].first;
+            new_meth.back().second += meth[i].second;
+            ++n;
+            ++i;
+        }
+        else
+        {
+            new_reads.back() = static_cast<size_t>(
+                new_meth.back().first + new_meth.back().second);
+
+            bins.push_back(cpgs[i]);
+            new_meth.push_back(meth[i]);
+            new_reads.push_back(reads[i]);
+            
+            n = 1;
+            ++i;
+        }
+    }
+    new_reads.back() = static_cast<size_t>(
+        new_meth.back().first + new_meth.back().second);
+
+    std::swap(cpgs, bins);
+    std::swap(meth, new_meth);
+    std::swap(reads, new_reads);
 }
 
 template <class T, class U> static void
@@ -260,6 +359,8 @@ main(int argc, const char **argv)
         
         size_t MAX_LEN = 200;
         double MIN_ACCUMULATIVE_METH = 4.0;
+        size_t bin_size = 0;
+        double BIN_BY_LOCI = false;
         
         string params_in_file;
         string params_out_file;
@@ -274,6 +375,11 @@ main(int argc, const char **argv)
                           OptionParser::OPTIONAL, scores_file);
         opt_parse.add_opt("tolerance", 't', "Tolerance", 
                           false, tolerance);
+        opt_parse.add_opt("bin_size", 'b', "bin size (default: single base)", 
+                          OptionParser::OPTIONAL, bin_size);
+        opt_parse.add_opt("bin_by_loci", '\0',
+                          "binning genome by number of loci (default by basepair)",
+                          OptionParser::OPTIONAL, BIN_BY_LOCI);
         opt_parse.add_opt("desert", 'd', "desert size", false, desert_size);
         opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
         // opt_parse.add_opt("max-len", 'L', "max hyper-methylated region size",
@@ -317,7 +423,17 @@ main(int argc, const char **argv)
         vector<pair<double, double> > meth;
         vector<size_t> reads;
         load_cpgs(VERBOSE, cpgs_file, cpgs, meth, reads);
-    
+
+        // if bin_size is greater than single base, do bining first
+        // applicable to low coverage sample
+        if (bin_size > 0)
+        {
+            if (BIN_BY_LOCI)
+                bin_by_loci(bin_size, cpgs, meth, reads);
+            else
+                bin_by_basepair(bin_size, cpgs, meth, reads);
+        }
+        
         // separate the regions by chrom and by desert, and eliminate
         // those isolated CpGs
         vector<size_t> reset_points;
@@ -373,27 +489,6 @@ main(int argc, const char **argv)
         vector<Triplet> scores;
         hmm.PosteriorDecoding();
         hmm.get_posterior_scores(scores, classes);
-    
-        // vector<double> domain_scores;
-        // get_domain_scores(classes, meth, reset_points, domain_scores);
-    
-        // // vector<double> random_scores;
-        // // shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
-        // //              fg_alpha, fg_beta, bg_alpha, bg_beta, random_scores);
-    
-        // vector<double> p_values;
-        // assign_p_values(random_scores, domain_scores, p_values);
-    
-        // if (fdr_cutoff == numeric_limits<double>::max())
-        //     fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
-
-        // if (!params_out_file.empty()) 
-        // {
-        //     std::ofstream out(params_out_file.c_str(), std::ios::app);
-        //     out.precision(30);
-        //     out << "FDR_CUTOFF\t" << fdr_cutoff << endl;
-        //     out.close();
-        // }
     
         /***********************************
          * STEP 6: WRITE THE RESULTS
