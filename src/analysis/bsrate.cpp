@@ -123,16 +123,16 @@ write_output(const string &outfile,
 	     const vector<size_t> &ucvt_count_n, 
 	     const vector<size_t> &cvt_count_n,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
-  
+
   // Get some totals first
-  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0);
-  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0); 
+  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0UL);
+  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0UL); 
   const size_t total_cvt = pos_cvt + neg_cvt;
 
   const size_t pos_ucvt = 
-    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0);
+    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0UL);
   const size_t neg_ucvt = 
-    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0);
+    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0UL);
   const size_t total_ucvt = pos_ucvt + neg_ucvt;
   
   std::ofstream of;
