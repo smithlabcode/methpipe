@@ -146,7 +146,7 @@ add_contribution_cpg(const size_t offset, const MappedRead &r,
       (r.r.get_start() <= offset)) {
     const size_t position = offset - r.r.get_start();
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
     //    assert(position < r.seq.length());
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -157,7 +157,7 @@ add_contribution_cpg(const size_t offset, const MappedRead &r,
     const size_t position = (r.seq.length() - 1) - 
       ((offset + 1) - r.r.get_start());
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
 //    assert(position < r.seq.length());
     if (is_cytosine(r.seq[position])) ++meth;
@@ -172,7 +172,7 @@ add_contribution_c(const size_t offset, const MappedRead &r,
     const size_t position = offset - r.r.get_start();
     //    assert(position < r.seq.length());
     if (position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -186,7 +186,7 @@ add_contribution_g(const size_t offset, const MappedRead &r,
     const size_t position = (r.seq.length() - 1) - (offset - r.r.get_start());
     //    assert(position < r.seq.length());
     if (position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
     
     if (is_cytosine(r.seq[position])) ++meth;
     if (is_thymine(r.seq[position])) ++unmeth;
@@ -219,7 +219,7 @@ add_contribution_cpg(const QualityChecker &qc,
     const size_t position = offset - r.r.get_start();
     //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -231,7 +231,7 @@ add_contribution_cpg(const QualityChecker &qc,
       ((offset + 1) - r.r.get_start());
     //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -248,7 +248,7 @@ add_contribution_c(const QualityChecker &qc,
     const size_t position = offset - r.r.get_start();
     //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -265,7 +265,7 @@ add_contribution_g(const QualityChecker &qc,
     const size_t position = (r.seq.length() - 1) - (offset - r.r.get_start());
     //    assert(position < r.seq.length());
     if(position >= r.seq.length())
-      throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
+      return;//throw SMITHLABException("ERROR: Reads must be sorted by chromosome and end position.");
 
     if (qc(r, position)) {
       if (is_cytosine(r.seq[position])) ++meth;
@@ -292,11 +292,12 @@ succeeds(const MappedRead &r, const size_t offset) {
 static void
 advance(const size_t first, const size_t last,
 	const GenomicRegion &chrom_region, 
-	FileIterator<MappedRead> &regions) {
+	FileIterator<MappedRead> &regions,
+        const size_t max_length) {
 
   while (regions.last_is_good() && 
 	 chrom_region.same_chrom(regions.get_last()->r) &&
-	 !succeeds(*regions.get_last(), last)) {
+	 !succeeds(*regions.get_last(), last+max_length)) {
     regions.increment_last();
   }
 
@@ -319,13 +320,14 @@ scan_chromosome_cpg(const QualityChecker &qc,
 		    const GenomicRegion &chrom_region,
 		    const double max_mismatches,
 		    FileIterator<MappedRead> &regions,
-		    std::ostream &out, MethStat &meth_stat_collector) {
+		    std::ostream &out, MethStat &meth_stat_collector,
+                    const size_t max_length) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0;
   for ( i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     if (is_cpg(chrom, i)) {
       /* need the "+1" below because of the 'G' in CpG */
-      advance(i, i + 1, chrom_region, regions);
+      advance(i, i + 1, chrom_region, regions, max_length);
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j)
@@ -355,13 +357,14 @@ scan_chromosome(const QualityChecker &qc,
 		const string &chrom, const GenomicRegion &chrom_region,
 		const double max_mismatches,
 		FileIterator<MappedRead> &regions, 
-		std::ostream &out, MethStat &meth_stat_collector) {
+		std::ostream &out, MethStat &meth_stat_collector,
+                const size_t max_length) {
 
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0; 
   size_t chrom_len = chrom.length();
   for (i = 0; i < chrom_len - 1 && regions.first_is_good(); ++i) {
-    advance(i, i, chrom_region, regions);
+    advance(i, i, chrom_region, regions, max_length);
     if (is_cytosine(chrom[i])) { // && !is_guanine(chrom[i + 1])) {
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
@@ -412,13 +415,14 @@ scan_chromosome_cpg(const string &chrom,
 		    const GenomicRegion &chrom_region,
 		    const double max_mismatches,
 		    FileIterator<MappedRead> &regions, 
-		    std::ostream &out, MethStat &meth_stat_collector) {
+		    std::ostream &out, MethStat &meth_stat_collector,
+                    const size_t max_length) {
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0;
   for (i = 0; i < chrom.length() - 1 && regions.first_is_good(); ++i) {
     if (is_cpg(chrom, i)) {
       /* need the "+1" below because of the 'G' in CpG */
-      advance(i, i + 1, chrom_region, regions);
+      advance(i, i + 1, chrom_region, regions, max_length);
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
 	   j != regions.get_last(); ++j)
@@ -446,13 +450,14 @@ static void
 scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 		const double max_mismatches,
 		FileIterator<MappedRead> &regions, 
-		std::ostream &out, MethStat &meth_stat_collector) {
+		std::ostream &out, MethStat &meth_stat_collector,
+                const size_t max_length) {
   
   const string chrom_name(chrom_region.get_chrom());
   size_t i = 0; 
   size_t chrom_len = chrom.length();
   for (i = 0; i < chrom_len - 1 && regions.first_is_good(); ++i) {
-    advance(i, i, chrom_region, regions);
+    advance(i, i, chrom_region, regions, max_length);
     if (is_cytosine(chrom[i])) { // && !is_guanine(chrom[i + 1])) {
       size_t meth_count = 0, unmeth_count = 0;
       for (vector<MappedRead>::const_iterator j(regions.get_first());
@@ -537,7 +542,8 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const QualityChecker &qc,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
-	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector) {
+	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector,
+            const size_t max_length) {
   
   // Get the output stream
   std::ofstream of;
@@ -557,9 +563,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(qc, chroms[j], chrom_region, max_mismatches,
-			regions, out, meth_stat_collector);
+			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(qc, chroms[j], chrom_region, max_mismatches,
-			       regions, out, meth_stat_collector);
+			       regions, out, meth_stat_collector, max_length);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
@@ -570,7 +576,8 @@ static void
 scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 	    const double max_mismatches,
 	    const string &outfile, const vector<string> &chrom_files, 
-	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector) {
+	    FileIterator<MappedRead> &regions, MethStat &meth_stat_collector,
+            const size_t max_length) {
 
   // Get the output stream
   std::ofstream of;
@@ -590,9 +597,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       advance_chromosome(chrom_region, regions);
       if (PROCESS_NON_CPGS)
 	scan_chromosome(chroms[j], chrom_region, max_mismatches,
-			regions, out, meth_stat_collector);
+			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
-			       regions, out, meth_stat_collector);
+			       regions, out, meth_stat_collector, max_length);
     }
     if (VERBOSE) cerr << " [DONE]" << endl;
   }
@@ -613,6 +620,7 @@ main(int argc, const char **argv) {
     string fasta_suffix = "fa";
     
     size_t BUFFER_SIZE = 100000;
+    size_t max_length = 10000;
     string out_stat;
     double max_mismatches = std::numeric_limits<double>::max();
 
@@ -639,6 +647,8 @@ main(int argc, const char **argv) {
     // 		      false , cutoff);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
 		      false , max_mismatches);
+    opt_parse.add_opt("max_length", 'L', "The maximal read length of the input file (default 10000)",
+                      false , max_length);
     opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
                       false , out_stat);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -679,10 +689,10 @@ main(int argc, const char **argv) {
     if (cutoff != -std::numeric_limits<double>::max()) {
       const QualityChecker qc(score_format, cutoff);
       scan_chroms(VERBOSE, PROCESS_NON_CPGS, qc, max_mismatches, 
-		  outfile, chrom_files, regions, meth_stat_collector);
+		  outfile, chrom_files, regions, meth_stat_collector, max_length);
     }
     else scan_chroms(VERBOSE, PROCESS_NON_CPGS, max_mismatches, 
-		     outfile, chrom_files, regions, meth_stat_collector);
+		     outfile, chrom_files, regions, meth_stat_collector, max_length);
     
     if (VERBOSE || !out_stat.empty()) {
       std::ofstream of;
