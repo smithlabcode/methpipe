@@ -74,7 +74,7 @@ get_cpg_stats(const vector<GenomicRegion> &cpgs,
   for (size_t i = start_idx; i < end_idx; ++i) {
     const size_t r = atoi(smithlab::split(cpgs[i].get_name(), 
 					  ":").back().c_str());
-    meth += cpgs[i].get_score()*r;
+    meth += cpgs[i].get_score()*r+0.5;// plus 0.5 to make sure the value is rounded correctly
     reads += r;
     cpgs_with_reads += (r > 0);
   }
