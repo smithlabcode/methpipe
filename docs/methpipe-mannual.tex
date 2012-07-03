@@ -964,12 +964,12 @@ $ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.txt
 One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
 program accomplishes this. It takes a sorted \prog{methcounts} output file
-and a BED format file of genomic ``regions of interest'' (hence the
-``roi'' in \prog{roimethstat}).  If your \prog{methcounts} output file is not
-sorted, it can be sorted using the following command (chrom,end,start,strand):
+and a sorted BED format file of genomic ``regions of interest'' (hence the
+``roi'' in \prog{roimethstat}).  If either file is not sorted by (chrom,end,start,strand)
+it can be sorted using the following command:
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
->        -o Human_ESC_Meth.bed.sorted Human_ESC_Meth.bed
+>        -o regions_ESC_Meth.bed.sorted regions_ESC_Meth.bed
 \end{verbatim}
 From there, \prog{roimethstat} can be run as follows:
 \begin{verbatim}
