@@ -527,14 +527,14 @@ format. \prog{methcounts} requires that the input reads are sorted
 according to (chrom, end, start, strand). If your reads are not
 sorted, to sort MappedRead format files in this order, do:
 \begin{verbatim}
-$ sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
 >      -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
 Since \prog{methcounts} can only take one input file, if you have
 multiple you can merge them using the \op{-m} option to the
 \prog{sort} program:
 \begin{verbatim}
-$ sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
 >      -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
 
@@ -965,9 +965,15 @@ One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
 program accomplishes this. It takes a sorted \prog{methcounts} output file
 and a BED format file of genomic ``regions of interest'' (hence the
-``roi'' in \prog{roimethstat}). It can be run as follows:
+``roi'' in \prog{roimethstat}).  If your \prog{methcounts} output file is not
+sorted, it can be sorted using the following command (chrom,end,start,strand):
 \begin{verbatim}
-$ ./roimethstat -o regions_ESC_Meth.bed regions.bed Human_ESC_Meth.bed
+$ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+>        -o Human_ESC_Meth.bed.sorted Human_ESC_Meth.bed
+\end{verbatim}
+From there, \prog{roimethstat} can be run as follows:
+\begin{verbatim}
+$ ./roimethstat -o regions_ESC_Meth.bed regions.bed Human_ESC_Meth.bed.sorted
 \end{verbatim}
 The output format is also 6-column BED, and the score column now takes
 the average methylation level through the interval, weighted according
