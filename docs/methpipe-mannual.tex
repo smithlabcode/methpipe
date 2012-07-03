@@ -49,7 +49,7 @@ Users are assumed to be quite familiar with UNIX/Linux and related
 concepts ({\em e.g.} building software from source, using the command
 line, shell environment variables, etc.).
 
-It is also critical that users are familiary with BS-seq experiments,
+It is also critical that users are familiar with BS-seq experiments,
 especially the bisulfite conversion reaction, and how this affects
 what we observe in the sequenced reads. Especially if paired-end
 sequencing is used. If you do not understand these concepts, you will
@@ -71,20 +71,20 @@ thymines (T) during PCR amplification. These PCR products are referred
 to as T-rich sequences as a result of their high thymine
 constitution. With paired-end sequencing experiments, the compliments
 of these T-rich sequences are also sequenced.  These complimentary
-sequences have high adenosine (A) consitution (A is the complimentary
+sequences have high adenosine (A) constitution (A is the complimentary
 base pair of T), and are referred to as A-rich sequences. Mapping
-consists of finding sequence similary, based on context specific
-criteria, between these short sequences, or reads, and a homologous
-(orthologous?) reference genome.  When mapping T-rich reads to the
+consists of finding sequence similarity, based on context specific
+criteria, between these short sequences, or reads, and an orthologous
+reference genome.  When mapping T-rich reads to the
 reference genome, either a cytosine (C) or a thymine (T) in a read is
 considered a valid match for a cytosine in the reference genome. For
 A-rich reads, an adenine or a guanine is considered a valid match for
 a guanine in the reference genome. The mapping of reads to the
 reference genome by \prog{rmapbs} is described below. If you choose
 to map reads with a different tool, make sure that your post-mapping
-files are approrpiately formatted for the next components of the
+files are appropriately formatted for the next components of the
 \meth{} pipeline (necessary file formats for each step are covered in
-the corresponding sections).  The deault behavior of rmapbs is to
+the corresponding sections).  The default behavior of rmapbs is to
 assume that reads are T-rich and map accordingly. To change the
 mapping to suit A-rich reads, add the \op{-A} option.
 
@@ -127,27 +127,20 @@ below).
 \paragraph{Sequencing adaptors:}
 These are a problem in any sequencing experiment with short fragments
 relative to the lengths of reads.  The \prog{cutadapt} program does a
-fine job removing adaptors. If you plan to use \prog{rmapbs} after
-removing the adaptors, then you will need to replace the parts of the
-reads that get removed with \lit{N} characters.  These will not
-influence the mapping, because they will be treated as wildcard
-characters by \prog{rmapbs}, but reads are currently required to be
-the same length in \prog{rmapbs}.
-
-You can also have \prog{rmapbs} cut the adaptors for you. All you need
-to do is provide the adaptor sequence on the command line.
-\prog{rmapbs} will only cut the adaptor if it sees at least 10nt of
-the adaptor, and the rest of the adaptor sequence extending towards
-the 3' end of the read. This will work for both ends of paired-end
-reads. The situation of adaptor concatamers, where the adaptor begins
-immediately at the beginning of the read, may not be handled well.
+fine job removing adaptors, and a version modified for our purposes
+is included in \meth{}.  The following command will cut adaptor sequences
+from reads and replace them with N's, which will be treated as wildcard
+characters by \prog{rmapbs}:
+\begin{verbatim}
+$ ./cutadapt -A adaptor_sequence_string
+\end{verbatim}
 
 % In the last versions of the manual there was a session regarding "Trim
 % adapters" which was very useful. But I think it needs more
-% explanation.  I think it will be very usefull to provide two examples
+% explanation.  I think it will be very useful to provide two examples
 % for SE and PE reads
 
-% for instance, if we assume that illumina adapters are
+% for instance, if we assume that Illumina adapters are
 
 % SE adapter
 % 5' ACACTCTTTCCCTACACGACGCTCTTCCGATCT
@@ -169,7 +162,7 @@ immediately at the beginning of the read, may not be handled well.
 
 % ./rmapbs -C ??? -c hg18 -o results.mr s_1_2_sequence.fastq
 
-% Becuase as I told you previously, when I wanted to cut adapters before
+% Because as I told you previously, when I wanted to cut adapters before
 % mapping (e.g. ./cutadapt) So, if we assume SE:
 
 % ./cutadapt -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT .fastq
@@ -185,7 +178,7 @@ When working with data from a single-end sequencing experiment, you
 will have T-rich reads only. \prog{rmapbs} expects T-rich reads as a
 default and so you do not have use the \op{-A} option to change
 mapping parameters. Execute the following command to map all of your
-single-end reads with \prog{rmapbs}.
+single-end reads with \prog{rmapbs}:
 \begin{verbatim}
 $ ./rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq
 \end{verbatim}
@@ -194,11 +187,11 @@ $ ./rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq
 When working with data from a paired-end sequencing experiment, you
 will have T-rich and A-rich reads. T-rich reads are often kept in
 files labeled with an ``\_1'' and A-rich reads are often kept in files
-labeled with an ``\_2''. We will follow this convention throught the
+labeled with an ``\_2''. We will follow this convention throughout the
 manual and strongly suggest that you do the same. T-rich reads are
-sometimes referred to as $5^{\prime}$ reads or mates 1 and A-rich
-reads are sometimes referred to $3^{\prime}$ reads or mates 2; we will
-stick with T-rich and A-rich. \prog{rmapbs} expects T-rich reads as a
+sometimes referred to as $5^{\prime}$ reads or mate 1 and A-rich
+reads are sometimes referred to $3^{\prime}$ reads or mate 2.
+ \prog{rmapbs} expects T-rich reads as a
 default and so for paired-end sequencing data, you must run
 \prog{rmapbs} twice; once for T-rich reads and once for A-rich
 reads. Execute the following commands to map of your paired-end reads
@@ -216,28 +209,28 @@ $ ./rmapbs -c hg18 -o Human_ESC_2.mr -A Human_ESC_2.fastq
 
 \paragraph{Merging paired-end reads:}
 As previously noted, paired-end sequencing produces both T-rich reads
-and A-rich reads. Since methylation is estimated from the counts of Ts
-and Cs (that map to C's in the reference genome), and A-rich reads
+and A-rich reads. Since methylation is estimated from the counts of T's
+and C's (that map to C's in the reference genome), and A-rich reads
 contain methylation information in the form of A and G counts (that
-map to Gs in the reference genome), A-rich reads must turned into
-T-rich reads by reverse complimenttion. This allows methylation
-information to be derived from the Ts and Cs in the new T-rich reads
-that correspond to the As and Gs from the A-rich reads that was
-reverse complementated.
+map to G's in the reference genome), A-rich reads must be transformed
+into T-rich reads by reverse complementation. This allows methylation
+information to be derived from the T's and C's in the new T-rich reads
+that correspond to the A's and G's from the A-rich reads that were
+reverse complemented.
 
 A double counting error could arise if overlapping regions exist
 between any two mates. To avoid this bias and maintain all other
 important information, we merge read ends that are mapped sufficiently
-close and in the proper relative orientations. Any overlapping portion
-is eliminated. Reverse-complemention of A-rich reads (and switching
-the strand to which they mapped), and masking overlapping regions, are
+closely and in the proper relative orientations. Any overlapping portion
+is eliminated. Reverse complementation of A-rich reads, switching
+the strand to which they mapped, and eliminating overlapping regions is
 done by the program \prog{clipmates}. This tool works on mapped reads
 files that been sorted by read id (read name). The following command
 is an example of how to sort your mapped reads files with the Unix
 \prog{sort} command before inputting them into \prog{clipmates}.
 \begin{verbatim}
-$ sort -k 4 -o Human_ESC_1.mr.name_srtd Human_ESC_1.mr
-$ sort -k 4 -o Human_ESC_2.mr.name_srtd Human_ESC_2.mr
+$ LC_ALL=C sort -k 4 -o Human_ESC_1.mr.name_srtd Human_ESC_1.mr
+$ LC_ALL=C sort -k 4 -o Human_ESC_2.mr.name_srtd Human_ESC_2.mr
 \end{verbatim}
 The names of corresponding mates must only differ by the last
 character (which should be a 1 for T-rich reads and 2 for A-rich
@@ -248,8 +241,8 @@ then the mates are combined into a single read, referred to as a
 fragment, with Ns filling any existing gaps between mates. If mates
 could not be matched, then each mate is present in the output
 file. \prog{clipmates} takes two input files in mapped reads format:
-one with T-rich mreads (\op{-T} option) and the other with A-rich
-reads (\op{-A} option). Execute the following command to run the
+one with T-rich mapped reads (\op{-T} option) and the other with A-rich
+mapped reads (\op{-A} option). Execute the following command to run the
 \prog{clipmates} component of \meth{} on T-rich and A-rich reads
 (mates 1 and 2).
 \begin{verbatim}
@@ -297,10 +290,10 @@ such duplicates. It collects reads and fragments mapped to the same
 genomic location (start or end), and chooses a random one to be the
 representative of the original DNA sequence. Since sequencing can run
 for variable lengths of time (leading to different length reads), we
-must sort reads by the position of the side where sequenceing starts
+must sort reads by the position of the side where sequencing starts
 in order to find duplicates. This is always the 5' side, which for +
 strand reads is their start positions and for - strand reads is the
-end positions. Therefore, two separte sorts and removals of duplicates
+end positions. Therefore, two separate sorts and removals of duplicates
 must be done; one on + strand reads while sorting on start positions,
 and one on - strand reads while sorting on end position. The \op{-B}
 option of \prog{duplicate-remover} ignores + reads and tells the
@@ -316,12 +309,12 @@ mapping to the same end positions.
 
 \begin{sloppypar}
   First, sort reads by start position (chrom, start, strand,
-  end). Remember, for paired-end reads, use the output from climpates
+  end). Remember, for paired-end reads, use the output from clipmates
   while working through the following steps.
 \begin{verbatim}
-$ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      -o Human_ESC.mr.sorted_start Human_ESC.mr
-$ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
   If at any point during the pipeline you split your files into
@@ -329,15 +322,15 @@ $ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
   these split reads files back into one complete file. We recommend
   that you do this using \op{-m} option of the Unix command
   \prog{sort}. The following command is an example of how to merge
-  three such files with the assumption that these files were labled
+  three such files with the assumption that these files were labeled
   with a 1, 2 or 3 respectively.
 \begin{verbatim}
-$ sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      -o Human_ESC.mr.sorted_start_merged \
 >      Human_ESC_1.mr.sorted_start \
 >      Human_ESC_2.mr.sorted_start \
 >      Human_ESC_3.mr.sorted_start
-$ sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      -o Human_NHFF.mr.sorted_start_merged \
 >      Human_NHFF_1.mr.sorted_start \
 >      Human_NHFF_2.mr.sorted_start \
@@ -354,14 +347,14 @@ $ ./duplicate-remover -S Human_NHFF_dremove_start_stat.txt \
 \end{verbatim}
   Next, sort reads by end position: chrom, end, start, strand.
 \begin{verbatim}
-$ sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
+$ LC_ALL=C sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
 >      -o Human_ESC.mr.sorted_end Human_ESC.dremove_start
-$ sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
+$ LC_ALL=C sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
 >      -o Human_NHFF.mr.sorted_end Human_NHFF.dremove_start
 \end{verbatim}
   Execute the following command to remove read duplicates sharing the
   same end position by running the \prog{duplicate-remover} component
-  of Methpipe.
+  of \meth{}.
 \begin{verbatim}
 $ ./duplicate-remover -S Human_ESC_dremove_end_stat.txt \
 >                     -o Human_ESC.mr.dremove_end -B Human_ESC.mr.sorted_end
@@ -435,7 +428,7 @@ uracils are converted to thymines and so unmethylated Cs are
 ultimately read as Ts (barring error). Despite its high fidelity,
 bisulphite conversion of C to T does have some inherent failure rate,
 depending on the bisulfite kit used, reagent concentration, time of
-treatment, etc., may impact the success rate of the
+treatment, etc., and these factors may impact the success rate of the
 reaction. Therefore, the bisulfite conversion rate, defined as the
 rate at which unmethylated cytosines in the sample appear as Ts in the
 sequenced reads, should be measured and should be very high ({\em
@@ -496,7 +489,7 @@ that has been made at an earlier stage in the pipeline. The first 3
 lines in the output indicate the overall conversion rate, the
 conversion rate for positive strand mappers, and the conversion rate
 for negative strand mappers. The total number of nucleotides used
-({\em e.g.} all C+T mapping over genomic non-CpG Cs for method (3)) is
+({\em e.g.} all C+T mapping over genomic non-CpG C's for method (3)) is
 given for positive and negative strand conversion rate computation,
 and if everything has worked up to this point these two numbers should
 be very similar. The 4th line gives column labels for a table showing
@@ -605,9 +598,9 @@ $ ./methcounts -N -c hg18 -o Human_ESC_Meth_All.bed \
 
 The output file contains one line per cytosine site (see below for an
 excerpt from one \prog{methcount} output file). The first three
-columns give the chromsome, starting position and ending position
+columns give the chromosome, starting position and ending position
 (noninclusive) of that cytosine. The 4th column indicates the sequence
-context, and the number of reads mapped over the cyosine in the same
+context, and the number of reads mapped over the cytosine in the same
 strand, that have either a C or a T at that position. The sequence
 context can be either CG, CHG or CHH. The first C corresponds to the
 cytosine of interest and the remaining letters are bases following
@@ -656,7 +649,7 @@ two methylomes (DMRs), and regions with allele-specific methylation
 (AMRs).
 
 \subsection{Hypomethylated and hypermethylated regions (HMRs)}
-\label{sec:ident-hypo-methyl}
+\label{sec:indent-hypo-methyl}
 
 The distribution of methylation levels at individual sites in a
 methylome (either CpGs or non-CpG Cs) almost always has a bimodal
@@ -726,8 +719,8 @@ methylation by default, with genic regions and transposons being
 hyper-methylated, which we termed HyperMRs to stress their difference
 from \textit{hypo-methylated regions} in mammalian methylomes. DNA
 methylation in plants has been associated with expression regulation
-and transposon repression, and therefore characterizing such HyperMRs
-are of much biological relevance.
+and transposon repression, and therefore characterizing HyperMRs
+is of much biological relevance.
 
 The first kind of HyperMR analysis involves finding continuous blocks
 of hyper-methylated CpGs with the \prog{hmr} program. Since \prog{hmr}
@@ -744,9 +737,9 @@ in the original methylome. The command is invoked as below
 $ ./hmr -o Col0_HMR.bed Col0_Meth_inverted.bed
 \end{verbatim}
 
-This kind of HyperMR analysis produces continous blocks of
+This kind of HyperMR analysis produces continuous blocks of
 hyper-methylated CpGs. However in some regions, intragenic regions in
-particular, such continous blocks of hyper-methylated CpGs are
+particular, such continuous blocks of hyper-methylated CpGs are
 separated by a few unmethylated CpGs, which have distinct sequence
 preference when compared to those CpGs in the majority of unmethylated
 genome. The blocks of hyper-methylated CpGs and gap CpGs together form
@@ -784,7 +777,7 @@ Huge genomic blocks with abnormal hypomethylation have been
 extensively observed in human cancer methylomes, with high enrichment
 in intergenic regions or Lamina associated domains (LAD), which are
 usually hypermethylated in normal tissues. These huge blocks are not
-homogeneously hypo-methylated in most cases. Focal hype-rmethylation
+homogeneously hypo-methylated in most cases. Focal hypermethylation
 are also observed within these blocks.  Hidden Markov Model can catch
 these big blocks, and is also sensitive to methylation changes at a
 smaller scale. As a result, the cancer-specific hypomethylated blocks
@@ -820,7 +813,7 @@ for each CpG in a methylome. This score indicates the probability that
 the CpG is significantly less methylated in one methylome than the
 other. The inputs for \prog{methdiff} are the output of
 \prog{methcounts} for each of the two methylomes being analyzed. The
-following command calculates differential methylation scores accross
+following command calculates differential methylation scores across
 two methylomes using the \prog{methdiff} component of Methpipe.
 \begin{verbatim}
 $ ./methdiff -o Human_ESC_NHFF_methdiff.bed \
@@ -840,17 +833,19 @@ of Fisher's exact test.
 
 Once differential methylation scores have been calculated, the program
 \prog{dmr} can be used to identify differentially methylated regions,
-or DMRs. DMR's are regions where differential methylation scores
+or DMRs. DMRs are regions where differential methylation scores
 indicate there are many CpGs with a high probability of being
-differentially methylated between the two methylomes.  Option \op{-l}
-regulates the output: without this option, DMRs are calculated, in
-which methylation is less in one methylome, and with this option DMRs
-are calculated with methylation less in the other methylome. The
-following command finds DMRs using the \prog{dmr} component of
-\meth{}:
+differentially methylated between the two methylomes.
+\prog{dmr} uses HMR data from the two methylomes and identifies
+a DMR wherever an HMR exists in one methylome but not the other.
+It writes the DMRs into two files: one with the HMR in one methylome
+and another with the HMR in the other.  It also writes the total number
+of CpGs in the DMR and the number of significantly different CpG sites.
+The following command finds DMRs using the \prog{dmr} component
+of \meth{}:
 \begin{verbatim}
-$ ./dmr -o Human_ESC_NHFF_DMR.bed -d 500 -b 10 -C 10 -m 200 \
->       -c 0.7 Human_ESC_NHFF_methdiff.bed
+$ ./dmr Human_ESC_NHFF_methdiff.bed Human_ESC_HMR.bed \
+>     Human_NHFF_HMR.bed DMR_ESC_lt_NHFF DMR_NHFF_lt_ESC
 \end{verbatim}
 
 \subsection{Allele-specific methylation}
@@ -891,7 +886,7 @@ each CpG, and the default value is $1$. Option \op{-b} means to use
 BIC criterion to compare the two likelihood models, otherwise likelihood ratio test is used for model comparison. There is an option
 \op{-E} indicating if the input file is in a special format called
 ``Epiread'' format, which consists of three columns. The first column
-is the chromosome of the read, the second column is the numering order
+is the chromosome of the read, the second column is the numbering order
 of the first CpG in the read, and the last column is the CpG-only
 sequence of the read. Such `Epiread' format reduces the memory
 requirement. You can use the program \prog{methstates} to convert the
@@ -968,7 +963,7 @@ $ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.txt
 
 One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
-program accomplishes this. It takes a \prog{methcounts} output file
+program accomplishes this. It takes a sorted \prog{methcounts} output file
 and a BED format file of genomic ``regions of interest'' (hence the
 ``roi'' in \prog{roimethstat}). It can be run as follows:
 \begin{verbatim}
@@ -1070,7 +1065,7 @@ $ chmod +x fetchChromSizes
 \end{verbatim}
 
 \noindent
-You might also want to create \fn{bidBed} browser tracks for HMRs,
+You might also want to create \fn{bigBed} browser tracks for HMRs,
 AMRs or DMRs. To do so, follow these steps:
 \begin{enumerate}
 \item Download the \prog{bedToBigBed} program from the UCSC Genome
@@ -1080,7 +1075,7 @@ AMRs or DMRs. To do so, follow these steps:
   create the \fn{*.chrom.sizes} file for the UCSC database you are
   working with (e.g. hg18). Note that this is the file that is
   referred to as \fn{hg18.chrom.sizes} in step 3.
-\item Modify and use the following comands: For \fn{*\_HMR.bed} files
+\item Modify and use the following commands: For \fn{*\_HMR.bed} files
   with non-integer score in their 5th column, one needs to round the
   score to integer value, for example:
 \begin{verbatim}
