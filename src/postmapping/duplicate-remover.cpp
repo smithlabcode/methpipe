@@ -421,19 +421,25 @@ int main(int argc, const char **argv) {
       r_total_reads_pos = 0, r_uniq_reads_pos = 0,
       r_total_bases_in = 0, r_good_bases_out = 0;
     
+    tempout = outfile+"_temp";
     OrderChecker::set_comparison_mode(CHECK_SECOND_ENDS);
     DuplicateFragmentTester::set_comparison_mode(CHECK_SECOND_ENDS);
-    
+   
     remove_duplicates(infile, tempout, total_reads, unique_reads, 
 		      total_reads_pos, uniq_reads_pos,
 		      total_bases_in, good_bases_out);
+    
+    tempin = infile+"_temp";
+    
     reorder( tempout, tempin, CHECK_SECOND_ENDS, INPUT_FROM_STDIN );
-
+    
+    std::remove(tempout.c_str());
     OrderChecker::set_comparison_mode(!CHECK_SECOND_ENDS);
     DuplicateFragmentTester::set_comparison_mode(!CHECK_SECOND_ENDS);
     remove_duplicates(tempin, outfile, r_total_reads, r_unique_reads, 
 		      r_total_reads_pos, r_uniq_reads_pos,
 		      r_total_bases_in, r_good_bases_out);
+    std::remove(tempin.c_str());
     
     if ( CHECK_SECOND_ENDS )
     {
@@ -487,8 +493,6 @@ int main(int argc, const char **argv) {
 		  << "GOOD BASES OUT:\t" << r_good_bases_out << endl;
 		}
     }
-    std::remove(tempin.c_str());
-    std::remove(tempout.c_str());
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
