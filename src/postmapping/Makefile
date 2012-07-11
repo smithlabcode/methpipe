@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = reorder clipmates duplicate-remover
+PROGS = clipmates duplicate-remover
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -61,7 +61,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o OptionParser.o smithlab_os.o \
 	smithlab_utils.o GenomicRegion.o)
 
-reorder duplicate-remover: \
+duplicate-remover: \
 	$(addprefix $(SMITHLAB_CPP)/, RNG.o FileIterator.o)
 
 %.o: %.cpp %.hpp
