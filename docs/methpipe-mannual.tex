@@ -288,26 +288,18 @@ over-amplication rather than true representations of distinct DNA
 molecules. The program \prog{duplicate-remover} can be used to remove
 such duplicates. It collects reads and fragments mapped to the same
 genomic location (start or end), and chooses a random one to be the
-representative of the original DNA sequence. Since sequencing can run
+representative of the original DNA sequence.   Since sequencing can run
 for variable lengths of time (leading to different length reads), we
 must sort reads by the position of the side where sequencing starts
-in order to find duplicates. This is always the 5' side, which for +
-strand reads is their start positions and for - strand reads is the
-end positions. Therefore, two separate sorts and removals of duplicates
-must be done; one on + strand reads while sorting on start positions,
-and one on - strand reads while sorting on end position. The \op{-B}
-option of \prog{duplicate-remover} ignores + reads and tells the
-program that reads are sorted by end position. To remove read
-duplicates, follow the following steps (examples are provided below):
-(1) sort reads by start position (chrom, start, end, strand), (2)
-merge files with reads that came from the same DNA library (and
-therefore underwent the same PCR) (3) run \prog{duplicate-remover} to
-remove read duplicates mapping to the same start positions, (4) sort
-reads by end position (chrom, end, start, strand), and (5) run
-\prog{duplicate-remover} with option \op{-B} to remove duplicates
-mapping to the same end positions.
+in order to find duplicates. This is the 5' side for + strand reads and
+the 3' side for - strand reads.
 
-\begin{sloppypar}
+\prog{duplicate-remover} can take reads sorted by either (chrom, start, strand, end)
+or by (chrom, end, strand, start) with the -B option.  It removes duplicates
+on the appropriate strand and then reorders the data to remove duplicates from
+the opposite strand.  Below is an example of sorting by the default (chrome, start,
+strand, end) and running \prog{duplicate-remover}.
+
   First, sort reads by start position (chrom, start, strand,
   end). Remember, for paired-end reads, use the output from clipmates
   while working through the following steps.
@@ -323,7 +315,11 @@ $ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
   that you do this using \op{-m} option of the Unix command
   \prog{sort}. The following command is an example of how to merge
   three such files with the assumption that these files were labeled
-  with a 1, 2 or 3 respectively.
+  with a 1, 2 or 3 respectively.  The sort command below only merges
+  the files, so it is expected that they are already sorted using the
+  command above.  If you have more than one lane for each sample,
+  you should merge these lanes together now to remove duplicates
+  between them.
 \begin{verbatim}
 $ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      -o Human_ESC.mr.sorted_start_merged \
@@ -336,88 +332,15 @@ $ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
 >      Human_NHFF_2.mr.sorted_start \
 >      Human_NHFF_3.mr.sorted_start
 \end{verbatim}
-  Execute the following command to remove read duplicates sharing the
-  same start position by running the \prog{duplicate-remover}
+  Execute the following command to remove all read duplicates by running
+  the \prog{duplicate-remover}
   component of \meth{}:
 \begin{verbatim}
-$ ./duplicate-remover -S Human_ESC_dremove_start_stat.txt \
->                     -o Human_ESC.mr.dremove_start Human_ESC.mr.sorted_start
-$ ./duplicate-remover -S Human_NHFF_dremove_start_stat.txt \
->                     -o Human_NHFF.mr.dremove_start Human_NHFF.mr.sorted_start
+$ ./duplicate-remover -S Human_ESC_dremove_stat.txt \
+>                     -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
+$ ./duplicate-remover -S Human_NHFF_dremove_stat.txt \
+>                     -o Human_NHFF.mr.dremove Human_NHFF.mr.sorted_start
 \end{verbatim}
-  Next, sort reads by end position: chrom, end, start, strand.
-\begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
->      -o Human_ESC.mr.sorted_end Human_ESC.dremove_start
-$ LC_ALL=C sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g \
->      -o Human_NHFF.mr.sorted_end Human_NHFF.dremove_start
-\end{verbatim}
-  Execute the following command to remove read duplicates sharing the
-  same end position by running the \prog{duplicate-remover} component
-  of \meth{}.
-\begin{verbatim}
-$ ./duplicate-remover -S Human_ESC_dremove_end_stat.txt \
->                     -o Human_ESC.mr.dremove_end -B Human_ESC.mr.sorted_end
-$ ./duplicate-remover -S Human_NHFF_dremove_end_stat.txt \
->                     -o Human_NHFF.mr.dremove_end -B Human_NHFF.mr.sorted_end
-\end{verbatim}
-\end{sloppypar}
-
-Because sorting large files of reads can take a long time, we have
-included the \prog{reorder} program to change from the (chrom, start,
-strand, end) order to the (chrom, end, strand, start) order more
-quickly. This works because these two orders are very similar, but
-reads mapping very close to each other might need to be reordered. So
-rather than the $O(n\log n)$ time usually taken for sorting, the
-\prog{reorder} program does it in linear time.
-\begin{verbatim}
-$ ./reorder -o Human_ESC.mr.sorted_end Human_ESC.mr.dremove_start
-$ ./reorder -o Human_NHFF.mr.sorted_end Human_NHFF.mr.dremove_start
-\end{verbatim}
-Additionally, both the \prog{duplicate-removed} and the \prog{reorder}
-programs have an option \op{-stdin} that allow them to take input from
-standard input so that it can be piped:
-\begin{verbatim}
-$ ./duplicate-remover -S Human_ESC_dremove_start_stat.txt \
->        Human_ESC.mr.sorted_start | ./reorder -stdin | \
->        ./duplicate-remover -B -stdin -S Human_ESC_dremove_end_stat.txt \
->        -o Human_ESC.mr.dremove_both
-\end{verbatim}
-This also eliminates the need for (often huge) intermediate files.
-\noindent {\em Need to describe the output format for the stats on the
-  number of distinct reads. Also need to describe the reorder tool so
-  that re-sorting is not so painful.}
-
-
-% Paired-end and Single-end Reads:
-% \begin{verbatim}
-% $ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g -o Human_ESC_sorted_start.mr Human_ESC.clipmates.mr
-% $ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g -o Human_NHFF_sorted_start.mr Human_NHFF.mr
-% \end{verbatim}
-% If you have more than one lane for each sample, you should repeat
-% previous steps separately and then merge them into a single file using the following
-% command. The input files are sorted files : The input files are sorted files from the
-% previous step.
-% \begin{verbatim}
-% $ sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g -o Human_ESC_sorted_start_merged.mr Human_ESC_1_sorted_start.mr Human_ESC_2_sorted_start.mr Human_ESC_3_sorted_start.mr
-% \end{verbatim}
-
-% \begin{verbatim}
-% ./duplicate-remover -S Human_ESC_dremove_start_stat.txt -o Human_ESC_dremove_start.mr Human_ESC_sorted_start.mr
-% \end{verbatim}
-
-% if you followed merging step, your input will be Human_ESC_sorted_start_merged.mr
-
-% \begin{verbatim}
-% ./duplicate-remover -S Human_NHFF_dremove_start_stat.txt -o Human_NHFF_dremove_start.mr Human_NHFF_sorted_start.mr
-% \end{verbatim}
-
-% \begin{verbatim}
-% $ sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g -o Human_ESC_sorted_end.mr Human_ESC_dremove_start.mr
-% $ sort -k 1,1 -k 3,3g -k 6,6 -k 2,2g -o Human_NHFF_sorted_end.mr Human_ESC_dremove_start.mr
-% $ ./duplicate-remover -S Human_ESC_dremove_end_stat.txt -o Human_ESC_dremove_end.mr -B Human_ESC_sorted_end.mr
-% $ ./duplicate-remover -S Human_NHFF_dremove_end_stat.txt -o Human_NHFF_dremove_end.mr -B Human_NHFF_sorted_end.mr
-% \end{verbatim}
 
 \subsection{Estimating bisulfite conversion rate}
 \label{sec:estim-busilf-conv}
@@ -537,6 +460,10 @@ multiple you can merge them using the \op{-m} option to the
 $ LC_ALL=C sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
 >      -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
+
+If your reads only span a few chromosomes, you can specify the -p option
+to only print methylation information for the chromosomes with mapped reads.
+This drastically speeds up \prog{methcounts}.
 
 \paragraph{Counting only CpG sites:}
 The methylation level for every CpG site at single base resolution is
