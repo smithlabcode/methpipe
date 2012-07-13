@@ -120,8 +120,8 @@ bool OrderChecker::CHECK_SECOND_ENDS = false;
 class DuplicateFragmentTester {
 public:
 
-  bool operator()(const MappedRead &lhs, const MappedRead &rhs) const {
-    return the_real_test(lhs.r, rhs.r);
+  bool operator()(const MappedRead &lhs, const MappedRead &rhs, bool end_or_start) const {
+    return the_real_test(lhs.r, rhs.r, end_or_start);
   }
 
   static void 
@@ -136,7 +136,7 @@ private:
   static bool CHECK_SECOND_ENDS;
 
   static bool
-  the_real_test(const GenomicRegion &lhs, const GenomicRegion &rhs) {
+  the_real_test(const GenomicRegion &lhs, const GenomicRegion &rhs, bool end_or_start) {
     if (!same_strand(lhs, rhs) || !lhs.same_chrom(rhs))
       return false;
     
@@ -146,9 +146,13 @@ private:
     if (lhs_is_frag && rhs_is_frag)
       return same_start(lhs, rhs) && same_end(lhs, rhs);
     
-    return CHECK_SECOND_ENDS ?
-      (lhs.neg_strand() && same_end(lhs, rhs)) :
-      (lhs.pos_strand() && same_start(lhs, rhs));
+    return end_or_start ?
+    		(lhs.neg_strand() && same_end(lhs, rhs)) :
+    		(lhs.pos_strand() && same_start(lhs,rhs));
+    
+    //return CHECK_SECOND_ENDS ?
+    //  (lhs.neg_strand() && same_end(lhs, rhs)) :
+    //  (lhs.pos_strand() && same_start(lhs, rhs));
   }
   static bool
   internal_is_complete_fragment(const GenomicRegion &mr) {
@@ -203,86 +207,6 @@ get_representative_read(const Runif &rng, vector<MappedRead> &candidates) {
 }
 
 
-static void
-remove_duplicates(const string &infile, const string &outfile, 
-		  size_t &total_reads, size_t &unique_reads,
-		  size_t &total_reads_pos, size_t &uniq_reads_pos,
-		  size_t &total_bases_in, size_t &good_bases_out) {
-  
-  static const Runif rng(time(0) + getpid());
-  
-  srand(time(0) + getpid());
-
-  DuplicateFragmentTester dft;
-  OrderChecker order_check;
-  
-  std::ofstream of;
-  if (!outfile.empty()) of.open(outfile.c_str());
-  std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-
-  std::ifstream ifs;
-  if (!infile.empty()) ifs.open(infile.c_str());
-  std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
-
-  MappedRead mr;
-  if (!(in >> mr)) 
-    throw SMITHLABException("mapped read file seems empty: " + infile);
-  
-  ++total_reads;
-  total_reads_pos += mr.r.pos_strand();
-  
-  vector<MappedRead> candidates;
-  candidates.push_back(mr);
-  
-  while (in >> mr) {
-    ++total_reads;
-    total_reads_pos += mr.r.pos_strand();
-    total_bases_in += mr.r.get_width();
-    
-    if (!order_check(candidates.back(), mr))
-      throw SMITHLABException("NOT SORTED:\n" + candidates.back().r.tostring() + 
-			      "\n" + mr.r.tostring());
-    
-    if (!dft(candidates.front(), mr)) {
-      const size_t rep_idx = get_representative_read(rng, candidates);
-      out << candidates[rep_idx] << '\n';
-      ++unique_reads;
-      uniq_reads_pos += candidates[rep_idx].r.pos_strand();
-      good_bases_out += count_good_bases(candidates[rep_idx]);
-      candidates.clear();
-    }
-    candidates.push_back(mr);
-  }
-
-  const size_t rep_idx = get_representative_read(rng, candidates);
-  out << candidates[rep_idx] << '\n';
-  ++unique_reads;
-  uniq_reads_pos += candidates[rep_idx].r.pos_strand();
-  good_bases_out += count_good_bases(candidates[rep_idx]);
-}
-
-/*
- * Struct used to overload operator for reordering from end-sorted to start-sorted
- */
-struct RevOrderChecker {
-  bool operator()(const MappedRead &prev_mr, const MappedRead &mr) const {
-		return end_one_check(mr.r, prev_mr.r);
-  }
-  static bool 
-  is_ready_t(const priority_queue<MappedRead, vector<MappedRead>, RevOrderChecker> &pq,
-	   const MappedRead &mr) {
-    return !pq.top().r.same_chrom(mr.r) || pq.top().r.get_end() > mr.r.get_start();
-  }
- 
-  static bool 
-  end_one_check(const GenomicRegion &prev_mr, const GenomicRegion &mr) {
-    return (start_less(prev_mr, mr) || 
-	    (same_start(prev_mr, mr) &&
-	     (strand_less(prev_mr, mr) ||
-	      (same_strand(prev_mr, mr) && end_leq(prev_mr, mr)))));
-  }
-};
-
 /*
  * Struct used to overload operator for reordering from start-sorted to end-sorted
  */
@@ -307,61 +231,155 @@ struct ReOrderChecker {
 };
 
 /*
- * Reorders mapped reads according to the CHECK_SECOND_ENDS flag.
- * true -> from end-sorted to start-sorted
- * false -> from start-sorted to end-sorted 
+ * Struct used to overload operator for reordering from end-sorted to start-sorted
  */
-void reorder( string & inp, string & outp, bool & CHECK_SECOND_ENDS,
-		bool INPUT_FROM_STDIN )
-{
-    std::ofstream of;
-    if (!outp.empty()) of.open(outp.c_str());
-    std::ostream out(outp.empty() ? cout.rdbuf() : of.rdbuf());
+struct RevOrderChecker {
+  bool operator()(const MappedRead &prev_mr, const MappedRead &mr) const {
+		return end_one_check(mr.r, prev_mr.r);
+  }
+  static bool 
+  is_ready_t(const priority_queue<MappedRead, vector<MappedRead>, RevOrderChecker> &pq,
+	   const MappedRead &mr) {
+    return !pq.top().r.same_chrom(mr.r) || pq.top().r.get_end() > mr.r.get_start();
+  }
+ 
+  static bool 
+  end_one_check(const GenomicRegion &prev_mr, const GenomicRegion &mr) {
+    return (start_less(prev_mr, mr) || 
+	    (same_start(prev_mr, mr) &&
+	     (strand_less(prev_mr, mr) ||
+	      (same_strand(prev_mr, mr) && end_leq(prev_mr, mr)))));
+  }
+};
+
+static void
+remove_duplicates(const string &infile, const string &outfile, 
+		  size_t &total_reads, size_t &unique_reads,
+		  size_t &total_reads_pos, size_t &uniq_reads_pos,
+		  size_t &total_bases_in, size_t &good_bases_out,
+		  bool CHECK_SECOND_ENDS ) {
+  
+  static const Runif rng(time(0) + getpid());
+  
+  srand(time(0) + getpid());
+
+  DuplicateFragmentTester dft;
+  OrderChecker order_check;
+  std::ofstream of;
+  if (!outfile.empty()) of.open(outfile.c_str());
+  std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+
+  std::ifstream ifs;
+  if (!infile.empty()) ifs.open(infile.c_str());
+  std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
+
+  MappedRead mr;
+  if (!(in >> mr)) 
+    throw SMITHLABException("mapped read file seems empty: " + infile);
+  
+  ++total_reads;
+  total_reads_pos += mr.r.pos_strand();
+  vector<MappedRead> candidates_for_reorder;
+  vector<MappedRead> reordered_pq;
+  vector<MappedRead> candidates_after_reorder;
+  vector<MappedRead> candidates;
+  candidates.push_back(mr);
+  
+  while (in >> mr) {
+    ++total_reads;
+    total_reads_pos += mr.r.pos_strand();
+    total_bases_in += mr.r.get_width();
     
-    std::ifstream ifs;
-    if (!INPUT_FROM_STDIN) ifs.open(inp.c_str());
-    std::istream in(INPUT_FROM_STDIN ? std::cin.rdbuf() : ifs.rdbuf());
+    if (!order_check(candidates.back(), mr))
+      throw SMITHLABException("NOT SORTED:\n" + candidates.back().r.tostring() + 
+			      "\n" + mr.r.tostring());
     
-    MappedRead mr;
-	if ( !CHECK_SECOND_ENDS )
-	{
-      // use the ReOrderChecker
-	  std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
-      while (in >> mr) 
-      {
-        while (!pq.empty() && ReOrderChecker::is_ready(pq, mr))
-        {
-	      out << pq.top() << '\n';
-	      pq.pop();
-        }
-        pq.push(mr);
-      }
-      while (!pq.empty()) 
-      {
-        out << pq.top() << '\n';
-        pq.pop();
-      }
-	}
-	else
-	{
-      // use the RevOrderChecker
-	  std::priority_queue<MappedRead, vector<MappedRead>, RevOrderChecker> pq;
-	  while (in >> mr) 
-	  {
-	    while (!pq.empty() && RevOrderChecker::is_ready_t(pq, mr)) 
-	    {
-		  out << pq.top() << '\n';
-		  pq.pop();
-	    }
-	    pq.push(mr);
-	  }
-	  while (!pq.empty()) 
-	  {
-	    out << pq.top() << '\n';
-	    pq.pop();
-	  }
-	}
+    if (!dft(candidates.front(), mr, CHECK_SECOND_ENDS)) {
+      const size_t rep_idx = get_representative_read(rng, candidates);
+      candidates_for_reorder.push_back( candidates[rep_idx] );
+      candidates.clear();
+    }
+    candidates.push_back(mr);
+
+    if ( candidates_for_reorder.size() > 5000 && !dft(candidates_for_reorder.front(), mr, !CHECK_SECOND_ENDS))
+    {
+    	std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
+    	for( size_t i = 0; i < candidates_for_reorder.size(); i++ )
+    	{
+    		while (!pq.empty() && ReOrderChecker::is_ready(pq, candidates_for_reorder.at(i)))
+    		{
+    			reordered_pq.push_back(pq.top());
+    			pq.pop();
+    		}
+    		pq.push(candidates_for_reorder.at(i));
+    	}
+    	while (!pq.empty())
+    	{
+		    reordered_pq.push_back(pq.top());
+    		pq.pop();
+    	}
+    	candidates_for_reorder.clear();
+    	
+    	MappedRead newMr = reordered_pq.at(0);
+    	candidates_after_reorder.push_back(newMr);
+    	for ( size_t j = 1; j < reordered_pq.size(); j++ )
+    	{
+    		newMr = reordered_pq.at(j);
+    		if ( !dft(candidates_after_reorder.front(),newMr,!CHECK_SECOND_ENDS))
+    		{
+    		      const size_t rep_idx = get_representative_read(rng, candidates_after_reorder);
+    		      out << candidates_after_reorder[rep_idx] << "\n";
+    		      ++unique_reads;
+    		      uniq_reads_pos += candidates_after_reorder[rep_idx].r.pos_strand();
+    		      good_bases_out += count_good_bases(candidates_after_reorder[rep_idx]);
+    		      candidates_after_reorder.clear();
+    		}
+		      candidates_after_reorder.push_back(newMr);
+    	}
+    	reordered_pq.clear();
+    }
+    
+  }
+  
+  const size_t rep_idx = get_representative_read(rng, candidates);
+  candidates_for_reorder.push_back( candidates[rep_idx] );
+  candidates.clear();
+  std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
+  for( size_t i = 0; i < candidates_for_reorder.size(); i++ )
+  {
+  	while (!pq.empty() && ReOrderChecker::is_ready(pq, candidates_for_reorder.at(i)))
+  	{
+  		reordered_pq.push_back(pq.top());
+  		pq.pop();
+  	}
+  	pq.push(candidates_for_reorder.at(i));
+  }
+  while (!pq.empty())
+  {
+    reordered_pq.push_back(pq.top());
+  	pq.pop();
+  }
+  candidates_for_reorder.clear();
+  	
+  MappedRead newMr = reordered_pq.at(0);
+  candidates_after_reorder.push_back(newMr);
+  for ( size_t j = 1; j < reordered_pq.size(); j++ )
+  {
+  	newMr = reordered_pq.at(j);
+  	if ( !dft(candidates_after_reorder.front(),newMr,true))
+  	{
+  	      const size_t rep_idx = get_representative_read(rng, candidates_after_reorder);
+  	      out << candidates_after_reorder[rep_idx] << "\n";
+  	      ++unique_reads;
+  	      uniq_reads_pos += candidates_after_reorder[rep_idx].r.pos_strand();
+  	      good_bases_out += count_good_bases(candidates_after_reorder[rep_idx]);
+  	      candidates_after_reorder.clear();
+  	}
+	      candidates_after_reorder.push_back(newMr);
+  }
+  reordered_pq.clear();
 }
+
 
 int main(int argc, const char **argv) {
 
@@ -369,8 +387,6 @@ int main(int argc, const char **argv) {
     bool VERBOSE = false;
     string outfile;
     string statfile;
-    string tempin = "tempin";
-    string tempout = "tempout";
     
     bool CHECK_SECOND_ENDS = false;
     bool INPUT_FROM_STDIN = false;
@@ -417,82 +433,28 @@ int main(int argc, const char **argv) {
       total_reads_pos = 0, uniq_reads_pos = 0,
       total_bases_in = 0, good_bases_out = 0;
 
-    size_t r_total_reads = 0, r_unique_reads = 0, 
-      r_total_reads_pos = 0, r_uniq_reads_pos = 0,
-      r_total_bases_in = 0, r_good_bases_out = 0;
-    
-    tempout = outfile+"_temp";
     OrderChecker::set_comparison_mode(CHECK_SECOND_ENDS);
     DuplicateFragmentTester::set_comparison_mode(CHECK_SECOND_ENDS);
    
-    remove_duplicates(infile, tempout, total_reads, unique_reads, 
+    remove_duplicates(infile, outfile, total_reads, unique_reads, 
 		      total_reads_pos, uniq_reads_pos,
-		      total_bases_in, good_bases_out);
-    
-    tempin = infile+"_temp";
-    
-    reorder( tempout, tempin, CHECK_SECOND_ENDS, INPUT_FROM_STDIN );
-    
-    std::remove(tempout.c_str());
-    OrderChecker::set_comparison_mode(!CHECK_SECOND_ENDS);
-    DuplicateFragmentTester::set_comparison_mode(!CHECK_SECOND_ENDS);
-    remove_duplicates(tempin, outfile, r_total_reads, r_unique_reads, 
-		      r_total_reads_pos, r_uniq_reads_pos,
-		      r_total_bases_in, r_good_bases_out);
-    std::remove(tempin.c_str());
-    
-    if ( CHECK_SECOND_ENDS )
-    {
-		if (!statfile.empty() || VERBOSE) {
-		  std::ofstream of;
-		  if (!statfile.empty()) of.open(statfile.c_str());
-		  std::ostream out(statfile.empty() ? std::clog.rdbuf() : of.rdbuf());
-		  out << "- strand (sorted by end) statistics:" << endl
-		  << "TOTAL READS:\t" << total_reads << endl
-		  << "UNIQUE READS:\t" << unique_reads << endl
-		  << "TOTAL POS:\t" << total_reads_pos << endl
-		  << "UNIQUE POS:\t" << uniq_reads_pos << endl
-		  << "TOTAL NEG:\t" << total_reads - total_reads_pos << endl
-		  << "UNIQUE NEG:\t" << unique_reads - uniq_reads_pos << endl
-		  << "ALL BASES IN:\t" << total_bases_in << endl
-		  << "GOOD BASES OUT:\t" << good_bases_out << endl << endl
-		  << "+ strand (sorted by start) statistics:" << endl 
-		  << "TOTAL READS:\t" << r_total_reads << endl
-		  << "UNIQUE READS:\t" << r_unique_reads << endl
-		  << "TOTAL POS:\t" << r_total_reads_pos << endl
-		  << "UNIQUE POS:\t" << r_uniq_reads_pos << endl
-		  << "TOTAL NEG:\t" << r_total_reads - r_total_reads_pos << endl
-		  << "UNIQUE NEG:\t" << r_unique_reads - r_uniq_reads_pos << endl
-		  << "ALL BASES IN:\t" << r_total_bases_in << endl
-		  << "GOOD BASES OUT:\t" << r_good_bases_out << endl;
-		}
-    }
-    else
-    {
-		if (!statfile.empty() || VERBOSE) {
-		  std::ofstream of;
-		  if (!statfile.empty()) of.open(statfile.c_str());
-		  std::ostream out(statfile.empty() ? std::clog.rdbuf() : of.rdbuf());
-		  out << "+ strand (sorted by start) statistics:" << endl
-		  << "TOTAL READS:\t" << total_reads << endl
-		  << "UNIQUE READS:\t" << unique_reads << endl
-		  << "TOTAL POS:\t" << total_reads_pos << endl
-		  << "UNIQUE POS:\t" << uniq_reads_pos << endl
-		  << "TOTAL NEG:\t" << total_reads - total_reads_pos << endl
-		  << "UNIQUE NEG:\t" << unique_reads - uniq_reads_pos << endl
-		  << "ALL BASES IN:\t" << total_bases_in << endl
-		  << "GOOD BASES OUT:\t" << good_bases_out << endl << endl
-		  << "- strand (sorted by end) statistics:" << endl 
-		  << "TOTAL READS:\t" << r_total_reads << endl
-		  << "UNIQUE READS:\t" << r_unique_reads << endl
-		  << "TOTAL POS:\t" << r_total_reads_pos << endl
-		  << "UNIQUE POS:\t" << r_uniq_reads_pos << endl
-		  << "TOTAL NEG:\t" << r_total_reads - r_total_reads_pos << endl
-		  << "UNIQUE NEG:\t" << r_unique_reads - r_uniq_reads_pos << endl
-		  << "ALL BASES IN:\t" << r_total_bases_in << endl
-		  << "GOOD BASES OUT:\t" << r_good_bases_out << endl;
-		}
-    }
+		      total_bases_in, good_bases_out, CHECK_SECOND_ENDS);
+
+	if (!statfile.empty() || VERBOSE) {
+	  std::ofstream of;
+	  if (!statfile.empty()) of.open(statfile.c_str());
+	  std::ostream out(statfile.empty() ? std::clog.rdbuf() : of.rdbuf());
+	  out << "Duplicate remover statistics:" << endl
+	  << "TOTAL READS:\t" << total_reads << endl
+	  << "UNIQUE READS:\t" << unique_reads << endl
+	  << "TOTAL POS:\t" << total_reads_pos << endl
+	  << "UNIQUE POS:\t" << uniq_reads_pos << endl
+	  << "TOTAL NEG:\t" << total_reads - total_reads_pos << endl
+	  << "UNIQUE NEG:\t" << unique_reads - uniq_reads_pos << endl
+	  << "ALL BASES IN:\t" << total_bases_in << endl
+	  << "GOOD BASES OUT:\t" << good_bases_out << endl;
+	}
+
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
