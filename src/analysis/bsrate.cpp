@@ -166,7 +166,7 @@ write_output(const string &outfile,
   size_t output_len = ucvt_count_p.size();
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +
-	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] > 0))
+	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] == 0))
     --output_len;
   
   // Now actually output the results
@@ -305,7 +305,7 @@ main(int argc, const char **argv) {
     while (!in.eof() && in >> mr) {
 
       if (A_RICH_READS)
-	revcomp(mr);
+	    revcomp(mr);
       
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region))
