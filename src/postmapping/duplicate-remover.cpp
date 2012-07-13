@@ -301,7 +301,7 @@ remove_duplicates(const string &infile, const string &outfile,
     }
     candidates.push_back(mr);
 
-    if ( candidates_for_reorder.size() > 5000 && !dft(candidates_for_reorder.front(), mr, !CHECK_SECOND_ENDS))
+    if ( candidates_for_reorder.size() > 100 && !dft(candidates_for_reorder.front(), mr, !CHECK_SECOND_ENDS))
     {
     	std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
     	for( size_t i = 0; i < candidates_for_reorder.size(); i++ )
