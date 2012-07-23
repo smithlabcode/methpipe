@@ -240,7 +240,8 @@ certain distance from each other (as specified by the \op{-L} option),
 then the mates are combined into a single read, referred to as a
 fragment, with Ns filling any existing gaps between mates. If mates
 could not be matched, then each mate is present in the output
-file. \prog{clipmates} takes two input files in mapped reads format:
+file by default.  Unmatched reads can be thrown out using the \op{-t}
+option.  \prog{clipmates} takes two input files in mapped reads format:
 one with T-rich mapped reads (\op{-T} option) and the other with A-rich
 mapped reads (\op{-A} option). Execute the following command to run the
 \prog{clipmates} component of \meth{} on T-rich and A-rich reads
