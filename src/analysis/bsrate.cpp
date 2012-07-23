@@ -58,8 +58,8 @@ revcomp(MappedRead &mr) {
 
 
 static void
-count_states_pos(const bool COUNT_CPGS, const string &chrom, const MappedRead &r,
-		 vector<size_t> &unconv, vector<size_t> &conv, 
+count_states_pos(const bool COUNT_CPGS, const string &chrom, 
+		 const MappedRead &r, vector<size_t> &unconv, vector<size_t> &conv, 
 		 vector<size_t> &err) {
   
   const size_t width = r.r.get_width();
@@ -125,8 +125,10 @@ write_output(const string &outfile,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
 
   // Get some totals first
-  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0UL);
-  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0UL); 
+  const size_t pos_cvt = accumulate(cvt_count_p.begin(),
+		  cvt_count_p.end(), 0UL);
+  const size_t neg_cvt = accumulate(cvt_count_n.begin(),
+		  cvt_count_n.end(), 0UL);
   const size_t total_cvt = pos_cvt + neg_cvt;
 
   const size_t pos_ucvt = 
@@ -164,10 +166,12 @@ write_output(const string &outfile,
 
   // Figure out how many positions to print in the output
   size_t output_len = ucvt_count_p.size();
+  cout << output_len << " before ... \n";
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +
 	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] == 0))
     --output_len;
+  cout << output_len << " and after! \n";
   
   // Now actually output the results
   static const size_t precision_val = 5;

@@ -195,7 +195,7 @@ main(int argc, const char **argv)  {
     string end_one_out, end_two_out;  // mapped read output
     string out_stat;
     string outfile;
-
+    bool throw_singles = false;
     size_t suffix_len = 1;
     
     /****************** COMMAND LINE OPTIONS ********************/
@@ -212,6 +212,9 @@ main(int argc, const char **argv)  {
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
 		      false, suffix_len); 
     opt_parse.add_opt("outfile", 'o', "Output file name", false, outfile);
+    opt_parse.add_opt("throw-singles", 't', std::string("Throws out single-end")
+            + " information when unable to clip ends together", false, 
+            throw_singles );
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -257,16 +260,22 @@ main(int argc, const char **argv)  {
       if (same_read(suffix_len, one, two)) { // one and tow are mates
 	if (!one.r.same_chrom(two.r)) {
 	  incorrect_chr++;
-	  out << one << endl << two << endl;
+	  if ( !throw_singles ) {
+		  out << one << endl << two << endl;
+	  }
 	}
 	else if (one.r.get_strand() != two.r.get_strand()) {
 	  if (one.r.get_start() == two.r.get_start()) {
 	    problem_x++;
-	    out << one << endl;
+	    if ( !throw_singles ) {
+	      out << one << endl;
+	    }
 	  }
 	  else {
 	    incorrect_strand++;
-	    out << one << endl << two << endl;
+		if ( !throw_singles ) {
+		  out << one << endl << two << endl;
+		}
 	  }
 	}
 	else {
@@ -279,7 +288,9 @@ main(int argc, const char **argv)  {
 	    out << merged << endl;
 	  }
 	  else {
-	    out << one << endl << two << endl;
+		if ( !throw_singles ) {
+			out << one << endl << two << endl;
+		}
 	    if (len < 0) incorrect_orient++;
 	    else incorrect_frag_size++;
 	  }
@@ -289,24 +300,32 @@ main(int argc, const char **argv)  {
 	if (REVCOMP) revcomp(two);
       }
       else if (name_smaller(suffix_len, one, two)) {
-	out << one << endl;
+    	  if ( !throw_singles ) {
+    		out << one << endl;
+    	  }
 	broken_pairs++;
 	one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
       }
       else { // one comes after two
-	out << two << endl;
+    	  if ( !throw_singles ) {
+    		out << two << endl;
+    	  }
 	broken_pairs++;
 	two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
 	if (REVCOMP) revcomp(two);
       }
     }
     while (one_is_good) {
-      out << one << endl;
+    	if ( !throw_singles ) {
+          out << one << endl;
+    	}
       broken_pairs++;            
       one_is_good = ((in_one >> one) && (check_sorted_by_ID(prev_one, one)));
     }
     while (two_is_good) {
-      out << two << endl;
+    	if ( !throw_singles ) {
+          out << two << endl;
+    	}
       broken_pairs++;
       two_is_good = ((in_two >> two) && (check_sorted_by_ID(prev_two, two)));
       if (REVCOMP) revcomp(two);
