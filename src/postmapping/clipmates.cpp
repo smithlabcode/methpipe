@@ -255,9 +255,9 @@ main(int argc, const char **argv)  {
     bool one_is_good = ((in_one >> one) && check_sorted_by_ID(prev_one, one));
     bool two_is_good = ((in_two >> two) && check_sorted_by_ID(prev_two, two));
     if (REVCOMP) revcomp(two);
-    
+    //
     while (one_is_good && two_is_good) {
-      if (same_read(suffix_len, one, two)) { // one and tow are mates
+      if (same_read(suffix_len, one, two)) { // one and two are mates
 	if (!one.r.same_chrom(two.r)) {
 	  incorrect_chr++;
 	  if ( !throw_singles ) {

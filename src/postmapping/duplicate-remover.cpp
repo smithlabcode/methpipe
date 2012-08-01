@@ -398,9 +398,8 @@ int main(int argc, const char **argv) {
 		      false, outfile);
     opt_parse.add_opt("stdin", '\0', "take input from stdin",
 		      false, INPUT_FROM_STDIN);
-    opt_parse.add_opt("endtwo", 'B', "[when PE reads are involved] "
-		      "similar fragment check on 5' end of second mate",
-		      false, CHECK_SECOND_ENDS);
+    opt_parse.add_opt("endtwo", 'B', "Input is sorted end-first instead of "
+		      "start first", false, CHECK_SECOND_ENDS);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     
