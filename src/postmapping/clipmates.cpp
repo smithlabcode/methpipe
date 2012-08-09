@@ -339,10 +339,123 @@ main(int argc, const char **argv)  {
 	    << "UNMERGED BY STRAND INCOMPATIBILITY:\t" << incorrect_strand << endl
 	    << "UNMERGED BY INCONSISTENT ORIENTATION:\t" << incorrect_orient << endl
 	    << "UNMERGED BY INSERT SIZE:\t" << incorrect_frag_size << endl
-	    << "TOTAL MAPPED BROKEN PAIRS (MISSING MATES):\t" << broken_pairs << endl
-	    << "INSERT_LENGTH" << "\t" << "FREQUENCY" << endl;
-      for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++)
-	outst << i << "\t" << frag_len_distr[i] << endl;
+	    << "TOTAL MAPPED BROKEN PAIRS (MISSING MATES):\t" << broken_pairs << endl;
+
+      // calculate mean, median, mode(s), standard deviation, quartiles
+      size_t sum = 0;
+      size_t count = 0;
+      vector<double> smoothed;
+      vector<size_t> modes;
+      //size_t mode_c = 0;
+      size_t mean = 0;
+      size_t median = 0;
+      size_t median1 = 0;
+      size_t median2 = 0;
+      size_t quartile1 = 0;
+      size_t quartile3 = 0;
+      size_t stddev = 0;
+      size_t s_j = 0;
+      size_t max = 0;
+      size_t min_significant_mode = 0;
+
+      for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++) {
+	sum += i*frag_len_distr[i];
+	count += frag_len_distr[i];
+	if ( frag_len_distr[i] > max )
+        {
+          max = frag_len_distr[i];
+        }
+      }
+      min_significant_mode = max*0.75;
+      // CALCULATE NUMBER OF MODES THROUGH TRIANGULAR SMOOTHING
+      for ( size_t i = 2; i < MAX_SEGMENT_LENGTH-1; i++ ) {
+        s_j = (frag_len_distr[i-2]+2*frag_len_distr[i-1]+3*frag_len_distr[i]
+               + 2*frag_len_distr[i+1] + frag_len_distr[i+2] );
+        s_j /= 9;
+        smoothed.push_back(s_j);
+      }
+      // find local maxima in smoothed data
+      size_t prev_i = 0;
+      for ( size_t i = 1; i < smoothed.size()-2; i++ ) {
+        if ( prev_i == 0 && (smoothed.at(i-1)-smoothed.at(i) > 0) ) {
+          // i-1 is a local maxima
+          if ( frag_len_distr[i-1] > min_significant_mode )
+          {
+            modes.push_back((i+1)); // started at +3 for smoothing
+          }
+          prev_i = 1;
+        }
+        else {
+          if ( smoothed.at(i-1)-smoothed.at(i) < 0 ) {
+            prev_i = 0;
+          }
+          else {
+            prev_i = 1;
+          }
+        }
+      }
+
+      if ( count % 2 == 0 ) {
+        median1 = count/2;
+	median2 = median1+1;
+      }
+      else {
+        median1 = count/2;
+      }
+
+      quartile1 = median1/2;
+      quartile3 = (count-median)/2;
+
+      size_t cur_count = 0;
+      for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++) {
+        if ( cur_count < median1 &&
+             cur_count + frag_len_distr[i] > median1 ) {
+          if ( frag_len_distr[i] == 1 && median2 ) {
+	    size_t x = i+1;
+	    while ( frag_len_distr[x] == 0 ) {
+	      x++;
+	    }
+            median = (x+i)/2;
+	  }
+          else {
+            median = i; 
+          }
+        }
+        if ( cur_count < quartile1 &&
+             cur_count+frag_len_distr[i] > quartile1 ) {
+          quartile1 = i;
+        }
+        if ( cur_count < quartile3 &&
+             cur_count+frag_len_distr[i] > quartile3 ) {
+	  quartile3 = i;
+	}
+	cur_count += frag_len_distr[i];
+      }
+      mean = sum/count;
+
+      size_t sq_diff_sum = 0;
+      for( size_t i = 0; i < MAX_SEGMENT_LENGTH+1; i++ ) {
+        for ( size_t j = 0; j < frag_len_distr[i]; j++ ) {
+          size_t diff = i - mean;
+          sq_diff_sum += (diff * diff);
+        }
+      }
+      size_t variance = sq_diff_sum / count;
+      stddev = sqrt( variance );
+      outst << "MEAN READ SIZE:\t" << mean << endl;
+      outst << "READ SIZE MODE(S):\t" << modes.at(0);
+      for ( size_t i = 1; i < modes.size(); i++ ) {
+        outst << ", " << modes.at(i);
+      }
+      outst << endl << "STD DEVIATION:\t" << stddev << endl;
+      outst << "QUARTILES:\n\t1ST:\t" << quartile1 << endl;
+      outst << "\tMEDIAN:\t" << median << endl;
+      outst << "\t3RD:\t" << quartile3 << endl;
+      outst << endl << "INSERT_LENGTH" << "\t" << "FREQUENCY" << endl;
+
+      for ( size_t i = 0; i < MAX_SEGMENT_LENGTH +1; i++ ) {
+        outst << i << "\t" << frag_len_distr[i] << endl;
+      }      
     }
   }
   catch (const SMITHLABException &e) {
