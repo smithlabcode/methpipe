@@ -357,29 +357,34 @@ main(int argc, const char **argv)  {
       size_t s_j = 0;
       size_t max = 0;
       size_t min_significant_mode = 0;
+      size_t initial_mode = 0;
 
-      for (size_t i = 0; i < MAX_SEGMENT_LENGTH + 1; i++) {
-	sum += i*frag_len_distr[i];
-	count += frag_len_distr[i];
-	if ( frag_len_distr[i] > max )
-        {
-          max = frag_len_distr[i];
-        }
+      for (size_t i = 0; i < MAX_SEGMENT_LENGTH+1; i++) {
+        sum += i*frag_len_distr[i];
+        count += frag_len_distr[i];
       }
-      min_significant_mode = max*0.75;
+
       // CALCULATE NUMBER OF MODES THROUGH TRIANGULAR SMOOTHING
       for ( size_t i = 2; i < MAX_SEGMENT_LENGTH-1; i++ ) {
         s_j = (frag_len_distr[i-2]+2*frag_len_distr[i-1]+3*frag_len_distr[i]
                + 2*frag_len_distr[i+1] + frag_len_distr[i+2] );
         s_j /= 9;
         smoothed.push_back(s_j);
+    	if ( s_j > max )
+        {
+          initial_mode = i;
+          max = s_j;
+        }
       }
+      modes.push_back(initial_mode);
+      min_significant_mode = max*0.75;
+
       // find local maxima in smoothed data
       size_t prev_i = 0;
       for ( size_t i = 1; i < smoothed.size()-2; i++ ) {
         if ( prev_i == 0 && (smoothed.at(i-1)-smoothed.at(i) > 0) ) {
           // i-1 is a local maxima
-          if ( frag_len_distr[i-1] > min_significant_mode )
+          if ( frag_len_distr[i-1] > min_significant_mode && modes.at(0) != i+1 )
           {
             modes.push_back((i+1)); // started at +3 for smoothing
           }
@@ -397,7 +402,7 @@ main(int argc, const char **argv)  {
 
       if ( count % 2 == 0 ) {
         median1 = count/2;
-	median2 = median1+1;
+	    median2 = median1+1;
       }
       else {
         median1 = count/2;
@@ -411,12 +416,12 @@ main(int argc, const char **argv)  {
         if ( cur_count < median1 &&
              cur_count + frag_len_distr[i] > median1 ) {
           if ( frag_len_distr[i] == 1 && median2 ) {
-	    size_t x = i+1;
-	    while ( frag_len_distr[x] == 0 ) {
-	      x++;
-	    }
+	        size_t x = i+1;
+	        while ( frag_len_distr[x] == 0 ) {
+	          x++;
+	        }
             median = (x+i)/2;
-	  }
+	      }
           else {
             median = i; 
           }
@@ -427,8 +432,8 @@ main(int argc, const char **argv)  {
         }
         if ( cur_count < quartile3 &&
              cur_count+frag_len_distr[i] > quartile3 ) {
-	  quartile3 = i;
-	}
+	        quartile3 = i;
+	    }
 	cur_count += frag_len_distr[i];
       }
       mean = sum/count;
