@@ -92,7 +92,8 @@ mapping to suit A-rich reads, add the \op{-A} option.
 data is a set of sequenced read files, typically as produced by
 Illumina sequencing. These are FASTQ format files, and can be quite
 large. After the reads are mapped, these files are not used by our
-pipeline.
+pipeline.  The reference genome should be a folder containing an
+individual .fa file for each chromosome to maximize memory efficiency.
 
 The mapped reads files (\fn{*.mr} suffix) that result from the previous
 steps should consist of eight columns of data. The first six columns
@@ -102,8 +103,29 @@ and quality scores respectively. These mapped reads files will be the
 input files for the following two \meth{} components, \prog{bsrate}
 and \prog{methcounts}.
 
-\paragraph{Partitioning reads for mapping using a cluster:} Mapping
-reads often takes a while, and mapping reads from BS-seq takes longer.
+\paragraph{Decompressing and isolating paired-end reads:}
+Sometimes paired-end reads are stored in the same fastq file.  Because
+we treat these paired ends differently, they must be separated into two files 
+and run through \prog{rmapbs} with different parameters.  
+
+If your data is compressed as a Sequenced Read Archive, or SRA file, you can
+decompress and split paired-end reads into two files at the same time using
+ \prog{fastq-dump}, which is a program included in the \prog{sra-toolkit} 
+package, available for most unix systems.  Below is an example of using
+\prog{fastq-dump} to decompress and separate fastq data by end:
+\begin{verbatim}
+$ ./fastq-dump --split-3 Human_ESC.sra
+\end{verbatim}
+
+If you have a fastq file not compressed in SRA format, you can split paired ends
+into two separate files by running the following commands:
+\begin{verbatim}
+$ sed -ne '1~8{N;N;N;p' *.fastq > *_1.fastq
+$ sed -ne '4~8{N;N;N;p}' *.fastq > *_2.fastq
+\end{verbatim}
+
+\paragraph{Partitioning reads for mapping using a cluster:} 
+Mapping reads often takes a while, and mapping reads from BS-seq takes longer.
 Because of how \prog{rmapbs} works, dividing the set of reads to be
 mapped into $k$ equal sized smaller reads files, and mapping these all
 simultaneously on a cluster, will make the mapping finish about $k$
@@ -121,21 +143,20 @@ $ for i in reads/*.txt; do \
 Notice that the number of lines per split file is 12M, since we want
 3M reads, and there are 4 lines per read. If you split the reads like
 this, you will need to ``unsplit'' them after the mapping is done. Not
-a problem, just use the \prog{cat} command (example will be given
-below).
+a problem, just use the \prog{cat} command.
 
 \paragraph{Sequencing adaptors:}
 These are a problem in any sequencing experiment with short fragments
-relative to the lengths of reads.  The \prog{cutadapt} program does a
-fine job removing adaptors, and a version modified for our purposes
-is included in \meth{}.  The following command will cut adaptor sequences
-from reads and replace them with N's, which will be treated as wildcard
-characters by \prog{rmapbs}:
-\begin{verbatim}
-$ ./cutadapt -A adaptor_sequence_string
-\end{verbatim}
+relative to the lengths of reads.  \prog{rmapbs} identifies sequences at the
+ends of reads greater than 10bp belonging to sequencing adaptors and
+converts them to Ns to avoid potential mapping problems.
 
-% In the last versions of the manual there was a session regarding "Trim
+Adaptor sequences must be supplied to \prog{rmapbs} through the -C
+option.  Keep in mind that if the adaptor sequence provided to you for
+the second paired end is displayed from 5' to 3', you will need to
+provide the reverse complement of the sequence to \prog{rmapbs}.
+
+% In the last versions of the manual there was a section regarding "Trim
 % adapters" which was very useful. But I think it needs more
 % explanation.  I think it will be very useful to provide two examples
 % for SE and PE reads
