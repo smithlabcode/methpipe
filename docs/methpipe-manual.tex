@@ -138,7 +138,7 @@ them into files containing at most 3M reads:
 \begin{verbatim}
 $ mkdir reads_split
 $ for i in reads/*.txt; do \
->   split -a 3 -d -l 12000000 ${i} reads_split/$(basename $i); done
+    split -a 3 -d -l 12000000 ${i} reads_split/$(basename $i); done
 \end{verbatim}
 Notice that the number of lines per split file is 12M, since we want
 3M reads, and there are 4 lines per read. If you split the reads like
@@ -269,7 +269,7 @@ mapped reads (\op{-A} option). Execute the following command to run the
 (mates 1 and 2).
 \begin{verbatim}
 $ ./clipmates -L 1000 -S Human_ESC.clipstats -o Human_ESC_clipped.mr \
->             -T Human_ESC_1.mr.name_srtd -A Human_ESC_2.mr.name_srtd
+              -T Human_ESC_1.mr.name_srtd -A Human_ESC_2.mr.name_srtd
 \end{verbatim}
 The parameter \op{-L} to \prog{clipmates} indicates the maximum size
 of fragments to allow to be merged. Here the fragment size is the sum
@@ -294,7 +294,7 @@ entire read name must be matched, and so \prog{clipmates} has an
 option to accomplish this:
 \begin{verbatim}
 $ ./clipmates -s 0 -L 1000 -S SRA_reads.clipstats -o SRA_reads_clipped.mr \
->             -T SRA_reads_1.mr.name_srtd -A SRA_reads_2.mr.name_srtd
+              -T SRA_reads_1.mr.name_srtd -A SRA_reads_2.mr.name_srtd
 \end{verbatim}
 The argument \lit{-s} is used to indicate that the suffix of the read
 names to be ignored when matching up mates has length 0, so compare
@@ -327,9 +327,9 @@ strand, end) and running \prog{duplicate-remover}.
   while working through the following steps.
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
->      -o Human_ESC.mr.sorted_start Human_ESC.mr
+       -o Human_ESC.mr.sorted_start Human_ESC.mr
 $ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
->      -o Human_NHFF.mr.sorted_start Human_NHFF.mr
+       -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
   If at any point during the pipeline you split your files into
   smaller files due to size limitations, you should now merge all
@@ -344,24 +344,24 @@ $ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
   between them.
 \begin{verbatim}
 $ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
->      -o Human_ESC.mr.sorted_start_merged \
->      Human_ESC_1.mr.sorted_start \
->      Human_ESC_2.mr.sorted_start \
->      Human_ESC_3.mr.sorted_start
+       -o Human_ESC.mr.sorted_start_merged \
+       Human_ESC_1.mr.sorted_start \
+       Human_ESC_2.mr.sorted_start \
+       Human_ESC_3.mr.sorted_start
 $ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
->      -o Human_NHFF.mr.sorted_start_merged \
->      Human_NHFF_1.mr.sorted_start \
->      Human_NHFF_2.mr.sorted_start \
->      Human_NHFF_3.mr.sorted_start
+       -o Human_NHFF.mr.sorted_start_merged \
+       Human_NHFF_1.mr.sorted_start \
+       Human_NHFF_2.mr.sorted_start \
+       Human_NHFF_3.mr.sorted_start
 \end{verbatim}
   Execute the following command to remove all read duplicates by running
   the \prog{duplicate-remover}
   component of \meth{}:
 \begin{verbatim}
 $ ./duplicate-remover -S Human_ESC_dremove_stat.txt \
->                     -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
+                      -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
 $ ./duplicate-remover -S Human_NHFF_dremove_stat.txt \
->                     -o Human_NHFF.mr.dremove Human_NHFF.mr.sorted_start
+                      -o Human_NHFF.mr.dremove Human_NHFF.mr.sorted_start
 \end{verbatim}
 
 \subsection{Estimating bisulfite conversion rate}
@@ -473,14 +473,14 @@ according to (chrom, end, start, strand). If your reads are not
 sorted, to sort MappedRead format files in this order, do:
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
->      -o Human_ESC.mr.sorted_end_first Human_ESC.mr
+       -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
 Since \prog{methcounts} can only take one input file, if you have
 multiple you can merge them using the \op{-m} option to the
 \prog{sort} program:
 \begin{verbatim}
 $ LC_ALL=C sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
->      -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
+       -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
 
 If your reads only span a few chromosomes, you can specify the -p option
@@ -496,9 +496,9 @@ estimate for the CpG site. To compute methylation levels at each CpG
 site you can use commands as following:
 \begin{verbatim}
 $ ./methcounts -c hg18 -o Human_ESC_Meth.bed \
->              -S Human_ESC_Meth.stats Human_ESC.mr
+               -S Human_ESC_Meth.stats Human_ESC.mr
 $ ./methcounts -c hg18 -o Human_NHFF_Meth.bed \
->              -S Human_NHFF_Meth.stats Human_NHFF.mr
+               -S Human_NHFF_Meth.stats Human_NHFF.mr
 \end{verbatim}
 The argument \op{-c} should be followed by the name of a directory
 that contains one FASTA format file for each chromosome. By default
@@ -520,10 +520,10 @@ colon (\lit{:}). Sequencing errors are not counted in the output. The
 Cs in reads at position corresponding to the site, divided by the sum
 of the Cs and Ts mapping to that position. The final column is the
 strand, and when only CpG sites are considered, this is always
-\lit{+}. Note: we will typically use filenames like \fn{*\_Meth.bed} to
-denote output files from \prog{methcounts}. For non-CpG methylation we
-will indicate which type in the filename (see next paragraph). There
-is no requirement to use this naming scheme.
+\lit{+}. Note: we will typically use filenames like \fn{*\_Meth.bed}
+to denote output files from \prog{methcounts}. For non-CpG methylation
+we will indicate which type in the filename (see next
+paragraph). There is no requirement to use this naming scheme.
 
 \paragraph{Counting all cytosines:}
 While methylation usually exists in the CpG contexts, in mammalian
@@ -542,7 +542,7 @@ default; to calculate methylation levels for all cytosines in an
 asymmetric way, add the \op{-N} option like the following,
 \begin{verbatim}
 $ ./methcounts -N -c hg18 -o Human_ESC_Meth_All.bed \
->              -S Human_ESC_Meth_All.stats Human_ESC.mr
+               -S Human_ESC_Meth_All.stats Human_ESC.mr
 \end{verbatim}
 
 The output file contains one line per cytosine site (see below for an
@@ -766,7 +766,7 @@ following command calculates differential methylation scores across
 two methylomes using the \prog{methdiff} component of Methpipe.
 \begin{verbatim}
 $ ./methdiff -o Human_ESC_NHFF_methdiff.bed \
->            Human_ESC_Meth.bed Human_NHFF_Meth.bed
+             Human_ESC_Meth.bed Human_NHFF_Meth.bed
 \end{verbatim}
 So in the output file \fn{Human\_ESC\_NHFF\_methdiff.bed} the 5th
 column indicates the probability that the methylation level at each
@@ -794,52 +794,73 @@ The following command finds DMRs using the \prog{dmr} component
 of \meth{}:
 \begin{verbatim}
 $ ./dmr Human_ESC_NHFF_methdiff.bed Human_ESC_HMR.bed \
->     Human_NHFF_HMR.bed DMR_ESC_lt_NHFF DMR_NHFF_lt_ESC
+      Human_NHFF_HMR.bed DMR_ESC_lt_NHFF DMR_NHFF_lt_ESC
 \end{verbatim}
 
 \subsection{Allele-specific methylation}
-If you are interested in different methylation states of the two alleles, use the programs \prog{allelicmeth} and \prog{amrfinder}. For each CpG site, \prog{allelicmeth} calculates the probability that the site has allele-specific methylation (ASM). The higher the score, the more likely the CpG site has ASM. \prog{amrfinder} is used to identify allelically methylated regions (AMRs). Both programs make use of the dependency between adjacent CpGs. Therefore, longer reads and higher coverage may improve the accuracy. Also the programs work better in CpG dense regions ({\em e.g.} CpG islands). Typically, 10$\times$ coverage and 100bp reads can ensure good performance in the human genome.
+
+If you are interested in different methylation states of the two
+alleles, use the programs \prog{allelicmeth} and \prog{amrfinder}. For
+each CpG site, \prog{allelicmeth} calculates the probability that the
+site has allele-specific methylation (ASM). The higher the score, the
+more likely the CpG site has ASM. \prog{amrfinder} is used to identify
+allelically methylated regions (AMRs). Both programs make use of the
+dependency between adjacent CpGs. Therefore, longer reads and higher
+coverage may improve the accuracy. Also the programs work better in
+CpG dense regions ({\em e.g.} CpG islands). Typically, 10$\times$
+coverage and 100bp reads can ensure good performance in the human
+genome.
 
 \subsubsection{Allele-specific methylation scores}
 \label{sec:allelic_scores}
+
 The program \prog{allelicmeth} calculates allelic-specific methylation
-scores for each CpG site. Input files should be the mapped
-reads files (\fn{.mr} suffix) produced previously in the mapping
-step. In the output file, each row represents a CpG pair made by any CpG and its previous CpG, the first three columns indicate the positions of the CpG site, the fourth column is the name including the number of reads covering the CpG pair, the fifth column is the score for ASM, and the last four columns record the number of reads of four different methylation combinations of the CpG pair: methylated methylated (mm), methylated unmethylated (mu), unmethylated
-methylated (um), or unmethylated unmethylated (uu). The following command will calculate allele-specific methylation scores using the \prog{allelicmeth} component of Methpipe.
+scores for each CpG site. Input files should be the mapped reads files
+(\fn{.mr} suffix) produced previously in the mapping step. In the
+output file, each row represents a CpG pair made by any CpG and its
+previous CpG, the first three columns indicate the positions of the
+CpG site, the fourth column is the name including the number of reads
+covering the CpG pair, the fifth column is the score for ASM, and the
+last four columns record the number of reads of four different
+methylation combinations of the CpG pair: methylated methylated (mm),
+methylated unmethylated (mu), unmethylated methylated (um), or
+unmethylated unmethylated (uu). The following command will calculate
+allele-specific methylation scores using the \prog{allelicmeth}
+component of Methpipe.
 \begin{verbatim}
 $ ./allelicmeth -c hg18 -o Human_ESC_allelicmeth.bed Human_ESC.mr
 \end{verbatim}
 
 \subsubsection{Allelically methylated regions (AMRs)}
-The program \prog{amrfinder} scans the genome using a
-sliding window to identify AMRs. For a genomic interval, two
-statistical models are fitted to the reads mapped, respectively. One
-model (single-allele model) assumes the two alleles have the same
-methylation state, and the other (two-allele model) represents
-different methylation states for the two alleles. Comparing the
-likelihood of the two models, the interrogated genomic interval is
-determined whether or not an AMR. The input files are still mapped reads files, and the output bed files contain all
-possible AMRs in BED format. The following command shows an
-example to run the program \prog{amrfinder}.
+The program \prog{amrfinder} scans the genome using a sliding window
+to identify AMRs. For a genomic interval, two statistical models are
+fitted to the reads mapped, respectively. One model (single-allele
+model) assumes the two alleles have the same methylation state, and
+the other (two-allele model) represents different methylation states
+for the two alleles. Comparing the likelihood of the two models, the
+interrogated genomic interval is determined whether or not an AMR. The
+input files are still mapped reads files, and the output bed files
+contain all possible AMRs in BED format. The following command shows
+an example to run the program \prog{amrfinder}.
 \begin{verbatim}
 $ ./amrfinder -o Human_ESC_AMR.bed -i 10 -w 10 -m 1 -c hg18 -b Human_ESC.mr
 $ ./amrfinder -o Human_ESC_AMR.bed -c hg18 -b -E Human_ESC.txt
 \end{verbatim}
-Option \op{-i} is the maximum iterations
-allowed in the EM procedure when calculating the likelihood for the
-two-allele model, and the default value is $10$. Option \op{-w}
-defines the size of the sliding window using the number of
-CpGs, and the default value is $10$. Option \op{-m} is the requirement of the minimum reads covering
-each CpG, and the default value is $1$. Option \op{-b} means to use
-BIC criterion to compare the two likelihood models, otherwise likelihood ratio test is used for model comparison. There is an option
-\op{-E} indicating if the input file is in a special format called
-``Epiread'' format, which consists of three columns. The first column
-is the chromosome of the read, the second column is the numbering order
-of the first CpG in the read, and the last column is the CpG-only
-sequence of the read. Such `Epiread' format reduces the memory
-requirement. You can use the program \prog{methstates} to convert the
-mapped reads file to the epiread format as below:
+Option \op{-i} is the maximum iterations allowed in the EM procedure
+when calculating the likelihood for the two-allele model, and the
+default value is $10$. Option \op{-w} defines the size of the sliding
+window using the number of CpGs, and the default value is $10$. Option
+\op{-m} is the requirement of the minimum reads covering each CpG, and
+the default value is $1$. Option \op{-b} means to use BIC criterion to
+compare the two likelihood models, otherwise likelihood ratio test is
+used for model comparison. There is an option \op{-E} indicating if
+the input file is in a special format called ``Epiread'' format, which
+consists of three columns. The first column is the chromosome of the
+read, the second column is the numbering order of the first CpG in the
+read, and the last column is the CpG-only sequence of the read. Such
+`Epiread' format reduces the memory requirement. You can use the
+program \prog{methstates} to convert the mapped reads file to the
+epiread format as below:
 \begin{verbatim}
 $ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.txt
 \end{verbatim}
@@ -912,13 +933,14 @@ $ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.txt
 
 One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
-program accomplishes this. It takes a sorted \prog{methcounts} output file
-and a sorted BED format file of genomic ``regions of interest'' (hence the
-``roi'' in \prog{roimethstat}).  If either file is not sorted by (chrom,end,start,strand)
-it can be sorted using the following command:
+program accomplishes this. It takes a sorted \prog{methcounts} output
+file and a sorted BED format file of genomic ``regions of interest''
+(hence the ``roi'' in \prog{roimethstat}).  If either file is not
+sorted by (chrom,end,start,strand) it can be sorted using the
+following command:
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
->        -o regions_ESC_Meth.bed.sorted regions_ESC_Meth.bed
+         -o regions_ESC_Meth.bed.sorted regions_ESC_Meth.bed
 \end{verbatim}
 From there, \prog{roimethstat} can be run as follows:
 \begin{verbatim}
@@ -1003,13 +1025,13 @@ tracks or read coverage tracks, one can follow these steps:
   sites, modify and use the following command:
 \begin{verbatim}
 $ cut -f 1-3,5 Human_ESC_Meth.bed | \
->    wigToBigWig /dev/stdin hg18.chrom.sizes Human_ESC_Meth.bw
+     wigToBigWig /dev/stdin hg18.chrom.sizes Human_ESC_Meth.bw
 \end{verbatim}
   To create a \fn{bw} track for coverage at single CpG sites, modify
   and use the following command:
 \begin{verbatim}
 $ tr ':' '[Ctrl+v Tab]' < Human_ESC_Meth.bed | cut -f 1-3,5 | \
->    wigToBigWig /dev/stdin hg18.chrom.sizes Human_ESC_Reads.bw
+     wigToBigWig /dev/stdin hg18.chrom.sizes Human_ESC_Reads.bw
 \end{verbatim}
 \end{enumerate}
 Note that if the \prog{wigToBigWig} or \prog{fetchChromSizes} programs
@@ -1035,7 +1057,7 @@ AMRs or DMRs. To do so, follow these steps:
   score to integer value, for example:
 \begin{verbatim}
 $ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC_HMR.bed | \
->        bedToBigBed /dev/stdin hg18.chrom.sizes Human_ESC_HMR.bb
+         bedToBigBed /dev/stdin hg18.chrom.sizes Human_ESC_HMR.bb
 \end{verbatim}
   In the above command, since the HMRs are not stranded, we do not
   print the 6th column. Keeping the 6th column would make all the HMRs
@@ -1061,7 +1083,7 @@ $ gzip Human_ESC_Meth.bedGraph
 To create a track for coverage at single CpG sites:
 \begin{verbatim}
 $ tr ':' '[Ctrl+v TAB]' < Human_ESC_Meth.bed | \
->        cut -f 1-3,5 > Human_ESC_Reads.bedGraph
+         cut -f 1-3,5 > Human_ESC_Reads.bedGraph
 $ gzip Human_ESC_CpG_Reads.bedGraph
 \end{verbatim}
 Note that hitting \lit{Ctrl+v} then hitting \lit{TAB} produces the tab
