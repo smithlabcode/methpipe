@@ -331,7 +331,7 @@ remove_duplicates(const string &infile, const string &outfile,
                                 std::not1(std::bind1st(same_seq(), tmp_mr)));
         vector<MappedRead> tmp_candidates(iter, candidates.end());
         const size_t rep_idx = get_representative_read(rng, tmp_candidates);
-        candidates_after_reorder.push_back( tmp_candidates[rep_idx] );
+        candidates_for_reorder.push_back( tmp_candidates[rep_idx] );
         candidates.erase(iter, candidates.end());
       }
     }
@@ -416,7 +416,7 @@ remove_duplicates(const string &infile, const string &outfile,
                             std::not1(std::bind1st(same_seq(), tmp_mr)));
     vector<MappedRead> tmp_candidates(iter, candidates.end());
     const size_t rep_idx = get_representative_read(rng, tmp_candidates);
-    candidates_after_reorder.push_back( tmp_candidates[rep_idx] );
+    candidates_for_reorder.push_back( tmp_candidates[rep_idx] );
     candidates.erase(iter, candidates.end());
   }
   std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
