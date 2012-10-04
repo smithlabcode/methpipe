@@ -282,13 +282,68 @@ struct ReOrderChecker {
 // };
 
 static void
+get_candidate_for_reorder(vector<MappedRead> &candidates,
+                          vector<MappedRead> &candidates_for_reorder)
+{
+  static const Runif rng(time(0) + getpid());
+
+  while (!candidates.empty()) {
+    const MappedRead tmp_mr(candidates.back());
+    vector<MappedRead>::iterator iter =
+      std::stable_partition(candidates.begin(), candidates.end(), 
+                            std::not1(std::bind1st(same_seq(), tmp_mr)));
+    vector<MappedRead> tmp_candidates(iter, candidates.end());
+    const size_t rep_idx = get_representative_read(rng, tmp_candidates);
+    candidates_for_reorder.push_back( tmp_candidates[rep_idx] );
+    candidates.erase(iter, candidates.end());
+  }
+}
+
+static void
+output_candiates(std::ostream &out,
+                 vector<MappedRead> &candidates_after_reorder,
+                 size_t &unique_reads, size_t &uniq_reads_pos,
+                 size_t &good_bases_out)
+{
+  static const Runif rng(time(0) + getpid());
+
+  std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> final_candidates;
+  while (!candidates_after_reorder.empty()) {
+    
+    const MappedRead tmp_mr(candidates_after_reorder.back());
+    vector<MappedRead>::iterator iter =
+      std::stable_partition(
+        candidates_after_reorder.begin(), candidates_after_reorder.end(), 
+        std::not1(std::bind1st(same_seq(), tmp_mr)));
+    
+    vector<MappedRead> tmp_candidates(
+      iter, candidates_after_reorder.end());
+    assert(tmp_candidates.size() > 0);
+    const size_t rep_idx = get_representative_read(
+      rng, tmp_candidates);
+    assert(rep_idx < tmp_candidates.size());
+    final_candidates.push(tmp_candidates[rep_idx]);
+    
+    ++unique_reads;
+    uniq_reads_pos += tmp_candidates[rep_idx].r.pos_strand();
+    good_bases_out += count_good_bases( tmp_candidates[rep_idx]);
+    
+    candidates_after_reorder.erase(
+      iter, candidates_after_reorder.end());
+  }
+  while (!final_candidates.empty())
+  {
+    out << final_candidates.top() << endl;
+    final_candidates.pop();
+  }
+}
+
+static void
 remove_duplicates(const string &infile, const string &outfile, 
                   size_t &total_reads, size_t &unique_reads,
                   size_t &total_reads_pos, size_t &uniq_reads_pos,
                   size_t &total_bases_in, size_t &good_bases_out,
                   bool CHECK_SECOND_ENDS ) {
-  
-  static const Runif rng(time(0) + getpid());
   
   srand(time(0) + getpid());
 
@@ -324,16 +379,7 @@ remove_duplicates(const string &infile, const string &outfile,
                               "\n" + mr.r.tostring());
     
     if (!dft(candidates.back(), mr, CHECK_SECOND_ENDS)) {
-      while (!candidates.empty()) {
-        const MappedRead tmp_mr(candidates.back());
-        vector<MappedRead>::iterator iter =
-          std::stable_partition(candidates.begin(), candidates.end(), 
-                                std::not1(std::bind1st(same_seq(), tmp_mr)));
-        vector<MappedRead> tmp_candidates(iter, candidates.end());
-        const size_t rep_idx = get_representative_read(rng, tmp_candidates);
-        candidates_for_reorder.push_back( tmp_candidates[rep_idx] );
-        candidates.erase(iter, candidates.end());
-      }
+      get_candidate_for_reorder(candidates, candidates_for_reorder);
     }
     candidates.push_back(mr);
 
@@ -363,34 +409,8 @@ remove_duplicates(const string &infile, const string &outfile,
         newMr = reordered_pq.at(j);
         if ( !dft(candidates_after_reorder.back(),newMr,!CHECK_SECOND_ENDS))
         {
-          vector<MappedRead> final_candidates;
-          while (!candidates_after_reorder.empty()) {
-
-            const MappedRead tmp_mr(candidates_after_reorder.back());
-            vector<MappedRead>::iterator iter =
-              std::stable_partition(
-                candidates_after_reorder.begin(), candidates_after_reorder.end(), 
-                std::not1(std::bind1st(same_seq(), tmp_mr)));
-                
-            vector<MappedRead> tmp_candidates(
-              iter, candidates_after_reorder.end());
-            const size_t rep_idx = get_representative_read(
-              rng, tmp_candidates);
-            final_candidates.push_back(tmp_candidates[rep_idx]);
-                
-            ++unique_reads;
-            uniq_reads_pos += final_candidates.back().r.pos_strand();
-            good_bases_out += count_good_bases(final_candidates.back());
-
-            candidates_after_reorder.erase(
-              iter, candidates_after_reorder.end());
-                
-          }
-          std::sort(final_candidates.begin(), final_candidates.end(),
-                    ReOrderChecker());
-          std::reverse(final_candidates.begin(), final_candidates.end());
-          std::copy(final_candidates.begin(), final_candidates.end(),
-                    std::ostream_iterator<MappedRead>(out, "\n"));
+          output_candiates(out, candidates_after_reorder,
+                           unique_reads, uniq_reads_pos, good_bases_out);
         }
         candidates_after_reorder.push_back(newMr);
       }
@@ -398,9 +418,6 @@ remove_duplicates(const string &infile, const string &outfile,
 
       if (candidates_after_reorder.size() > 0)
       {
-        std::sort(candidates_after_reorder.begin(),
-                  candidates_after_reorder.end(),
-                  OrderChecker());
         std::copy(candidates_after_reorder.begin(),
                   candidates_after_reorder.end(),
                   std::back_inserter(candidates_for_reorder));
@@ -409,16 +426,7 @@ remove_duplicates(const string &infile, const string &outfile,
     }
   }
   
-  while (!candidates.empty()) {
-    const MappedRead tmp_mr(candidates.back());
-    vector<MappedRead>::iterator iter =
-      std::stable_partition(candidates.begin(), candidates.end(), 
-                            std::not1(std::bind1st(same_seq(), tmp_mr)));
-    vector<MappedRead> tmp_candidates(iter, candidates.end());
-    const size_t rep_idx = get_representative_read(rng, tmp_candidates);
-    candidates_for_reorder.push_back( tmp_candidates[rep_idx] );
-    candidates.erase(iter, candidates.end());
-  }
+  get_candidate_for_reorder(candidates, candidates_for_reorder);
   std::priority_queue<MappedRead, vector<MappedRead>, ReOrderChecker> pq;
   for( size_t i = 0; i < candidates_for_reorder.size(); i++ )
   {
@@ -443,36 +451,14 @@ remove_duplicates(const string &infile, const string &outfile,
     newMr = reordered_pq.at(j);
     if ( !dft(candidates_after_reorder.back(),newMr,true))
     {
-      vector<MappedRead> final_candidates;
-      while (!candidates_after_reorder.empty()) {
-        const MappedRead tmp_mr(candidates_after_reorder.back());
-        vector<MappedRead>::iterator iter =
-          std::stable_partition(
-            candidates_after_reorder.begin(), candidates_after_reorder.end(), 
-            std::not1(std::bind1st(same_seq(), tmp_mr)));
-                
-        vector<MappedRead> tmp_candidates(
-          iter, candidates_after_reorder.end());
-        const size_t rep_idx = get_representative_read(
-          rng, tmp_candidates);
-        final_candidates.push_back(tmp_candidates[rep_idx]);
-                
-        ++unique_reads;
-        uniq_reads_pos += final_candidates.back().r.pos_strand();
-        good_bases_out += count_good_bases(final_candidates.back());
-
-        candidates_after_reorder.erase(
-          iter, candidates_after_reorder.end());
-      }
-      std::sort(final_candidates.begin(), final_candidates.end(),
-                ReOrderChecker());
-      std::reverse(final_candidates.begin(), final_candidates.end());
-      std::copy(final_candidates.begin(), final_candidates.end(),
-                std::ostream_iterator<MappedRead>(out, "\n"));
+      output_candiates(out, candidates_after_reorder,
+                       unique_reads, uniq_reads_pos, good_bases_out);
     }
     candidates_after_reorder.push_back(newMr);
   }
   reordered_pq.clear();
+  output_candiates(out, candidates_after_reorder,
+                   unique_reads, uniq_reads_pos, good_bases_out);
 }
 
 
