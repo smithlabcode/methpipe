@@ -307,56 +307,23 @@ Before calculating methylation level, you should now remove read
 duplicates, or reads that were mapped to the same genomic
 location. These reads are most likely the results of PCR
 over-amplication rather than true representations of distinct DNA
-molecules. The program \prog{duplicate-remover} can be used to remove
-such duplicates. It collects reads and fragments mapped to the same
-genomic location (start or end), and chooses a random one to be the
-representative of the original DNA sequence.   Since sequencing can run
-for variable lengths of time (leading to different length reads), we
-must sort reads by the position of the side where sequencing starts
-in order to find duplicates. This is the 5' side for + strand reads and
-the 3' side for - strand reads.
+molecules. The program \prog{duplicate-remover} aims to remove such
+duplicates. It collects duplicate reads and/or fragments that have
+identical sequences and are mapped to the same genomic location (same
+chromosom, same start and end, and same strand), and chooses a random
+one to be the representative of the original DNA sequence.
 
-\prog{duplicate-remover} can take reads sorted by either (chrom, start, strand, end)
-or by (chrom, end, strand, start) with the -B option.  It removes duplicates
-on the appropriate strand and then reorders the data to remove duplicates from
-the opposite strand.  Below is an example of sorting by the default (chrome, start,
-strand, end) and running \prog{duplicate-remover}.
-
-  First, sort reads by start position (chrom, start, strand,
-  end). Remember, for paired-end reads, use the output from clipmates
-  while working through the following steps.
+\prog{duplicate-remover} can take reads sorted by (chrom, start,
+strand, end). If the reads in the input file are not sorted, run the
+sort command as following (for paired-end reads, use the output from
+clipmates):
 \begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
        -o Human_ESC.mr.sorted_start Human_ESC.mr
-$ LC_ALL=C sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
        -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
-  If at any point during the pipeline you split your files into
-  smaller files due to size limitations, you should now merge all
-  these split reads files back into one complete file. We recommend
-  that you do this using \op{-m} option of the Unix command
-  \prog{sort}. The following command is an example of how to merge
-  three such files with the assumption that these files were labeled
-  with a 1, 2 or 3 respectively.  The sort command below only merges
-  the files, so it is expected that they are already sorted using the
-  command above.  If you have more than one lane for each sample,
-  you should merge these lanes together now to remove duplicates
-  between them.
-\begin{verbatim}
-$ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
-       -o Human_ESC.mr.sorted_start_merged \
-       Human_ESC_1.mr.sorted_start \
-       Human_ESC_2.mr.sorted_start \
-       Human_ESC_3.mr.sorted_start
-$ LC_ALL=C sort -m -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
-       -o Human_NHFF.mr.sorted_start_merged \
-       Human_NHFF_1.mr.sorted_start \
-       Human_NHFF_2.mr.sorted_start \
-       Human_NHFF_3.mr.sorted_start
-\end{verbatim}
-  Execute the following command to remove all read duplicates by running
-  the \prog{duplicate-remover}
-  component of \meth{}:
+Next, execute the following command to remove duplicate reads:
 \begin{verbatim}
 $ ./duplicate-remover -S Human_ESC_dremove_stat.txt \
                       -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
