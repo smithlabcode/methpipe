@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr roimethstat dmr0
+PROGS = methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr roimethstat 
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -74,6 +74,7 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 hmr: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o Distro.o BetaBin.o numerical_utils.o)
+
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
