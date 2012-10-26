@@ -276,10 +276,10 @@ build_domains(const bool VERBOSE,
 
         for (size_t j = start + 1; j < end; ++j)
         {
-            if ((prev_state == hypo && classes[j] == HYPO)
-                || (prev_state == HYPO && classes[j] == hypo))
-                cerr << "WARNING: inconsist state sequences"
-                    " from posterior decoding" << endl;
+            // if ((prev_state == hypo && classes[j] == HYPO)
+            //     || (prev_state == HYPO && classes[j] == hypo))
+            //     cerr << "WARNING: inconsist state sequences"
+            //         " from posterior decoding" << endl;
             
             if ((prev_state == hypo && classes[j] == hypo)
                 || (prev_state != hypo && classes[j] != hypo))
