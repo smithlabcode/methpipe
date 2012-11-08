@@ -4,13 +4,6 @@
 #+STARTUP: hidestars
 
 * Timeline
-** TODO test dataset  
-   DEADLINE: <2012-11-06 Tue> SCHEDULED: <2012-11-06 Tue>
-   - need more coverage: current test dataset does not have enough
-     coverage;
-   - need two samples to test DMR program;
-   - make sure the selected regions also contain a few AMRs
-   - RRBS dataset
 
 ** TODO pair-end support for rmapbs
    DEADLINE: <2012-11-09 Fri> SCHEDULED: <2012-11-06 Tue>
@@ -22,8 +15,8 @@
    DEADLINE: <2012-11-13 Tue> SCHEDULED: <2012-11-11 Sun>
 
 methcounts output:
-chrom location strand [seq] meth_reads unmeth_reads 
-chr1  108      +      CpG   5          5
+chrom location strand [seq] meth coverage 
+chr1  108      +      CpG   0.2          5
 
 file format for multiple samples: in two files: one contains
 methylation level and the other contains coverage
@@ -37,7 +30,17 @@ chr1  108   + CpG 0.2 0.5 0.6
 chrom location strand seq  sample1 sample2 sample3
 chr1  108   + CpG 8 9 10
 
+
+** DONE test dataset  
+   CLOSED: [2012-11-07 Wed 11:22] DEADLINE: <2012-11-06 Tue> SCHEDULED: <2012-11-06 Tue>
+   - need more coverage: current test dataset does not have enough
+     coverage;
+   - need two samples to test DMR program;
+   - make sure the selected regions also contain a few AMRs
+   - RRBS dataset
+
 * TODOs [0/0]
+
 - development: 
 
   1. file format definition
