@@ -18,19 +18,18 @@
  * 02110-1301 USA
  */
 
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
+#include "GenomicRegion.hpp"
+#include "OptionParser.hpp"
+#include "TwoStateHMM.hpp"
+
 #include <numeric>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 
 #include <unistd.h>
-
-#include "smithlab_utils.hpp"
-#include "smithlab_os.hpp"
-#include "GenomicRegion.hpp"
-#include "OptionParser.hpp"
-#include "TwoStateHMM.hpp"
-#include "MethpipeFiles.hpp"
 
 using std::string;
 using std::vector;
@@ -55,6 +54,7 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
 	 local[i+1] < fdr*static_cast<double>(i+1)/local.size(); ++i);
   return local[i];
 }
+
 
 static void
 get_domain_scores(const vector<bool> &classes,
@@ -183,21 +183,10 @@ make_partial_meth(vector<GenomicRegion> &cpgs) {
   }
 }
 
-static void
-make_partial_meth(const vector<size_t> &reads,
-                  vector<pair<double, double> > &meths)
-{
-  for (size_t i = 0; i < reads.size(); ++i) {
-    double m = meths[i].first / reads[i];
-    m = m <= 0.5 ? (1.0 - 2*m) : (1.0 - 2*(1-m));
-    meths[i].first = static_cast<size_t>(reads[i] * m);
-    meths[i].second = static_cast<size_t>(reads[i] - meths[i].first);
-  }
-}
 
 static void
 load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
-	  const string& cpgs_file, vector<SimpleGenomicRegion> &cpgs,
+	  string cpgs_file, vector<SimpleGenomicRegion> &cpgs,
 	  vector<pair<double, double> > &meth, vector<size_t> &reads) {
   if (VERBOSE)
     cerr << "[READING CPGS AND METH PROPS]" << endl;
@@ -224,6 +213,8 @@ load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
 	 << endl << endl;
 }
 
+
+
 static void
 shuffle_cpgs(const TwoStateHMMB &hmm,
 	     vector<pair<double, double> > meth, 
@@ -244,6 +235,7 @@ shuffle_cpgs(const TwoStateHMMB &hmm,
   get_domain_scores(classes, meth, reset_points, domain_scores);
   sort(domain_scores.begin(), domain_scores.end());
 }
+
 
 static void
 assign_p_values(const vector<double> &random_scores, 
@@ -395,19 +387,7 @@ main(int argc, const char **argv) {
     // vector<double> meth;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
-    if (methpipe::is_methpipe_file_single(cpgs_file)) {
-      if (VERBOSE)
-        cerr << "[READING CPGS AND METH PROPS]" << endl;
-      methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
-      if (PARTIAL_METH) make_partial_meth(reads, meth);
-      if (VERBOSE)
-        cerr << "TOTAL CPGS: " << cpgs.size() << endl
-             << "MEAN COVERAGE: " 
-             << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
-             << endl << endl;
-    }
-    else
-      load_cpgs(VERBOSE, PARTIAL_METH, cpgs_file, cpgs, meth, reads);
+    load_cpgs(VERBOSE, PARTIAL_METH, cpgs_file, cpgs, meth, reads);
     
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs

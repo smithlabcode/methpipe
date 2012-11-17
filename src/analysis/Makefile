@@ -64,8 +64,7 @@ install: $(PROGS)
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o)
 
 allelicmeth bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	FileIterator.o MappedRead.o) 

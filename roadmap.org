@@ -5,8 +5,8 @@
 
 * Timeline
 
-** DONE pair-end support for rmapbs
-   CLOSED: [2012-11-15 Thu 21:09] DEADLINE: <2012-11-09 Fri> SCHEDULED: <2012-11-06 Tue>
+** TODO pair-end support for rmapbs
+   DEADLINE: <2012-11-09 Fri> SCHEDULED: <2012-11-06 Tue>
 
    rmapbs-pe: input: T-rich and A-rich reads input; output: clipped
    DNA fragments as the output from clipmates
