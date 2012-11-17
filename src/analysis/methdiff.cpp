@@ -22,21 +22,25 @@
  * 02110-1301 USA
  */
 
-#include "smithlab_utils.hpp"
-#include "smithlab_os.hpp"
-#include "GenomicRegion.hpp"
-#include "OptionParser.hpp"
-
 #include <gsl/gsl_sf_gamma.h>
 
 #include <cmath>
 #include <fstream>
+#include <utility>
+
+#include "smithlab_utils.hpp"
+#include "smithlab_os.hpp"
+#include "GenomicRegion.hpp"
+#include "OptionParser.hpp"
+#include "MethpipeFiles.hpp"
+
 
 using std::string;
 using std::vector;
 using std::cout;
 using std::endl;
 using std::cerr;
+using std::pair;
 
 using std::ostream_iterator;
 using std::ofstream;
@@ -64,8 +68,8 @@ get_meth_unmeth(const GenomicRegion &cpg, size_t &meth, size_t &unmeth) {
 ////////////////////////////////////////////////////////////////////////
 
 static double
-log_hyper_g_greater(double meth_a, double unmeth_a, 
-		    double meth_b, double unmeth_b, size_t k) {
+log_hyper_g_greater(size_t meth_a, size_t unmeth_a, 
+                    size_t meth_b, size_t unmeth_b, size_t k) {
   return  gsl_sf_lnchoose(meth_b + unmeth_b - 1, k) + 
     gsl_sf_lnchoose(meth_a + unmeth_a - 1, meth_a + meth_b - 1 - k) -
     gsl_sf_lnchoose(meth_a + unmeth_a + meth_b + unmeth_b - 2, 
@@ -74,8 +78,8 @@ log_hyper_g_greater(double meth_a, double unmeth_a,
   
 
 static double
-test_greater_population(double meth_a, double unmeth_a, 
-			double meth_b, double unmeth_b) {
+test_greater_population(size_t meth_a, size_t unmeth_a, 
+			size_t meth_b, size_t unmeth_b) {
   double p = 0;
   
   for (size_t k = (meth_b > unmeth_a) ? meth_b - unmeth_a : 0; k < meth_b; ++k)
@@ -95,7 +99,7 @@ main(int argc, const char **argv) {
   try {
 
     string outfile;
-    double pseudocount = 1.0;
+    size_t pseudocount = 1;
     
     // run mode flags
     bool OUTPUT_ALL_LOCI = false;
@@ -137,65 +141,128 @@ main(int argc, const char **argv) {
     const string cpgs_file_a = leftover_args[0];
     const string cpgs_file_b = leftover_args[1];
     /****************** END COMMAND LINE OPTIONS *****************/
+    if (methpipe::is_methpipe_file_single(cpgs_file_a)
+        && methpipe::is_methpipe_file_single(cpgs_file_b)) {
 
-    if (VERBOSE)
-      cerr << "[READING CPGS]";
-    vector<GenomicRegion> cpgs_a, cpgs_b;
-    ReadBEDFile(cpgs_file_a, cpgs_a);
-    if (!check_sorted(cpgs_a))
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_a + "\"");
-    if (VERBOSE) 
-      cerr << "[READ=" + strip_path(cpgs_file_a) + "]" << endl;
-    
-    ReadBEDFile(cpgs_file_b, cpgs_b);
-    if (!check_sorted(cpgs_b))
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_b + "\"");
-    if (VERBOSE) 
-      cerr << "[READ=" + strip_path(cpgs_file_b) + "]" << endl;
+      if (VERBOSE)
+        cerr << "[READING CPGS]";
+      vector<GenomicRegion> cpgs_a;
+      vector<pair<double, double> > meth_unmeth_a;
+      vector<size_t> reads_a;
+      methpipe::load_cpgs(cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
+      if (VERBOSE) 
+        cerr << "[READ=" + strip_path(cpgs_file_a) + "]" << endl;
 
-    if (VERBOSE)
-      cerr << "CPG COUNT A: " << cpgs_a.size() << endl
-	   << "CPG COUNT B: " << cpgs_b.size() << endl;
-    
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+      if (VERBOSE)
+        cerr << "[READING CPGS]";
+      vector<GenomicRegion> cpgs_b;
+      vector<pair<double, double> > meth_unmeth_b;
+      vector<size_t> reads_b;
+      methpipe::load_cpgs(cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
+      if (VERBOSE) 
+        cerr << "[READ=" + strip_path(cpgs_file_b) + "]" << endl;
 
-    size_t j = 0;
-    for (size_t i = 0; i < cpgs_a.size(); ++i) {
-      if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
-	cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
+      if (VERBOSE)
+        cerr << "CPG COUNT A: " << cpgs_a.size() << endl
+             << "CPG COUNT B: " << cpgs_b.size() << endl;
+
+      std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
+
+      size_t j = 0;
+      for (size_t i = 0; i < cpgs_a.size(); ++i) {
+        const size_t meth_a(static_cast<size_t>(meth_unmeth_a[i].first)),
+          unmeth_a(static_cast<size_t>(meth_unmeth_a[i].first));
+
+        if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
+          cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
       
-      while (j < cpgs_b.size() && cpgs_b[j] < cpgs_a[i]) ++j;
+        while (j < cpgs_b.size() && cpgs_b[j] < cpgs_a[i]) ++j;
       
-      if (cpgs_a[i].same_chrom(cpgs_b[j]) && 
-	  cpgs_a[i].get_start() == cpgs_b[j].get_start()) {
+        if (cpgs_a[i].same_chrom(cpgs_b[j]) && 
+            cpgs_a[i].get_start() == cpgs_b[j].get_start()) {
 	
-	size_t meth_a = 0, unmeth_a = 0;
-	get_meth_unmeth(cpgs_a[i], meth_a, unmeth_a);
+          const size_t meth_b(static_cast<size_t>(meth_unmeth_b[j].first)),
+            unmeth_b(static_cast<size_t>(meth_unmeth_b[j].first));
 	
-	size_t meth_b = 0, unmeth_b = 0;
-	get_meth_unmeth(cpgs_b[j], meth_b, unmeth_b);
+          if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
+            cpgs_a[i].set_name("CpG:" + 
+                               toa(meth_a) + ":" + toa(unmeth_a) + ":" +
+                               toa(meth_b) + ":" + toa(unmeth_b));
+            cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
+                                                        unmeth_b + pseudocount, 
+                                                        meth_a + pseudocount, 
+                                                        unmeth_a + pseudocount));
+            out << cpgs_a[i] << endl;
+          } else if (OUTPUT_ALL_LOCI) {
+            cpgs_a[i].set_name("CpG:" + 
+                               toa(meth_a) + ":" + toa(unmeth_a) + ":" +
+                               toa(meth_b) + ":" + toa(unmeth_b));
+            cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
+                                                        unmeth_b + pseudocount, 
+                                                        meth_a + pseudocount, 
+                                                        unmeth_a + pseudocount));
+            out << cpgs_a[i] << endl;
+          }
+        }
+      }
+    } else {
+      if (VERBOSE)
+        cerr << "[READING CPGS]";
+      vector<GenomicRegion> cpgs_a, cpgs_b;
+      ReadBEDFile(cpgs_file_a, cpgs_a);
+      if (!check_sorted(cpgs_a))
+        throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_a + "\"");
+      if (VERBOSE) 
+        cerr << "[READ=" + strip_path(cpgs_file_a) + "]" << endl;
+    
+      ReadBEDFile(cpgs_file_b, cpgs_b);
+      if (!check_sorted(cpgs_b))
+        throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file_b + "\"");
+      if (VERBOSE) 
+        cerr << "[READ=" + strip_path(cpgs_file_b) + "]" << endl;
+
+      if (VERBOSE)
+        cerr << "CPG COUNT A: " << cpgs_a.size() << endl
+             << "CPG COUNT B: " << cpgs_b.size() << endl;
+    
+      std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
+
+      size_t j = 0;
+      for (size_t i = 0; i < cpgs_a.size(); ++i) {
+        if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
+          cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
+      
+        while (j < cpgs_b.size() && cpgs_b[j] < cpgs_a[i]) ++j;
+      
+        if (cpgs_a[i].same_chrom(cpgs_b[j]) && 
+            cpgs_a[i].get_start() == cpgs_b[j].get_start()) {
 	
- 	if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
-	  cpgs_a[i].set_name("CpG:" + 
-			     toa(meth_a) + ":" + toa(unmeth_a) + ":" +
-			     toa(meth_b) + ":" + toa(unmeth_b));
-	  cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
-						      unmeth_b + pseudocount, 
-						      meth_a + pseudocount, 
-						      unmeth_a + pseudocount));
-	  out << cpgs_a[i] << endl;
- 	} else if (OUTPUT_ALL_LOCI) {
-      cpgs_a[i].set_name("CpG:" + 
-			     toa(meth_a) + ":" + toa(unmeth_a) + ":" +
-			     toa(meth_b) + ":" + toa(unmeth_b));
-	  cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
-						      unmeth_b + pseudocount, 
-						      meth_a + pseudocount, 
-						      unmeth_a + pseudocount));
-	  out << cpgs_a[i] << endl;
-    }
+          size_t meth_a = 0, unmeth_a = 0;
+          get_meth_unmeth(cpgs_a[i], meth_a, unmeth_a);
+	
+          size_t meth_b = 0, unmeth_b = 0;
+          get_meth_unmeth(cpgs_b[j], meth_b, unmeth_b);
+	
+          if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
+            cpgs_a[i].set_name("CpG:" + 
+                               toa(meth_a) + ":" + toa(unmeth_a) + ":" +
+                               toa(meth_b) + ":" + toa(unmeth_b));
+            cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
+                                                        unmeth_b + pseudocount, 
+                                                        meth_a + pseudocount, 
+                                                        unmeth_a + pseudocount));
+            out << cpgs_a[i] << endl;
+          } else if (OUTPUT_ALL_LOCI) {
+            cpgs_a[i].set_name("CpG:" + 
+                               toa(meth_a) + ":" + toa(unmeth_a) + ":" +
+                               toa(meth_b) + ":" + toa(unmeth_b));
+            cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
+                                                        unmeth_b + pseudocount, 
+                                                        meth_a + pseudocount, 
+                                                        unmeth_a + pseudocount));
+            out << cpgs_a[i] << endl;
+          }
+        }
       }
     }
   }

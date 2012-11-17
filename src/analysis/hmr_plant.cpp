@@ -27,6 +27,7 @@
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
 #include "ThreeStateHMM.hpp"
+#include "MethpipeFiles.hpp"
 
 using std::string;
 using std::vector;
@@ -422,7 +423,19 @@ main(int argc, const char **argv)
         // vector<double> meth;
         vector<pair<double, double> > meth;
         vector<size_t> reads;
-        load_cpgs(VERBOSE, cpgs_file, cpgs, meth, reads);
+        if (methpipe::is_methpipe_file_single(cpgs_file))
+        {
+            if (VERBOSE)
+                cerr << "[READING CPGS AND METH PROPS]" << endl;
+            methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
+            if (VERBOSE)
+                cerr << "TOTAL CPGS: " << cpgs.size() << endl
+                     << "MEAN COVERAGE: " 
+                     << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
+                     << endl << endl;
+        }
+        else
+            load_cpgs(VERBOSE, cpgs_file, cpgs, meth, reads);
 
         // if bin_size is greater than single base, do bining first
         // applicable to low coverage sample
