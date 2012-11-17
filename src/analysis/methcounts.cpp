@@ -4,7 +4,7 @@
  *    Copyright (C) 2011 University of Southern California and
  *                       Andrew D. Smith
  *
- *    Authors: Andrew D. Smith and Elena Harris
+ *    Authors: Andrew D. Smith and Elena Harris and Song Qiang
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ using std::endl;
 using std::max;
 using std::ofstream;
 
+// GLOBGAL VARIABLE TO CONTROL OUTPUT FORMAT
+static bool USE_ALT_OUTPUT = false;
 
 struct MethStat {
 
@@ -335,17 +337,26 @@ scan_chromosome_cpg(const QualityChecker &qc,
 	  add_contribution_cpg(qc, i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" 
-	  << i << "\t" << i + 1 << "\tCpG:" << total << "\t" 
-	  << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\tCpG\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" 
+            << i << "\t" << i + 1 << "\tCpG:" << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
     }//if
   }//for
   for(;  i < chrom.length() - 1; ++i){
     if (is_cpg(chrom, i)) {
       const size_t total = 0;
       meth_stat_collector.collect(total, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
-          << total << "\t" << total << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\tCpG\t" 
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
+            << total << "\t" << total << "\t+\n";
     }//if
   }//for
 
@@ -373,10 +384,16 @@ scan_chromosome(const QualityChecker &qc,
 	  add_contribution_c(qc, i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '+') << ":"
-	  << total << "\t" 
-	  << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '+') << "\t"
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '+') << ":"
+            << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
     }
     if (is_guanine(chrom[i])) { // && !is_cytosine(chrom[i - 1])) {
       size_t meth_count = 0, unmeth_count = 0;
@@ -386,25 +403,41 @@ scan_chromosome(const QualityChecker &qc,
 	  add_contribution_g(qc, i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '-') << ":" 
-	  << total << "\t" 
-	  << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t-\t" 
+            << cytosine_type_tag(chrom, i, '-') << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '-') << ":" 
+            << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
     }
   }//for
   for (; i < chrom_len - 1 ; ++i){
     const size_t total = 0;
     if (is_cytosine(chrom[i])) {
       meth_stat_collector.collect(total, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '+') << ":"
-	  << total << "\t" << total << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '+') << "\t"
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '+') << ":"
+            << total << "\t" << total << "\t+\n";
     }
     if (is_guanine(chrom[i])) {
       meth_stat_collector.collect(total, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '-') << ":"
-	  << total << "\t" <<  total << "\t-\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '-') << "\t"
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '-') << ":"
+            << total << "\t" << total << "\t+\n";
     }
   }//for
 }
@@ -430,8 +463,14 @@ scan_chromosome_cpg(const string &chrom,
 	  add_contribution_cpg(i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
-	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\tCpG\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" 
+            << i << "\t" << i + 1 << "\tCpG:" << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
     }
   }
 
@@ -439,8 +478,12 @@ scan_chromosome_cpg(const string &chrom,
     if (is_cpg(chrom, i)) {
       const size_t total = 0;
       meth_stat_collector.collect(total, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
-          << total << "\t" << total << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\tCpG\t" 
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:"
+            << total << "\t" << total << "\t+\n";
     }
   }
 }
@@ -466,9 +509,16 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	  add_contribution_c(i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t"
-	  << cytosine_type_tag(chrom, i, '+') << ":"
-	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '+') << "\t"
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '+') << ":"
+            << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t+\n";
     }
     if (is_guanine(chrom[i])) { // && !is_cytosine(chrom[i - 1])) {
       size_t meth_count = 0, unmeth_count = 0;
@@ -478,9 +528,16 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
 	  add_contribution_g(i, *j, meth_count, unmeth_count);
       const size_t total = meth_count + unmeth_count;
       meth_stat_collector.collect(meth_count, total);
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '-') << ":" 
-	  << total << "\t" << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t-\t" 
+            << cytosine_type_tag(chrom, i, '-') << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t"
+            << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '-') << ":" 
+            << total << "\t" 
+            << meth_count/max(1.0, static_cast<double>(total)) << "\t-\n";
     }
   }
 
@@ -488,15 +545,25 @@ scan_chromosome(const string &chrom, const GenomicRegion &chrom_region,
     const size_t total = 0;
     if (is_cytosine(chrom[i])) {
       meth_stat_collector.collect(total, total);      
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '+') << ":"
-	  << total << "\t" << total << "\t+\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '+') << "\t"
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '+') << ":"
+            << total << "\t" << total << "\t+\n";
     }
     if (is_guanine(chrom[i])) {
       meth_stat_collector.collect(total, total);       
-      out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
-	  << cytosine_type_tag(chrom, i, '-') << ":"
-	  << total << "\t" <<  total << "\t-\n";
+      if (USE_ALT_OUTPUT)
+        out << chrom_name << "\t" << i << "\t+\t"  
+            << cytosine_type_tag(chrom, i, '-') << "\t"
+            << total << "\t" << total << endl;
+      else
+        out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
+            << cytosine_type_tag(chrom, i, '-') << ":"
+            << total << "\t" << total << "\t+\n";
     }
   }
 }
@@ -651,6 +718,8 @@ main(int argc, const char **argv) {
                       false , max_length);
     opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
                       false , out_stat);
+    opt_parse.add_opt("alt_out", 'A', "use alternative output format",
+                      false , USE_ALT_OUTPUT);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
