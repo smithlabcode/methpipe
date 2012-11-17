@@ -4,15 +4,17 @@
 #+STARTUP: hidestars
 
 * Timeline
+** TODO hmr_plant: Viterbi decoding:
+    to avoid inconsistent sequences for Posterior decoding: 3 days  
 
-** TODO pair-end support for rmapbs
-   DEADLINE: <2012-11-09 Fri> SCHEDULED: <2012-11-06 Tue>
+** DONE pair-end support for rmapbs
+   CLOSED: [2012-11-15 Thu 21:09] DEADLINE: <2012-11-09 Fri> SCHEDULED: <2012-11-06 Tue>
 
    rmapbs-pe: input: T-rich and A-rich reads input; output: clipped
    DNA fragments as the output from clipmates
 
-** TODO adapt methcounts and other programs to use new format
-   DEADLINE: <2012-11-13 Tue> SCHEDULED: <2012-11-11 Sun>
+** DONE adapt methcounts and other programs to use new format
+   CLOSED: [2012-11-16 Fri 20:58] DEADLINE: <2012-11-13 Tue> SCHEDULED: <2012-11-11 Sun>
 
 methcounts output:
 chrom location strand [seq] meth coverage 
@@ -29,7 +31,6 @@ chr1  108   + CpG 0.2 0.5 0.6
 *coverage* 
 chrom location strand seq  sample1 sample2 sample3
 chr1  108   + CpG 8 9 10
-
 
 ** DONE test dataset  
    CLOSED: [2012-11-07 Wed 11:22] DEADLINE: <2012-11-06 Tue> SCHEDULED: <2012-11-06 Tue>
