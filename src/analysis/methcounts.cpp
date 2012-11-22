@@ -535,6 +535,17 @@ advance_chromosome(const GenomicRegion &chrom_region,
     regions.increment_first();
 }
 
+static void
+fix_chrom_names(vector<string> &chrom_names)
+{
+  // make sure the chrom names don't have spaces
+
+  for (size_t i = 0; i < chrom_names.size(); ++i) {
+    const size_t chr_name_end = chrom_names[i].find_first_of(" \t");
+    if (chr_name_end != string::npos)
+      chrom_names[i].erase(chr_name_end);
+  }
+}
 
 static 
 void
@@ -556,6 +567,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       cerr << "[LOADING CHROM FILE=" << fn << "]";
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
+    fix_chrom_names(chrom_names);
     for (size_t j = 0; j < chroms.size(); ++j) {
       if (VERBOSE) cerr << "[SCANNING=" << chrom_names[j] << "]";
       //TODO: WHAT HAPPENS IF A CHROM IS MISSING??
@@ -590,6 +602,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       cerr << "[LOADING CHROM FILE=" << fn << "]";
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
+    fix_chrom_names(chrom_names);
     for (size_t j = 0; j < chroms.size(); ++j) {
       if (VERBOSE) cerr << "[SCANNING=" << chrom_names[j] << "]";
       //TODO: WHAT HAPPENS IF A CHROM IS MISSING??
