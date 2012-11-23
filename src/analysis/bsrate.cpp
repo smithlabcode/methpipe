@@ -27,6 +27,7 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <iterator>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -102,19 +103,23 @@ count_states_neg(const bool COUNT_CPGS, const string &chrom,
   }
 }
 
-
 static void
 identify_chromosomes(const string chrom_file, const string fasta_suffix, 
 		     unordered_map<string, string> &chrom_files) {
   vector<string> the_files;
   if (isdir(chrom_file.c_str())) {
     read_dir(chrom_file, fasta_suffix, the_files);
-    for (size_t i = 0; i < the_files.size(); ++i)
-      chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
   }
-  else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
-}
+  else
+    the_files.push_back(chrom_file);
 
+  for (size_t i = 0; i < the_files.size(); ++i) {
+    vector<string> names, seqs;
+    read_fasta_file(the_files[i], names, seqs);
+    for (size_t j = 0; j < names.size(); ++j)
+      chrom_files[names[j]] = the_files[i];
+  }
+}
 
 static void
 write_output(const string &outfile, 
@@ -166,12 +171,12 @@ write_output(const string &outfile,
 
   // Figure out how many positions to print in the output
   size_t output_len = ucvt_count_p.size();
-  cout << output_len << " before ... \n";
+//  cout << output_len << " before ... \n";
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +
 	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] == 0))
     --output_len;
-  cout << output_len << " and after! \n";
+//  cout << output_len << " and after! \n";
   
   // Now actually output the results
   static const size_t precision_val = 5;
@@ -213,15 +218,12 @@ get_chrom(const bool VERBOSE, const MappedRead &mr,
   if (fn == chrom_files.end())
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
   chrom.clear();
-  vector<string> chrom_names, chroms;
-  read_fasta_file(fn->second, chrom_names, chroms);
-  if (VERBOSE) {
-    if (chrom_names.size() > 1)
-      cerr << "WARNING: multiple sequences in " << fn->second << endl;
-    cerr << "PROCESSING: " << mr.r.get_chrom() << endl;
+  read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
+  if (chrom.empty()) 
+    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+  else {
+    chrom_region.set_chrom(mr.r.get_chrom());
   }
-  chrom_region.set_chrom(chrom_names.front());
-  chrom.swap(chroms.front());
 }
 
 
@@ -307,9 +309,9 @@ main(int argc, const char **argv) {
     MappedRead mr;
     GenomicRegion chrom_region;
     while (!in.eof() && in >> mr) {
-
+      
       if (A_RICH_READS)
-	    revcomp(mr);
+        revcomp(mr);
       
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region))
@@ -320,6 +322,7 @@ main(int argc, const char **argv) {
             continue;
             throw;
         }
+
       
       // do the work for this mapped read
       if (mr.r.pos_strand())
