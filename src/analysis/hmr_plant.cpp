@@ -256,7 +256,6 @@ static void
 build_domains(const bool VERBOSE, 
               const vector<SimpleGenomicRegion> &cpgs,
               const vector<pair<double, double> > &meth,
-              const vector<Triplet> &post_scores,
               const vector<size_t> &reset_points,
               const vector<STATE_LABELS> &classes,
               vector<GenomicRegion> &domains) 
@@ -346,7 +345,6 @@ main(int argc, const char **argv)
         string outfile("/dev/stdout");
         string scores_file;
         string trans_file;
-        string dataset_name;
     
         size_t desert_size = 1000;
         size_t max_iterations = 10;
@@ -362,6 +360,7 @@ main(int argc, const char **argv)
         double MIN_ACCUMULATIVE_METH = 4.0;
         size_t bin_size = 0;
         double BIN_BY_LOCI = false;
+        bool USE_VITERBI_DECODING = false;
         
         string params_in_file;
         string params_out_file;
@@ -385,11 +384,12 @@ main(int argc, const char **argv)
         opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
         // opt_parse.add_opt("max-len", 'L', "max hyper-methylated region size",
         //                   OptionParser::OPTIONAL, MAX_LEN); 
+        opt_parse.add_opt("viterbi", 'V', "Use Viterbi decoding",
+                          OptionParser::OPTIONAL, USE_VITERBI_DECODING); 
         opt_parse.add_opt("min-meth", 'M',
                           "Min accumulative methylation levels within HypeMR",
                           OptionParser::OPTIONAL, MIN_ACCUMULATIVE_METH); 
         opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-        opt_parse.add_opt("name", 'N', "data set name", false, dataset_name);
         opt_parse.add_opt("params-in", 'P', "HMM parameters file", false, params_in_file);
         opt_parse.add_opt("params-out", 'p', "HMM parameters file", false, params_out_file);
     
@@ -499,16 +499,17 @@ main(int argc, const char **argv)
          * STEP 5: DECODE THE DOMAINS
          */
         vector<STATE_LABELS> classes;
-        vector<Triplet> scores;
-        hmm.PosteriorDecoding();
-        hmm.get_posterior_scores(scores, classes);
-    
+        if (USE_VITERBI_DECODING)
+            hmm.ViterbiDecoding();
+        else
+            hmm.PosteriorDecoding();
+        hmm.get_classes(classes);
+        
         /***********************************
          * STEP 6: WRITE THE RESULTS
          */
         vector<GenomicRegion> domains;
-        build_domains(VERBOSE, cpgs, meth, scores,
-                      reset_points, classes, domains);
+        build_domains(VERBOSE, cpgs, meth, reset_points, classes, domains);
         filter_domains(VERBOSE, MIN_ACCUMULATIVE_METH, domains);
         
         std::ofstream out(outfile.c_str());
@@ -521,6 +522,9 @@ main(int argc, const char **argv)
         
         if (!scores_file.empty())
         {
+            if (USE_VITERBI_DECODING) hmm.PosteriorDecoding();
+            vector<Triplet> scores;
+            hmm.get_state_posteriors(scores);
             std::ofstream score_out(scores_file.c_str());
             for (size_t i = 0; i < cpgs.size(); ++i)
             {
