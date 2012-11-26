@@ -61,10 +61,16 @@ public:
 
     double
     PosteriorDecoding();
+
+    double
+    ViterbiDecoding();
     
     void
-    get_posterior_scores(std::vector<Triplet> &scores,
-                         std::vector<STATE_LABELS>  &classes) const;
+    get_state_posteriors(std::vector<Triplet> &scores) const;
+
+    void
+    get_classes(std::vector<STATE_LABELS>  &classes) const;
+
 private:
 
     //////////// methods ////////////
@@ -93,6 +99,9 @@ private:
     void
     update_observation_likelihood();
 
+    double
+    ViterbiDecoding(const size_t start, const size_t end);
+
     ////////   data   ////////
     std::vector<std::pair<double, double> > observations;
     std::vector<size_t> reset_points;
@@ -112,6 +121,10 @@ private:
         HYPER_hypo, HYPER_HYPER, HYPER_HYPO,
         HYPO_HYPER, HYPO_HYPO;
 
+    // result
+    std::vector<STATE_LABELS> classes;
+    std::vector<Triplet> state_posteriors;
+    
     // parameters
     double MIN_PROB;
     double tolerance;

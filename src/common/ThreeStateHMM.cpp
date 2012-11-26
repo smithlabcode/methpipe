@@ -42,6 +42,49 @@ using std::string;
 using std::setprecision;
 using std::isfinite;
 
+static STATE_LABELS
+max_state(const Triplet &likelihoods)
+{
+    if (likelihoods.hypo >= std::max(likelihoods.HYPER, likelihoods.HYPO))
+        return hypo;
+    else if (likelihoods.HYPER >= std::max(likelihoods.hypo, likelihoods.HYPO))
+        return HYPER;
+    else
+        return HYPO;
+}
+
+static double
+max_value(const Triplet &likelihoods)
+{
+    if (likelihoods.hypo >= std::max(likelihoods.HYPER, likelihoods.HYPO))
+        return likelihoods.hypo;
+    else if (likelihoods.HYPER >= std::max(likelihoods.hypo, likelihoods.HYPO))
+        return likelihoods.HYPER;
+    else
+        return likelihoods.HYPO;
+}
+
+// static STATE_LABELS
+// max_state(const double hypo_v, const double HYPER_v, const double HYPO_v)
+// {
+//     if (hypo_v >= std::max(HYPER_v, HYPO_v))
+//         return hypo;
+//     else if (HYPER_v >= std::max(hypo_v, HYPO_v))
+//         return HYPER;
+//     else
+//         return HYPO;
+// }
+
+// static double
+// max_value(const double hypo_v, const double HYPER_v, const double HYPO_v)
+// {
+//     if (hypo_v >= std::max(HYPER_v, HYPO_v))
+//         return hypo_v;
+//     else if (HYPER_v >= std::max(hypo_v, HYPO_v))
+//         return HYPER_v;
+//     else
+//         return HYPO_v;
+// }
 
 ThreeStateHMM::ThreeStateHMM(
     const std::vector<std::pair<double, double> > &_observations,
@@ -61,7 +104,8 @@ ThreeStateHMM::ThreeStateHMM(
     hypo_hypo(_observations.size()), hypo_HYPER(_observations.size()),
     HYPER_hypo(_observations.size()), HYPER_HYPER(_observations.size()),
     HYPER_HYPO(_observations.size()), HYPO_HYPER(_observations.size()),
-    HYPO_HYPO(_observations.size()),
+    HYPO_HYPO(_observations.size()), classes(_observations.size()),
+    state_posteriors(_observations.size()),
     MIN_PROB(mp), tolerance(tol), max_iterations(max_itr),
     VERBOSE(v), MAX_LEN(_MAX_LEN) 
 {
@@ -209,7 +253,6 @@ ThreeStateHMM::forward_algorithm(const size_t start, const size_t end)
 //     /////
 //     cerr << "check forward_algorithm: "<< "OK" << endl;
 // /////
-
 }
 
 double
@@ -539,38 +582,151 @@ ThreeStateHMM::PosteriorDecoding()
                     < 1e-10);
         estimate_state_posterior(reset_points[i], reset_points[i + 1]);
         estimate_posterior_trans_prob(reset_points[i], reset_points[i + 1]);
-        total_score += forward_score;
+        total_score = log_sum_log(total_score, forward_score);
+    }
+
+
+    for (size_t i = 0; i < observations.size(); ++i)
+    {
+        state_posteriors[i].hypo = hypo_posteriors[i];
+        state_posteriors[i].HYPER = HYPER_posteriors[i];
+        state_posteriors[i].HYPO = HYPO_posteriors[i];
+        classes[i] = max_state(state_posteriors[i]);
     }
 
     return total_score;
 }
 
-void
-ThreeStateHMM::get_posterior_scores(
-    std::vector<Triplet> & scores,
-    std::vector<STATE_LABELS> & classes) const
+
+double
+ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
 {
-    scores.resize(hypo_posteriors.size());
-    for (size_t i = 0; i < hypo_posteriors.size(); ++i)
+    if (start >= end)
+        throw SMITHLABException("Invalid HMM sequence indices");
+
+    const size_t lim = end - start;
+        
+    vector<Triplet> llh(lim);
+    vector<STATE_LABELS> trace_hypo(lim);
+    vector<STATE_LABELS> trace_HYPER(lim);
+    vector<STATE_LABELS> trace_HYPO(lim);
+    
+    llh.front().hypo =
+        lp_start.hypo + hypo_segment_log_likelihood(start, start + 1);
+    llh.front().HYPER =
+        lp_start.HYPER + HYPER_segment_log_likelihood(start, start + 1);
+    llh.front().HYPO =
+        lp_start.HYPO + HYPO_segment_log_likelihood(start, start + 1);
+
+    for (size_t i = 1; i < lim; ++i)
     {
-        scores[i].hypo = hypo_posteriors[i];
-        scores[i].HYPER = HYPER_posteriors[i];
-        scores[i].HYPO = HYPO_posteriors[i];
+        // hypo:
+        const double hypo_hypo = llh[i - 1].hypo + log(trans[hypo][hypo]);
+        const double HYPER_hypo = llh[i - 1].HYPER + log(trans[HYPER][hypo]);
+        if (hypo_hypo > HYPER_hypo)
+        {
+            llh[i].hypo = hypo_hypo
+                + hypo_segment_log_likelihood(start + i, start + i + 1);
+            trace_hypo[i] = hypo;
+        }
+        else
+        {
+            llh[i].hypo = HYPER_hypo
+                + hypo_segment_log_likelihood(start + i, start + i + 1);
+            trace_hypo[i] = HYPER;
+        }
+        
+        // HYPER
+        const double hypo_HYPER = llh[i - 1].hypo + log(trans[hypo][HYPER]);
+        const double HYPER_HYPER = llh[i - 1].HYPER + log(trans[HYPER][HYPER]);
+        const double HYPO_HYPER = llh[i - 1].HYPER + log(trans[HYPO][HYPER]);
+        if (hypo_HYPER >= std::max(HYPER_HYPER, HYPO_HYPER))
+        {
+            llh[i].HYPER = hypo_HYPER
+                + HYPER_segment_log_likelihood(start + i, start + i + 1);
+            trace_HYPER[i] = hypo;
+        }
+        else  if (HYPER_HYPER >= std::max(hypo_HYPER, HYPO_HYPER))
+        {
+            llh[i].HYPER = HYPER_HYPER
+                + HYPER_segment_log_likelihood(start + i, start + i + 1);
+            trace_HYPER[i] = HYPER;
+        }
+        else
+        {
+            llh[i].HYPER = HYPO_HYPER
+                + HYPER_segment_log_likelihood(start + i, start + i + 1);
+            trace_HYPER[i] = HYPO;
+        }
+        
+        // HYPO
+        const double HYPER_HYPO = llh[i - 1].HYPER + log(trans[HYPER][HYPO]);
+        const double HYPO_HYPO = llh[i - 1].HYPO + log(trans[HYPO][HYPO]);
+        if (HYPER_HYPO > HYPO_HYPO)
+        {
+            llh[i].HYPO = HYPER_HYPO
+                + HYPO_segment_log_likelihood(start + i, start + i + 1);
+            trace_HYPO[i] = HYPER;
+        }
+        else
+        {
+            llh[i].HYPO = HYPO_HYPO
+                + HYPO_segment_log_likelihood(start + i, start + i + 1);
+            trace_HYPO[i] = HYPO;
+        }
+    }
+    
+    vector<STATE_LABELS> inner_ml_classes;
+    
+    // do the traceback
+    STATE_LABELS curr = max_state(llh.back());
+    for (size_t i = 0; i < trace_hypo.size(); ++i)
+    {
+        inner_ml_classes.push_back(curr);
+        switch (curr)
+        {
+        case hypo:
+            curr = trace_hypo[lim - i - 1];
+            break;
+        case HYPER:
+            curr = trace_HYPER[lim - i - 1];
+            break;
+        case HYPO:; break;
+            curr = trace_HYPO[lim - i - 1];
+            break;
+        } 
     }
 
-    classes.resize(observations.size());
-    for (size_t i = 0; i < observations.size(); ++i)
+    reverse(inner_ml_classes.begin(), inner_ml_classes.end());
+    std::copy(inner_ml_classes.begin(), inner_ml_classes.end(),
+              classes.begin() + start); 
+
+    return max_value(llh.back());
+}
+
+double
+ThreeStateHMM::ViterbiDecoding()
+{
+    // ml_classes = vector<bool>(values.size());
+    double total = 0;
+    for (size_t i = 0; i < reset_points.size() - 1; ++i)
     {
-        if (hypo_posteriors[i]
-            > std::max(HYPER_posteriors[i], HYPO_posteriors[i]))
-            classes[i] = hypo;
-        if (HYPER_posteriors[i]
-            > std::max(hypo_posteriors[i], HYPO_posteriors[i]))
-            classes[i] = HYPER;
-        if (HYPO_posteriors[i]
-            > std::max(HYPER_posteriors[i], hypo_posteriors[i]))
-            classes[i] = HYPO;
+        const double llh = ViterbiDecoding(reset_points[i], reset_points[i+1]);
+        total = log_sum_log(total, llh);
     }
+    return total;
+}
+
+void
+ThreeStateHMM::get_state_posteriors(std::vector<Triplet> & scores) const
+{
+    scores = state_posteriors;
+}
+
+void
+ThreeStateHMM::get_classes(std::vector<STATE_LABELS> & ml_classes) const
+{
+    ml_classes = classes;
 }
 
 
