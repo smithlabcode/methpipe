@@ -41,6 +41,21 @@ namespace methpipe
               std::vector<std::pair<double, double> > &meths,
               std::vector<size_t> &reads);
 
+    inline bool
+    read_site(std::istream &in, std::string &chrom, size_t &pos,
+              std::string &strand, std::string &seq,
+              double &meth, size_t &coverage)
+    {
+        in >> chrom >> pos >> strand >> seq >> meth >> coverage;
+        return in.good();
+    }
+
+    // re-locate the file handler point to the first line
+    // that are at or behind location chrom, pos
+    void
+    seek_site(std::istream &in, const std::string &chrom,
+              const size_t pos);
+
     bool
     is_methpipe_file_single(const std::string &file);
 }

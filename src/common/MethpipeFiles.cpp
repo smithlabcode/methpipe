@@ -31,6 +31,7 @@
 using std::vector;
 using std::string;
 using std::pair;
+using std::ios_base;
 
 void
 methpipe::load_cpgs(const string &cpgs_file,
@@ -136,3 +137,63 @@ methpipe::is_methpipe_file_single(const string &file)
   return false;
 }
 
+
+static void
+move_to_start_of_line(std::istream &in)
+{
+    char next;
+    while (in.good() && in.get(next) && next != '\n')
+    {
+        in.unget();
+        in.unget();
+    }
+    if (in.bad()) 
+        // hope this only happens when hitting the start of the file
+        in.clear();
+}
+
+void
+methpipe::seek_site(std::istream &in, const std::string &chr,
+                    const size_t idx) 
+{
+    in.seekg(0, ios_base::beg);
+    const size_t begin_pos = in.tellg();
+    in.seekg(0, ios_base::end);
+    size_t step_size = (static_cast<size_t>(in.tellg()) - begin_pos)/2;
+  
+    in.seekg(0, ios_base::beg);
+    string low_chr;
+    size_t low_idx = 0;
+    in >> low_chr >> low_idx;
+
+    // MAGIC: need the -2 here to get past the EOF and possibly a '\n'
+    in.seekg(-2, ios_base::end);
+    move_to_start_of_line(in);
+    string high_chr;
+    size_t high_idx;
+    in >> high_chr >> high_idx;
+  
+    size_t pos = step_size;
+    in.seekg(pos, ios_base::beg);
+    move_to_start_of_line(in);
+  
+    while (step_size > 0)
+    {
+        string mid_chr;
+        size_t mid_idx = 0;
+        in >> mid_chr >> mid_idx;
+        step_size /= 2;
+        if (chr < mid_chr || (chr == mid_chr && idx <= mid_idx)) {
+            std::swap(mid_chr, high_chr);
+            std::swap(mid_idx, high_idx);
+            pos -= step_size;
+        }
+        else {
+            std::swap(mid_chr, low_chr);
+            std::swap(mid_idx, low_idx);
+            pos += step_size;
+        }
+        in.seekg(pos, ios_base::beg);
+        move_to_start_of_line(in);
+    }
+}
