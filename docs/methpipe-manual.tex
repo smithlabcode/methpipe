@@ -27,11 +27,17 @@
 
 \maketitle
 
+
 The \meth{} software package is a comprehensive pipeline and set of
 tools for analyzing whole genome bisulfite sequencing data
 (BS-seq). This manual explains the stages in our pipeline, how to use
 the analysis tools, and how to modify the pipeline for your specific
 context.
+
+\tableofcontents
+
+\newpage
+
 
 \section{Assumptions}
 
@@ -962,7 +968,11 @@ will have a corresponding line in the output).
 % 1) sed 's/:/\t/g' [filename]
 % 2) cat [filename] | tr ':' '\t'
 
-\section{Creating UCSC Genome Browser tracks}
+\section{Methylome visualization}
+\label{sec:visualization}
+
+
+\subsection{Creating UCSC Genome Browser tracks}
 \label{sec:browser}
 
 To view the methylation level or read coverage at individual CpG sites
@@ -1069,6 +1079,131 @@ browser. If track headers are desired, they can be included in the
 % rm temp3 temp4
 % gzip Human_ESC_Cs_methcounts.bedGraph
 % \end{verbatim}
+
+
+\section{Organizing dataset with multiple replicates and/or libraries}
+\label{sec:organ-datas-with}
+
+Often to build a methylome for a particular population of cells one
+obtains multiple biological replicates. For each of these biological
+replicates, one may construct more than one bisulfite sequencing
+library, and these correspond to technical replicates. Finally, a
+given library might be sequenced multiple times, and a given
+sequencing run might produce one or more files of reads (for example,
+corresponding to different tiles or lanes on an Illumina
+sequencer). We organize data to reflect these aspects of the experiment.
+
+\paragraph{Biological replicates}
+Distinct biological replicates refer to distinct cells from which DNA
+was extracted. Typically these are obtained form different individuals
+or different cell cultures. If one is building the ``refernce''
+methylome for a given cell type, then eventually these different
+biological replicates might be merged. However, the purpose of doing
+the replicates separately is so that the biological variation can be
+understood. Therefore, certain tests would usually be done prior to
+combining the different biological replicates. Fortunately, the
+methylomes corresponding to different biological replicates can be
+done at much lower coverage, because testing for biological variation
+does not require conducting all the kinds of analyses we would want to
+conduct on the reference methylome. Distinct biological replicates are
+necessarily distinct technical replicates, and so to combine them we
+would follow the same procedure as combining technical replicates (see
+below). If the name of our methylome is \texttt{ASDF} then we
+would organize our biological replicates in a directory structure like
+this:
+\begin{verbatim}
+./ASDF/ASDF.R1/
+./ASDF/ASDF.R2/
+./ASDF/ASDF.R3/
+\end{verbatim}
+The properties that we would typically associate with a biological
+replicate include the average methylation levels through different
+parts of the genome. When comparing biological replicates we might
+observe some differences in average methylation levels through
+promoters, for example. We would hope and expect these to be minimal,
+resulting either from noise due to sampling (when coverage is low) or
+variation associated with genotype.
+
+\paragraph{Distinct libraries}
+The distinct libraries constitute technical replicates.  Each
+technical replicate may have a different distribution of fragment
+lengths (as measured using paired-end information or amount of
+adaptors present in reads), and possibly a different bisulfite
+conversion rate.  Despite these differences, we should generally see
+similar methylation levels. If we compare methylation levels between
+methylation profiles from different library preparations, using a
+defined set of intervals, we would expect to see very little
+difference. The difference we do observe should reflect noise due to
+sampling in regions with low coverage.  Because methylation data from
+two different libraries reflects different actual molecules, combining
+data from different libraries is easy. The methylation levels in
+\fn{methcounts} files can be combined by simply merging the individual
+\fn{methcounts} files.  Similarly, the \fn{methstates} files can be
+concatenated and the re-sorted. Within a biological replicate, we
+organize libraries as follows.
+\begin{verbatim}
+./ASDF/ASDF.R1/ASDF.R1.L1/
+./ASDF/ASDF.R1/ASDF.R1.L2/
+./ASDF/ASDF.R1/ASDF.R1.L3/
+\end{verbatim}
+
+\paragraph{Reads files within a library}
+For a given library, having a simple pipeline is facilitated by having
+a uniform scheme for naming the data files. The following example
+illustrates files corresponding to 4 sets of reads, two from
+paired-end sequencing and two from single-end sequencing:
+\begin{verbatim}
+./ASDF/ASDF.R1/ASDF.R1.L1/1_1.fq
+./ASDF/ASDF.R1/ASDF.R1.L1/1_2.fq
+./ASDF/ASDF.R1/ASDF.R1.L1/2_1.fq
+./ASDF/ASDF.R1/ASDF.R1.L1/2_2.fq
+./ASDF/ASDF.R1/ASDF.R1.L1/3.fq
+./ASDF/ASDF.R1/ASDF.R1.L1/4.fq
+\end{verbatim}
+The files \fn{1\_1.fq} and \fn{1\_2.fq} are corresponding left and
+right mates files. These must be processed together so that the
+corresponding mates can be joined. The file \fn{3.fq} is from a
+single-end sequencing run. We recommend using symbolic links to set up
+these filenames, and to keep subdirectories corresponding to the
+individual sequencing runs for the same library.
+\begin{verbatim}
+./ASDF/ASDF.R1/ASDF.R1.L1/Run1/s_1_1_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/Run1/s_1_2_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/Run2/LID12345_NoIndex_L001_R1_001.fastq
+./ASDF/ASDF.R1/ASDF.R1.L1/Run2/LID12345_NoIndex_L001_R2_001.fastq
+./ASDF/ASDF.R1/ASDF.R1.L1/Run3/s_1_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/Run3/s_2_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/1_1.fq --> Run1/s_1_1_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/1_2.fq --> Run1/s_1_2_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/2_1.fq --> Run2/LID12345_NoIndex_L001_R1_001.fastq
+./ASDF/ASDF.R1/ASDF.R1.L1/2_2.fq --> Run2/LID12345_NoIndex_L001_R2_001.fastq
+./ASDF/ASDF.R1/ASDF.R1.L1/3.fq --> Run3/s_1_sequence.txt
+./ASDF/ASDF.R1/ASDF.R1.L1/4.fq --> Run3/s_2_sequence.txt
+\end{verbatim}
+This kind of organization accomplishes four things: (1) it keeps read
+files from different runs separate, (2) it provides a place to keep
+metadata for the different runs, (3) it allows the reads files to
+exist with their original names which might not be different between
+runs, and (4) it ensures a simple naming scheme for the data files
+needed by our pipeline.
+
+\paragraph{The results directories}
+For the example scheme we have been describing, we would organize the
+results in the following directories.
+\begin{verbatim}
+./ASDF/ASDF.R1/ASDF.R1.L1/results/
+./ASDF/ASDF.R1/ASDF.R1.L2/results/
+./ASDF/ASDF.R1/results/
+./ASDF/ASDF.R2/ASDF.R2.L1/results/
+./ASDF/ASDF.R2/ASDF.R2.L2/results/
+./ASDF/ASDF.R2/results/
+./ASDF/ASDF.R3/ASDF.R3.L1/results/
+./ASDF/ASDF.R3/ASDF.R3.L2/results/
+./ASDF/ASDF.R3/results/
+./ASDF/results/
+\end{verbatim}
+
+
 
 \bibliographystyle{plain}
 \bibliography{biblio}
