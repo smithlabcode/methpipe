@@ -101,13 +101,13 @@ large. After the reads are mapped, these files are not used by our
 pipeline.  The reference genome should be a folder containing an
 individual .fa file for each chromosome to maximize memory efficiency.
 
-The mapped reads files (\fn{*.mr} suffix) that result from the previous
-steps should consist of eight columns of data. The first six columns
-are the traditional components of a BED file (chromosome, start, end,
-name, score, strand), while the last two columns consist of sequence
-and quality scores respectively. These mapped reads files will be the
-input files for the following two \meth{} components, \prog{bsrate}
-and \prog{methcounts}.
+The mapped reads files (\fn{*.mr} suffix) that result from the
+previous steps should consist of eight columns of data. The first six
+columns are the traditional components of a BED file (chromosome,
+start, end, read name, number of mismatches, strand), while the last
+two columns consist of sequence and quality scores respectively. These
+mapped reads files will be the input files for the following two
+\meth{} components, \prog{bsrate} and \prog{methcounts}.
 
 \paragraph{Decompressing and isolating paired-end reads:}
 Sometimes paired-end reads are stored in the same fastq file.  Because
@@ -129,27 +129,6 @@ into two separate files by running the following commands:
 $ sed -ne '1~8{N;N;N;p' *.fastq > *_1.fastq
 $ sed -ne '4~8{N;N;N;p}' *.fastq > *_2.fastq
 \end{verbatim}
-
-\paragraph{Partitioning reads for mapping using a cluster:} 
-Mapping reads often takes a while, and mapping reads from BS-seq takes longer.
-Because of how \prog{rmapbs} works, dividing the set of reads to be
-mapped into $k$ equal sized smaller reads files, and mapping these all
-simultaneously on a cluster, will make the mapping finish about $k$
-times faster. I will typically map 3M reads at a time, and this takes
-at most 1.5GB of memory for the human genome and with 100nt reads. The
-unix \prog{split} command is good for dividing the reads into smaller
-parts. The following BASH commands will take a directory named
-\fn{reads} containing Illumina sequenced reads files, and split
-them into files containing at most 3M reads:
-\begin{verbatim}
-$ mkdir reads_split
-$ for i in reads/*.txt; do \
-    split -a 3 -d -l 12000000 ${i} reads_split/$(basename $i); done
-\end{verbatim}
-Notice that the number of lines per split file is 12M, since we want
-3M reads, and there are 4 lines per read. If you split the reads like
-this, you will need to ``unsplit'' them after the mapping is done. Not
-a problem, just use the \prog{cat} command.
 
 \paragraph{Sequencing adaptors:}
 These are a problem in any sequencing experiment with short fragments
@@ -214,97 +193,166 @@ $ ./rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq
 When working with data from a paired-end sequencing experiment, you
 will have T-rich and A-rich reads. T-rich reads are often kept in
 files labeled with an ``\_1'' and A-rich reads are often kept in files
-labeled with an ``\_2''. We will follow this convention throughout the
-manual and strongly suggest that you do the same. T-rich reads are
-sometimes referred to as $5^{\prime}$ reads or mate 1 and A-rich
-reads are sometimes referred to $3^{\prime}$ reads or mate 2.
- \prog{rmapbs} expects T-rich reads as a
-default and so for paired-end sequencing data, you must run
-\prog{rmapbs} twice; once for T-rich reads and once for A-rich
-reads. Execute the following commands to map of your paired-end reads
-with \prog{rmapbs}; one command for T-rich reads, and one for A-rich
-reads.
+labeled with an ``\_2''.  T-rich reads are sometimes referred to as
+$5^{\prime}$ reads or mate 1 and A-rich reads are sometimes referred
+to $3^{\prime}$ reads or mate 2. We assume that the T-rich file and
+the A-rich contain the same number of reads, and each pair of mates
+occupy the same lines in their respective files. We will follow this
+convention throughout the manual and strongly suggest that you do the
+same. The program \prog{rmapbs-pe} program is used to map T-rich reads
+and A-rich reads simultaneously. Run the following command to map two
+reads files from a paired-end sequencing experiment:
 \begin{verbatim}
-$ ./rmapbs -c hg18 -o Human_ESC_1.mr Human_ESC_1.fastq
-\end{verbatim}
-An example command for the second end (previously named like
-\fn{s\_1\_2\_sequence.txt} from Illumina), which will contain all
-A-rich reads:
-\begin{verbatim}
-$ ./rmapbs -c hg18 -o Human_ESC_2.mr -A Human_ESC_2.fastq
+$ ./rmapbs-pe -c hg18 -o Human_ESC.mr Human_ESC_1.fastq Human_ESC_2.fastq
 \end{verbatim}
 
-\paragraph{Merging paired-end reads:}
-As previously noted, paired-end sequencing produces both T-rich reads
-and A-rich reads. Since methylation is estimated from the counts of T's
-and C's (that map to C's in the reference genome), and A-rich reads
-contain methylation information in the form of A and G counts (that
-map to G's in the reference genome), A-rich reads must be transformed
-into T-rich reads by reverse complementation. This allows methylation
-information to be derived from the T's and C's in the new T-rich reads
-that correspond to the A's and G's from the A-rich reads that were
-reverse complemented.
+In brief, what happends internally in \prog{rmapbs-pe} is as follows.
+\prog{rmapbs-pe} finds candidate mapping locations for a T-rich mate
+with CG-wildcard mapping, and candidate mapping locations for the
+corresponding A-rich mate with AG-wildcard mapping. If two candidate
+mapping locations of the pair of mates are within certain distance in
+the same chromosome and strand and with correct orientation, the two
+mates are combined into a single read (after reverse complement of the
+A-rich mate), referred to as a fragment. The overlapping region
+between the two mates, if any, is included once, and the gap region
+between them, if any, is filled with Ns. The parameter \op{-L} to
+\prog{rmapbs-pe} indicates the maximum size of fragments to allow to
+be merged. Here the fragment size is the sum of the read lengths at
+both ends, plus whatever distance is between them. So this is the
+length of the original molecule that was sequenced, excluding the
+sequencing adaptors. It is possible for a given read pair that the
+molecule was shorter than twice the length of the reads, in which case
+the ends of the mates will overlap, and so in the merged fragment will
+only be included once. Also, it is possible that the entire molecule
+was shorter than the length of even one of the mates, in which case
+the merged fragment will be shorter than either of the read ends. If
+the two mates cannot be merged because they are mapped to different
+chromosomes or different strand, or they are far away from each other,
+\prog{rmapbs-pe} will throw each mate individually if its mapping
+position is unambiguous.   
 
-A double counting error could arise if overlapping regions exist
-between any two mates. To avoid this bias and maintain all other
-important information, we merge read ends that are mapped sufficiently
-closely and in the proper relative orientations. Any overlapping portion
-is eliminated. Reverse complementation of A-rich reads, switching
-the strand to which they mapped, and eliminating overlapping regions is
-done by the program \prog{clipmates}. This tool works on mapped reads
-files that been sorted by read id (read name). The following command
-is an example of how to sort your mapped reads files with the Unix
-\prog{sort} command before inputting them into \prog{clipmates}.
-\begin{verbatim}
-$ LC_ALL=C sort -k 4 -o Human_ESC_1.mr.name_srtd Human_ESC_1.mr
-$ LC_ALL=C sort -k 4 -o Human_ESC_2.mr.name_srtd Human_ESC_2.mr
-\end{verbatim}
-The names of corresponding mates must only differ by the last
-character (which should be a 1 for T-rich reads and 2 for A-rich
-reads). If mates exist and are mapped correctly (to the same
-chromosome, to correct strands, with correct orientation) within a
-certain distance from each other (as specified by the \op{-L} option),
-then the mates are combined into a single read, referred to as a
-fragment, with Ns filling any existing gaps between mates. If mates
-could not be matched, then each mate is present in the output
-file by default.  Unmatched reads can be thrown out using the \op{-t}
-option.  \prog{clipmates} takes two input files in mapped reads format:
-one with T-rich mapped reads (\op{-T} option) and the other with A-rich
-mapped reads (\op{-A} option). Execute the following command to run the
-\prog{clipmates} component of \meth{} on T-rich and A-rich reads
-(mates 1 and 2).
-\begin{verbatim}
-$ ./clipmates -L 1000 -S Human_ESC.clipstats -o Human_ESC_clipped.mr \
-              -T Human_ESC_1.mr.name_srtd -A Human_ESC_2.mr.name_srtd
-\end{verbatim}
-The parameter \op{-L} to \prog{clipmates} indicates the maximum size
-of fragments to allow to be merged. Here the fragment size is the sum
-of the read lengths at both ends, plus whatever distance is between
-them. So this is the length of the original molecule that was
-sequenced, excluding the sequencing adaptors. It is possible for a
-given read pair that the molecule was shorter than twice the length of
-the reads, in which case the ends of the mates will overlap, and so in
-the merged fragment will only be included once. Also, it is possible
-that the entire molecule was shorter than the length of even one of
-the mates, in which case the merged fragment will be shorter than
-either of the read ends.
+%%%%%%% the following way are deprecated because of rmapbs-pe
 
-Typically the Illumina software adds a suffix of \lit{\#0/1} to the
-names of the first-end reads and \lit{\#0/2} to the names of the
-second-end reads. The \prog{clipmates} program must match up the
-identical reads based on these names, and so by default ignores the
-final character of the read names. However, some reads have their
-names changed, for example many downloaded from SRA have identical
-names for both first-end and second-end reads. In that case, the
-entire read name must be matched, and so \prog{clipmates} has an
-option to accomplish this:
+% \prog{rmapbs} expects T-rich reads as a default and so for
+% paired-end sequencing data, you must run \prog{rmapbs} twice; once
+% for T-rich reads and once for A-rich reads. Execute the following
+% commands to map of your paired-end reads with \prog{rmapbs}; one
+% command for T-rich reads, and one for A-rich reads.
+% \begin{verbatim}
+% $ ./rmapbs -c hg18 -o Human_ESC_1.mr Human_ESC_1.fastq
+% \end{verbatim}
+% An example command for the second end (previously named like
+% \fn{s\_1\_2\_sequence.txt} from Illumina), which will contain all
+% A-rich reads:
+% \begin{verbatim}
+% $ ./rmapbs -c hg18 -o Human_ESC_2.mr -A Human_ESC_2.fastq
+% \end{verbatim}
+
+% \paragraph{Merging paired-end reads:}
+% As previously noted, paired-end sequencing produces both T-rich reads
+% and A-rich reads. Since methylation is estimated from the counts of T's
+% and C's (that map to C's in the reference genome), and A-rich reads
+% contain methylation information in the form of A and G counts (that
+% map to G's in the reference genome), A-rich reads must be transformed
+% into T-rich reads by reverse complementation. This allows methylation
+% information to be derived from the T's and C's in the new T-rich reads
+% that correspond to the A's and G's from the A-rich reads that were
+% reverse complemented.
+
+% A double counting error could arise if overlapping regions exist
+% between any two mates. To avoid this bias and maintain all other
+% important information, we merge read ends that are mapped sufficiently
+% closely and in the proper relative orientations. Any overlapping portion
+% is eliminated. Reverse complementation of A-rich reads, switching
+% the strand to which they mapped, and eliminating overlapping regions is
+% done by the program \prog{clipmates}. This tool works on mapped reads
+% files that been sorted by read id (read name). The following command
+% is an example of how to sort your mapped reads files with the Unix
+% \prog{sort} command before inputting them into \prog{clipmates}.
+% \begin{verbatim}
+% $ LC_ALL=C sort -k 4 -o Human_ESC_1.mr.name_srtd Human_ESC_1.mr
+% $ LC_ALL=C sort -k 4 -o Human_ESC_2.mr.name_srtd Human_ESC_2.mr
+% \end{verbatim}
+% The names of corresponding mates must only differ by the last
+% character (which should be a 1 for T-rich reads and 2 for A-rich
+% reads). If mates exist and are mapped correctly (to the same
+% chromosome, to correct strands, with correct orientation) within a
+% certain distance from each other (as specified by the \op{-L} option),
+% then the mates are combined into a single read, referred to as a
+% fragment, with Ns filling any existing gaps between mates. If mates
+% could not be matched, then each mate is present in the output
+% file by default.  Unmatched reads can be thrown out using the \op{-t}
+% option.  \prog{clipmates} takes two input files in mapped reads format:
+% one with T-rich mapped reads (\op{-T} option) and the other with A-rich
+% mapped reads (\op{-A} option). Execute the following command to run the
+% \prog{clipmates} component of \meth{} on T-rich and A-rich reads
+% (mates 1 and 2).
+% \begin{verbatim}
+% $ ./clipmates -L 1000 -S Human_ESC.clipstats -o Human_ESC_clipped.mr \
+%               -T Human_ESC_1.mr.name_srtd -A Human_ESC_2.mr.name_srtd
+% \end{verbatim}
+% The parameter \op{-L} to \prog{clipmates} indicates the maximum size
+% of fragments to allow to be merged. Here the fragment size is the sum
+% of the read lengths at both ends, plus whatever distance is between
+% them. So this is the length of the original molecule that was
+% sequenced, excluding the sequencing adaptors. It is possible for a
+% given read pair that the molecule was shorter than twice the length of
+% the reads, in which case the ends of the mates will overlap, and so in
+% the merged fragment will only be included once. Also, it is possible
+% that the entire molecule was shorter than the length of even one of
+% the mates, in which case the merged fragment will be shorter than
+% either of the read ends.
+
+% Typically the Illumina software adds a suffix of \lit{\#0/1} to the
+% names of the first-end reads and \lit{\#0/2} to the names of the
+% second-end reads. The \prog{clipmates} program must match up the
+% identical reads based on these names, and so by default ignores the
+% final character of the read names. However, some reads have their
+% names changed, for example many downloaded from SRA have identical
+% names for both first-end and second-end reads. In that case, the
+% entire read name must be matched, and so \prog{clipmates} has an
+% option to accomplish this:
+% \begin{verbatim}
+% $ ./clipmates -s 0 -L 1000 -S SRA_reads.clipstats -o SRA_reads_clipped.mr \
+%               -T SRA_reads_1.mr.name_srtd -A SRA_reads_2.mr.name_srtd
+% \end{verbatim}
+% The argument \lit{-s} is used to indicate that the suffix of the read
+% names to be ignored when matching up mates has length 0, so compare
+% the entire read name.
+
+\paragraph{Mapping reads in a large file:} 
+Mapping reads often takes a while, and mapping reads from BS-seq takes
+even longer. It usually take quite a long time to map reads from a
+single large file with tens of millions of reads. If you have access
+to a cluster, one strategy is to launch multiple jobs, each working on
+a subset of reads simultaneously, and finally combine their output. I
+will typically map 3M reads at a time, and this takes at most 1.5GB of
+memory for the human genome and with 100nt reads. If all computing
+nodes can read the large input file (for example, through NFS), you
+may use the option \op{-T s} and \op{-N n}  to instruct \prog{rmapbs} or
+\prog{rmapbs-pe} to map \op{n} reads starting from the $s^{th}$ reads
+in the input file. For example, with following command
 \begin{verbatim}
-$ ./clipmates -s 0 -L 1000 -S SRA_reads.clipstats -o SRA_reads_clipped.mr \
-              -T SRA_reads_1.mr.name_srtd -A SRA_reads_2.mr.name_srtd
+$ ./rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq -T 1 -N 1000000
 \end{verbatim}
-The argument \lit{-s} is used to indicate that the suffix of the read
-names to be ignored when matching up mates has length 0, so compare
-the entire read name.
+\prog{rmapbs} will map the first million reads in the input file.   
+  
+If each node can only access its local storage, dividing the set of
+reads to into $k$ equal sized smaller reads files, and mapping these
+all simultaneously on multiple nodes, will make the mapping finish
+about $k$ times faster.  The unix \prog{split} command is good for
+dividing the reads into smaller parts. The following BASH commands
+will take a directory named \fn{reads} containing Illumina sequenced
+reads files, and split them into files containing at most 3M reads:
+\begin{verbatim}
+$ mkdir reads_split
+$ for i in reads/*.txt; do \
+    split -a 3 -d -l 12000000 ${i} reads_split/$(basename $i); done
+\end{verbatim}
+Notice that the number of lines per split file is 12M, since we want
+3M reads, and there are 4 lines per read. If you split the reads like
+this, you will need to ``unsplit'' them after the mapping is done. Not
+a problem, just use the \prog{cat} command.
 
 \subsection{Merging libraries and removing duplicates}
 \label{sec:mapping}
