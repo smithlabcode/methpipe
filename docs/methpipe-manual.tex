@@ -384,6 +384,15 @@ $ ./duplicate-remover -S Human_ESC_dremove_stat.txt \
 $ ./duplicate-remover -S Human_NHFF_dremove_stat.txt \
                       -o Human_NHFF.mr.dremove Human_NHFF.mr.sorted_start
 \end{verbatim}
+The duplicate-removal correction should be done on a per-library
+basis, i.e, one should pool all reads from multiple runs or lanes
+sequenced from the same library and remove duplicates. The reads from
+distinct libraries can be simply pooled without any correction as the
+reads from each library are originated from distinct DNA
+fragments. Please refer to \ref{sec:organ-datas-with} for recommended
+practices to organize a project with multiple runs and/or libraries.
+
+
 
 \subsection{Estimating bisulfite conversion rate}
 \label{sec:estim-busilf-conv}
@@ -488,12 +497,11 @@ $ ./bsrate -N -c chrM.fa -o Human_ESC.bsrate Human_ESC.mr.chrM
 
 The \prog{methcounts} program takes the mapped reads and produces the
 methylation level for each genomic CpG or for all Cs if specified.
-The input is in MappedRead format, and the output is in 6-column BED
-format. \prog{methcounts} requires that the input reads are sorted
+The input is in MappedRead format, and the reads should be sorted
 according to (chrom, end, start, strand). If your reads are not
-sorted, to sort MappedRead format files in this order, do:
+sorted, run:
 \begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C; sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
 Since \prog{methcounts} can only take one input file, if you have
@@ -510,47 +518,40 @@ This drastically speeds up \prog{methcounts}.
 
 \paragraph{Counting only CpG sites:}
 The methylation level for every CpG site at single base resolution is
-estimated as a probability based on the ratio of methylated to
-unmethylated reads mapped to that loci. Since CpG methylation is
-symmetric, reads mapped to both strands are used to produce a single
-estimate for the CpG site. To compute methylation levels at each CpG
-site you can use commands as following:
+estimated as a probability based on the ratio of methylated to total
+reads mapped to that loci. Since CpG methylation is symmetric, reads
+mapped to both strands are used to produce a single estimate for the
+CpG site. To compute methylation levels at each CpG site you can use
+commands as following:
 \begin{verbatim}
-$ ./methcounts -c hg18 -o Human_ESC_Meth.bed \
+$ ./methcounts -c hg18 -o Human_ESC_Meth.txt \
                -S Human_ESC_Meth.stats Human_ESC.mr
-$ ./methcounts -c hg18 -o Human_NHFF_Meth.bed \
+$ ./methcounts -c hg18 -o Human_NHFF_Meth.txt \
                -S Human_NHFF_Meth.stats Human_NHFF.mr
 \end{verbatim}
-The argument \op{-c} should be followed by the name of a directory
-that contains one FASTA format file for each chromosome. By default
-\prog{methcounts} identifies these chromosome files by the extension
-\fn{.fa}. Importantly, the ``name'' line in each chromosome file must
-be the character \lit{>} followed by the same name that identifies
-that chromosome in the mapped read output (the \fn{.mr} files).
+The argument \op{-c} gives the filename of the genome sequence or the
+directory that contains one FASTA format file for each chromosome. By
+default \prog{methcounts} identifies these chromosome files by the
+extension \fn{.fa}. Importantly, the ``name'' line in each chromosome
+file must be the character \lit{>} followed by the same name that
+identifies that chromosome in the mapped read output (the \fn{.mr}
+files).
 
-The output will contain one line per CpG site, and to conform to BED
-format we indicate CpG sites as genomic intervals of width 1. The
-first column is the chromosome, the second is the location of the CpG
-site, the 3rd column is equal to the 2nd + 1. The 4th column is the
-``name'' and includes 2 parts: a tag indicating the type of site (in
-this case it will be ``CpG'') and an integer indicating the number of
-reads mapping over the site (in this case on either strand) that has
-either a C or a T at that position. The two parts are separated by a
-colon (\lit{:}). Sequencing errors are not counted in the output. The
-5th column is the estimated methylation level, equal to the number of
-Cs in reads at position corresponding to the site, divided by the sum
-of the Cs and Ts mapping to that position. The final column is the
-strand, and when only CpG sites are considered, this is always
-\lit{+}. Note: we will typically use filenames like \fn{*\_Meth.bed}
-to denote output files from \prog{methcounts}. For non-CpG methylation
-we will indicate which type in the filename (see next
-paragraph). There is no requirement to use this naming scheme.
+The output file contains one line per CpG site. The first column is
+the chromosome. The second is the location of the CpG site in the
+positive strand. The 3rd column indicates the strand, always being
+\lit{+} when only CpG sites are considered. The 4th column is the
+sequence context of that site. The 5th column is the estimated
+methylation level, equal to the number of Cs in reads at position
+corresponding to the site, divided by the sum of the Cs and Ts mapping
+to that position. The final column is number of reads overlapping with
+that site.
 
 \paragraph{Counting all cytosines:}
-While methylation usually exists in the CpG contexts, in mammalian
-stem cells and plant cells, cytosines in other sequence contexts, such
-as CHG or CHH (where H denotes adenines, thymines or cytosines), may
-also be methylated. This type of methylation is referred to as
+While methylation usually exists in the CpG contexts, in certain
+mammalian cells and most plant cells, cytosines in other sequence
+contexts, such as CHG or CHH (where H denotes adenines, thymines or
+cytosines), may also be methylated. This type of methylation is
 asymmetric since the cytosines on the complementary strand do not
 necessarily have the same methylation status. The methylation level
 for each cytosine loci is estimated individually with only reads
@@ -567,30 +568,31 @@ $ ./methcounts -N -c hg18 -o Human_ESC_Meth_All.bed \
 \end{verbatim}
 
 The output file contains one line per cytosine site (see below for an
-excerpt from one \prog{methcount} output file). The first three
-columns give the chromosome, starting position and ending position
-(noninclusive) of that cytosine. The 4th column indicates the sequence
-context, and the number of reads mapped over the cytosine in the same
-strand, that have either a C or a T at that position. The sequence
-context can be either CG, CHG or CHH. The first C corresponds to the
-cytosine of interest and the remaining letters are bases following
-that cytosine in the same strand from 5' to 3'. The 5th column is the
-estimated methylation level. The final column indicates the strand,
-either + or -, in which that cytosine is located.
+excerpt from one \prog{methcount} output file in an Arabidopsis
+project). The first two columns give the chromosome and position of
+that cytosine. The 3rd columns gives the strand. The 4th column
+indicates the sequence context, which can be CG, CHG or CHH. The first
+. and the number of reads mapped over the cytosine in the same strand,
+that have either a C or a T at that position. The sequence context can
+be either CG, CHG or CHH.  The first C corresponds to the cytosine of
+interest and the remaining letters are bases following that cytosine
+in the same strand from 5' to 3'. The 5th and 6th columns gives the
+estimated methylation level and the total number of reads
+respectively.
 %%%
 {\small{%%
 \begin{verbatim}
-chr1    101     102     CHH:3   0.333333        +
-chr1    106     107     CHH:3   0       +
-chr1    107     108     CHG:3   0.666667        +
-chr1    108     109     CG:3    1       +
-chr1    109     110     CG:3    0.666667        -
-chr1    113     114     CHG:3   0       +
-chr1    114     115     CG:3    1       +
-chr1    115     116     CG:3    0.666667        -
-chr1    116     117     CHG:3   0       -
-chr1    120     121     CHH:3   0.333333        +
-chr1    122     123     CHG:4   1       +
+chr1    839537  -       CG      0.8     5
+chr1    839541  -       CHH     0.142857        7
+chr1    839544  +       CHH     0       10
+chr1    839548  -       CHH     0       7
+chr1    839550  -       CHH     0       8
+chr1    839551  +       CG      0.75    8
+chr1    839552  -       CG      0.75    8
+chr1    839554  +       CHH     0       8
+chr1    839557  -       CHH     0       7
+chr1    839566  +       CG      0.857143        7
+chr1    839567  -       CG      0.714286        7
 \end{verbatim}%%
 }}
 
@@ -601,8 +603,6 @@ cytosines within the CHG context, run the following:
 \begin{verbatim}
 $ grep CHG Human_ESC_Meth_All.bed > Human_ESC_Meth_CHG.bed
 \end{verbatim}
-The above command only works if you have not decided to use
-chromosomes having a the consecutive characters "CHG" in their names.
 Our convention is to name \prog{methcounts} output with all cytosines
 like \fn{*\_Meth\_All.bed}, with CHG like \fn{*\_Meth\_CHG.bed} and
 with CHH like \fn{*\_Meth\_CHH.bed}.
