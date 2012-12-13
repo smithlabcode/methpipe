@@ -1129,7 +1129,7 @@ browser. If track headers are desired, they can be included in the
 % \end{verbatim}
 
 
-\section{Organizing dataset with multiple replicates and/or libraries}
+\section{Organizing projects with multiple replicates and/or libraries}
 \label{sec:organ-datas-with}
 
 Often to build a methylome for a particular population of cells one
@@ -1250,6 +1250,29 @@ results in the following directories.
 ./ASDF/ASDF.R3/results/
 ./ASDF/results/
 \end{verbatim}
+
+
+\section{Auxiliary tools}
+\label{sec:auxiliary-tools}
+
+\subsection{Count number of lines in a big file}
+\label{sec:count-number-lines}
+
+When working with next-generation sequencing data, you may usually
+needs to work with very big files, such as FASTQ files containing raw
+reads and .mr files containing mapped reads. You may would like to
+know the approximate number of reads in those large files. The program
+\prog{lc\_approx} estimate the number of lines by counting the number
+of lines in a small chunk randomly chosen from the big file and
+scaling the estimate by file sizes. For example, in order to estimate
+the number of reads in a FASTQ file s\_1\_1\_sequence.fq, run
+\begin{verbatim}
+$ lc_approx  s_1_1_sequence.fq
+\end{verbatim}
+It will return the approxiamte number of lines in this file and by
+dividing the above number by 4, you get the appriximate number of
+reads in that file.  The \prog{lc\_apprix} can be hundreds of times
+faster than the unix tool \prog{wc -l}.  
 
 
 
