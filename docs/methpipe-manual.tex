@@ -607,6 +607,23 @@ Our convention is to name \prog{methcounts} output with all cytosines
 like \fn{*\_Meth\_All.bed}, with CHG like \fn{*\_Meth\_CHG.bed} and
 with CHH like \fn{*\_Meth\_CHH.bed}.
 
+\paragraph{Merging methcounts file from multiple replicates:}
+\label{sec:merg-methc-file} 
+When working with a BS-Seq project with multiple replicates, you may
+first produce a methcount output file for each replicate individually
+and assess the reproducibility of the methylation result by comparing
+different replicates. The \prog{merge-methcounts} program is used to
+merge the those individual methcounts file to produce a single
+estimate that have higher coverage. Suppose you have the three
+methcounts files from three different replicates,
+\fn{ASDF.R1/R1\_METH.bed}, \fn{ASDF.R2/R2\_METH.bed} and
+\fn{ASDF.R3/R3\_METH.bed}. To merge those individual methcounts files,
+execute
+\begin{verbatim}
+$ merge-methcounts ASDF.R1/R1_METH.bed  ASDF.R2/R2_METH.bed
+ ASDF.R3/R3_METH.bed -o ASDF_merged_METH.bed
+ \end{verbatim}
+
 \section{Methylome analysis}
 \label{sec:high-level-analys}
 
