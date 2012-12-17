@@ -50,6 +50,15 @@ namespace methpipe
         return in.good();
     }
 
+    inline bool
+    write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
+               const std::string &strand, const std::string &seq,
+               const double &meth, const size_t &coverage)
+    {
+        out << chrom << pos << strand << seq << meth << coverage;
+        return out.good();
+    }
+
     // re-locate the file handler point to the first line
     // that are at or behind location chrom, pos
     void
