@@ -51,7 +51,7 @@ using std::max;
 using std::ofstream;
 
 // GLOBGAL VARIABLE TO CONTROL OUTPUT FORMAT
-static bool USE_ALT_OUTPUT = false;
+static bool USE_ALT_OUTPUT = true;
 
 struct MethStat {
 
