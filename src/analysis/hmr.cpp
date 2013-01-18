@@ -467,6 +467,13 @@ main(int argc, const char **argv) {
     vector<double> random_scores;
     shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
 		 fg_alpha, fg_beta, bg_alpha, bg_beta, random_scores);
+
+    /////
+    cerr << "check random: "<< random_scores.size() << "\t"
+         << *std::max_element(random_scores.begin(), random_scores.end()) << "\t"
+         << *std::min_element(random_scores.begin(), random_scores.end()) << endl;
+/////
+
     
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
@@ -474,7 +481,8 @@ main(int argc, const char **argv) {
     if (fdr_cutoff == numeric_limits<double>::max())
       fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
 
-    if (!params_out_file.empty()) {
+    if (!params_out_file.empty())
+    {
       std::ofstream out(params_out_file.c_str(), std::ios::app);
       out << "FDR_CUTOFF\t" 
 	  << std::setprecision(30) << fdr_cutoff << endl;
@@ -483,6 +491,11 @@ main(int argc, const char **argv) {
     
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
+
+    /////
+    cerr << "check 1: "<< domains.size() << endl;
+/////
+
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
