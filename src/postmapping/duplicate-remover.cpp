@@ -128,6 +128,10 @@ int main(int argc, const char **argv) {
     bool DISABLE_SORT_TEST = false;
     size_t TOTAL_READS = 0;
     size_t DUPLICATES_REMOVED = 0;
+    size_t GOOD_BASES_IN = 0;
+    size_t GOOD_BASES_OUT = 0;
+    size_t DUPLICATE_SITUATIONS = 0;
+
     string outfile;
     string statfile;
 
@@ -197,11 +201,13 @@ int main(int argc, const char **argv) {
 
     while (in >> mr) {
       ++TOTAL_READS;
+      GOOD_BASES_IN += mr.seq.length() - 2; // only ends not good bases
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
 	throw SMITHLABException("input not properly sorted:\n" + 
 				toa(mr) + "\n" + toa(buffer.front()));
       if (!equivalent(buffer.front(), mr)) {
           BUFFER_BEFORE = buffer.size();
+          if ( BUFFER_BEFORE > 2 ) ++DUPLICATE_SITUATIONS;
 	if (USE_SEQUENCE) {
 	  get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
       DUPLICATES_REMOVED += BUFFER_BEFORE - buffer.size();
@@ -209,7 +215,9 @@ int main(int argc, const char **argv) {
 	       std::ostream_iterator<MappedRead>(out, "\n"));
 	}
 	else { 
-        out << buffer[rand() % buffer.size()] << "\n";
+        size_t SELECTION = rand() % buffer.size() ;
+        out << buffer[SELECTION] << "\n";
+        GOOD_BASES_OUT += buffer[SELECTION].seq.length();
         DUPLICATES_REMOVED += BUFFER_BEFORE - 1;
     }
 	buffer.clear();
@@ -229,8 +237,12 @@ int main(int argc, const char **argv) {
        DUPLICATES_REMOVED += BUFFER_BEFORE - 1;
     }
 
-    out_stat << "TOTAL READS: " << TOTAL_READS << "\n"
-             << "DUPLICATES REMOVED: " << DUPLICATES_REMOVED << "\n";
+    out_stat << "TOTAL READS:\t" << TOTAL_READS << "\n"
+         << "GOOD BASES IN:\t" << GOOD_BASES_IN << "\n"
+         << "DUPLICATE SITUATIONS:\t" << DUPLICATE_SITUATIONS << "\n"
+         << "DUPLICATES REMOVED:\t" << DUPLICATES_REMOVED << "\n"
+         << "TOTAL READS OUT:\t" << TOTAL_READS - DUPLICATES_REMOVED << "\n"
+         << "GOOD BASES OUT:\t" << GOOD_BASES_OUT << "\n";
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
