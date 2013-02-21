@@ -126,16 +126,10 @@ int main(int argc, const char **argv) {
     bool USE_SEQUENCE = false;
     bool ALL_C = false;
     bool DISABLE_SORT_TEST = false;
-    size_t TOTAL_READS = 0;
-    size_t DUPLICATES_REMOVED = 0;
-    size_t GOOD_BASES_IN = 0;
-    size_t GOOD_BASES_OUT = 0;
-    size_t DUPLICATE_SITUATIONS = 0;
-
+    bool INPUT_FROM_STDIN = false;
+    
     string outfile;
     string statfile;
-
-    bool INPUT_FROM_STDIN = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
@@ -184,10 +178,6 @@ int main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
-    std::ofstream stat;
-    if (!statfile.empty()) stat.open(outfile.c_str());
-    std::ostream out_stat(statfile.empty() ? cout.rdbuf() : stat.rdbuf() );    
-
     std::ifstream ifs;
     if (!infile.empty()) ifs.open(infile.c_str());
     std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
@@ -196,53 +186,65 @@ int main(int argc, const char **argv) {
     if (!(in >> mr))
       throw SMITHLABException("error reading file: " + infile);
     
+    size_t reads_in = 0;
+    size_t reads_out = 0;
+    size_t good_bases_in = 0;
+    size_t good_bases_out = 0;
+    size_t reads_with_duplicates = 0;
+    
     vector<MappedRead> buffer(1, mr);
-    size_t BUFFER_BEFORE = 0;
-
     while (in >> mr) {
-      ++TOTAL_READS;
-      GOOD_BASES_IN += mr.seq.length() - 2; // only ends not good bases
+      ++reads_in;
+      good_bases_in += mr.seq.length();
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
 	throw SMITHLABException("input not properly sorted:\n" + 
 				toa(mr) + "\n" + toa(buffer.front()));
       if (!equivalent(buffer.front(), mr)) {
-          BUFFER_BEFORE = buffer.size();
-          if ( BUFFER_BEFORE > 2 ) ++DUPLICATE_SITUATIONS;
 	if (USE_SEQUENCE) {
+	  const size_t orig_buffer_size = buffer.size();
 	  get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
-      DUPLICATES_REMOVED += BUFFER_BEFORE - buffer.size();
 	  copy(buffer.begin(), buffer.end(), 
 	       std::ostream_iterator<MappedRead>(out, "\n"));
+	  reads_out += buffer.size();
+	  reads_with_duplicates += (buffer.size() < orig_buffer_size);
 	}
-	else { 
-        size_t SELECTION = rand() % buffer.size() ;
-        out << buffer[SELECTION] << "\n";
-        GOOD_BASES_OUT += buffer[SELECTION].seq.length();
-        DUPLICATES_REMOVED += BUFFER_BEFORE - 1;
-    }
+	else {
+	  const size_t selected = rand() % buffer.size();
+	  out << buffer[selected] << "\n";
+	  good_bases_out += buffer[selected].seq.length();
+	  ++reads_out;
+	  reads_with_duplicates += (buffer.size() > 1);
+	}
 	buffer.clear();
       }
       buffer.push_back(mr);
     }
-
+    
     if (USE_SEQUENCE) {
-      BUFFER_BEFORE = buffer.size();
+      const size_t orig_buffer_size = buffer.size();
       get_meth_patterns(ALL_C, buffer);
       copy(buffer.begin(), buffer.end(), 
 	   std::ostream_iterator<MappedRead>(out, "\n"));
-       DUPLICATES_REMOVED += BUFFER_BEFORE - buffer.size();
+      reads_out += buffer.size();
+      reads_with_duplicates += (buffer.size() < orig_buffer_size);
     }
     else {
-       out << buffer[rand() % buffer.size()] << "\n";
-       DUPLICATES_REMOVED += BUFFER_BEFORE - 1;
+      const size_t selected = rand() % buffer.size();
+      out << buffer[selected] << "\n";
+      good_bases_out += buffer[selected].seq.length();
+      ++reads_out;
+      reads_with_duplicates += (buffer.size() > 1);
     }
-
-    out_stat << "TOTAL READS:\t" << TOTAL_READS << "\n"
-         << "GOOD BASES IN:\t" << GOOD_BASES_IN << "\n"
-         << "DUPLICATE SITUATIONS:\t" << DUPLICATE_SITUATIONS << "\n"
-         << "DUPLICATES REMOVED:\t" << DUPLICATES_REMOVED << "\n"
-         << "TOTAL READS OUT:\t" << TOTAL_READS - DUPLICATES_REMOVED << "\n"
-         << "GOOD BASES OUT:\t" << GOOD_BASES_OUT << "\n";
+    
+    if (!statfile.empty()) {
+      std::ofstream out_stat(statfile.c_str());    
+      out_stat << "TOTAL READS IN:\t" << reads_in << "\n"
+	       << "GOOD BASES IN:\t" << good_bases_in << "\n"
+	       << "TOTAL READS OUT:\t" << reads_out << "\n"
+	       << "GOOD BASES OUT:\t" << good_bases_out << "\n"
+	       << "DUPLICATES REMOVED:\t" << reads_in - reads_out << "\n"
+	       << "READS WITH DUPLICATES:\t" << reads_with_duplicates << "\n";
+    }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
