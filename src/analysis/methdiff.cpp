@@ -171,7 +171,7 @@ main(int argc, const char **argv) {
       size_t j = 0;
       for (size_t i = 0; i < cpgs_a.size(); ++i) {
         const size_t meth_a(static_cast<size_t>(meth_unmeth_a[i].first)),
-          unmeth_a(static_cast<size_t>(meth_unmeth_a[i].first));
+          unmeth_a(static_cast<size_t>(meth_unmeth_a[i].second));
 
         if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
           cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
@@ -182,7 +182,7 @@ main(int argc, const char **argv) {
             cpgs_a[i].get_start() == cpgs_b[j].get_start()) {
 	
           const size_t meth_b(static_cast<size_t>(meth_unmeth_b[j].first)),
-            unmeth_b(static_cast<size_t>(meth_unmeth_b[j].first));
+            unmeth_b(static_cast<size_t>(meth_unmeth_b[j].second));
 	
           if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
             cpgs_a[i].set_name("CpG:" + 
