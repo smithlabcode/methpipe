@@ -43,7 +43,7 @@ using std::min;
 using std::pair;
 
 double
-get_fdr_cutoff(const vector<double> &scores, const double fdr) {
+get_score_cutoff_for_fdr(const vector<double> &scores, const double fdr) {
   if (fdr <= 0)
     return numeric_limits<double>::max();
   else if (fdr > 1)
@@ -268,7 +268,7 @@ read_params_file(const bool VERBOSE,
 		 vector<double> &start_trans, 
 		 vector<vector<double> > &trans, 
 		 vector<double> &end_trans,
-		 double &fdr_cutoff) {
+		 double &score_cutoff_for_fdr) {
   string jnk;
   std::ifstream in(params_file.c_str());
   in >> jnk >> fg_alpha
@@ -283,7 +283,7 @@ read_params_file(const bool VERBOSE,
      >> jnk >> trans[1][1]
      >> jnk >> end_trans[0]
      >> jnk >> end_trans[1]
-     >> jnk >> fdr_cutoff;
+     >> jnk >> score_cutoff_for_fdr;
   if (VERBOSE)
     cerr << "FG_ALPHA\t" << fg_alpha << endl
 	 << "FG_BETA\t" << fg_beta << endl
@@ -297,7 +297,7 @@ read_params_file(const bool VERBOSE,
 	 << "B_B\t" << trans[1][1] << endl
 	 << "F_E\t" << end_trans[0] << endl
 	 << "B_E\t" << end_trans[1] << endl
-	 << "FDR_CUTOFF\t" << fdr_cutoff << endl;
+	 << "SCORE_CUTOFF_FOR_FDR\t" << score_cutoff_for_fdr << endl;
 }
 
 static void
@@ -348,9 +348,11 @@ main(int argc, const char **argv) {
     // corrections for small values (not parameters):
     double tolerance = 1e-10;
     double min_prob  = 1e-10;
-
+    
     string params_in_file;
     string params_out_file;
+
+    double fdr_cutoff = 0.01;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
@@ -363,6 +365,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("partial", '\0', "identify PMRs instead of HMRs", 
 		      false, PARTIAL_METH);
+    opt_parse.add_opt("fdr", '\0', "fdr cutoff", false, fdr_cutoff);
     opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)", 
 		      false, params_in_file);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file", 
@@ -425,13 +428,13 @@ main(int argc, const char **argv) {
     double bg_alpha = 0;
     double bg_beta = 0;
     
-    double fdr_cutoff = std::numeric_limits<double>::max();
+    double score_cutoff_for_fdr = std::numeric_limits<double>::max();
 
     if (!params_in_file.empty()) {
       // READ THE PARAMETERS FILE
       read_params_file(VERBOSE, params_in_file, 
 		       fg_alpha, fg_beta, bg_alpha, bg_beta,
-		       start_trans, trans, end_trans, fdr_cutoff);
+		       start_trans, trans, end_trans, score_cutoff_for_fdr);
     }
     else {
       const double n_reads = 
@@ -468,34 +471,21 @@ main(int argc, const char **argv) {
     shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
 		 fg_alpha, fg_beta, bg_alpha, bg_beta, random_scores);
 
-    /////
-    cerr << "check random: "<< random_scores.size() << "\t"
-         << *std::max_element(random_scores.begin(), random_scores.end()) << "\t"
-         << *std::min_element(random_scores.begin(), random_scores.end()) << endl;
-/////
-
-    
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
     
-    if (fdr_cutoff == numeric_limits<double>::max())
-      fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
-
-    if (!params_out_file.empty())
-    {
+    if (score_cutoff_for_fdr == numeric_limits<double>::max())
+      score_cutoff_for_fdr = get_score_cutoff_for_fdr(p_values, fdr_cutoff);
+    
+    if (!params_out_file.empty()) {
       std::ofstream out(params_out_file.c_str(), std::ios::app);
-      out << "FDR_CUTOFF\t" 
-	  << std::setprecision(30) << fdr_cutoff << endl;
+      out << "SCORE_CUTOFF_FOR_FDR\t" 
+	  << std::setprecision(30) << score_cutoff_for_fdr << endl;
       out.close();
     }
     
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
-
-    /////
-    cerr << "check 1: "<< domains.size() << endl;
-/////
-
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -503,7 +493,7 @@ main(int argc, const char **argv) {
     
     size_t good_hmr_count = 0;
     for (size_t i = 0; i < domains.size(); ++i)
-      if (p_values[i] < fdr_cutoff) {
+      if (p_values[i] < score_cutoff_for_fdr) {
 	domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
 	out << domains[i] << '\n';
       }
