@@ -57,9 +57,9 @@ line, shell environment variables, etc.).
 
 It is also critical that users are familiar with BS-seq experiments,
 especially the bisulfite conversion reaction, and how this affects
-what we observe in the sequenced reads. Especially if paired-end
-sequencing is used. If you do not understand these concepts, you will
-likely run into major problems trying to customize our pipeline.
+what we observe in the sequenced reads. This is especially important
+ if paired-end sequencing is used. If you do not understand these
+ concepts, you will likely run into major problems trying to customize our pipeline.
 
 \section{Methylome construction}
 
@@ -623,6 +623,17 @@ execute
 $ merge-methcounts ASDF.R1/R1_METH.bed  ASDF.R2/R2_METH.bed
  ASDF.R3/R3_METH.bed -o ASDF_merged_METH.bed
  \end{verbatim}
+
+\paragraph{Computation of average methylation level}
+The \prog{levels} program computes average methylation in a methcounts
+file in three different ways, described in Ecker et al. 2012.  This program
+should provide flexibility to compare methylation data with publications
+that calculate averages different ways and illustrate the variability of
+the statistic depending on how it is calculated.  To run the \prog{levels}
+program, execute
+\begin{verbatim}
+$ levels -o ASDF_merged_METH.levels ASDF_merged_METH.bed
+\end{verbatim}
 
 \section{Methylome analysis}
 \label{sec:high-level-analys}
