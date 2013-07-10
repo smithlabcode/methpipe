@@ -354,6 +354,21 @@ Notice that the number of lines per split file is 12M, since we want
 this, you will need to ``unsplit'' them after the mapping is done. Not
 a problem, just use the \prog{cat} command.
 
+\paragraph{Alternative mappers:}
+\label{sec:alternative-mappers}
+We described how to map bisulfite treated reads with the \prog{rmapbs}
+program. Users may also use alternative mappers, for example,
+BSSeeker, which uses three-alphabeta stragy, and BSMAP, which allows
+gaps during mapping. The program \prog{to-mr} is used to convert the
+output from those mappers to the .mr format used in our pipeline. To
+convert BSMAP mapped read file in .bam format, run
+\begin{verbatim}
+$ ./to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.bam
+\end{verbatim}
+where the option \prog{-m} specifies that the original mapper is
+BSMAP. To obtain a list of alternative mappers supported by our
+converter, run \prog{to-mr} without any options. 
+
 \subsection{Merging libraries and removing duplicates}
 \label{sec:mapping}
 
