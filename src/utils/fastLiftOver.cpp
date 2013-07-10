@@ -129,8 +129,8 @@ main(int argc, const char **argv)
             cerr << "Lifting " << fromfile << " to " << tofile << endl;
         while (methpipe::read_site(from, chrom, pos, strand, seq, meth, coverage))
         {
-            typedef unordered_map<string, unordered_map<size_t, GenomicSite> >::iterator HTItor;
-            typedef unordered_map<size_t, GenomicSite>::iterator HTItor2;
+            unordered_map<string, unordered_map<size_t, GenomicSite> >::iterator ito;
+            unordered_map<size_t, GenomicSite>::iterator iti;
             
             if ((ito = index.find(chrom)) != index.end()
                 && (iti = ito->second.find(pos)) != ito->second.end())
