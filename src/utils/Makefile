@@ -27,7 +27,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx 
+PROGS = lc_approx fastLiftOver
 
 COMMON_DIR = $(SRC_ROOT)/src/common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
@@ -57,6 +57,10 @@ install: $(PROGS)
 
 lc_approx: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) 
+
+fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
+	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
