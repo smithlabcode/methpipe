@@ -55,7 +55,9 @@ namespace methpipe
                const std::string &strand, const std::string &seq,
                const double &meth, const size_t &coverage)
     {
-        out << chrom << pos << strand << seq << meth << coverage;
+        out << chrom << "\t " << "\t" << pos << "\t"
+            << strand << "\t" << seq << "\t" << meth << "\t"
+            << coverage << std::endl;
         return out.good();
     }
 
