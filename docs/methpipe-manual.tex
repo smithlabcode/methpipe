@@ -1203,9 +1203,9 @@ below). If the name of our methylome is \texttt{ASDF} then we
 would organize our biological replicates in a directory structure like
 this:
 \begin{verbatim}
-./ASDF/ASDF.R1/
-./ASDF/ASDF.R2/
-./ASDF/ASDF.R3/
+./ASDF/ASDF_R1/
+./ASDF/ASDF_R2/
+./ASDF/ASDF_R3/
 \end{verbatim}
 The properties that we would typically associate with a biological
 replicate include the average methylation levels through different
@@ -1233,9 +1233,9 @@ data from different libraries is easy. The methylation levels in
 concatenated and the re-sorted. Within a biological replicate, we
 organize libraries as follows.
 \begin{verbatim}
-./ASDF/ASDF.R1/ASDF.R1.L1/
-./ASDF/ASDF.R1/ASDF.R1.L2/
-./ASDF/ASDF.R1/ASDF.R1.L3/
+./ASDF/ASDF_R1/ASDF_R1_L1/
+./ASDF/ASDF_R1/ASDF_R1_L2/
+./ASDF/ASDF_R1/ASDF_R1_L3/
 \end{verbatim}
 
 \paragraph{Reads files within a library}
@@ -1244,12 +1244,12 @@ a uniform scheme for naming the data files. The following example
 illustrates files corresponding to 4 sets of reads, two from
 paired-end sequencing and two from single-end sequencing:
 \begin{verbatim}
-./ASDF/ASDF.R1/ASDF.R1.L1/1_1.fq
-./ASDF/ASDF.R1/ASDF.R1.L1/1_2.fq
-./ASDF/ASDF.R1/ASDF.R1.L1/2_1.fq
-./ASDF/ASDF.R1/ASDF.R1.L1/2_2.fq
-./ASDF/ASDF.R1/ASDF.R1.L1/3.fq
-./ASDF/ASDF.R1/ASDF.R1.L1/4.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/1_1.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/1_2.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/2_1.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/2_2.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/3.fq
+./ASDF/ASDF_R1/ASDF_R1_L1/4.fq
 \end{verbatim}
 The files \fn{1\_1.fq} and \fn{1\_2.fq} are corresponding left and
 right mates files. These must be processed together so that the
@@ -1258,18 +1258,18 @@ single-end sequencing run. We recommend using symbolic links to set up
 these filenames, and to keep subdirectories corresponding to the
 individual sequencing runs for the same library.
 \begin{verbatim}
-./ASDF/ASDF.R1/ASDF.R1.L1/Run1/s_1_1_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/Run1/s_1_2_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/Run2/LID12345_NoIndex_L001_R1_001.fastq
-./ASDF/ASDF.R1/ASDF.R1.L1/Run2/LID12345_NoIndex_L001_R2_001.fastq
-./ASDF/ASDF.R1/ASDF.R1.L1/Run3/s_1_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/Run3/s_2_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/1_1.fq --> Run1/s_1_1_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/1_2.fq --> Run1/s_1_2_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/2_1.fq --> Run2/LID12345_NoIndex_L001_R1_001.fastq
-./ASDF/ASDF.R1/ASDF.R1.L1/2_2.fq --> Run2/LID12345_NoIndex_L001_R2_001.fastq
-./ASDF/ASDF.R1/ASDF.R1.L1/3.fq --> Run3/s_1_sequence.txt
-./ASDF/ASDF.R1/ASDF.R1.L1/4.fq --> Run3/s_2_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/Run1/s_1_1_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/Run1/s_1_2_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/Run2/LID12345_NoIndex_L001_R1_001.fastq
+./ASDF/ASDF_R1/ASDF_R1_L1/Run2/LID12345_NoIndex_L001_R2_001.fastq
+./ASDF/ASDF_R1/ASDF_R1_L1/Run3/s_1_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/Run3/s_2_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/1_1.fq --> Run1/s_1_1_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/1_2.fq --> Run1/s_1_2_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/2_1.fq --> Run2/LID12345_NoIndex_L001_R1_001.fastq
+./ASDF/ASDF_R1/ASDF_R1_L1/2_2.fq --> Run2/LID12345_NoIndex_L001_R2_001.fastq
+./ASDF/ASDF_R1/ASDF_R1_L1/3.fq --> Run3/s_1_sequence.txt
+./ASDF/ASDF_R1/ASDF_R1_L1/4.fq --> Run3/s_2_sequence.txt
 \end{verbatim}
 This kind of organization accomplishes four things: (1) it keeps read
 files from different runs separate, (2) it provides a place to keep
@@ -1282,15 +1282,15 @@ needed by our pipeline.
 For the example scheme we have been describing, we would organize the
 results in the following directories.
 \begin{verbatim}
-./ASDF/ASDF.R1/ASDF.R1.L1/results/
-./ASDF/ASDF.R1/ASDF.R1.L2/results/
-./ASDF/ASDF.R1/results/
-./ASDF/ASDF.R2/ASDF.R2.L1/results/
-./ASDF/ASDF.R2/ASDF.R2.L2/results/
-./ASDF/ASDF.R2/results/
-./ASDF/ASDF.R3/ASDF.R3.L1/results/
-./ASDF/ASDF.R3/ASDF.R3.L2/results/
-./ASDF/ASDF.R3/results/
+./ASDF/ASDF_R1/ASDF_R1_L1/results/
+./ASDF/ASDF_R1/ASDF_R1_L2/results/
+./ASDF/ASDF_R1/results/
+./ASDF/ASDF_R2/ASDF_R2_L1/results/
+./ASDF/ASDF_R2/ASDF_R2_L2/results/
+./ASDF/ASDF_R2/results/
+./ASDF/ASDF_R3/ASDF_R3_L1/results/
+./ASDF/ASDF_R3/ASDF_R3_L2/results/
+./ASDF/ASDF_R3/results/
 ./ASDF/results/
 \end{verbatim}
 
@@ -1312,12 +1312,58 @@ the number of reads in a FASTQ file s\_1\_1\_sequence.fq, run
 \begin{verbatim}
 $ lc_approx  s_1_1_sequence.fq
 \end{verbatim}
-It will return the approxiamte number of lines in this file and by
-dividing the above number by 4, you get the appriximate number of
+It will return the approximate number of lines in this file and by
+dividing the above number by 4, you get the approximate number of
 reads in that file.  The \prog{lc\_apprix} can be hundreds of times
 faster than the unix tool \prog{wc -l}.  
 
+\subsection{Automating methylome analysis}
+\label{sec:automate-library-level}
+Two bash scripts have been provided to perform quick and consistent analysis
+on the individual library level and aggregated biological replicate level.
+For each library in a project, \prog{library} sorts, removes duplicate
+reads, calculates the bisulfite conversion rate, runs \prog{methcounts}, and
+runs \prog{levels}.  There is also an option to perform \prog{methcounts}
+analysis on all cytosines, which can be toggled by uncommenting the command
+in the script.  For RRBS data, the \prog{duplicate-remover} command should
+be commented.
 
+To run \prog{library}, navigate to the library's results directory --
+the structure should look something like
+\begin{verbatim}
+./ASDF/ASDF_R1/ASDF_R1_L1/results_mm9/
+\end{verbatim}
+and should contain a single mapped reads file. To run, specify the directory
+where \prog{methpipe} binaries can be found, the directory where chromosome
+files can be found, and the base name of the library or replicate you are
+working on:
+
+\begin{verbatim}
+library /home/user/Desktop/methpipe/trunk/bin \
+        /home/user/Desktop/mm9_chroms ASDF_R1_L1
+\end{verbatim}
+
+When \prog{library} has been run on all individual libraries, the
+results can be merged to produce results for the biological replicate using
+\prog{biorep}. This merges bisulfite conversion rate and methcounts
+statistics, and then uses them to generate HMRs, PMRs, and AMRs. To run
+\prog{biorep}, navigate to the biological replicate's results
+directory -- the structure should look something like
+\begin{verbatim}
+./ASDF/ASDF_R1/results_mm9/
+\end{verbatim}
+and should be empty when the program starts. To run, specify the same command
+line arguments as above, with the biological replicate as the base name:
+\begin{verbatim}
+biorep /home/user/Desktop/methpipe/trunk/bin \
+       /home/user/Desktop/mm9_chroms ASDF_R1
+\end{verbatim}
+
+All run configurations for the programs in these scripts are consistent with
+data in methbase, and therefore direct comparison is appropriate. These tools
+should provide a convenient, consistent workflow for researchers to quickly
+analyze and compare their methylomes with those made publically available
+in methbase.
 
 \bibliographystyle{plain}
 \bibliography{biblio}
