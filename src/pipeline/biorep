@@ -1,0 +1,25 @@
+#!/bin/bash
+
+BINPATH=$1 
+CHROMS=$2 
+BASE_NAME=$3
+
+if [[ ! -d "${BINPATH}" || ! -d "${CHROMS}" ]]
+then
+    echo "Please specify a valid path to methpipe binaries and chroms dir."
+    exit
+fi
+
+LC_ALL=C
+
+${BINPATH}/merge-methcounts -o ${BASE_NAME}.meth ../${BASE_NAME}_L*/$(basename $PWD)/*.meth
+${BINPATH}/hmr -p ${BASE_NAME}.params -o ${BASE_NAME}.hmr ${BASE_NAME}.meth
+${BINPATH}/hmr -partial -o ${BASE_NAME}.pmd ${BASE_NAME}.meth
+${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
+
+sort -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.states \
+    ../${BASE_NAME}_L*/$(basename $PWD)/*.states
+${BINPATH}/allelicmeth -c ${CHROMS} -o ${BASE_NAME}.allelicmeth ${BASE_NAME}.states
+${BINPATH}/amrfinder -o ${BASE_NAME}.amr -i 10 -w 10 -m 11 -c ${CHROMS} -E ${BASE_NAME}.states
+
+# TODO: bsrate merging program

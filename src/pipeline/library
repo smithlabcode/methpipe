@@ -1,0 +1,33 @@
+#!/bin/bash
+
+BINPATH=$1 
+CHROMS=$2 
+BASE_NAME=$3
+
+if [[ ! -d "$BINPATH" || ! -d "$CHROMS" ]]
+then
+    echo "Please specify a valid path to methpipe binaries and chroms dir."
+    exit
+fi
+
+LC_ALL=C
+
+sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.mr.sorted ${BASE_NAME}.mr
+mv ${BASE_NAME}.mr.sorted ${BASE_NAME}.mr
+
+#### COMMENT DUPLICATE REMOVAL BELOW IF RRBS
+${BINPATH}/duplicate-remover -S ${BASE_NAME}.stats \
+    -o ${BASE_NAME}.mr.uniq ${BASE_NAME}.mr
+
+${BINPATH}/bsrate -c ${CHROMS} -o ${BASE_NAME}.bsrate ${BASE_NAME}.mr.uniq
+${BINPATH}/methcounts -c ${CHROMS} -S ${BASE_NAME}.methstats \
+    -o ${BASE_NAME}.meth ${BASE_NAME}.mr.uniq
+${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
+${BINPATH}/methstates -c ${CHROMS} -o ${BASE_NAME}.epiread ${BASE_NAME}.mr.uniq
+
+#### UNCOMMENT FOR ALL CYTOSINES
+## ${BINPATH}/methcounts -N -c ${CHROMS} -S \
+## ${BASE_NAME}_all.methstats -o ${BASE_NAME}_all.meth \
+## ${BASE_NAME}.mr.uniq
+
+rm ${BASE_NAME}.mr.uniq
