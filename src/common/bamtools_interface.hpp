@@ -25,8 +25,17 @@
 #include <vector>
 
 #include <MappedRead.hpp>
+#include <tr1/unordered_map>
+
+#include <api/BamReader.h>
+#include <api/BamAlignment.h>
 
 void
 ReadBAMFormatInput(const std::string &infile, std::vector<MappedRead> &reads);
+
+void
+BamAlignmentToMappedReadWithMapper(
+    const std::tr1::unordered_map<size_t, std::string> &chrom_lookup,
+    const BamTools::BamAlignment &ba, MappedRead &mr, std::string mapper);
 
 #endif
