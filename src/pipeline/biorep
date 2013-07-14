@@ -13,8 +13,8 @@ fi
 LC_ALL=C
 
 ${BINPATH}/merge-methcounts -o ${BASE_NAME}.meth ../${BASE_NAME}_L*/$(basename $PWD)/*.meth
-${BINPATH}/hmr -p ${BASE_NAME}.params -o ${BASE_NAME}.hmr ${BASE_NAME}.meth
-${BINPATH}/hmr -partial -o ${BASE_NAME}.pmd ${BASE_NAME}.meth
+${BINPATH}/hmr -o ${BASE_NAME}.hmr ${BASE_NAME}.meth
+${BINPATH}/hmr -partial -o ${BASE_NAME}.pmr ${BASE_NAME}.meth
 ${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
 
 sort -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.states \
