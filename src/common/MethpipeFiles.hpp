@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2012 University of Southern California
-  Authors: Andrew D. Smith, Song Qiang
+  Authors: Andrew D. Smith, Song Qiang, Benjamin Decato
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,25 +41,15 @@ namespace methpipe
               std::vector<std::pair<double, double> > &meths,
               std::vector<size_t> &reads);
 
-    inline bool
+    bool
     read_site(std::istream &in, std::string &chrom, size_t &pos,
               std::string &strand, std::string &seq,
-              double &meth, size_t &coverage)
-    {
-        in >> chrom >> pos >> strand >> seq >> meth >> coverage;
-        return in.good();
-    }
+              double &meth, size_t &coverage);
 
-    inline bool
+    bool
     write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
                const std::string &strand, const std::string &seq,
-               const double &meth, const size_t &coverage)
-    {
-        out << chrom << "\t " << "\t" << pos << "\t"
-            << strand << "\t" << seq << "\t" << meth << "\t"
-            << coverage << std::endl;
-        return out.good();
-    }
+               const double &meth, const size_t &coverage);
 
     // re-locate the file handler point to the first line
     // that are at or behind location chrom, pos

@@ -1345,9 +1345,9 @@ library /home/user/Desktop/methpipe/trunk/bin \
 
 When \prog{library} has been run on all individual libraries, the
 results can be merged to produce results for the biological replicate using
-\prog{biorep}. This merges bisulfite conversion rate and methcounts
+\prog{merge-methylomes}. This merges bisulfite conversion rate and methcounts
 statistics, and then uses them to generate HMRs, PMRs, and AMRs. To run
-\prog{biorep}, navigate to the biological replicate's results
+\prog{merge-methylomes}, navigate to the biological replicate's results
 directory -- the structure should look something like
 \begin{verbatim}
 ./ASDF/ASDF_R1/results_mm9/
@@ -1356,8 +1356,12 @@ and should be empty when the program starts. To run, specify the same command
 line arguments as above, with the biological replicate as the base name:
 \begin{verbatim}
 biorep /home/user/Desktop/methpipe/trunk/bin \
-       /home/user/Desktop/mm9_chroms ASDF_R1
+       /home/user/Desktop/mm9_chroms ASDF_R1 L
 \end{verbatim}
+
+In some cases, it is useful to merge biological replicates rather than
+libraries. In this case, the fourth parameter of \prog{merge-methylomes}
+should be R.
 
 All run configurations for the programs in these scripts are consistent with
 data in methbase, and therefore direct comparison is appropriate. These tools

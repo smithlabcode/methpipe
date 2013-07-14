@@ -20,8 +20,9 @@
 BINPATH=$1 
 CHROMS=$2 
 BASE_NAME=$3
+LIB_OR_REP=$4
 
-if [[ ! -d "$BINPATH" || ! -d "$CHROMS" ]]
+if [[ ! -d "${BINPATH}" || ! -d "${CHROMS}" ]]
 then
     echo "Please specify a valid path to methpipe binaries and chroms dir."
     exit
@@ -29,22 +30,14 @@ fi
 
 LC_ALL=C
 
-sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.mr.sorted ${BASE_NAME}.mr
-mv ${BASE_NAME}.mr.sorted ${BASE_NAME}.mr
-
-#### COMMENT DUPLICATE REMOVAL BELOW IF RRBS
-${BINPATH}/duplicate-remover -S ${BASE_NAME}.stats \
-    -o ${BASE_NAME}.mr.uniq ${BASE_NAME}.mr
-
-${BINPATH}/bsrate -c ${CHROMS} -o ${BASE_NAME}.bsrate ${BASE_NAME}.mr.uniq
-${BINPATH}/methcounts -c ${CHROMS} -S ${BASE_NAME}.methstats \
-    -o ${BASE_NAME}.meth ${BASE_NAME}.mr.uniq
+${BINPATH}/merge-methcounts -o ${BASE_NAME}.meth ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.meth
+${BINPATH}/hmr -p ${BASE_NAME}.params -o ${BASE_NAME}.hmr ${BASE_NAME}.meth
+${BINPATH}/hmr -partial -o ${BASE_NAME}.pmd ${BASE_NAME}.meth
 ${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
-${BINPATH}/methstates -c ${CHROMS} -o ${BASE_NAME}.epiread ${BASE_NAME}.mr.uniq
 
-#### UNCOMMENT FOR ALL CYTOSINES
-## ${BINPATH}/methcounts -N -c ${CHROMS} -S \
-## ${BASE_NAME}_all.methstats -o ${BASE_NAME}_all.meth \
-## ${BASE_NAME}.mr.uniq
+sort -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.states \
+    ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.states
+${BINPATH}/allelicmeth -c ${CHROMS} -o ${BASE_NAME}.allelicmeth ${BASE_NAME}.states
+${BINPATH}/amrfinder -o ${BASE_NAME}.amr -i 10 -w 10 -m 11 -c ${CHROMS} -E ${BASE_NAME}.states
 
-rm ${BASE_NAME}.mr.uniq
+# TODO: bsrate merging program

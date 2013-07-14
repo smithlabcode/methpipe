@@ -1,6 +1,6 @@
 /*
   Copyright (C) 2012 University of Southern California
-  Authors: Andrew D. Smith, Song Qiang
+  Authors: Andrew D. Smith, Song Qiang, Benjamin Decato
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include <utility>
 #include <fstream>
 #include <sstream>
-
+#include <cstdlib>
 #include "GenomicRegion.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -196,4 +196,51 @@ methpipe::seek_site(std::istream &in, const std::string &chr,
         in.seekg(pos, ios_base::beg);
         move_to_start_of_line(in);
     }
+}
+
+bool
+methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
+                    string &strand, string &seq,
+                    double &meth, size_t &coverage) {
+  string line;
+  getline(in, line);
+
+  std::istringstream is(line);
+
+  string pos_str, meth_str, cov_str;
+  if (!(is >> chrom >> pos_str >> strand >>
+        seq >> meth_str >> cov_str)) {
+    return false;
+  }
+
+  is.clear();
+  is.str(pos_str);
+  if (!(is >> pos))
+    return false;
+
+  is.clear();
+  is.str(meth_str);
+  meth= strtod(meth_str.c_str(), NULL);
+
+  is.clear();
+  is.str(cov_str);
+  if (!(is >> coverage))
+    return false;
+
+  if (isnan(meth) && coverage == 0)
+    meth = 0;
+  else
+    return false;
+
+  return in.good();
+}
+
+bool
+methpipe::write_site(std::ostream &out,
+                     const string &chrom, const size_t &pos,
+                     const string &strand, const string &seq,
+                     const double &meth, const size_t &coverage) {
+  return (out << chrom << "\t" << pos << "\t" << strand
+          << "\t" << seq << "\t" << meth << "\t"
+          << coverage << '\n');
 }
