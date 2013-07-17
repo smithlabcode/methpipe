@@ -202,37 +202,40 @@ bool
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
                     double &meth, size_t &coverage) {
-  string line;
-  getline(in, line);
+    in >> chrom >> pos >> strand >> seq >> meth >> coverage;
+    return in.good();
+    
+  // string line;
+  // getline(in, line);
 
-  std::istringstream is(line);
+  // std::istringstream is(line);
 
-  string pos_str, meth_str, cov_str;
-  if (!(is >> chrom >> pos_str >> strand >>
-        seq >> meth_str >> cov_str)) {
-    return false;
-  }
+  // string pos_str, meth_str, cov_str;
+  // if (!(is >> chrom >> pos_str >> strand >>
+  //       seq >> meth_str >> cov_str)) {
+  //   return false;
+  // }
 
-  is.clear();
-  is.str(pos_str);
-  if (!(is >> pos))
-    return false;
+  // is.clear();
+  // is.str(pos_str);
+  // if (!(is >> pos))
+  //   return false;
 
-  is.clear();
-  is.str(meth_str);
-  meth= strtod(meth_str.c_str(), NULL);
+  // is.clear();
+  // is.str(meth_str);
+  // meth= strtod(meth_str.c_str(), NULL);
 
-  is.clear();
-  is.str(cov_str);
-  if (!(is >> coverage))
-    return false;
+  // is.clear();
+  // is.str(cov_str);
+  // if (!(is >> coverage))
+  //   return false;
 
-  if (isnan(meth) && coverage == 0)
-    meth = 0;
-  else
-    return false;
+  // if (isnan(meth) && coverage == 0)
+  //   meth = 0;
+  // else
+  //   return false;
 
-  return in.good();
+  // return in.good();
 }
 
 bool
@@ -246,7 +249,7 @@ methpipe::write_site(std::ostream &out,
 }
 
 bool
-read_site_old(std::istream &in, string &chrom, size_t &pos,
+methpipe::read_site_old(std::istream &in, string &chrom, size_t &pos,
               string &strand, std::string &seq,
               double &meth, size_t &coverage)
 {
@@ -265,7 +268,7 @@ read_site_old(std::istream &in, string &chrom, size_t &pos,
 }
   
 bool 
-write_site_old(std::ostream &out, const string &chrom, const size_t &pos,
+methpipe::write_site_old(std::ostream &out, const string &chrom, const size_t &pos,
                const string &strand, const string &seq,
                const double &meth, const size_t &coverage)
 {
