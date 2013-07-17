@@ -24,7 +24,7 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = pmd methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr \
-	levels roimethstat  merge-methcounts amrfinder amrtester 
+	levels roimethstat  merge-methcounts amrfinder amrtester methstates 
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -82,6 +82,8 @@ amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o EpireadIO.o Epiread.o) \
 
 amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o EpireadIO.o Epiread.o) \
 		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
+
+methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 
 %.o: %.cpp %.hpp
