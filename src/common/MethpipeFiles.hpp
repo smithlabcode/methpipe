@@ -59,6 +59,18 @@ namespace methpipe
 
     bool
     is_methpipe_file_single(const std::string &file);
+
+    // files to support old format
+    bool
+    read_site_old(std::istream &in, std::string &chrom, size_t &pos,
+                  std::string &strand, std::string &seq,
+                  double &meth, size_t &coverage);
+  
+    bool 
+    write_site_old(std::ostream &out, const std::string &chrom,
+                   const size_t &pos, const std::string &strand,
+                   const std::string &seq, const double &meth,
+                   const size_t &coverage);
 }
 #endif
 

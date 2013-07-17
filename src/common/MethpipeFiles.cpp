@@ -244,3 +244,33 @@ methpipe::write_site(std::ostream &out,
           << "\t" << seq << "\t" << meth << "\t"
           << coverage << '\n');
 }
+
+bool
+read_site_old(std::istream &in, string &chrom, size_t &pos,
+              string &strand, std::string &seq,
+              double &meth, size_t &coverage)
+{
+  GenomicRegion r;
+  if (in >> r) {
+    chrom = r.get_chrom();
+    pos = r.get_start();
+    strand = string(1, r.get_strand());
+
+    const string name = r.get_name();
+    seq = name.substr(0, name.find(":"));
+    meth = r.get_score();
+    coverage = atoi(name.substr(name.find(":") + 1).c_str());
+  }
+  return in.good();
+}
+  
+bool 
+write_site_old(std::ostream &out, const string &chrom, const size_t &pos,
+               const string &strand, const string &seq,
+               const double &meth, const size_t &coverage)
+{
+  out << chrom << "\t" << pos << "\t" << pos + 1 << "\t"
+      << (seq + ":" + smithlab::toa(coverage)) << "\t"
+      << meth << "\t" << strand << std::endl;
+  return out.good();
+}
