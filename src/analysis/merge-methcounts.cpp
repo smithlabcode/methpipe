@@ -44,37 +44,6 @@ using std::endl;
 using std::max;
 using std::accumulate;
 
-static bool 
-read_site_old(
-  std::istream &in, string &chrom, size_t &pos,
-  string &strand, string &seq,
-  double &meth, size_t &coverage)
-{
-  GenomicRegion r;
-  if (in >> r) {
-    chrom = r.get_chrom();
-    pos = r.get_start();
-    strand = string(1, r.get_strand());
-
-    const string name = r.get_name();
-    seq = name.substr(0, name.find(":"));
-    meth = r.get_score();
-    coverage = atoi(name.substr(name.find(":") + 1).c_str());
-  }
-  return in.good();
-}
-  
-static bool 
-write_site_old(
-  std::ostream &out, const string &chrom, const size_t &pos,
-  const string &strand, const string &seq,
-  const double &meth, const size_t &coverage)
-{
-  out << chrom << "\t" << pos << "\t" << pos + 1 << "\t"
-      << (seq + ":" + smithlab::toa(coverage)) << "\t"
-      << meth << "\t" << strand << endl;
-  return out.good();
-}
 
 int 
 main(int argc, const char **argv) 
@@ -127,7 +96,7 @@ main(int argc, const char **argv)
     while (new_methcount_fmt
            ? methpipe::read_site(*infiles.front(), chrom, pos, strand,
                                  seq, meth, coverage)
-           : read_site_old(*infiles.front(), chrom, pos, strand,
+           : methpipe::read_site_old(*infiles.front(), chrom, pos, strand,
                            seq, meth, coverage)) {	
 
       const string ref_chrom = chrom;
@@ -141,7 +110,7 @@ main(int argc, const char **argv)
         if ((new_methcount_fmt
             ? methpipe::read_site(*infiles[i], chrom, pos, strand,
                                   seq, meth, coverage)
-            : read_site_old(*infiles[i], chrom, pos, strand,
+            : methpipe::read_site_old(*infiles[i], chrom, pos, strand,
                             seq, meth, coverage))
             && ref_chrom == chrom
             && ref_pos  == pos
@@ -154,12 +123,16 @@ main(int argc, const char **argv)
       }
       if (new_methcount_fmt)
         methpipe::write_site(outf, chrom, pos, strand, seq,
-                             n_meth / n_total, n_total);
+                             n_total == 0 ? 0 : (n_meth / n_total), n_total);
       else
-        write_site_old(outf, chrom, pos, strand, seq,
-                       n_meth / n_total, n_total);
+        methpipe::write_site_old(outf, chrom, pos, strand, seq,
+                       n_total == 0 ? 0 : (n_meth / n_total), n_total);
     } 
-    for (size_t i = 0; i < infiles.size(); ++i) infiles[i]->close();
+    for (size_t i = 0; i < infiles.size(); ++i)
+    {
+        infiles[i]->close();
+        delete infiles[i];
+    }
     outf.close();
   }
   catch (const SMITHLABException &e)  {
