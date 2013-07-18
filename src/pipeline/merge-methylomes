@@ -38,6 +38,6 @@ ${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
 sort -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.states \
     ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.states
 ${BINPATH}/allelicmeth -c ${CHROMS} -o ${BASE_NAME}.allelicmeth ${BASE_NAME}.states
-${BINPATH}/amrfinder -o ${BASE_NAME}.amr -i 10 -w 10 -m 11 -c ${CHROMS} -E ${BASE_NAME}.states
+${BINPATH}/amrfinder -v -o ${BASE_NAME}.amr -i 10 -w 10 -m 1 -c ${CHROMS} -E ${BASE_NAME}.states
 
 # TODO: bsrate merging program
