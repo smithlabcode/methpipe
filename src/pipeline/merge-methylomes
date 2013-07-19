@@ -31,6 +31,7 @@ fi
 LC_ALL=C
 
 ${BINPATH}/merge-methcounts -o ${BASE_NAME}.meth ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.meth
+${BINPATH}/merge-bsrate -o ${BASE_NAME}.bsrate ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.bsrate
 ${BINPATH}/hmr -p ${BASE_NAME}.params -o ${BASE_NAME}.hmr ${BASE_NAME}.meth
 ${BINPATH}/hmr -partial -o ${BASE_NAME}.pmd ${BASE_NAME}.meth
 ${BINPATH}/levels -o ${BASE_NAME}.levels ${BASE_NAME}.meth
@@ -39,5 +40,3 @@ sort -m -k 1,1 -k 2,2g -k 3,3g -k 6,6 -o ${BASE_NAME}.states \
     ../${BASE_NAME}_${LIB_OR_REP}*/$(basename $PWD)/*.states
 ${BINPATH}/allelicmeth -c ${CHROMS} -o ${BASE_NAME}.allelicmeth ${BASE_NAME}.states
 ${BINPATH}/amrfinder -v -o ${BASE_NAME}.amr -i 10 -w 10 -m 1 -c ${CHROMS} -E ${BASE_NAME}.states
-
-# TODO: bsrate merging program
