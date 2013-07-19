@@ -507,6 +507,11 @@ $ grep ^chrM Human_ESC.mr > Human_ESC.mr.chrM
 $ ./bsrate -N -c chrM.fa -o Human_ESC.bsrate Human_ESC.mr.chrM
 \end{verbatim}
 
+After completing bisulfite conversion rate analysis, remember to
+remove any control reads not naturally occurring in the sample
+(lambda virus, mitochondrial DNA from another organism, etc)
+before continuing.
+
 \subsection{Computing single-site methylation levels}
 \label{sec:estim-methyl-freq}
 

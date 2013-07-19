@@ -1,7 +1,7 @@
 /*    bsrate: a program for determining the rate of bisulfite
  *    conversion in a bisulfite sequencing experiment
  *
- *    Copyright (C) 2009-2012 University of Southern California and
+ *    Copyright (C) 2009-2013 University of Southern California and
  *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
@@ -169,8 +169,9 @@ write_output(const string &outfile,
       << "ALL" << '\t'
       << "ERRRATE"  << endl;
 
-  // Figure out how many positions to print in the output
-  size_t output_len = ucvt_count_p.size();
+  // Figure out how many positions to print in the output, capped at 1000
+  size_t output_len =
+         (ucvt_count_p.size() > 1000) ? 1000 : ucvt_count_p.size();
 //  cout << output_len << " before ... \n";
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +

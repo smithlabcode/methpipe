@@ -87,7 +87,7 @@ convert_meth_states_pos(const string &chrom,
   size_t cpg_count = 0;
   string states;
   size_t first_cpg = std::numeric_limits<size_t>::max();
-  size_t last_cpg = first_cpg;
+  //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i < chrom.length() && is_cpg(chrom, offset + i)) {
       if (mr.seq[i] == 'C') {
@@ -102,7 +102,7 @@ convert_meth_states_pos(const string &chrom,
       if (first_cpg == std::numeric_limits<size_t>::max()) {
         first_cpg = i;
       }
-      last_cpg = i;
+      //last_cpg = i;
     }
   }
   if (first_cpg != std::numeric_limits<size_t>::max()) {
@@ -127,7 +127,7 @@ convert_meth_states_neg(const string &chrom,
   size_t cpg_count = 0;
   string states;
   size_t first_cpg = std::numeric_limits<size_t>::max();
-  size_t last_cpg = first_cpg;
+  //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i > 0 && is_cpg(chrom, offset + i - 1)) {
       if (mr.seq[i] == 'G') {
@@ -142,7 +142,7 @@ convert_meth_states_neg(const string &chrom,
       if (first_cpg == std::numeric_limits<size_t>::max()) {
         first_cpg = i;
       }
-      last_cpg = i;
+      //last_cpg = i;
     }
   }
   if (first_cpg != std::numeric_limits<size_t>::max()) {
