@@ -44,6 +44,59 @@ using std::endl;
 using std::max;
 using std::accumulate;
 
+struct MethStat {
+
+  MethStat() : 
+    total_sites(0), total_covered(0),
+    max_cov(0), sum_cov(0), sum_cov_Cs(0) {}
+  
+  string tostring() const;
+  
+  void collect(const size_t meth_count, const size_t total) {
+    total_sites++;
+    if (total > 0) {
+      total_covered++;
+      max_cov = max(max_cov, total);
+      sum_cov += total;
+      sum_cov_Cs += meth_count;
+    }
+  }
+  
+  size_t total_sites;
+  size_t total_covered;
+  size_t max_cov;
+  size_t sum_cov;
+  size_t sum_cov_Cs;
+};
+
+
+string
+MethStat::tostring() const {
+  std::ostringstream out;
+  
+  out << "SITES:\t" << total_sites << endl
+      << "SITES COVERED:\t" << total_covered << endl
+      << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
+  
+  const double overall_cov = 
+    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_sites);
+  const double covered_cov = 
+    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_covered);
+  out << "MAX COVERAGE:\t" << max_cov << endl
+      << "MEAN COVERAGE:\t" << overall_cov << endl
+      << "MEAN (WHEN > 0):\t" << covered_cov << endl;
+  
+  const double meth_level = 
+    static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1), sum_cov);
+  out << "MEAN METHYLATION:\t" << meth_level;
+  return out.str();
+}
+
+
+std::ostream& 
+operator<<(std::ostream& the_stream, const MethStat& ms) {
+  return the_stream << ms.tostring();
+}
 
 int 
 main(int argc, const char **argv) 
@@ -51,6 +104,7 @@ main(int argc, const char **argv)
   
   try {
     string outfile("/dev/stdout");
+    string out_stat;
     bool VERBOSE;
         
     /****************** COMMAND LINE OPTIONS ********************/
@@ -59,6 +113,8 @@ main(int argc, const char **argv)
                            "<methcounts-files>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
                       false, outfile);
+    opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
+                      false , out_stat);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -92,6 +148,8 @@ main(int argc, const char **argv)
     string chrom, strand, seq;
     size_t pos, coverage;
     double meth;
+
+    MethStat meth_stat_collector;
     
     while (new_methcount_fmt
            ? methpipe::read_site(*infiles.front(), chrom, pos, strand,
@@ -121,6 +179,9 @@ main(int argc, const char **argv)
           throw SMITHLABException("error reading methcount file: "
                                   + methcounts_files[i]);
       }
+
+      meth_stat_collector.collect(static_cast<size_t>(n_meth), n_total);
+
       if (new_methcount_fmt)
         methpipe::write_site(outf, chrom, pos, strand, seq,
                              n_total == 0 ? 0 : (n_meth / n_total), n_total);
@@ -133,7 +194,14 @@ main(int argc, const char **argv)
         infiles[i]->close();
         delete infiles[i];
     }
+
     outf.close();
+    if (VERBOSE || !out_stat.empty()) {
+      std::ofstream of;
+      if (!out_stat.empty()) of.open(out_stat.c_str());
+      std::ostream out(out_stat.empty() ? cerr.rdbuf() : of.rdbuf());
+      out << meth_stat_collector << endl;
+    }
   }
   catch (const SMITHLABException &e)  {
     cerr << e.what() << endl;
