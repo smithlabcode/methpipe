@@ -229,9 +229,9 @@ methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
    if (!(is >> coverage))
      return false;
 
-   if (isnan(meth) && coverage == 0)
+   if (std::isnan(meth) && coverage == 0)
      meth = 0;
-   else if ( isnan(meth) )
+   else if (std::isnan(meth) )
      return false;
 
    return in.good();
