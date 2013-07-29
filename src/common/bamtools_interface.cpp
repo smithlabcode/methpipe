@@ -113,16 +113,26 @@ BamAlignmentToMappedReadWithMapper(
   string seq = ba.QueryBases;
   string qual = ba.Qualities;
 
-  // if a read is mapped to - strand, bismark stores the + strand seq of
-  // reference genome rather than the seq of that read, however bsmap
+  // bs_seeker doesn't keep sequencing quality information
+  if (mapper.compare("bs_seeker") == 0)
+    qual = string (seq.size(), 'h');
+
+  string new_seq, new_qual;
+  apply_CIGAR_for_BAM(seq, qual, ba.CigarData, new_seq, new_qual);
+
+  // if a read is mapped to - strand, bismark and bs_seeker stores the + strand
+  // seq of reference genome rather than the seq of that read, however bsmap
   // stores the original read sequence. I'm not sure about the orientation of
-  // CIGAR string in bismark. But we do need the original sequence in .mr
-  if (strand == '-' && mapper.compare("bismark") == 0) {
-    revcomp_inplace(seq);
-    std::reverse(qual.begin(), qual.end());
+  // CIGAR string in bismark and bs_seeker. But we do need the original
+  // sequence in .mr
+  // if (strand == '-' && mapper.compare("bismark") == 0) {
+  if (strand == '-' && (mapper.compare("bismark") == 0
+        || mapper.compare("bs_seeker") == 0) ) {
+    revcomp_inplace(new_seq);
+    std::reverse(new_qual.begin(), new_qual.end());
   }
-  // bismark adds /1 and /2 in mapping
-  if (ba.IsPaired() && mapper.compare("bsmap") == 0) {
+  // bismark adds /1 and /2 in mapping already
+  if (ba.IsPaired() && mapper.compare("bismark") != 0) {
     if (ba.IsFirstMate()) {
       name = name + "/1";
     }
@@ -130,9 +140,6 @@ BamAlignmentToMappedReadWithMapper(
       name = name + "/2";
     }
   }
-
-  string new_seq, new_qual;
-  apply_CIGAR_for_BAM(seq, qual, ba.CigarData, new_seq, new_qual);
 
   if (mapper.compare("bsmap") == 0) {
     if (!ba.GetTag("NM",mismatch))
@@ -151,6 +158,9 @@ BamAlignmentToMappedReadWithMapper(
       ++temp;
     }
     mismatch = mismatch - convert_count;
+  }
+  else {
+    mismatch = 0;
   }
   
   mr.r = GenomicRegion(chrom, start, end, name, mismatch, strand);

@@ -63,14 +63,17 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
-        "Supported mappers: bsmap, bismark", "[options] input_file");
-    opt_parse.add_opt("t_rich_output", 't', "name of output file for T-rich reads", 
+        "Supported mappers: bsmap, bismark, bs_seeker", "[options] input_file");
+    opt_parse.add_opt("t_rich_output", 't', "Name of output file for T-rich reads.", 
 		      true, outfile_t);
-    opt_parse.add_opt("a_rich_output", 'a', "name of output file for A-rich reads, if input is pair-end", 
+    opt_parse.add_opt("a_rich_output", 'a', "Name of output file for A-rich \
+                      reads, if input is pair-end.", 
 		      false, outfile_a);
-    opt_parse.add_opt("bam", 'b', "input file format is bam. Must have bamtools installed."
+    opt_parse.add_opt("bam", 'b', "Input file format is bam. Must have bamtools installed."
 		      , false, bam_format);
-    opt_parse.add_opt("mapper", 'm', "mapper used to generate input file", 
+    opt_parse.add_opt("mapper", 'm', "Mapper used to generate input file. See \
+                      supported mappers below. If you don't know which mapper \
+                      was used, simply type 'unknown'.", 
 		      true, mapper);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
