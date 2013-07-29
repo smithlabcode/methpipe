@@ -45,8 +45,8 @@ using std::make_pair;
 
 
 static void
-parse_cpg_line(const string &buffer, string &chrom, size_t &position, 
-	       size_t &n_meth, size_t &n_unmeth) {
+parse_cpg_line_old(const string &buffer, string &chrom, size_t &position, 
+		   size_t &n_meth, size_t &n_unmeth) {
   
   std::istringstream is(buffer);
   size_t dummy = 0ul;
@@ -56,6 +56,25 @@ parse_cpg_line(const string &buffer, string &chrom, size_t &position,
   
   const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
   
+  n_meth = roundf(meth_freq*total);
+  n_unmeth = roundf((1.0 - meth_freq)*total);
+  
+  assert(n_meth + n_unmeth == total);
+}
+
+
+
+static void
+parse_cpg_line(const string &buffer, string &chrom, size_t &position, 
+	       size_t &n_meth, size_t &n_unmeth) {
+  
+  std::istringstream is(buffer);
+  string dummy;
+  string name;
+  double meth_freq = 0.0;
+  size_t total = 0ul;
+  is >> chrom >> position >> dummy >> dummy >> meth_freq >> total;
+
   n_meth = roundf(meth_freq*total);
   n_unmeth = roundf((1.0 - meth_freq)*total);
   
@@ -174,7 +193,9 @@ optimize_boundaries(const size_t bin_size,
     bounds.back().set_start(pmds[i].get_end() - bin_size);
     bounds.back().set_end(pmds[i].get_end() + bin_size);
   }
-    
+
+  const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
+  
   ////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////
   ///// FIND THE EXACT CPG BOUNDARY SITES
@@ -192,8 +213,11 @@ optimize_boundaries(const size_t bin_size,
   while (getline(in, buffer) && bound_idx < bounds.size()) {
     string chrom;
     size_t position = 0ul, n_meth = 0ul, n_unmeth = 0ul;
-    parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
-      
+    
+    if (METHPIPE_FORMAT)
+      parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
+    else parse_cpg_line_old(buffer, chrom, position, n_meth, n_unmeth); 
+    
     if (succeeds(chrom, position, bounds[bound_idx])) {
       // find the boundary CpG position
       bound_site.push_back(find_best_bound(bound_idx % 2, meth_tot,
@@ -509,6 +533,8 @@ load_intervals(const size_t bin_size,
 	       vector<pair<double, double> > &meth, 
 	       vector<size_t> &reads) {
   
+  const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
+  
   std::ifstream in(cpgs_file.c_str());
   if (!in)
     throw SMITHLABException("bad input file: " + cpgs_file);
@@ -521,8 +547,11 @@ load_intervals(const size_t bin_size,
   while (getline(in, buffer)) {
     string chrom;
     size_t position = 0ul, n_meth = 0ul, n_unmeth = 0ul;
-    parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
-    
+
+    if (METHPIPE_FORMAT)
+      parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
+    else parse_cpg_line_old(buffer, chrom, position, n_meth, n_unmeth); 
+
     // no range, or no chrom
     if (curr_chrom != chrom) {
       if (!curr_chrom.empty()) {
@@ -627,13 +656,16 @@ main(int argc, const char **argv) {
     }
     const string cpgs_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     if (VERBOSE)
       cerr << "[READING CPGS AND METH PROPS]" << endl;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
     vector<SimpleGenomicRegion> cpgs;
     load_intervals(bin_size, cpgs_file, cpgs, meth, reads);
+    
+    if (VERBOSE)
+      cerr << "CPG SITES LOADED: " << cpgs.size() << endl;
     
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs
