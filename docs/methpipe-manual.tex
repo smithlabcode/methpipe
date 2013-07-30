@@ -99,7 +99,8 @@ data is a set of sequenced read files, typically as produced by
 Illumina sequencing. These are FASTQ format files, and can be quite
 large. After the reads are mapped, these files are not used by our
 pipeline.  The reference genome should be a folder containing an
-individual .fa file for each chromosome to maximize memory efficiency.
+individual FASTA (named like \fn{*.fa}) file for each chromosome to
+maximize memory efficiency.
 
 The mapped reads files (\fn{*.mr} suffix) that result from the
 previous steps should consist of eight columns of data. The first six
@@ -110,23 +111,23 @@ mapped reads files will be the input files for the following two
 \meth{} components, \prog{bsrate} and \prog{methcounts}.
 
 \paragraph{Decompressing and isolating paired-end reads:}
-Sometimes paired-end reads are stored in the same fastq file.  Because
-we treat these paired ends differently, they must be separated into two files 
-and run through \prog{rmapbs} with different parameters.  
+Sometimes paired-end reads are stored in the same FASTQ file.  Because
+we treat these paired ends differently, they must be separated into
+two files and run through \prog{rmapbs} with different parameters.
 
 If your data is compressed as a Sequenced Read Archive, or SRA file, you can
 decompress and split paired-end reads into two files at the same time using
  \prog{fastq-dump}, which is a program included in the \prog{sra-toolkit} 
 package, available for most unix systems.  Below is an example of using
-\prog{fastq-dump} to decompress and separate fastq data by end:
+\prog{fastq-dump} to decompress and separate FASTQ data by end:
 \begin{verbatim}
 $ ./fastq-dump --split-3 Human_ESC.sra
 \end{verbatim}
 
-If you have a fastq file not compressed in SRA format, you can split paired ends
+If you have a FASTQ file not compressed in SRA format, you can split paired ends
 into two separate files by running the following commands:
 \begin{verbatim}
-$ sed -ne '1~8{N;N;N;p' *.fastq > *_1.fastq
+$ sed -ne '1~8{N;N;N;p}' *.fastq > *_1.fastq
 $ sed -ne '4~8{N;N;N;p}' *.fastq > *_2.fastq
 \end{verbatim}
 
@@ -136,7 +137,7 @@ relative to the lengths of reads.  \prog{rmapbs} identifies sequences at the
 ends of reads greater than 10bp belonging to sequencing adaptors and
 converts them to Ns to avoid potential mapping problems.
 
-Adaptor sequences must be supplied to \prog{rmapbs} through the -C
+Adaptor sequences must be supplied to \prog{rmapbs} through the \op{-C}
 option.  Keep in mind that if the adaptor sequence provided to you for
 the second paired end is displayed from 5' to 3', you will need to
 provide the reverse complement of the sequence to \prog{rmapbs}.
@@ -173,7 +174,7 @@ provide the reverse complement of the sequence to \prog{rmapbs}.
 
 % ./cutadapt -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT .fastq
 
-% Also, in this case I suppose BS-Seq library (Schubeler's data
+% Also, in this case I suppose BS-seq library (Schubeler's data
 % "SRR299056.fastq") is directional, I only ever expect to sequence into
 % the second adapter which is 5' ACACTCTTTCCCTACACGACGCTCTTCCGATCT. I
 % needed to reverse complement the sequence because that would be the
@@ -229,7 +230,7 @@ the merged fragment will be shorter than either of the read ends. If
 the two mates cannot be merged because they are mapped to different
 chromosomes or different strand, or they are far away from each other,
 \prog{rmapbs-pe} will throw each mate individually if its mapping
-position is unambiguous.   
+position is unambiguous.
 
 %%%%%%% the following way are deprecated because of rmapbs-pe
 
@@ -329,9 +330,9 @@ a subset of reads simultaneously, and finally combine their output. I
 will typically map 3M reads at a time, and this takes at most 1.5GB of
 memory for the human genome and with 100nt reads. If all computing
 nodes can read the large input file (for example, through NFS), you
-may use the option \op{-T s} and \op{-N n}  to instruct \prog{rmapbs} or
-\prog{rmapbs-pe} to map \op{n} reads starting from the $s^{th}$ reads
-in the input file. For example, with following command
+may use the option \op{-T s} and \op{-N n} to instruct \prog{rmapbs}
+or \prog{rmapbs-pe} to map \op{n} reads starting from the $s^{th}$
+reads in the input file. For example, with following command
 \begin{verbatim}
 $ ./rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq -T 1 -N 1000000
 \end{verbatim}
@@ -360,7 +361,7 @@ We described how to map bisulfite treated reads with the \prog{rmapbs}
 program. Users may also use alternative mappers, for example,
 BSSeeker, which uses three-alphabeta stragy, and BSMAP, which allows
 gaps during mapping. The program \prog{to-mr} is used to convert the
-output from those mappers to the .mr format used in our pipeline. To
+output from those mappers to the \fn{*.mr} format used in our pipeline. To
 convert BSMAP mapped read file in .bam format, run
 \begin{verbatim}
 $ ./to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.bam
@@ -382,6 +383,7 @@ identical sequences and are mapped to the same genomic location (same
 chromosom, same start and end, and same strand), and chooses a random
 one to be the representative of the original DNA sequence.
 
+%%TODO: The clipmates program is still mentioned here
 \prog{duplicate-remover} can take reads sorted by (chrom, start,
 strand, end). If the reads in the input file are not sorted, run the
 sort command as following (for paired-end reads, use the output from
@@ -406,7 +408,6 @@ distinct libraries can be simply pooled without any correction as the
 reads from each library are originated from distinct DNA
 fragments. Please refer to \ref{sec:organ-datas-with} for recommended
 practices to organize a project with multiple runs and/or libraries.
-
 
 
 \subsection{Estimating bisulfite conversion rate}
@@ -509,7 +510,7 @@ $ ./bsrate -N -c chrM.fa -o Human_ESC.bsrate Human_ESC.mr.chrM
 
 After completing bisulfite conversion rate analysis, remember to
 remove any control reads not naturally occurring in the sample
-(lambda virus, mitochondrial DNA from another organism, etc)
+(lambda virus, mitochondrial DNA from another organism, etc.)
 before continuing.
 
 \subsection{Computing single-site methylation levels}
@@ -532,9 +533,10 @@ $ LC_ALL=C sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
 
-If your reads only span a few chromosomes, you can specify the -p option
-to only print methylation information for the chromosomes with mapped reads.
-This drastically speeds up \prog{methcounts}.
+%%TODO: what is this ``-p'' option mentioned for?
+If your reads only span a few chromosomes, you can specify the \op{-p}
+option to only print methylation information for the chromosomes with
+mapped reads.  This drastically speeds up \prog{methcounts}.
 
 \paragraph{Counting only CpG sites:}
 The methylation level for every CpG site at single base resolution is
@@ -588,17 +590,18 @@ $ ./methcounts -N -c hg18 -o Human_ESC_Meth_All.bed \
 \end{verbatim}
 
 The output file contains one line per cytosine site (see below for an
-excerpt from one \prog{methcount} output file in an Arabidopsis
+excerpt from one \prog{methcounts} output file in an Arabidopsis
 project). The first two columns give the chromosome and position of
 that cytosine. The 3rd columns gives the strand. The 4th column
-indicates the sequence context, which can be CG, CHG or CHH. The first
-. and the number of reads mapped over the cytosine in the same strand,
-that have either a C or a T at that position. The sequence context can
-be either CG, CHG or CHH.  The first C corresponds to the cytosine of
-interest and the remaining letters are bases following that cytosine
-in the same strand from 5' to 3'. The 5th and 6th columns gives the
-estimated methylation level and the total number of reads
-respectively.
+indicates the sequence context, which can be CG, CHG or CHH. 
+%%TODO: This seems to have become strange
+The first . and the number of reads mapped over the cytosine in the
+same strand, that have either a C or a T at that position. The
+sequence context can be either CG, CHG or CHH.  The first C
+corresponds to the cytosine of interest and the remaining letters are
+bases following that cytosine in the same strand from 5' to 3'. The
+5th and 6th columns gives the estimated methylation level and the
+total number of reads respectively.
 %%%
 {\small{%%
 \begin{verbatim}
@@ -623,13 +626,14 @@ cytosines within the CHG context, run the following:
 \begin{verbatim}
 $ grep CHG Human_ESC_Meth_All.bed > Human_ESC_Meth_CHG.bed
 \end{verbatim}
+%%TODO: Conventions have changed
 Our convention is to name \prog{methcounts} output with all cytosines
 like \fn{*\_Meth\_All.bed}, with CHG like \fn{*\_Meth\_CHG.bed} and
 with CHH like \fn{*\_Meth\_CHH.bed}.
 
 \paragraph{Merging methcounts file from multiple replicates:}
 \label{sec:merg-methc-file} 
-When working with a BS-Seq project with multiple replicates, you may
+When working with a BS-seq project with multiple replicates, you may
 first produce a methcount output file for each replicate individually
 and assess the reproducibility of the methylation result by comparing
 different replicates. The \prog{merge-methcounts} program is used to
@@ -640,17 +644,17 @@ methcounts files from three different replicates,
 \fn{ASDF.R3/R3\_METH.bed}. To merge those individual methcounts files,
 execute
 \begin{verbatim}
-$ merge-methcounts ASDF.R1/R1_METH.bed  ASDF.R2/R2_METH.bed
- ASDF.R3/R3_METH.bed -o ASDF_merged_METH.bed
- \end{verbatim}
+$ merge-methcounts ASDF.R1/R1_METH.bed  ASDF.R2/R2_METH.bed \
+  ASDF.R3/R3_METH.bed -o ASDF_merged_METH.bed
+\end{verbatim}
 
 \paragraph{Computation of average methylation level}
 The \prog{levels} program computes average methylation in a methcounts
-file in three different ways, described in Ecker et al. 2012.  This program
-should provide flexibility to compare methylation data with publications
-that calculate averages different ways and illustrate the variability of
-the statistic depending on how it is calculated.  To run the \prog{levels}
-program, execute
+file in three different ways, described in Schultz et al. (2012). This
+program should provide flexibility to compare methylation data with
+publications that calculate averages different ways and illustrate the
+variability of the statistic depending on how it is calculated.  To
+run the \prog{levels} program, execute
 \begin{verbatim}
 $ levels -o ASDF_merged_METH.levels ASDF_merged_METH.bed
 \end{verbatim}
@@ -674,26 +678,28 @@ methylome (either CpGs or non-CpG Cs) almost always has a bimodal
 distribution with one peak low (very close to 0) and another peak high
 (close to 1). In most mammalian cells, the majority of the genome has
 high methylation, and regions of low methylation are typically more
-interesting. These are called {\em hypo-methylated regions}. In
+interesting. These are called {\em hypo-methylated regions} (HMRs). In
 plants, most of the genome has low methylation, and it is the high
 parts that are interesting. These are called {\em hyper-methylated
-  regions}. For stupid historical reasons, we call both of these kinds
-of regions HMRs. One of the most important analysis tasks is
-identifying the HMRs, and we use the \prog{hmr} program for this. The
-\prog{hmr} program uses a hidden Markov model (HMM) approach using a
-Beta-Binomial distribution to describe methylation levels at
-individual sites while accounting for the number of reads informing
-those levels. \prog{hmr} automatically learns the average methylation
-levels inside and outside the HMRs, and also the average size of those
-HMRs.
+  regions}. For stupid historical reasons in the Smith lab, we call
+both of these kinds of regions HMRs. One of the most important
+analysis tasks is identifying the HMRs, and we use the \prog{hmr}
+program for this. The \prog{hmr} program uses a hidden Markov model
+(HMM) approach using a Beta-Binomial distribution to describe
+methylation levels at individual sites while accounting for the number
+of reads informing those levels. \prog{hmr} automatically learns the
+average methylation levels inside and outside the HMRs, and also the
+average size of those HMRs.
 
 \paragraph{Requirements on the data:}
-We typically like to have about 10x coverage to fell very confident in
+We typically like to have about 10x coverage to feel very confident in
 the HMRs called in mammalian genomes, but the method will work with
 lower coverage. The difference is that the boundaries of HMRs will be
 less accurate at lower coverage, but overall most of the HMRs will
-probably be in the right places if you have coverage of 6-8x
-(depending on the methylome).
+probably be in the right places if you have coverage of 5-8x
+(depending on the methylome). Boundaries of these regions are totally
+ignored by analysis methods based on smoothing or using fixed-width
+windows.
 
 \paragraph{Typical mammalian methylomes:}
 Running \prog{hmr} requires a file of methylation levels formatted
@@ -731,14 +737,14 @@ methylome.
 
 %% Verbose output
 
-\paragraph{Plant (and similar) methylomes:} The plant genomes,
-exemplified by Arabidopsis \textit{thaliana}, are devoid of DNA
-methylation by default, with genic regions and transposons being
+\paragraph{Plant (and similar) methylomes:} 
+The plant genomes, exemplified by \textit{A. thaliana}, are devoid of
+DNA methylation by default, with genic regions and transposons being
 hyper-methylated, which we termed HyperMRs to stress their difference
 from \textit{hypo-methylated regions} in mammalian methylomes. DNA
 methylation in plants has been associated with expression regulation
-and transposon repression, and therefore characterizing HyperMRs
-is of much biological relevance.
+and transposon repression, and therefore characterizing HyperMRs is of
+much biological relevance.
 
 The first kind of HyperMR analysis involves finding continuous blocks
 of hyper-methylated CpGs with the \prog{hmr} program. Since \prog{hmr}
@@ -777,9 +783,10 @@ the strand, which is always \lit{+}.
 
 \paragraph{Partially methylated regions (PMRs):}
 The \prog{hmr} program also has the option of directly identifying
-partially methylated regions (PMRs). These are contiguous intervals
-where the methylation level at individual sites is close to 0.5. This
-should not be confused with regions that have allele-specific
+partially methylated regions (PMRs), not to be confused with partially
+methylated domains (see below). These are contiguous intervals where
+the methylation level at individual sites is close to 0.5. This should
+also not be confused with regions that have allele-specific
 methylation (ASM) or regions with alternating high and low methylation
 levels at nearby sites. Regions with ASM are almost always among the
 PMRs, but most PMRs are not regions of ASM. The \prog{hmr} program is
@@ -1163,8 +1170,10 @@ Note that hitting \lit{Ctrl+v} then hitting \lit{TAB} produces the tab
 character in a terminal window -- not needed when passing this as a
 delimiter to \prog{awk}. These files can be directly uploaded to the
 browser. If track headers are desired, they can be included in the
-\fn{.bedGraph} files before using \prog{gzip}.  {\em Need a concise
-  way here to produce tracks for all Cs, not just CpGs.}
+\fn{.bedGraph} files before using \prog{gzip}.  
+%%TODO: fix this below
+{\em Need a concise way here to produce tracks for all Cs, not just
+  CpGs.}
 
 % As for a track for methylation level at all Cs:
 % \begin{verbatim}
@@ -1308,19 +1317,19 @@ results in the following directories.
 
 When working with next-generation sequencing data, you may usually
 needs to work with very big files, such as FASTQ files containing raw
-reads and .mr files containing mapped reads. You may would like to
-know the approximate number of reads in those large files. The program
-\prog{lc\_approx} estimate the number of lines by counting the number
-of lines in a small chunk randomly chosen from the big file and
+reads and \fn{*.mr} files containing mapped reads. You may would like
+to know the approximate number of reads in those large files. The
+program \prog{lc\_approx} estimate the number of lines by counting the
+number of lines in a small chunk randomly chosen from the big file and
 scaling the estimate by file sizes. For example, in order to estimate
-the number of reads in a FASTQ file s\_1\_1\_sequence.fq, run
+the number of reads in a FASTQ file \fn{s\_1\_1\_sequence.fq}, run
 \begin{verbatim}
 $ lc_approx  s_1_1_sequence.fq
 \end{verbatim}
 It will return the approximate number of lines in this file and by
 dividing the above number by 4, you get the approximate number of
-reads in that file.  The \prog{lc\_apprix} can be hundreds of times
-faster than the unix tool \prog{wc -l}.  
+reads in that file. The \prog{lc\_apprix} can be hundreds of times
+faster than the unix tool \prog{wc -l}.
 
 \subsection{Automating methylome analysis}
 \label{sec:automate-library-level}
@@ -1328,9 +1337,9 @@ Two bash scripts have been provided to perform quick and consistent analysis
 on the individual library level and aggregated biological replicate level.
 For each library in a project, \prog{library} sorts, removes duplicate
 reads, calculates the bisulfite conversion rate, runs \prog{methcounts}, and
-runs \prog{levels}.  There is also an option to perform \prog{methcounts}
+runs \prog{levels}. There is also an option to perform \prog{methcounts}
 analysis on all cytosines, which can be toggled by uncommenting the command
-in the script.  For RRBS data, the \prog{duplicate-remover} command should
+in the script. For RRBS data, the \prog{duplicate-remover} command should
 be commented.
 
 To run \prog{library}, navigate to the library's results directory --
@@ -1342,7 +1351,6 @@ and should contain a single mapped reads file. To run, specify the directory
 where \prog{methpipe} binaries can be found, the directory where chromosome
 files can be found, and the base name of the library or replicate you are
 working on:
-
 \begin{verbatim}
 library /home/user/Desktop/methpipe/trunk/bin \
         /home/user/Desktop/mm9_chroms ASDF_R1_L1
@@ -1365,14 +1373,14 @@ biorep /home/user/Desktop/methpipe/trunk/bin \
 \end{verbatim}
 
 In some cases, it is useful to merge biological replicates rather than
-libraries. In this case, the fourth parameter of \prog{merge-methylomes}
-should be R.
+libraries. In this case, the fourth parameter of
+\prog{merge-methylomes} should be \op{R}.
 
-All run configurations for the programs in these scripts are consistent with
-data in methbase, and therefore direct comparison is appropriate. These tools
-should provide a convenient, consistent workflow for researchers to quickly
-analyze and compare their methylomes with those made publically available
-in methbase.
+All run configurations for the programs in these scripts are
+consistent with data in methbase, and therefore direct comparison is
+appropriate. These tools should provide a convenient, consistent
+workflow for researchers to quickly analyze and compare their
+methylomes with those made publically available in methbase.
 
 \bibliographystyle{plain}
 \bibliography{biblio}
