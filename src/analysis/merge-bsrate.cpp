@@ -72,7 +72,7 @@ main(int argc, const char **argv) {
     OptionParser opt_parse(strip_path(argv[0]), "Program to merge the "
 			   "BS conversion rate from two sets of BS-seq "
 			   "reads mapped to a genome",
-			   "<mapped-reads>, ..., <mapped-reads>");
+			   "<bsrate file>, ..., <bsrate file>");
     opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
 		      false, outfile);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
