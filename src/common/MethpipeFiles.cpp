@@ -243,7 +243,7 @@ methpipe::write_site(std::ostream &out,
                      const string &strand, const string &seq,
                      const double &meth, const size_t &coverage) {
   return (out << chrom << "\t" << pos << "\t" << strand
-          << "\t" << seq << "\t" << meth << "\t"
+          << "\t" << seq << "\t" << (coverage == 0 ? 0.0 : meth) << "\t"
           << coverage << '\n');
 }
 
@@ -273,6 +273,6 @@ methpipe::write_site_old(std::ostream &out, const string &chrom, const size_t &p
 {
   out << chrom << "\t" << pos << "\t" << pos + 1 << "\t"
       << (seq + ":" + smithlab::toa(coverage)) << "\t"
-      << meth << "\t" << strand << std::endl;
+      << (coverage == 0 ? 0.0 : meth) << "\t" << strand << std::endl;
   return out.good();
 }
