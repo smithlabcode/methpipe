@@ -1,10 +1,10 @@
 /*    amrfinder: A program for resolving epialleles in a sliding
  *    window along a chromosome.
  *
- *    Copyright (C) 2011-2013 University of Southern California and
- *                            Andrew D. Smith and Fang Fang
+ *    Copyright (C) 2011 University of Southern California and
+ *                       Andrew D. Smith and Fang Fang
  *
- *    Authors: Andrew D. Smith and Fang Fang
+ *    Authors: Fang Fang and Andrew D. Smith
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -36,92 +36,6 @@ using std::string;
 using std::vector;
 using std::cerr;
 using std::endl;
-
-using std::tr1::unordered_map;
-
-inline static bool
-is_cpg(const string &s, const size_t idx) {
-  return toupper(s[idx]) == 'C' && toupper(s[idx + 1]) == 'G';
-}
-
-
-static void
-collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
-  const size_t lim = s.length() - 1;
-  size_t cpg_count = 0;
-  for (size_t i = 0; i < lim; ++i)
-    if (is_cpg(s, i)) {
-      cpgs[cpg_count] = i;
-      ++cpg_count;
-    }
-}
-
-
-static void
-identify_chromosomes(const string chrom_file, const string fasta_suffix, 
-		     unordered_map<string, string> &chrom_files) {
-  vector<string> the_files;
-  if (isdir(chrom_file.c_str())) {
-    read_dir(chrom_file, fasta_suffix, the_files);
-    for (size_t i = 0; i < the_files.size(); ++i)
-      chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
-  }
-  else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
-}
-
-
-
-static void
-convert_coordinates(const unordered_map<size_t, size_t> &cpgs, 
-		    GenomicRegion &region)  {
-  const unordered_map<size_t, size_t>::const_iterator 
-    start_itr(cpgs.find(region.get_start()));
-  const unordered_map<size_t, size_t>::const_iterator
-    end_itr(cpgs.find(region.get_end()));
-  if (start_itr == cpgs.end() || end_itr == cpgs.end())
-    throw SMITHLABException("could not convert:\n" + region.tostring());
-  region.set_start(start_itr->second);
-  region.set_end(end_itr->second);
-}
-
-
-
-static void
-convert_coordinates(const bool VERBOSE,
-		    const string chrom_file,
-		    const string fasta_suffix,
-		    vector<GenomicRegion> &amrs) {
-  
-  unordered_map<string, string> chrom_files;
-  identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
-  if (VERBOSE)
-    cerr << "CHROMS:\t" << chrom_files.size() << endl;
-  
-  unordered_map<size_t, size_t> cpgs;
-  vector<string> chrom_names, chroms;
-  GenomicRegion region;
-  GenomicRegion chrom_region("chr0", 0, 0);
-  for (size_t i = 0; i < amrs.size(); ++i) {
-    // get the correct chrom if it has changed
-    if (!amrs[i].same_chrom(chrom_region)) {
-      const unordered_map<string, string>::const_iterator 
-	fn(chrom_files.find(amrs[i].get_chrom()));
-      if (fn == chrom_files.end())
-	throw SMITHLABException("could not find chrom: " + amrs[i].get_chrom());
-      chrom_names.clear();
-      chroms.clear();
-      read_fasta_file(fn->second.c_str(), chrom_names, chroms);
-      if (chrom_names.size() > 1)
-	throw SMITHLABException("multiple chroms/file: " + fn->second);
-      if (VERBOSE)
-	cerr << "PROCESSING: " << chrom_names.front() << endl;
-      collect_cpgs(chroms.front(), cpgs);
-      chrom_region.set_chrom(chrom_names.front());
-    }
-    convert_coordinates(cpgs, amrs[i]);
-  }
-}
-
 
 
 static double
@@ -264,7 +178,7 @@ randomize_read_states(vector<epiread> &reads) {
 
 static void
 merge_amrs(vector<GenomicRegion> &amrs,
-	   const size_t gap_limit) {
+			const size_t gap_limit) {
   size_t j = 0;
   for (size_t i = 1; i < amrs.size(); ++i)
     if (amrs[j].same_chrom(amrs[i]) &&
@@ -295,10 +209,6 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     string outfile;
     string chroms_dir;
-
-    // This sucks:
-    static const string fasta_suffix = "fa";
-
     bool EPIREAD_FORMAT = false;
     bool USE_BIC = false;
 
@@ -328,7 +238,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("window", 'w', "the window to slide", false, cpg_window);
     opt_parse.add_opt("min-reads", 'm', "min reads per cpg", 
 		      false, min_reads_per_cpg);
-    opt_parse.add_opt("gap_limit", 'l', "minimum distance between amrs (in bp)", 
+    opt_parse.add_opt("gap_limit", 'l', "the minimum limit of the gap size between amrs in bp", 
     		      false, gap_limit);
     opt_parse.add_opt("chrom", 'c', "dir of chroms (.fa extn)", 
 		      true, chroms_dir);
@@ -415,36 +325,35 @@ main(int argc, const char **argv) {
     double fdr_cutoff = 0.0;
     
     if(amrs.empty())
-      cerr << "No AMR is found. "<<endl;
+	cerr << "No AMR is found. "<<endl;
     else{
-      if (!USE_BIC) {
-	fdr_cutoff = get_fdr_cutoff(total_cpgs, amrs, critical_value);
-	eliminate_amrs_by_fdr(fdr_cutoff, amrs);
-      }
+    	if (!USE_BIC) {
+      		fdr_cutoff = get_fdr_cutoff(total_cpgs, amrs, critical_value);
+      		eliminate_amrs_by_fdr(fdr_cutoff, amrs);
+    	}
     
-      if (VERBOSE)
-	cerr << "PROCESSED READS: " << total_reads_processed << endl
-	     << "TOTAL CPGS: " << total_cpgs << endl
-	     << "TESTED WINDOWS: " << windows_tested << endl
-	     << "AMR WINDOWS: " << windows_accepted << endl
-	     << "AMR/TESTED: " << (windows_accepted/
-				   static_cast<double>(windows_tested)) << endl
-	     << "FDR CUTOFF: " << fdr_cutoff << endl
-	     << "AMR AFTER FDR: " << amrs.size() << endl;
-      
-      collapse_amrs(amrs);
-      // eio.convert_coordinates(amrs);
-      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
-      merge_amrs(amrs,gap_limit);
-      
-      if (VERBOSE)
-	cerr << "MERGED AMRS: " << amrs.size() << endl;
+    	if (VERBOSE)
+	  cerr << "PROCESSED READS: " << total_reads_processed << endl
+	       << "TOTAL CPGS: " << total_cpgs << endl
+	       << "TESTED WINDOWS: " << windows_tested << endl
+	       << "AMR WINDOWS: " << windows_accepted << endl
+	       << "AMR/TESTED: " << (windows_accepted/
+				     static_cast<double>(windows_tested)) << endl
+	       << "FDR CUTOFF: " << fdr_cutoff << endl
+	       << "AMR AFTER FDR: " << amrs.size() << endl;
 	
-      std::ofstream of;
-      if (!outfile.empty()) of.open(outfile.c_str());
-      std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-      copy(amrs.begin(), amrs.end(), 
-	   std::ostream_iterator<GenomicRegion>(out, "\n"));
+	collapse_amrs(amrs);
+	eio.convert_coordinates(amrs);
+	merge_amrs(amrs,gap_limit);
+	
+	if (VERBOSE)
+	  cerr << "MERGED AMRS: " << amrs.size() << endl;
+	
+	std::ofstream of;
+	if (!outfile.empty()) of.open(outfile.c_str());
+	std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+	copy(amrs.begin(), amrs.end(), 
+	     std::ostream_iterator<GenomicRegion>(out, "\n"));
     }
   }
   catch (const SMITHLABException &e) {
