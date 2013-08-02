@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr roimethstat 
+PROGS = methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr roimethstat tssmeth
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
