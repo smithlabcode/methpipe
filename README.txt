@@ -3,11 +3,11 @@
 *********************************
 Copyright and License Information
 *******************************************************************************
-Copyright (C) 2011
+Copyright (C) 2013
 University of Southern California,
-Andrew D. Smith and Qiang Song
+Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
   
-Authors: Andrew D. Smith and Qiang Song
+Authors:  Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
   
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -60,15 +60,7 @@ Step 2
 Usage
 *******************************************************************************
 
-Individual programs will be added here periodically.
-
-hmr
-===
-
-
-**********
-Simulation
-*******************************************************************************
+Read methpipe-manual.pdf in the docs directory.
 
 ************************
 Contacts and bug reports
