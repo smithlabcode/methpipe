@@ -1034,20 +1034,20 @@ main(int argc, const char **argv) {
 
     if (VERBOSE)
       cerr << "[STARTING END ONE]" << endl;
-    bool AG_WILDCARD = false;
     vector<unsigned int> read_index_one;
     vector<MultiMapResult> best_maps_one;
     size_t read_width = 0;
-    map_reads(VERBOSE, false, T_adaptor, chrom_files,
+	const bool TC_WILDCARD = false;
+	map_reads(VERBOSE, TC_WILDCARD, T_adaptor, chrom_files,
     	      reads_file_one, read_start_index, n_reads_to_process, the_seeds, 
     	      max_mismatches, read_index_one, best_maps_one, read_width);
 
     if (VERBOSE)
       cerr << endl << "[STARTING END TWO]" << endl;
-    AG_WILDCARD = true;
+    const bool AG_WILDCARD = true;
     vector<unsigned int> read_index_two;
     vector<MultiMapResult> best_maps_two;
-    map_reads(VERBOSE, true, A_adaptor, chrom_files,
+    map_reads(VERBOSE, AG_WILDCARD, A_adaptor, chrom_files,
 	      reads_file_two, read_start_index, n_reads_to_process, the_seeds, 
 	      max_mismatches, read_index_two, best_maps_two, read_width);
     
