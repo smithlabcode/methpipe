@@ -23,9 +23,9 @@ ifndef SMITHLAB_CPP
 SMITHLAB_CPP=$(METHPIPE_ROOT)/src/smithlab_cpp
 endif
 
-all_subdirs=smithlab_cpp common postmapping analysis
+all_subdirs=smithlab_cpp common postmapping analysis rmapbs
 lib_subdirs=smithlab_cpp common
-app_subdirs=postmapping analysis utils
+app_subdirs=postmapping analysis utils rmapbs
 
 ## COMMENT: The smithlab_cpp directory is only appearing in the
 ## "clean" target below because the compilation of object files inside
