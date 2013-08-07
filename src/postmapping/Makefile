@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = clipmates duplicate-remover
+PROGS = duplicate-remover
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
