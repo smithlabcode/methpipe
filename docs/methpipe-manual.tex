@@ -362,13 +362,25 @@ program. Users may also use alternative mappers, for example,
 BSSeeker, which uses three-alphabeta stragy, and BSMAP, which allows
 gaps during mapping. The program \prog{to-mr} is used to convert the
 output from those mappers to the \fn{*.mr} format used in our pipeline. To
-convert BSMAP mapped read file in .bam format, run
+convert BSMAP mapped read file in .sam format, run
 \begin{verbatim}
-$ ./to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.bam
+$ ./to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.sam
 \end{verbatim}
 where the option \op{-m} specifies that the original mapper is
 BSMAP. To obtain a list of alternative mappers supported by our
-converter, run \prog{to-mr} without any options. 
+converter, run \prog{to-mr} without any options.
+
+The program \prog{to-mr} only supports .sam format by default installation, 
+and .bam format support is enabled with \prog{BamTools} properly installed. 
+\prog{BamTools} can be found at: \url{https://github.com/pezmaster31/bamtools}. 
+User must specify the path to \prog{BamTools} in compile. For example, if 
+\prog{BamTools} is installed at \fn{/home/user/bamtools}, then the path should 
+be added in the compile command as
+\begin{verbatim}
+$ make all BAMTOOLS_ROOT=/home/user/bamtools
+\end{verbatim}
+After successful compilation, user can add \op{-b} to convert .bam files. For 
+pair-end data, \prog{to-mr} will automatically clip the two ends to one fragment.
 
 \subsection{Merging libraries and removing duplicates}
 \label{sec:mapping}
