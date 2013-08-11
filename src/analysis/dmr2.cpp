@@ -1,6 +1,6 @@
-/* Copyright (C) 2012 University of Southern California
+/* Copyright (C) 2013 University of Southern California
  *                    Andrew D Smith
- * Author: Andrew D. Smith, Song Qiang
+ * Author: Song Qiang, Andrew Smith
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  * 02110-1301 USA
  */
 
-#define DEBUG
+// #define DEBUG
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -39,6 +39,8 @@
 #include "RNG.hpp"
 #include "nonparametric-test.hpp"
 #include "ModelParams.hpp"
+#include "MethpipeFiles.hpp"
+
 
 using std::string;
 using std::vector;
@@ -68,6 +70,20 @@ get_meth_unmeth(const GenomicRegion &cpg, size_t &meth, size_t &unmeth)
     unmeth = n_reads - meth;
 }
 
+void
+ReadMethFile(const string &filename, vector<GenomicRegion> &cpgs)
+{
+    string chrom, strand, seq;
+    size_t pos, coverage;
+    double meth;
+    
+    std::ifstream in(filename.c_str());
+    while (methpipe::read_site(in, chrom, pos, strand, seq, meth, coverage))
+        cpgs.push_back(GenomicRegion(chrom, pos, pos + 1,
+                                     "CpG:" + smithlab::toa(coverage),
+                                     meth, strand[0]));
+}
+
 static void
 load_cpgs(const string &cpgs_file_a, const string &cpgs_file_b,
           vector<SimpleGenomicRegion> &cpgs,
@@ -80,14 +96,20 @@ load_cpgs(const string &cpgs_file_a, const string &cpgs_file_b,
     vector<GenomicRegion> cpgs_a, cpgs_b;
     if (VERBOSE)
         cerr << "Reading input file " << cpgs_file_a << " ... ";
-    ReadBEDFile(cpgs_file_a, cpgs_a);
+    if (methpipe::is_methpipe_file_single(cpgs_file_a))
+        ReadMethFile(cpgs_file_a, cpgs_a);
+    else
+        ReadBEDFile(cpgs_file_a, cpgs_a);
     assert(check_sorted(cpgs_a));
     if (VERBOSE)
         cerr << " Done" << endl;
 
     if (VERBOSE)
         cerr << "Reading input file " << cpgs_file_b << " ... ";
-    ReadBEDFile(cpgs_file_b, cpgs_b);
+    if (methpipe::is_methpipe_file_single(cpgs_file_b))
+        ReadMethFile(cpgs_file_b, cpgs_b);
+    else
+        ReadBEDFile(cpgs_file_b, cpgs_b);
     assert(check_sorted(cpgs_b));
     if (VERBOSE)
         cerr << " Done" << endl;
@@ -124,7 +146,7 @@ load_cpgs(const string &cpgs_file_a, const string &cpgs_file_b,
         }
     }
     if (VERBOSE)
-        cerr << "Probes retained: " << diffscores.size() << endl;
+        cerr << "Sites retained: " << diffscores.size() << endl;
 }
 
 template <class T> static void
