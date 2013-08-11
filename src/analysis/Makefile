@@ -25,7 +25,7 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr \
 	levels roimethstat  merge-methcounts amrfinder amrtester \
-    methstates merge-bsrate
+    methstates merge-bsrate dmr2
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -86,6 +86,9 @@ amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o EpireadIO.o Epiread.o) \
 
 methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
+dmr2: $(addprefix $(SMITHLAB_CPP)/, RNG.o) \
+	$(addprefix $(COMMON_DIR)/, ThreeStateHDHMM.o false_discovery_rate.o contingency-table.o \
+		nonparametric-test.o Smoothing.o Distro.o BetaBin.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
