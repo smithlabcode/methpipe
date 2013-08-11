@@ -20,6 +20,9 @@
 
 #define DEBUG
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <numeric>
 #include <cmath>
 #include <ctime>
