@@ -315,7 +315,7 @@ score_domain_by_wilcoxon_test(
     const bool VERBOSE)
 {
     if (VERBOSE)
-        cerr << "Computing FDR cutoff with Wilcoxon signed-rank test" << endl;
+        cerr << "Filtering DMRs with  Wilcoxon test" << endl;
 
     vector<double> p_values;
     calcualte_domain_p_values_by_wilcoxon_test(
@@ -395,7 +395,7 @@ score_domain_by_diff_meth_emp_p_value(
     const bool VERBOSE)
 {
     if (VERBOSE)
-        cerr << "Computing FDR cutoff ... ";
+        cerr << "Filtering DMRs based on accumulative methylation difference ... ";
 
     std::sort(domains.begin(), domains.end(), DomainSizeCmp());
 
@@ -472,12 +472,12 @@ main(int argc, const char **argv)
 
         size_t desert_size = 1000;
         size_t max_iterations = 10;
-        size_t training_size = 0;
+        size_t training_size = 200000;
         
-        bool diff_meth_emp_p_value = false;
-        bool domain_wilcoxon_test = false;
+        bool diff_meth_emp_p_value = true;
+        bool domain_wilcoxon_test = true;
         double fdr = 0.05;
-        double fdr_cutoff = std::numeric_limits<double>::max();
+        double fdr_cutoff = 0.05;
         
         // corrections for small values (not parameters):
         double tolerance = 1e-10;
@@ -488,39 +488,40 @@ main(int argc, const char **argv)
         bool VERBOSE = false;
     
         /****************** COMMAND LINE OPTIONS ********************/
-        OptionParser opt_parse(argv[0], "A program for segmenting DNA "
-                               "methylation data");
-        opt_parse.add_opt("input-a", 'A', "Methcount input file A", 
-                          OptionParser::REQUIRED, infile_a);
-        opt_parse.add_opt("input-b", 'B', "Methcount input file B", 
-                          OptionParser::REQUIRED, infile_b);
+        OptionParser opt_parse(strip_path(argv[0]),
+                               "A program for segmenting DNA methylation data",
+                               "meth_file_1 meth_file_2");
+        // opt_parse.add_opt("input-a", 'A', "Methcount input file A", 
+        //                   OptionParser::REQUIRED, infile_a);
+        // opt_parse.add_opt("input-b", 'B', "Methcount input file B", 
+        //                   OptionParser::REQUIRED, infile_b);
         opt_parse.add_opt("out", 'o', "output file (default stdout)", 
                           OptionParser::OPTIONAL, outfile);
-        opt_parse.add_opt("scores", 's', "scores file (WIG format)", 
+        opt_parse.add_opt("scores", 's', "Diff-scores output file", 
                           OptionParser::OPTIONAL, scores_file);
-        opt_parse.add_opt("params-in", '\0', "HMM parameters file",
+        opt_parse.add_opt("params-in", '\0', "Input model parameters file",
                           OptionParser::OPTIONAL, params_in_file);
-        opt_parse.add_opt("params-out", '\0', "HMM parameters file",
+        opt_parse.add_opt("params-out", '\0', "Output model parameters file",
                           OptionParser::OPTIONAL, params_out_file);
-        opt_parse.add_opt("desert", 'd', "desert size",
-                          OptionParser::OPTIONAL, desert_size);
+        // opt_parse.add_opt("desert", 'd', "desert size",
+        //                   OptionParser::OPTIONAL, desert_size);
         opt_parse.add_opt("itr", 'i', "max iterations",
                           OptionParser::OPTIONAL, max_iterations); 
         opt_parse.add_opt("training-size", '\0', "The size of training sample",
                           OptionParser::OPTIONAL, training_size); 
-        opt_parse.add_opt("max-len", 'L', "max foreground length",
-                          OptionParser::OPTIONAL, MAX_LEN); 
-        opt_parse.add_opt("domain-wilcoxon-test", '\0',
-                          "Use Wilcoxon test on domains to compute p-values",
-                          OptionParser::OPTIONAL, domain_wilcoxon_test); 
-        opt_parse.add_opt("diff-meth", '\0',
-                          "Use the differential methylation to compute p-values",
-                          OptionParser::OPTIONAL, diff_meth_emp_p_value); 
-        opt_parse.add_opt("fdr", 'F', "False discovery rate (default 0.05)",
-                          OptionParser::OPTIONAL, fdr); 
-        opt_parse.add_opt("fdr-cutoff", '\0',
-                          "P-value cutoff based on false discovery rate",
-                          OptionParser::OPTIONAL, fdr_cutoff); 
+        // opt_parse.add_opt("max-len", 'L', "max foreground length",
+        //                   OptionParser::OPTIONAL, MAX_LEN); 
+        // opt_parse.add_opt("domain-wilcoxon-test", '\0',
+        //                   "Use Wilcoxon test on domains to compute p-values",
+        //                   OptionParser::OPTIONAL, domain_wilcoxon_test); 
+        // opt_parse.add_opt("diff-meth", '\0',
+        //                   "Use the differential methylation to compute p-values",
+        //                   OptionParser::OPTIONAL, diff_meth_emp_p_value); 
+        // opt_parse.add_opt("fdr", 'F', "False discovery rate (default 0.05)",
+        //                   OptionParser::OPTIONAL, fdr); 
+        // opt_parse.add_opt("fdr-cutoff", '\0',
+        //                   "P-value cutoff based on false discovery rate",
+        //                   OptionParser::OPTIONAL, fdr_cutoff); 
         opt_parse.add_opt("verbose", 'v', "print more run info", 
                           OptionParser::OPTIONAL, VERBOSE);
 
@@ -541,6 +542,13 @@ main(int argc, const char **argv)
             cerr << opt_parse.option_missing_message() << endl;
             return EXIT_SUCCESS;
         }
+        if (leftover_args.size() != 2) 
+        {
+            cerr << opt_parse.help_message() << endl;
+            return EXIT_SUCCESS;
+        }
+        infile_a = leftover_args.front();
+        infile_b = leftover_args.back();
 
         /****************** END COMMAND LINE OPTIONS *****************/
     
