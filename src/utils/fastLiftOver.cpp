@@ -79,6 +79,7 @@ main(int argc, const char **argv)
         string indexfile;
         string tofile;
         string fromfile;
+        string leftfile;
 
         bool VERBOSE = false;
     
@@ -87,6 +88,7 @@ main(int argc, const char **argv)
         opt_parse.add_opt("indexfile", 'i', "index file", true, indexfile);
         opt_parse.add_opt("from", 'f', "Original file", true, fromfile);
         opt_parse.add_opt("to", 't', "Output file liftovered", true, tofile);
+        opt_parse.add_opt("unmapped", 'u', "File for unmapped sites", false, leftfile);
         opt_parse.add_opt("verbose", 'v', "print more information",
                           false, VERBOSE);
 
@@ -115,8 +117,12 @@ main(int argc, const char **argv)
             cerr << "Loading index file " << indexfile << endl;
         read_index_file(indexfile, index);
         
+        const bool new_methcount_fmt =
+            methpipe::is_methpipe_file_single(fromfile);
         std::ifstream from(fromfile.c_str());
         std::ofstream to(tofile.c_str());
+        std::ofstream unmapped;
+        if (!leftfile.empty()) unmapped.open(leftfile.c_str());
 
         string chrom;
         size_t pos;
@@ -124,23 +130,39 @@ main(int argc, const char **argv)
         string seq;
         double meth;
         size_t coverage;
-        
+
+        size_t total = 0;
+        size_t good = 0;
+        size_t nogood = 0;
+
         if (VERBOSE)
             cerr << "Lifting " << fromfile << " to " << tofile << endl;
-        while (methpipe::read_site(from, chrom, pos, strand, seq, meth, coverage))
+
+        while (new_methcount_fmt
+               ? methpipe::read_site(from, chrom, pos, strand,
+                                     seq, meth, coverage)
+               : methpipe::read_site_old(from, chrom, pos, strand,
+                                         seq, meth, coverage))
         {
-            unordered_map<string, unordered_map<size_t, GenomicSite> >::iterator ito;
-            unordered_map<size_t, GenomicSite>::iterator iti;
-            
-            if ((ito = index.find(chrom)) != index.end()
-                && (iti = ito->second.find(pos)) != ito->second.end())
+            ++total;
+            GenomicSite loc = index[chrom][pos];
+            if (!loc.chrom.empty())
             {
-                    chrom = iti->second.chrom;
-                    pos = iti->second.pos;
-                    methpipe::write_site(to, chrom, pos, strand,
-                                         seq, meth, coverage);
+                chrom = loc.chrom;
+                pos = loc.pos;
+                methpipe::write_site(to, chrom, pos, strand, seq, meth, coverage);
+                ++good;
+            }
+            else
+            {
+                if (unmapped.good())
+                    methpipe::write_site(unmapped, chrom, pos, strand, seq, meth, coverage);
+                ++nogood;
+                index[chrom].erase(pos);
             }
         }
+        if (VERBOSE)
+            cerr << "Total sites:  " << total << ";\tMapped: " << good << ";\tUnmapped: " << nogood << endl;
     }
     catch (const SMITHLABException &e) 
     {
