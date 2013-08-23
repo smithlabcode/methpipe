@@ -162,7 +162,8 @@ main(int argc, const char **argv)
       const string ref_strand = strand;
       
       size_t n_total = coverage;
-      double n_meth = coverage * meth;
+      double tmp_meth = coverage * meth + 0.5;
+      double n_meth = static_cast<size_t>(tmp_meth);
             
       for (size_t i = 1; i < infiles.size(); ++i) {
         if ((new_methcount_fmt
@@ -174,13 +175,14 @@ main(int argc, const char **argv)
             && ref_pos  == pos
             && ref_strand == strand) {
           n_total += coverage;
-          n_meth += coverage * meth;
+          tmp_meth = coverage * meth + 0.5;
+          n_meth += static_cast<size_t>(tmp_meth);
         } else
           throw SMITHLABException("error reading methcount file: "
                                   + methcounts_files[i]);
       }
 
-      meth_stat_collector.collect(static_cast<size_t>(n_meth), n_total);
+      meth_stat_collector.collect(n_meth, n_total);
 
       if (new_methcount_fmt)
         methpipe::write_site(outf, chrom, pos, strand, seq,
