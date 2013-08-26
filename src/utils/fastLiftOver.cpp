@@ -57,7 +57,9 @@ read_index_file(const string &indexFile,
                 unordered_map<string, unordered_map<size_t, GenomicSite> > &index)
 {
     std::ifstream in(indexFile.c_str());
-
+    if (!in)
+      throw SMITHLABException("problem opening index file");
+    
     string toChrom;
     size_t toPos;
     size_t toEnd;
@@ -120,7 +122,7 @@ main(int argc, const char **argv)
         const bool new_methcount_fmt =
             methpipe::is_methpipe_file_single(fromfile);
         std::ifstream from(fromfile.c_str());
-        std::ofstream to(tofile.c_str());
+	std::ofstream to(tofile.c_str());
         std::ofstream unmapped;
         if (!leftfile.empty()) unmapped.open(leftfile.c_str());
 
