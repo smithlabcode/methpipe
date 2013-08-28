@@ -20,6 +20,8 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <tr1/cmath>
+
 #include <string>
 #include <vector>
 #include <iostream>
@@ -162,8 +164,7 @@ main(int argc, const char **argv)
       const string ref_strand = strand;
       
       size_t n_total = coverage;
-      double tmp_meth = coverage * meth + 0.5;
-      double n_meth = static_cast<size_t>(tmp_meth);
+      double n_meth = static_cast<size_t>(std::tr1::round(coverage * meth));
             
       for (size_t i = 1; i < infiles.size(); ++i) {
         if ((new_methcount_fmt
@@ -175,8 +176,7 @@ main(int argc, const char **argv)
             && ref_pos  == pos
             && ref_strand == strand) {
           n_total += coverage;
-          tmp_meth = coverage * meth + 0.5;
-          n_meth += static_cast<size_t>(tmp_meth);
+          n_meth += static_cast<size_t>(std::tr1::round(coverage * meth));
         } else
           throw SMITHLABException("error reading methcount file: "
                                   + methcounts_files[i]);
