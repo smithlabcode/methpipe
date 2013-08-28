@@ -67,8 +67,7 @@ methpipe::load_cpgs(const string &cpgs_file,
     cpgs.push_back(SimpleGenomicRegion(chrom, pos, pos+1));
     reads.push_back(coverage);
     meths.push_back(std::make_pair(0.0, 0.0));
-    // plus 0.5 to make sure the value is rounded correctly
-    meths.back().first = static_cast<size_t>(meth * coverage + 0.5);
+    meths.back().first = static_cast<size_t>(std::tr1::round(meth * coverage));
     meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
   }
 }
@@ -107,8 +106,7 @@ methpipe::load_cpgs(const string &cpgs_file,
     cpgs.push_back(GenomicRegion(chrom, pos, pos+1, seq, 0, strand[0]));
     reads.push_back(coverage);
     meths.push_back(std::make_pair(0.0, 0.0));
-    // plus 0.5 to make sure the value is rounded correctly
-    meths.back().first = static_cast<size_t>(meth * coverage + 0.5);
+    meths.back().first = static_cast<size_t>(std::tr1::round(meth * coverage));
     meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
   }
 }
