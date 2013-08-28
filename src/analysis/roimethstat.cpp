@@ -35,6 +35,7 @@
 #include "GenomicRegion.hpp"
 #include "MethpipeFiles.hpp"
 
+#include "bsutils.hpp"
 
 using std::string;
 using std::vector;
@@ -42,36 +43,26 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::pair;
+using std::make_pair;
 
 
-static void
-separate_sites(const vector<GenomicRegion> &regions,
-	       const vector<GenomicRegion> &sites, 
-	       vector<pair<size_t, size_t> > &sep_sites) {
-  const size_t n_regions = regions.size();
-  
-  for (size_t i = 0; i < n_regions; ++i) {
-    GenomicRegion a(regions[i]);
-    a.set_end(a.get_start() + 1);
-    GenomicRegion b(regions[i]);
-    b.set_start(b.get_end());
-    b.set_end(b.get_end() + 1);
-    
-    vector<GenomicRegion>::const_iterator a_insert =
-      lower_bound(sites.begin(), sites.end(), a);
-    
-    vector<GenomicRegion>::const_iterator b_insert =
-      lower_bound(sites.begin(), sites.end(), b);
-    
-    sep_sites.push_back(std::make_pair(a_insert - sites.begin(),
-				       b_insert - sites.begin()));
-  }
+
+static pair<bool, bool>
+meth_unmeth_calls(const size_t n_meth, const size_t n_unmeth) {
+  static const double alpha = 0.95;
+  // get info for binomial test
+  double lower = 0.0, upper = 0.0;
+  const size_t total = n_meth + n_unmeth;
+  wilson_ci_for_binomial(alpha, total,
+			 static_cast<double>(n_meth)/total, lower, upper);
+  return make_pair(lower > 0.5, upper < 0.5);
 }
+
+
 
 static std::pair<size_t, size_t>
 region_bounds(const vector<SimpleGenomicRegion> &sites,
-              const GenomicRegion &region)
-{
+              const GenomicRegion &region) {
   SimpleGenomicRegion a(region);
   a.set_end(a.get_start() + 1);
   vector<SimpleGenomicRegion>::const_iterator a_insert =
@@ -87,19 +78,49 @@ region_bounds(const vector<SimpleGenomicRegion> &sites,
                         b_insert - sites.begin());
 }
 
+
+
+// static void
+// get_cpg_stats(const vector<GenomicRegion> &cpgs, 
+// 	      const size_t start_idx, const size_t end_idx,
+// 	      size_t &meth, size_t &reads, size_t &cpgs_with_reads) {
+//   for (size_t i = start_idx; i < end_idx; ++i) {
+//     const size_t r = atoi(smithlab::split(cpgs[i].get_name(), 
+// 					  ":").back().c_str());
+//     meth += static_cast<size_t>(cpgs[i].get_score()*r+0.5);
+//     // plus 0.5 to make sure the value is rounded correctly
+//     reads += r;
+//     cpgs_with_reads += (r > 0);
+//   }
+// }
+
+
+
 static void
-get_cpg_stats(const vector<GenomicRegion> &cpgs, 
-	      const size_t start_idx, const size_t end_idx,
-	      size_t &meth, size_t &reads, size_t &cpgs_with_reads) {
-  for (size_t i = start_idx; i < end_idx; ++i) {
-    const size_t r = atoi(smithlab::split(cpgs[i].get_name(), 
-					  ":").back().c_str());
-    meth += static_cast<size_t>(cpgs[i].get_score()*r+0.5);
-    // plus 0.5 to make sure the value is rounded correctly
-    reads += r;
-    cpgs_with_reads += (r > 0);
+not_methpipe_load_cpgs(const string &cpgs_file, 
+		       vector<SimpleGenomicRegion> &cpgs,
+		       vector<pair<double, double> > &meths,
+		       vector<size_t> &reads) {
+  
+  vector<GenomicRegion> cpgs_in;
+  ReadBEDFile(cpgs_file, cpgs_in);
+  assert(check_sorted(cpgs_in));
+  if (!check_sorted(cpgs_in))
+    throw SMITHLABException("regions not sorted in file: " + cpgs_file);
+  
+  for (size_t i = 0; i < cpgs_in.size(); ++i) {
+    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
+    const string name(cpgs_in[i].get_name());
+    const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
+    const double meth_freq = cpgs_in[i].get_score();
+    const size_t n_meth = roundf(meth_freq*total);
+    const size_t n_unmeth = roundf((1.0 - meth_freq)*total);
+    assert(n_meth + n_unmeth == total);
+    reads.push_back(total);
+    meths.push_back(std::make_pair(n_meth, n_unmeth));
   }
 }
+
 
 
 int 
@@ -109,6 +130,7 @@ main(int argc, const char **argv) {
     
     bool VERBOSE = false;
     bool PRINT_NAN = false;
+    bool PRINT_ADDITIONAL_LEVELS = false;
     
     string outfile;
     
@@ -120,6 +142,8 @@ main(int argc, const char **argv) {
 		      false, outfile);
     opt_parse.add_opt("print-nan", 'P', "print all records (even if NaN score)", 
 		      false, PRINT_NAN);
+    opt_parse.add_opt("more-levels", 'L', "print more meth level information", 
+		      false, PRINT_ADDITIONAL_LEVELS);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -143,55 +167,18 @@ main(int argc, const char **argv) {
     const string regions_file = leftover_args.front();
     const string cpgs_file = leftover_args.back();
     /****************** END COMMAND LINE OPTIONS *****************/
-    
-    if (methpipe::is_methpipe_file_single(cpgs_file)) {
-      if (VERBOSE)
-        cerr << "FORMAT = NAME : CPGS : CPGS_WITH_READS : "
-          "METH_READS : TOTAL_READS" << endl;
-      vector<SimpleGenomicRegion> cpgs;
-      vector<pair<double, double> > meths;
-      vector<size_t> reads;
-      methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
 
-      vector<GenomicRegion> regions;
-      ReadBEDFile(regions_file, regions);
-      assert(check_sorted(regions));
-      if (!check_sorted(regions))
-        throw SMITHLABException("regions not sorted in file: " + regions_file);
-
-      std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
-
-      for (size_t i = 0; i < regions.size(); ++i) {
-
-        const std::pair<size_t, size_t> bounds(region_bounds(cpgs, regions[i]));
-
-        size_t meth = 0, read = 0;
-        size_t cpgs_with_reads = 0;
-        for (size_t j = bounds.first; j < bounds.second; ++j)
-        {
-          meth += static_cast<size_t>(meths[j].first);
-          read += reads[j];
-          cpgs_with_reads += reads[j] > 0;
-        }
-
-        const string name = regions[i].get_name() + ":" + 
-          toa(bounds.second - bounds.first) + ":" + 
-          toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(read);
-        regions[i].set_name(name);
-        regions[i].set_score(static_cast<double>(meth)/read);
-        if (PRINT_NAN || std::isfinite(regions[i].get_score()))
-          out << regions[i] << endl;
-      }
-    } else {
     if (VERBOSE)
       cerr << "FORMAT = NAME : CPGS : CPGS_WITH_READS : "
 	"METH_READS : TOTAL_READS" << endl;
     
-    vector<GenomicRegion> cpgs;
-    ReadBEDFile(cpgs_file, cpgs);
-    assert(check_sorted(cpgs));
-    if (!check_sorted(cpgs))
-      throw SMITHLABException("regions not sorted in file: " + cpgs_file);
+    vector<SimpleGenomicRegion> cpgs;
+    vector<pair<double, double> > meths;
+    vector<size_t> reads;
+    if (methpipe::is_methpipe_file_single(cpgs_file))
+      methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
+    else 
+      not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
     
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
@@ -199,29 +186,48 @@ main(int argc, const char **argv) {
     if (!check_sorted(regions))
       throw SMITHLABException("regions not sorted in file: " + regions_file);
     
-    // separate the CpGs according to the regions in which they occur. 
-    vector<pair<size_t, size_t> > roi_cpgs;
-    separate_sites(regions, cpgs, roi_cpgs);
-    
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
     
-    for (size_t i = 0; i < roi_cpgs.size(); ++i) {
-      size_t meth = 0, reads = 0;
+    for (size_t i = 0; i < regions.size(); ++i) {
+      
+      const std::pair<size_t, size_t> bounds(region_bounds(cpgs, regions[i]));
+      
+      size_t meth = 0, read = 0;
       size_t cpgs_with_reads = 0;
-      get_cpg_stats(cpgs, roi_cpgs[i].first,
-		    roi_cpgs[i].second, meth, reads, cpgs_with_reads);
+      size_t called_total = 0, called_meth = 0;
+      double mean_meth = 0.0;
+      
+      for (size_t j = bounds.first; j < bounds.second; ++j) {
+	if (reads[j] > 0) {
+	  meth += static_cast<size_t>(meths[j].first);
+	  read += reads[j];
+	  ++cpgs_with_reads;
+	  
+	  const pair<bool, bool> calls = 
+	    meth_unmeth_calls(meths[j].first, meths[j].second);
+	  called_total += (calls.first || calls.second);
+	  called_meth += calls.first;
+	  
+	  mean_meth += static_cast<double>(meths[j].first)/reads[j];
+	}	
+      }
       
       const string name = regions[i].get_name() + ":" + 
-	toa(roi_cpgs[i].second - roi_cpgs[i].first) + ":" + 
-	toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(reads);
+	toa(bounds.second - bounds.first) + ":" + 
+	toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(read);
       regions[i].set_name(name);
-      regions[i].set_score(static_cast<double>(meth)/reads);
-      if (PRINT_NAN || std::isfinite(regions[i].get_score()))
-	out << regions[i] << endl;
+      regions[i].set_score(static_cast<double>(meth)/read);
+      if (PRINT_NAN || std::isfinite(regions[i].get_score())) {
+	out << regions[i];
+	if (PRINT_ADDITIONAL_LEVELS) 
+	  out << '\t'
+	      << static_cast<double>(called_meth)/called_total << '\t'
+	      << mean_meth/cpgs_with_reads;
+	out << endl;
+      }
     }
-  }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
