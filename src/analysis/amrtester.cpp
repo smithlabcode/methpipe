@@ -43,6 +43,117 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::tr1::unordered_map;
+
+
+
+static bool
+validate_mapped_read_line(const string &line) {
+  std::istringstream is(line);
+  string chr, name, read, scores;
+  size_t start, end;
+  char strand;
+  double score;
+  return (is >> chr >> start >> end >> name >> 
+	  score >> strand >> read >> scores);
+}
+
+
+static bool
+validate_epiread_line(const string &line) {
+  std::istringstream is(line);
+  string chr, er;
+  size_t pos;
+  return (is >> chr >> pos >> er);
+}
+
+
+static bool
+check_input_format(const string &reads_file_name) {
+
+  std::ifstream in(reads_file_name.c_str());
+  if (!in)
+    throw SMITHLABException("could not open file: " + reads_file_name);
+  
+  string buffer;
+  getline(in, buffer);
+  
+  if (validate_mapped_read_line(buffer))
+    return false;
+  
+  if (!validate_epiread_line(buffer))
+    throw SMITHLABException("bad file format: " + reads_file_name);
+  
+  return true;
+}
+
+
+static void
+identify_chromosomes(const string chrom_file, const string fasta_suffix, 
+		     unordered_map<string, string> &chrom_files) {
+  vector<string> the_files;
+  if (isdir(chrom_file.c_str())) {
+    read_dir(chrom_file, fasta_suffix, the_files);
+    for (size_t i = 0; i < the_files.size(); ++i)
+      chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
+  }
+  else 
+    chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+static void
+convert_coordinates(const vector<size_t> &cpg_positions,
+		    GenomicRegion &region) {
+
+  const size_t start_pos = 
+    lower_bound(cpg_positions.begin(), cpg_positions.end(),
+		region.get_start()) - cpg_positions.begin();
+
+  const size_t end_pos = 
+    lower_bound(cpg_positions.begin(), cpg_positions.end(),
+		region.get_end()) - cpg_positions.begin();
+  
+  region.set_start(start_pos);
+  region.set_end(end_pos);
+}
+
+
+inline static bool
+is_cpg(const string &s, const size_t idx) {
+  return toupper(s[idx]) == 'C' && toupper(s[idx + 1]) == 'G';
+}
+
+static void
+collect_cpgs(const string &s, vector<size_t> &cpgs) {
+  const size_t lim = s.length() - 1;
+  for (size_t i = 0; i < lim; ++i)
+    if (is_cpg(s, i))
+      cpgs.push_back(i);
+}
+
+static void
+get_cpg_positions(const string &chrom_file, 
+		  vector<size_t> &cpg_positions) {
+  vector<string> chrom_names, chrom_seqs;
+  read_fasta_file(chrom_file.c_str(), chrom_names, chrom_seqs);
+  if (chrom_names.size() > 1)
+    throw SMITHLABException("error: more than one seq "
+			    "in chrom file" + chrom_file);
+  collect_cpgs(chrom_seqs.front(), cpg_positions);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 
 static void
@@ -62,29 +173,28 @@ int
 main(int argc, const char **argv) {
   
   try {
+
+    static const string fasta_suffix = "fa";
     
     bool VERBOSE = false;
-    bool EPIREAD_FORMAT = false;
     bool PROGRESS = false;
     bool USE_BIC = false;
 
-    string outfile, chroms_dir;
+    string outfile;
     size_t max_itr = 10;
     double high_prob = 0.75, low_prob = 0.25;
-
+    
     bool IGNORE_BALANCED_PARTITION_INFO = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles", 
-			   "<bed-regions> <mapped-reads>");
+			   "<chroms-dir> <bed-regions> <mapped-reads>");
     opt_parse.add_opt("outfile", 'o', "output file", false, outfile);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
     opt_parse.add_opt("no-bal", 'g', "ignore balanced partition info", 
 		      false, IGNORE_BALANCED_PARTITION_INFO);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
-    opt_parse.add_opt("chrom", 'c', "dir of chroms (.fa extn)", false, chroms_dir);
-    opt_parse.add_opt("epiread", 'E', "reads in epiread format", false, EPIREAD_FORMAT);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
     
     vector<string> leftover_args;
@@ -102,34 +212,67 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.size() != 2) {
+    if (leftover_args.size() != 3) {
       cerr << opt_parse.help_message() << endl
 	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string regions_file(leftover_args.front());
+    const string chroms_dir(leftover_args.front());
+    const string regions_file(leftover_args[1]);
     const string reads_file_name(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
+
+    const bool EPIREAD_FORMAT = check_input_format(reads_file_name);
+    if (VERBOSE)
+      cerr << "FILE FORMAT: " 
+	   << (EPIREAD_FORMAT ? "EPIREAD" : "MR")
+	   << endl;
     
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
-
+    if (!check_sorted(regions))
+      throw SMITHLABException("regions not sorted in: " + regions_file);
+    
+    unordered_map<string, string> chrom_files;
+    identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
+    
     EpireadIO eio(reads_file_name, VERBOSE, EPIREAD_FORMAT, chroms_dir);
     
     size_t n_regions  = regions.size();
     if (VERBOSE)
       cerr << "NUMBER OF REGIONS: " << n_regions << endl;
-
+    
+    string curr_chrom;
+    vector<size_t> cpg_positions;
+    
     vector<GenomicRegion> amrs;
+    
+    std::ofstream of;
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+
     for (size_t i = 0; i < regions.size(); ++i) {
       if (PROGRESS) 
 	cerr << '\r' << percent(i, n_regions) << "%\r";
       
+      if (regions[i].get_chrom() != curr_chrom) {
+	curr_chrom = regions[i].get_chrom();
+	const unordered_map<string, string>::const_iterator 
+	  chrom_file(chrom_files.find(curr_chrom));
+	if (chrom_file == chrom_files.end())
+	  throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
+	get_cpg_positions(chrom_file->second, cpg_positions);
+      }
+      
+      GenomicRegion converted_region(regions[i]);
+      convert_coordinates(cpg_positions, converted_region);
+
       vector<epiread> reads;
-      eio.load_reads(regions[i], reads);
+      eio.load_reads(converted_region, reads);
       
       if (!reads.empty()) {
-	clip_reads(regions[i].get_start(), regions[i].get_end(), reads);
+	clip_reads(converted_region.get_start(), 
+		   converted_region.get_end(), reads);
 	regions[i].set_score((USE_BIC) ?
 			     test_asm_bic(max_itr, low_prob, high_prob, reads) :
 			     ((IGNORE_BALANCED_PARTITION_INFO) ?
@@ -137,14 +280,12 @@ main(int argc, const char **argv) {
 			      test_asm_lrt2(max_itr, low_prob, high_prob, reads)));
       }
       else regions[i].set_score(1.0);
+      
+      out << regions[i] << endl;
+      
     }
     if (PROGRESS) cerr << "\r100%" << endl;
     
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    copy(regions.begin(), regions.end(), 
-	 std::ostream_iterator<GenomicRegion>(out, "\n"));
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
