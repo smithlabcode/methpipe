@@ -25,13 +25,13 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr \
 	levels roimethstat  merge-methcounts amrfinder amrtester \
-    methstates merge-bsrate
+	methstates merge-bsrate methentropy
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
 CXXFLAGS = -Wall -fmessage-length=50
 OPTFLAGS = -O2
-DEBUGFLAGS = -g
+DEBUGFLAGS = -g 
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -52,12 +52,6 @@ endif
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
-
-CXX = g++
-CFLAGS = -Wall -fmessage-length=50
-CXXFLAGS = -Wall -fmessage-length=50
-OPTFLAGS = -O2
-DEBUGFLAGS = -g
 
 all: $(PROGS)
 
