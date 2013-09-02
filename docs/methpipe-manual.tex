@@ -4,8 +4,8 @@
 \usepackage[pdfborder={0 0 0}]{hyperref}
 
 \title{The Smithlab DNA Methylation Data Analysis Pipeline (MethPipe)} 
-\author{Qiang Song \and Michael Kessler \and Fang Fang \and
-  Jenny Qu \and Tyler Garvin \and Meng Zhou \and Ben Decato \and Andrew Smith}
+\author{Qiang Song \and Benjamin Decato \and Michael Kessler \and Fang Fang
+\and Jenny Qu \and Tyler Garvin \and Meng Zhou \and Andrew Smith}
 
 \newcommand{\meth}{\texttt{methpipe}}
 
@@ -905,13 +905,26 @@ fitted to the reads mapped, respectively. One model (single-allele
 model) assumes the two alleles have the same methylation state, and
 the other (two-allele model) represents different methylation states
 for the two alleles. Comparing the likelihood of the two models, the
-interrogated genomic interval is determined whether or not an AMR. The
+interrogated genomic interval may be classified as an AMR. The
 input files are still mapped reads files, and the output bed files
-contain all possible AMRs in BED format. The following command shows
-an example to run the program \prog{amrfinder}.
+contain all possible AMRs in BED format. \prog{amrfinder} also accepts a
+special input format, called ``epiread'', that consists of three
+columns. The first column is the chromosome of the read, the second
+column is the numbering order of the first CpG in the read, and the
+last column is the CpG only sequence of the read. ``Epiread'' format
+significantly reduces the memory requirements to run \prog{amrfinder}.
+
+You can use the
+program \prog{methstates} to convert the mapped reads file to the
+epiread format as below:
+\begin{verbatim}
+$ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.epiread
+\end{verbatim}
+
+The following command shows an example to run the program \prog{amrfinder}.
 \begin{verbatim}
 $ ./amrfinder -o Human_ESC.amr -i 10 -w 10 -m 1 -c hg18 -b Human_ESC.mr
-$ ./amrfinder -o Human_ESC.amr -c hg18 -b -E Human_ESC.epiread
+$ ./amrfinder -o Human_ESC.amr -c hg18 -b Human_ESC.epiread
 \end{verbatim}
 Option \op{-i} is the maximum iterations allowed in the EM procedure
 when calculating the likelihood for the two-allele model, and the
@@ -920,18 +933,7 @@ window using the number of CpGs, and the default value is $10$. Option
 \op{-m} is the requirement of the minimum reads covering each CpG, and
 the default value is $1$. Option \op{-b} means to use BIC criterion to
 compare the two likelihood models, otherwise likelihood ratio test is
-used for model comparison. There is an option \op{-E} indicating if
-the input file is in a special format called ``Epiread'' format, which
-consists of three columns. The first column is the chromosome of the
-read, the second column is the numbering order of the first CpG in the
-read, and the last column is the CpG-only sequence of the read. Such
-`Epiread' format reduces the memory requirement. You can use the
-program \prog{methstates} to convert the mapped reads file to the
-epiread format as below:
-\begin{verbatim}
-$ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.epiread
-\end{verbatim}
-
+used for model comparison.
 
 % \newpage
 % The following figure shows a detailed work flow of the steps involved
