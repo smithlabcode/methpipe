@@ -261,7 +261,7 @@ main(int argc, const char **argv) {
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     for (size_t i = 0; i < regions.size(); ++i) {
-      if (PROGRESS) 
+      if (PROGRESS)
 	cerr << '\r' << percent(i, n_regions) << "%\r";
       
       if (regions[i].get_chrom() != curr_chrom) {
@@ -275,10 +275,12 @@ main(int argc, const char **argv) {
       
       GenomicRegion converted_region(regions[i]);
       convert_coordinates(cpg_positions, converted_region);
-
+      
       vector<epiread> reads;
-      eio.load_reads(converted_region, reads);
-
+      if (EPIREAD_FORMAT)
+	eio.load_reads(converted_region, reads);
+      else eio.load_reads(regions[i], reads);
+      
       clip_reads(converted_region.get_start(), 
 		 converted_region.get_end(), reads);
       
@@ -291,8 +293,8 @@ main(int argc, const char **argv) {
       }
       else regions[i].set_score(1.0);
       
+      regions[i].set_name(regions[i].get_name() + ":" + toa(reads.size()));
       out << regions[i] << endl;
-      
     }
     if (PROGRESS) cerr << "\r100%" << endl;
     
