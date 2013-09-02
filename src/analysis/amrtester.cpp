@@ -157,15 +157,24 @@ get_cpg_positions(const string &chrom_file,
 
 
 static void
-clip_reads(const size_t start_pos, const size_t end_pos, vector<epiread> &r) {
+clip_reads(const size_t start_pos, const size_t end_pos, 
+	   vector<epiread> &r) {
+  size_t j = 0;
   for (size_t i = 0; i < r.size(); ++i) {
-    if (r[i].pos < start_pos) {
-      r[i].seq = r[i].seq.substr(start_pos - r[i].pos);
-      r[i].pos = start_pos;
+    if (start_pos < r[i].pos + r[i].seq.length() &&
+	r[i].pos < end_pos) {
+      if (r[i].pos < start_pos) {
+	assert(start_pos - r[i].pos < r[i].seq.length());
+	r[i].seq = r[i].seq.substr(start_pos - r[i].pos);
+	r[i].pos = start_pos;
+      }
+      if (r[i].end() > end_pos)
+	r[i].seq = r[i].seq.substr(0, end_pos - r[i].pos);
+      r[j] = r[i];
+      ++j;
     }
-    if (r[i].end() > end_pos)
-      r[i].seq = r[i].seq.substr(0, end_pos - r[i].pos);
   }
+  r.erase(r.begin() + j, r.end());
 }
 
 
@@ -269,10 +278,11 @@ main(int argc, const char **argv) {
 
       vector<epiread> reads;
       eio.load_reads(converted_region, reads);
+
+      clip_reads(converted_region.get_start(), 
+		 converted_region.get_end(), reads);
       
       if (!reads.empty()) {
-	clip_reads(converted_region.get_start(), 
-		   converted_region.get_end(), reads);
 	regions[i].set_score((USE_BIC) ?
 			     test_asm_bic(max_itr, low_prob, high_prob, reads) :
 			     ((IGNORE_BALANCED_PARTITION_INFO) ?
