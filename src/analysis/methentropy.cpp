@@ -201,7 +201,8 @@ compute_entropy_for_window(const vector<double> &site_probs,
 			   const size_t start_idx, 
 			   const size_t end_idx,
 			   const size_t start_cpg,
-			   const size_t end_cpg) {
+			   const size_t end_cpg,
+			   size_t &reads_in_window) {
   
   const size_t n_states = 1ul << (end_cpg - start_cpg);
   
@@ -209,17 +210,17 @@ compute_entropy_for_window(const vector<double> &site_probs,
   for (size_t i = 0; i < n_states; ++i) {
     
     double state_prob = 0.0;
-    size_t reads_in_window = 0;
+    reads_in_window = 0;
     for (size_t j = start_idx; j < end_idx; ++j)
       if (epireads[j].get_end() > start_cpg && epireads[j].pos < end_cpg) {
 	state_prob += compute_prob_read_has_state(site_probs, start_cpg, end_cpg,
 						  i, epireads[j]);
 	++reads_in_window;
       }
-    state_prob /= reads_in_window;
-    
-    entropy += (state_prob > 0.0) ? state_prob*log2(state_prob) : 0.0;
-    
+    if (reads_in_window > 0) {
+      state_prob /= reads_in_window;
+      entropy += (state_prob > 0.0) ? state_prob*log2(state_prob) : 0.0;
+    }
   }
   return entropy;
 }
@@ -237,24 +238,19 @@ compute_entropy_for_window(const vector<double> &site_probs,
 /* This function just basically computes the same thing as methcounts
    output, so that unobserved states can be imputed  */
 static void
-compute_site_probs(const vector<epiread> &epireads, 
+compute_site_probs(const size_t n_cpgs, const vector<epiread> &epireads,
 		   vector<double> &site_probs) {
-  
-  size_t start_cpg = epireads.front().pos;
-  const size_t n_cpgs = epireads.back().get_end();
   
   site_probs = vector<double>(n_cpgs);
   vector<size_t> totals(n_cpgs);
   
   for (size_t i = 0; i < epireads.size(); ++i) {
-    const size_t offset = epireads[i].pos;
     const size_t len = epireads[i].length();
-    for (size_t j = 0; j < len && offset + j < n_cpgs; ++j)
-      if (offset + j >= start_cpg) {
-	const size_t idx = offset + j - start_cpg;
-	site_probs[idx] += (epireads[i].seq[j] == 'C');
-	totals[idx] += (epireads[i].seq[j] != 'N');
-      }
+    size_t idx = epireads[i].pos;
+    for (size_t j = 0; j < len; ++j, ++idx) {
+      site_probs[idx] += (epireads[i].seq[j] == 'C');
+      totals[idx] += (epireads[i].seq[j] != 'N');
+    }
   }
   for (size_t i = 0; i < site_probs.size(); ++i)
     if (totals[i] > 0.0)
@@ -299,7 +295,7 @@ process_chrom(const bool VERBOSE, const size_t cpg_window,
 	 << " (cpgs = " << n_cpgs << ")" << endl;
   
   vector<double> site_probs;
-  compute_site_probs(epireads, site_probs);
+  compute_site_probs(n_cpgs, epireads, site_probs);
   
   size_t max_epiread_len = 0;
   for (size_t i = 0; i < epireads.size(); ++i)
@@ -312,15 +308,17 @@ process_chrom(const bool VERBOSE, const size_t cpg_window,
     move_start_index(max_epiread_len, epireads, start_cpg, start_idx);
     move_end_index(epireads, start_cpg, cpg_window, end_idx);
     
+    size_t reads_used = 0;
     const double entropy = 
       compute_entropy_for_window(site_probs, epireads, start_idx, 
-				 end_idx, start_cpg, start_cpg + cpg_window);
+				 end_idx, start_cpg, start_cpg + cpg_window,
+				 reads_used);
     
     out << chrom << '\t' 
 	<< convert_coordinates(cpg_lookup, start_cpg + cpg_window/2) << '\t'
 	<< "+\tCpG\t"
 	<< entropy << '\t'
-	<< end_idx - start_idx << endl;
+	<< reads_used << endl;
     
     ++start_cpg;
   }
