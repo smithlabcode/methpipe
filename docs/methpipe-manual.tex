@@ -388,9 +388,9 @@ one to be the representative of the original DNA sequence.
 strand, end). If the reads in the input file are not sorted, run the
 following sort command:
 \begin{verbatim}
-$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 \
        -o Human_ESC.mr.sorted_start Human_ESC.mr
-$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 6,6 -k 3,3g \
+$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 \
        -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
 Next, execute the following command to remove duplicate reads:
