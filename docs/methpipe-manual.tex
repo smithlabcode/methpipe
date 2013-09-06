@@ -383,14 +383,13 @@ identical sequences and are mapped to the same genomic location (same
 chromosom, same start and end, and same strand), and chooses a random
 one to be the representative of the original DNA sequence.
 
-%%TODO: The clipmates program is still mentioned here
-\prog{duplicate-remover} can take reads sorted by (chrom, start,
-strand, end). If the reads in the input file are not sorted, run the
+\prog{duplicate-remover} can take reads sorted by (chrom, start, end,
+strand). If the reads in the input file are not sorted, run the
 following sort command:
 \begin{verbatim}
-$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 \
+$ LC_ALL=C; sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_ESC.mr.sorted_start Human_ESC.mr
-$ LC_ALL=C; sort -k 1,1 -k 2,2g -k 3,3g -k 6,6 \
+$ LC_ALL=C; sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
 Next, execute the following command to remove duplicate reads:
@@ -521,14 +520,14 @@ The input is in MappedRead format, and the reads should be sorted
 according to (chrom, end, start, strand). If your reads are not
 sorted, run:
 \begin{verbatim}
-$ LC_ALL=C; sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C; sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
 Since \prog{methcounts} can only take one input file, if you have
 multiple you can merge them using the \op{-m} option to the
 \prog{sort} program:
 \begin{verbatim}
-$ LC_ALL=C sort -m -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C sort -m -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
 
@@ -1008,7 +1007,7 @@ file and a sorted BED format file of genomic ``regions of interest''
 sorted by (chrom,end,start,strand) it can be sorted using the
 following command:
 \begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 3,3g -k 2,2g -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
          -o regions_ESC.meth.sorted regions_ESC.meth
 \end{verbatim}
 From there, \prog{roimethstat} can be run as follows:
@@ -1374,6 +1373,8 @@ consistent with data in methbase, and therefore direct comparison is
 appropriate. These tools should provide a convenient, consistent
 workflow for researchers to quickly analyze and compare their
 methylomes with those made publically available in methbase.
+
+
 
 \bibliographystyle{plain}
 \bibliography{biblio}
