@@ -20,14 +20,9 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <string>
 #include <vector>
 #include <iostream>
-#include <iomanip>
-#include <numeric>
 
 #include <OptionParser.hpp>
 #include <smithlab_utils.hpp>
@@ -36,8 +31,8 @@
 
 #include "Epiread.hpp"
 #include "EpireadStats.hpp"
-#include "EpireadIO.hpp"
 
+using std::streampos;
 using std::string;
 using std::vector;
 using std::cout;
@@ -47,45 +42,78 @@ using std::tr1::unordered_map;
 
 
 
-static bool
-validate_mapped_read_line(const string &line) {
-  std::istringstream is(line);
-  string chr, name, read, scores;
-  size_t start, end;
-  char strand;
-  double score;
-  return (is >> chr >> start >> end >> name >> 
-	  score >> strand >> read >> scores);
+static void
+backup_to_start_of_current_record(std::ifstream &in) {
+  while (in.tellg() > 0 && in.peek() != '\n' && in.peek() != '\r') {
+    in.seekg(-1, std::ios_base::cur);
+  }
 }
 
 
-static bool
-validate_epiread_line(const string &line) {
-  std::istringstream is(line);
-  string chr, er;
-  size_t pos;
-  return (is >> chr >> pos >> er);
+static streampos
+find_first_epiread_ending_after_position(const string &query_chrom, 
+					 const size_t query_pos,
+					 std::ifstream &in) {
+  in.seekg(0, std::ios_base::end);
+  size_t high_pos = in.tellg();
+  in.seekg(0, std::ios_base::beg);
+  size_t low_pos = 0;
+  
+  string chrom, seq;
+  size_t start = 0ul;
+  
+  // This is just binary search on disk
+  while (high_pos > low_pos + 1) {
+    const size_t mid_pos = (low_pos + high_pos)/2;
+    
+    in.seekg(mid_pos);
+    backup_to_start_of_current_record(in);
+    if (!(in >> chrom >> start >> seq))
+      throw SMITHLABException("problem loading reads");
+    
+    if (chrom < query_chrom || 
+	(chrom == query_chrom && start + seq.length() <= query_pos))
+      low_pos = mid_pos;
+    else
+      high_pos = mid_pos;
+  }
+  return low_pos;
 }
 
 
-static bool
-check_input_format(const string &reads_file_name) {
 
+static void
+load_reads(const string &reads_file_name,
+	   const GenomicRegion &region, vector<epiread> &the_reads) {
+  
+  // open and check the file
   std::ifstream in(reads_file_name.c_str());
-  if (!in)
-    throw SMITHLABException("could not open file: " + reads_file_name);
+  if (!in) 
+    throw SMITHLABException("cannot open input file " + reads_file_name);
   
-  string buffer;
-  getline(in, buffer);
+  const string query_chrom(region.get_chrom());
+  const size_t query_start = region.get_start();
+  const size_t query_end = region.get_end();
+  const streampos low_offset = 
+    find_first_epiread_ending_after_position(query_chrom, query_start, in);
   
-  if (validate_mapped_read_line(buffer))
-    return false;
+  in.seekg(low_offset, std::ios_base::beg);
+  backup_to_start_of_current_record(in);
   
-  if (!validate_epiread_line(buffer))
-    throw SMITHLABException("bad file format: " + reads_file_name);
-  
-  return true;
+  string chrom, seq;
+  size_t start = 0ul;
+  while ((in >> chrom >> start >> seq) && 
+	 chrom == query_chrom && start < query_end)
+    the_reads.push_back(epiread(start, seq));
 }
+
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
 
 
 static void
@@ -145,6 +173,7 @@ get_cpg_positions(const string &chrom_file,
   if (chrom_names.size() > 1)
     throw SMITHLABException("error: more than one seq "
 			    "in chrom file" + chrom_file);
+  cpg_positions.clear();
   collect_cpgs(chrom_seqs.front(), cpg_positions);
 }
 
@@ -231,12 +260,6 @@ main(int argc, const char **argv) {
     const string reads_file_name(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    const bool EPIREAD_FORMAT = check_input_format(reads_file_name);
-    if (VERBOSE)
-      cerr << "FILE FORMAT: " 
-	   << (EPIREAD_FORMAT ? "EPIREAD" : "MR")
-	   << endl;
-    
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
@@ -244,8 +267,6 @@ main(int argc, const char **argv) {
     
     unordered_map<string, string> chrom_files;
     identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
-    
-    EpireadIO eio(reads_file_name, VERBOSE, EPIREAD_FORMAT, chroms_dir);
     
     size_t n_regions  = regions.size();
     if (VERBOSE)
@@ -277,9 +298,7 @@ main(int argc, const char **argv) {
       convert_coordinates(cpg_positions, converted_region);
       
       vector<epiread> reads;
-      if (EPIREAD_FORMAT)
-	eio.load_reads(converted_region, reads);
-      else eio.load_reads(regions[i], reads);
+      load_reads(reads_file_name, converted_region, reads);
       
       clip_reads(converted_region.get_start(), 
 		 converted_region.get_end(), reads);
@@ -297,7 +316,6 @@ main(int argc, const char **argv) {
       out << regions[i] << endl;
     }
     if (PROGRESS) cerr << "\r100%" << endl;
-    
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
