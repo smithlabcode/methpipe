@@ -84,16 +84,48 @@ resolve_epialleles(const size_t read_start, const size_t read_end,
 		   std::vector<double> &a1, std::vector<double> &a2);
 
 double
-test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob, 
-	     std::vector<epiread> reads);
+test_asm_lrt(const size_t max_itr, const double low_prob,
+	     const double high_prob, std::vector<epiread> reads);
 
 double
-test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_prob, 
-	      std::vector<epiread> reads);
+test_asm_lrt2(const size_t max_itr, const double low_prob,
+	     const double high_prob, std::vector<epiread> reads);
 
 double
-test_asm_bic(const size_t max_itr, const double low_prob, const double high_prob,
-	     std::vector<epiread> reads);
+test_asm_bic(const size_t max_itr, const double low_prob,
+	     const double high_prob, std::vector<epiread> reads);
 
+
+class EpireadStats {
+public:
+  EpireadStats(const double lp,
+	       const double hp,
+	       const double cv,
+	       const size_t mi,
+	       const bool IB,
+	       const bool UB) :
+    low_prob(lp), high_prob(hp), 
+    critical_value(cv), max_itr(mi),
+    IGNORE_BALANCE(IB), USE_BIC(UB) {}
+
+  double 
+  test_asm(const std::vector<epiread> &reads, bool &is_significant) const {
+    const double score = (USE_BIC) ?
+      test_asm_bic(max_itr, low_prob, high_prob, reads) :
+      ((IGNORE_BALANCE) ?
+       test_asm_lrt(max_itr, low_prob, high_prob, reads) :
+       test_asm_lrt2(max_itr, low_prob, high_prob, reads));
+    is_significant = (score < critical_value || (USE_BIC && score < 0.0));
+    return score;
+  }
+  
+private:
+  double low_prob;
+  double high_prob;
+  double critical_value;
+  size_t max_itr;
+  bool IGNORE_BALANCE;
+  bool USE_BIC;
+};
 
 #endif
