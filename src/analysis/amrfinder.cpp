@@ -1,5 +1,5 @@
-/*    amrfinder: A program for resolving epialleles in a sliding
- *    window along a chromosome.
+/*    amrfinder: program for resolving epialleles in a sliding window
+ *    along a chromosome.
  *
  *    Copyright (C) 2011-2013 University of Southern California and
  *                            Andrew D. Smith and Fang Fang
@@ -35,7 +35,6 @@ using std::vector;
 using std::cerr;
 using std::cout;
 using std::endl;
-using std::streampos;
 using std::tr1::unordered_map;
 
 
@@ -43,8 +42,10 @@ using std::tr1::unordered_map;
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
+//////////////
+//////////////  CODE BELOW HERE IS FOR FILTERING THE AMR WINDOWS AND
+//////////////  MERGING THEM TO OBTAIN FINAL AMRS
+//////////////
 
 
 static double
@@ -63,34 +64,6 @@ get_fdr_cutoff(const size_t n_tests, const vector<GenomicRegion> &amrs,
   while (i < n_pvals - 1 && pvals[i+1] < fdr*static_cast<double>(i+1)/n_tests)
     ++i;
   return pvals[i];
-}
-
-
-static void
-clip_read(const size_t start_pos, const size_t end_pos, epiread &r) {
-  if (r.pos < start_pos) {
-    r.seq = r.seq.substr(start_pos - r.pos);
-    r.pos = start_pos;
-  }
-  if (r.end() > end_pos)
-    r.seq = r.seq.substr(0, end_pos - r.pos);
-}
-
-
-static void
-get_current_epireads(const vector<epiread> &epireads, 
-		     const size_t cpg_window, const size_t start_pos, 
-		     size_t &read_id, 
-		     vector<epiread> &current_epireads) {
-  
-  const size_t end_pos = start_pos + cpg_window;
-  for (size_t i = read_id; i < epireads.size() && epireads[i].pos < end_pos; ++i)
-    if (epireads[i].end() > start_pos) {
-      if (current_epireads.empty())
-	read_id = i;
-      current_epireads.push_back(epireads[i]);
-      clip_read(start_pos, end_pos, current_epireads.back());
-    }
 }
 
 
@@ -138,31 +111,33 @@ collapse_amrs(vector<GenomicRegion> &amrs) {
 }
 
 
-static string
-get_amr_name(const size_t x, const size_t y) {
-  static const string name_label("AMR");
-  return name_label + toa(x) + ":" + toa(y);
-}
-
-
 static void
-add_amr(const string &chrom_name, const size_t start_cpg, 
-	const size_t cpg_window, const vector<epiread> &reads, 
-	const double score, vector<GenomicRegion> &amrs) {
-  const size_t end_cpg = start_cpg + cpg_window - 1;
-  const string amr_name(get_amr_name(amrs.size(), reads.size()));
-  amrs.push_back(GenomicRegion(chrom_name, start_cpg, end_cpg,
-			       amr_name, score, '+'));
+merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
+  size_t j = 0;
+  for (size_t i = 1; i < amrs.size(); ++i)
+    // check distance between two amrs is greater than gap limit
+    if (amrs[j].same_chrom(amrs[i]) &&
+        amrs[j].get_end() + gap_limit>= amrs[i].get_start()) {
+      amrs[j].set_end(amrs[i].get_end());
+      amrs[j].set_score(std::min(amrs[i].get_score(), amrs[j].get_score()));
+    }
+    else {
+      ++j;
+      amrs[j] = amrs[i];
+    }
+  ++j;
+  amrs.erase(amrs.begin() + j, amrs.end());
 }
 
 
-// ////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////
-// ////////////////////////////////////////////////////////////////////////
-// /////
-// /////   CODE FOR RANDOMIZING THE READS TO GET EXPECTED NUMBER OF
-// /////   IDENTIFIED AMRS
-// /////
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+/////
+/////   CODE FOR RANDOMIZING THE READS TO GET EXPECTED NUMBER OF
+/////   IDENTIFIED AMRS
+/////
 
 // static void
 // set_read_states(vector<vector<char> > &state_counts, vector<epiread> &reads) {
@@ -199,30 +174,14 @@ add_amr(const string &chrom_name, const size_t start_cpg,
 // }
 
 
-static void
-merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
-  size_t j = 0;
-  for (size_t i = 1; i < amrs.size(); ++i)
-    // check distance between two amrs is greater than gap limit
-    if (amrs[j].same_chrom(amrs[i]) &&
-        amrs[j].get_end() + gap_limit>= amrs[i].get_start()) {
-      amrs[j].set_end(amrs[i].get_end());
-      amrs[j].set_score(std::min(amrs[i].get_score(), amrs[j].get_score()));
-    }
-    else {
-      ++j;
-      amrs[j] = amrs[i];
-    }
-  ++j;
-  amrs.erase(amrs.begin() + j, amrs.end());
-}
-
-
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-
+//////////////
+//////////////  CODE FOR CONVERTING BETWEEN CPG AND BASE PAIR
+//////////////  COORDINATES BELOW HERE
+//////////////
 
 inline static bool
 is_cpg(const string &s, const size_t idx) {
@@ -310,9 +269,42 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
+/////////
+/////////  CODE FOR DOING THE SLIDING WINDOW STUFF BELOW HERE
+/////////
+
+
+static void
+clip_read(const size_t start_pos, const size_t end_pos, epiread &r) {
+  if (r.pos < start_pos) {
+    r.seq = r.seq.substr(start_pos - r.pos);
+    r.pos = start_pos;
+  }
+  if (r.end() > end_pos)
+    r.seq = r.seq.substr(0, end_pos - r.pos);
+}
+
+
+
+static void
+get_current_epireads(const vector<epiread> &epireads, 
+		     const size_t max_epiread_len,
+		     const size_t cpg_window, const size_t start_pos,
+		     size_t &read_id, vector<epiread> &current_epireads) {
+  while (read_id < epireads.size() &&
+	 epireads[read_id].pos + max_epiread_len <=start_pos)
+    ++read_id;
+  
+  const size_t end_pos = start_pos + cpg_window;
+  for (size_t i = read_id; (i < epireads.size() && 
+			    epireads[i].pos < end_pos); ++i) {
+    if (epireads[i].end() > start_pos) {
+      current_epireads.push_back(epireads[i]);
+      clip_read(start_pos, end_pos, current_epireads.back());
+    }
+  }
+}
+
 
 
 static size_t
@@ -323,12 +315,28 @@ total_states(const vector<epiread> &epireads) {
   return total;
 }
 
+
+static void
+add_amr(const string &chrom_name, const size_t start_cpg, 
+	const size_t cpg_window, const vector<epiread> &reads, 
+	const double score, vector<GenomicRegion> &amrs) {
+  static const string name_label("AMR");
+  const size_t end_cpg = start_cpg + cpg_window - 1;
+  const string amr_name(name_label + toa(amrs.size()) + ":" + toa(reads.size()));
+  amrs.push_back(GenomicRegion(chrom_name, start_cpg, end_cpg,
+			       amr_name, score, '+'));
+}
+
+
 static size_t
 process_chrom(const bool VERBOSE, const bool PROGRESS,
 	      const size_t min_obs_per_cpg, const size_t window_size,
-	      const EpireadStats &epistat, const string &chrom_name, 
+	      const EpireadStats &epistat, const string &chrom_name,
 	      const vector<epiread> &epireads, vector<GenomicRegion> &amrs) {
   
+  size_t max_epiread_len = 0;
+  for (size_t i = 0; i < epireads.size(); ++i)
+    max_epiread_len = std::max(max_epiread_len, epireads[i].length());
   const size_t min_obs_per_window = window_size*min_obs_per_cpg;
   
   const size_t chrom_cpgs = get_n_cpgs(epireads);
@@ -338,9 +346,8 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 	 << "[cpgs: " << chrom_cpgs << "]" << endl;
   
   const size_t PROGRESS_TIMING_MODULUS = std::max(1ul, epireads.size()/1000);
-
-  size_t windows_tested = 0;
   
+  size_t windows_tested = 0;
   size_t start_idx = 0;
   const size_t lim = chrom_cpgs - window_size + 1;
   for (size_t i = 0; i < lim && start_idx < epireads.size(); ++i) {
@@ -349,7 +356,8 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
       cerr << '\r' << chrom_name << ' ' << percent(i, chrom_cpgs) << "%\r";
     
     vector<epiread> current_epireads;
-    get_current_epireads(epireads, window_size, i, start_idx, current_epireads);
+    get_current_epireads(epireads, max_epiread_len,
+			 window_size, i, start_idx, current_epireads);
     
     if (total_states(current_epireads) > min_obs_per_window) {
       bool is_significant = false;
@@ -363,6 +371,7 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
     cerr << '\r' << chrom_name << " 100%" << endl;
   return windows_tested;
 }
+
 
 
 int 
@@ -436,7 +445,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "AMR TESTING OPTIONS: "
 	   << "[test=" << (USE_BIC ? "BIC" : "LRT") << "] "
-	   << "[balance=" << !IGNORE_BALANCE << "] "
+	   << "[balance=" << (IGNORE_BALANCE ? "FALSE" : "TRUE") << "] "
 	   << "[iterations=" << max_itr << "]" << endl;
     
     const EpireadStats epistat(low_prob, high_prob, critical_value, max_itr,
@@ -460,18 +469,17 @@ main(int argc, const char **argv) {
 	epireads.clear();
       }
       epireads.push_back(epiread(tmp_pos, tmp_states));
-      std::swap(prev_chrom, curr_chrom);
+      prev_chrom = curr_chrom;
     }
-    if (!epireads.empty()) {
+    if (!epireads.empty())
       windows_tested += 
 	process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
 		      epistat, prev_chrom, epireads, amrs);
-    }
     
     //////////////////////////////////////////////////////////////////
     //////  POSTPROCESSING IDENTIFIED AMRS AND COMPUTING SUMMARY STATS
     if (VERBOSE)
-      cerr << endl << "========= POST PROCESSING =========" << endl;
+      cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
     const double fdr_cutoff = (USE_BIC) ? 0.0 :
@@ -483,7 +491,8 @@ main(int argc, const char **argv) {
     merge_amrs(gap_limit, amrs);
     const size_t merged_amrs = amrs.size();
     
-    eliminate_amrs_by_fdr(fdr_cutoff, amrs);
+    if (!USE_BIC)
+      eliminate_amrs_by_fdr(fdr_cutoff, amrs);
     const size_t amrs_passing_fdr = amrs.size();
     
     eliminate_amrs_by_size(gap_limit/2, amrs);
