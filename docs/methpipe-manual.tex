@@ -840,7 +840,7 @@ given site is lower in \fn{Human\_NHFF.meth} than in
 \fn{Human\_ESC.meth}. For the other direction, you can either
 swap the order of those two input files, or just subtract the
 probability from 1.0. The method used is due to Altham
-(1971)~\cite{altham1971exact}, and is like a one-directional version
+(1971)~\cite{altham1969exact}, and is like a one-directional version
 of Fisher's exact test.
 
 \subsubsection{Differentially methylated regions (DMRs)}
@@ -898,41 +898,80 @@ $ ./allelicmeth -c hg18 -o Human_ESC.allelicmeth Human_ESC.mr
 \end{verbatim}
 
 \subsubsection{Allelically methylated regions (AMRs)}
+
+The method described here was introduced in \cite{fang2012genomic}.
 The program \prog{amrfinder} scans the genome using a sliding window
 to identify AMRs. For a genomic interval, two statistical models are
 fitted to the reads mapped, respectively. One model (single-allele
 model) assumes the two alleles have the same methylation state, and
 the other (two-allele model) represents different methylation states
 for the two alleles. Comparing the likelihood of the two models, the
-interrogated genomic interval may be classified as an AMR. The
-input files are still mapped reads files, and the output bed files
-contain all possible AMRs in BED format. \prog{amrfinder} also accepts a
-special input format, called ``epiread'', that consists of three
+interrogated genomic interval may be classified as an AMR. The input
+files must be in the ``epiread'' format, which consists of three
 columns. The first column is the chromosome of the read, the second
 column is the numbering order of the first CpG in the read, and the
-last column is the CpG only sequence of the read. ``Epiread'' format
-significantly reduces the memory requirements to run \prog{amrfinder}.
+last column is the CpG only sequence of the read.
 
-You can use the
-program \prog{methstates} to convert the mapped reads file to the
-epiread format as below:
+You can use the program \prog{methstates} to convert the mapped reads
+file to the epiread format as below:
 \begin{verbatim}
-$ ./methstates -c hg18 Human_ESC.mr -o Human_ESC.epiread
+$ ./methstates -c hg18 -o Human_ESC.epiread Human_ESC.mr 
 \end{verbatim}
 
-The following command shows an example to run the program \prog{amrfinder}.
+The following command shows an example to run the program
+\prog{amrfinder}.
 \begin{verbatim}
-$ ./amrfinder -o Human_ESC.amr -i 10 -w 10 -m 1 -c hg18 -b Human_ESC.mr
-$ ./amrfinder -o Human_ESC.amr -c hg18 -b Human_ESC.epiread
+$ ./amrfinder -o Human_ESC.amr hg18 Human_ESC.epiread
 \end{verbatim}
-Option \op{-i} is the maximum iterations allowed in the EM procedure
-when calculating the likelihood for the two-allele model, and the
-default value is $10$. Option \op{-w} defines the size of the sliding
-window using the number of CpGs, and the default value is $10$. Option
-\op{-m} is the requirement of the minimum reads covering each CpG, and
-the default value is $1$. Option \op{-b} means to use BIC criterion to
-compare the two likelihood models, otherwise likelihood ratio test is
-used for model comparison.
+The above default running mode requires that a directory of
+chromosomes (e.g. above \fn{hg18}), which must be the same chromosomes
+to which the original reads were mapped. This is used to convert from
+the ``epiread'' coordinates (using CpG indexes) back to base-pair
+coordinates. The directory must contain a file for each chromosome, in
+FASTA format, whose name is the name of the chromosome it contains,
+with the \fn{*.fa} suffix. There are several options for running
+\prog{amrfinder}. The \op{-b} switches from using a likelihood ratio
+test to BIC as the criterion for calling an AMR. The \op{-i} option
+changes the number of iterations used in the EM procedure when fitting
+the models. The \op{-u} option eliminates the penalty for alleles
+being out of balance -- the program usually assumes roughly 50\% of
+the reads should come each allele. The \op{-w} option changes the size
+of the sliding window, which is in terms of CpGs. The default of 10
+CpGs per window has worked well for us. The \op{-m} indicates the
+minimum coverage per CpG site required for a window to be tested as an
+AMR. The default requires 4 reads on average, and any lower will
+probably lead to unreliable results. AMRs are often fragmented, as
+coverage fluctuates, and spacing between CpGs means their linkage
+cannot be captured by the model. The \op{-g} parameter is used to
+indicate the maximum distance between any two identified AMRS; if two
+are any closer than this value, they are merged. The default is 1000,
+and it seems to work well in practice, not joining things that appear
+as though they should be distinct. In the current version of the
+program, at the end of the procedure, any AMRs whose size in terms of
+base-pairs is less than half the ``gap'' size are eliminated. This is
+a hack that has produced excellent results, but will eventually be
+eliminated (hopefully soon). Finally, the \op{-c} parameter specifies
+the critical value for keeping windows as AMRs, and is only useful
+when the likelihood ratio test is the used; for BIC windows are
+retained if the BIC for the two-allele model is less than that for the
+single-allele model.
+
+In addition to \prog{amrfinder}, which uses a sliding window, there is
+also the \prog{amrtester} program, which tests for allele-specific
+methylation in a given set of genomic intervals. The program can be
+run like this:
+\begin{verbatim}
+$ ./amrtester -o Human_ESC.amr hg18 intervals.bed Human_ESC.epiread
+\end{verbatim}
+The required arguments are (and order is important) the directory of
+chromosomes to which original reads were mapped (here \fn{hg18}), the
+set of intervals (in BED format) that should be tested for allelic
+methlation, and finally the mapped reads information, which must be in
+the ``epiread'' format. This program works very similarly to
+\prog{amrfinder}, but does not have options related to the sliding
+window. This program outputs a score for each input interval, and when
+the likelihood ratio test is used, the score is the $p$-value, which
+can easily be filtered later.
 
 % \newpage
 % The following figure shows a detailed work flow of the steps involved
@@ -1374,9 +1413,9 @@ appropriate. These tools should provide a convenient, consistent
 workflow for researchers to quickly analyze and compare their
 methylomes with those made publically available in methbase.
 
-
+\newpage
 
 \bibliographystyle{plain}
-\bibliography{biblio}
+\bibliography{methpipe-manual}
 
 \end{document}
