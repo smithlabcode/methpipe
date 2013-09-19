@@ -201,17 +201,6 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 }
 
 
-static void
-identify_chromosomes(const string chrom_file, const string fasta_suffix, 
-                     unordered_map<string, string> &chrom_files) {
-  vector<string> the_files;
-  if (isdir(chrom_file.c_str())) {
-    read_dir(chrom_file, fasta_suffix, the_files);
-    for (size_t i = 0; i < the_files.size(); ++i)
-      chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
-  }
-  else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
-}
 
 
 static void
@@ -227,6 +216,53 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
   region.set_end(end_itr->second);
 }
 
+static void
+get_chrom(const bool VERBOSE, const GenomicRegion &r, 
+	  const unordered_map<string, string>& chrom_files,
+      GenomicRegion &chrom_region, 
+	  string &chrom) {
+  const unordered_map<string, string>::const_iterator fn(chrom_files.find(r.get_chrom()));
+  if (fn == chrom_files.end())
+    throw SMITHLABException("could not find chrom: " + r.get_chrom());
+  chrom.clear();
+  read_fasta_file(fn->second, r.get_chrom(), chrom);
+  if (chrom.empty()) 
+    throw SMITHLABException("could not find chrom: " + r.get_chrom());
+  else {
+    chrom_region.set_chrom(r.get_chrom());
+  }
+}
+
+static void
+identify_chromosomes(const string chrom_file, const string fasta_suffix, 
+		     unordered_map<string, string> &chrom_files) {
+  vector<string> the_files;
+  if (isdir(chrom_file.c_str())) {
+    read_dir(chrom_file, fasta_suffix, the_files);
+  }
+  else
+    the_files.push_back(chrom_file);
+
+  for (size_t i = 0; i < the_files.size(); ++i) {
+    vector<string> names, seqs;
+    read_fasta_file(the_files[i], names, seqs);
+    for (size_t j = 0; j < names.size(); ++j)
+      chrom_files[names[j]] = the_files[i];
+  }
+}
+
+// static void
+// identify_chromosomes(const string chrom_file, const string fasta_suffix, 
+//                      unordered_map<string, string> &chrom_files) {
+//   vector<string> the_files;
+//   if (isdir(chrom_file.c_str())) {
+//     read_dir(chrom_file, fasta_suffix, the_files);
+//     for (size_t i = 0; i < the_files.size(); ++i)
+//       chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
+//   }
+//   else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
+// }
+
 
 static void
 convert_coordinates(const bool VERBOSE, const string chroms_dir,
@@ -238,27 +274,22 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
     cerr << "CHROMS:\t" << chrom_files.size() << endl;
   
   unordered_map<size_t, size_t> cpgs;
-  vector<string> chrom_names, chroms;
-  GenomicRegion region;
+  string chrom;
   GenomicRegion chrom_region("chr0", 0, 0);
   for (size_t i = 0; i < amrs.size(); ++i) {
     
     // get the correct chrom if it has changed
     if (!amrs[i].same_chrom(chrom_region)) {
-      const unordered_map<string, string>::const_iterator 
-        fn(chrom_files.find(amrs[i].get_chrom()));
-      if (fn == chrom_files.end())
-        throw SMITHLABException("could not find chrom: " + amrs[i].get_chrom());
-      
-      chrom_names.clear();
-      chroms.clear();
-      read_fasta_file(fn->second.c_str(), chrom_names, chroms);
-      if (chrom_names.size() > 1)
-        throw SMITHLABException("multiple chroms/file: " + fn->second);
+      try {
+        get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
+      } catch (const SMITHLABException &e) {
+        if (e.what().find("could not find chrom") != string::npos)
+          continue;
+        throw;
+      }
       if (VERBOSE)
-        cerr << "CONVERTING: " << chrom_names.front() << endl;
-      collect_cpgs(chroms.front(), cpgs);
-      chrom_region.set_chrom(chrom_names.front());
+        cerr << "CONVERTING: " << chrom_region.get_chrom() << endl;
+      collect_cpgs(chrom, cpgs);
     }
     
     convert_coordinates(cpgs, amrs[i]);
