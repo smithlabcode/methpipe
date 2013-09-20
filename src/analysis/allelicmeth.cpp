@@ -326,7 +326,7 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
       // make sure chrosomes comes in lexical order as how input reads
       // is sorted
       vector<std::pair<string, size_t> > chrom_idx;
-      for (size_t j = 0; j < chrom_names.size();; ++j)
+      for (size_t j = 0; j < chrom_names.size(); ++j)
         chrom_idx.push_back(std::make_pair(chrom_names[j], j));
       std::sort(chrom_idx.begin(), chrom_idx.end(), Compare());
       
