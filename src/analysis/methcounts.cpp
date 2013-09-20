@@ -639,9 +639,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
   std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
   for (size_t i = 0; i < chrom_files.size(); ++i) {
-    const string fn(strip_path_and_suffix(chrom_files[i]));
+    const string fn(strip_path(chrom_files[i]));
     if (VERBOSE)
-      cerr << "[LOADING CHROM FILE=" << fn << "]";
+      cerr << "[LOADING CHROM FILE=" << fn << "]" << endl;
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
     fix_chrom_names(chrom_names);
@@ -673,8 +673,8 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(qc, chroms[j], chrom_region, max_mismatches,
 			       regions, out, meth_stat_collector, max_length);
+      if (VERBOSE) cerr << " [DONE]" << endl;
     }
-    if (VERBOSE) cerr << " [DONE]" << endl;
   }
 }
 
@@ -692,9 +692,9 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
   std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
   for (size_t i = 0; i < chrom_files.size(); ++i) {
-    const string fn(strip_path_and_suffix(chrom_files[i]));
+    const string fn(strip_path(chrom_files[i]));
     if (VERBOSE)
-      cerr << "[LOADING CHROM FILE=" << fn << "]";
+      cerr << "[LOADING CHROM FILE=" << fn << "]" << endl;
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
     fix_chrom_names(chrom_names);
@@ -726,8 +726,8 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
 			       regions, out, meth_stat_collector, max_length);
+      if (VERBOSE) cerr << " [DONE]" << endl;
     }
-    if (VERBOSE) cerr << " [DONE]" << endl;
   }
 }
 
