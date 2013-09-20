@@ -56,7 +56,7 @@ using std::ifstream;
 /********Below are functions for merging pair-end reads********/
 static void
 fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start, 
-	     const size_t end, const size_t offset, string &seq, string &scr) {
+             const size_t end, const size_t offset, string &seq, string &scr) {
   const size_t a = pos_str ? (start - mr.r.get_start()) : (mr.r.get_end() - end);
   const size_t b = pos_str ? (end -  mr.r.get_start()) : (mr.r.get_end() - start);
   copy(mr.seq.begin() + a, mr.seq.begin() + b, seq.begin() + offset);
@@ -65,7 +65,7 @@ fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start,
 
 static bool
 merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one, 
-	    const MappedRead &two, MappedRead &merged) {
+            const MappedRead &two, MappedRead &merged) {
   
   const bool pos_str = one.r.pos_strand();
   const size_t overlap_start = std::max(one.r.get_start(), two.r.get_start());
@@ -93,7 +93,7 @@ merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one,
   }
   assert(one_left <= one_right && two_left <= two_right);
   assert(overlap_start >= overlap_end || static_cast<size_t>(len) == 
-	 ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
+         ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
   
   string seq(len, 'N');
   string scr(len, 'B');
@@ -117,9 +117,9 @@ merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one,
       
       // use the mate with the most info to fill in the overlap
       if (info_one >= info_two)
-	fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
+        fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
       else
-	fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
+        fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
     }
   }
   
@@ -137,7 +137,7 @@ merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one,
 
 inline static bool
 same_read(string mapper, 
-	  const MappedRead &a, const MappedRead &b) {
+          const MappedRead &a, const MappedRead &b) {
   size_t suffix_len = 1;
   //if (mapper.compare("bismark") == 0) suffix_len = 0;
   //else if (mapper.compare("bs_seeker") == 0) suffix_len = 0;
@@ -158,20 +158,22 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
-        "Supported mappers: bsmap, bismark, bs_seeker", "[options] input_file");
-    opt_parse.add_opt("output", 'o', "Name of output file.", 
-		      true, outfile);
-    opt_parse.add_opt("bam", 'b', "Input file format is bam. Must have bamtools installed."
-		      , false, bam_format);
-    opt_parse.add_opt("mapper", 'm', "Mapper used to generate input file. See \
-                      supported mappers below. If you don't know which mapper \
-                      was used, simply type 'unknown'.", 
-		      true, mapper);
+                           "Convert the SAM/BAM output from bsmap,"
+                           "bismark or bs_seeker to MethPipe mapped read format",
+                           "sam/bamn_file");
+    opt_parse.add_opt("output", 'o', "Name of output file", 
+                      false, outfile);
+    opt_parse.add_opt("bam", 'b',
+                      "Input file format is bam",
+                      false, bam_format);
+    opt_parse.add_opt("mapper", 'm',
+                      "Original mapper: bsmap, bismark or bs_seeker", 
+                      true, mapper);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc < 3 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -208,7 +210,7 @@ main(int argc, const char **argv) {
       do {
         MappedRead mr;
         if (r1.is_pairend() && r1.is_mapped()
-           && r1.is_primary() ) {
+            && r1.is_primary() ) {
           if (r1.is_mapping_paired()) {
             in >> r2;
             MappedRead mr_1, mr_2;
@@ -220,14 +222,14 @@ main(int argc, const char **argv) {
               throw SMITHLABException("Reads not sorted by name");
             }
             bool merge_success = merge_mates(false, MAX_FRAG_LENGTH,
-                mr_1, mr_2, mr);
+                                             mr_1, mr_2, mr);
             if(merge_success)
               out << mr << endl;
             else {
               /********Non-concordant mates are discarded********
-              cerr << mr_1 << endl;
-              cerr << mr_2 << endl;
-              throw SMITHLABException("Problem merging mates");
+                       cerr << mr_1 << endl;
+                       cerr << mr_2 << endl;
+                       throw SMITHLABException("Problem merging mates");
               */
             }
           }
@@ -245,7 +247,7 @@ main(int argc, const char **argv) {
       while (!in.eof());
     }
 
-    #ifdef HAVE_BAMTOOLS
+#ifdef HAVE_BAMTOOLS
     else if (bam_format) {
       BamReader reader;
       reader.Open(mapped_reads_file);
@@ -263,33 +265,33 @@ main(int argc, const char **argv) {
         MappedRead mr;
         if(bam_1.IsPaired() && bam_1.IsMapped()
            && bam_1.IsPrimaryAlignment()) {
-	  if(bam_1.IsProperPair()) {
-	    reader.GetNextAlignment(bam_2);
-	    // if the next read is not the mate, they will not have the same name
-	    MappedRead mr_1, mr_2;
-	    BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_1, mr_1, mapper);
-	    BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_2, mr_2, mapper);
-	    if(!same_read(mapper,mr_1, mr_2)) {
-	      cerr << mr_1 << endl;
-	      cerr << mr_2 << endl;
-	      throw SMITHLABException("Reads not sorted by name");
-	    }
+          if(bam_1.IsProperPair()) {
+            reader.GetNextAlignment(bam_2);
+            // if the next read is not the mate, they will not have the same name
+            MappedRead mr_1, mr_2;
+            BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_1, mr_1, mapper);
+            BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_2, mr_2, mapper);
+            if(!same_read(mapper,mr_1, mr_2)) {
+              cerr << mr_1 << endl;
+              cerr << mr_2 << endl;
+              throw SMITHLABException("Reads not sorted by name");
+            }
             bool merge_success = merge_mates(false, MAX_FRAG_LENGTH,
-                mr_1, mr_2, mr);
-	    if(merge_success)
-	      out << mr << endl;
-	    else {
+                                             mr_1, mr_2, mr);
+            if(merge_success)
+              out << mr << endl;
+            else {
               /********Non-concordant mates are discarded********
-	      cerr << mr_1 << endl;
-	      cerr << mr_2 << endl;
-	      throw SMITHLABException("Problem merging mates");
+                       cerr << mr_1 << endl;
+                       cerr << mr_2 << endl;
+                       throw SMITHLABException("Problem merging mates");
               */
-	    }
+            }
           }
-	  else {
-	    BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_1, mr, mapper);
-	    out << mr << endl;
-	  }
+          else {
+            BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_1, mr, mapper);
+            out << mr << endl;
+          }
         }
         else if(bam_1.IsMapped() && bam_1.IsPrimaryAlignment()){
           BamAlignmentToMappedReadWithMapper(chrom_lookup, bam_1, mr, mapper);
@@ -301,7 +303,7 @@ main(int argc, const char **argv) {
       }
       reader.Close();
     }
-    #endif
+#endif
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
