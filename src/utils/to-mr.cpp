@@ -230,9 +230,10 @@ main(int argc, const char **argv) {
           merge_mates(suffix_len, MAX_FRAG_LENGTH, prev_mr, mr, merged);
           out << merged << endl;
           prev_mr.r.set_name("");
-        } else if (!prev_mr.r.get_name().empty()) {
-          out << prev_mr << endl;
-          prev_mr = mr;
+        } else {
+          if (!prev_mr.r.get_name().empty()) 
+            out << prev_mr << endl;
+            prev_mr = mr;
         }
       }
     }
