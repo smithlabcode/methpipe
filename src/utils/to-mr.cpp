@@ -52,6 +52,8 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::ifstream;
+using std::min;
+using std::max;
 
 /********Below are functions for merging pair-end reads********/
 static void
@@ -63,37 +65,30 @@ fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start,
   copy(mr.scr.begin() + a, mr.scr.begin() + b, scr.begin() + offset);
 }
 
-static bool
-merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one, 
-            const MappedRead &two, MappedRead &merged) {
+static void
+merge_mates(const size_t suffix_len, const size_t range,
+	    const MappedRead &one, const MappedRead &two, MappedRead &merged) {
   
   const bool pos_str = one.r.pos_strand();
-  const size_t overlap_start = std::max(one.r.get_start(), two.r.get_start());
-  const size_t overlap_end = std::min(one.r.get_end(), two.r.get_end());
+  const size_t overlap_start = max(one.r.get_start(), two.r.get_start());
+  const size_t overlap_end = min(one.r.get_end(), two.r.get_end());
 
   const size_t one_left = pos_str ? 
-    one.r.get_start() : std::max(overlap_end, one.r.get_start());
+    one.r.get_start() : max(overlap_end, one.r.get_start());
   const size_t one_right = 
-    pos_str ? std::min(overlap_start, one.r.get_end()) : one.r.get_end();
+    pos_str ? min(overlap_start, one.r.get_end()) : one.r.get_end();
   
   const size_t two_left = pos_str ? 
-    std::max(overlap_end, two.r.get_start()) : two.r.get_start();
+    max(overlap_end, two.r.get_start()) : two.r.get_start();
   const size_t two_right = pos_str ? 
-    two.r.get_end() : std::min(overlap_start, two.r.get_end());
+    two.r.get_end() : min(overlap_start, two.r.get_end());
   
   const int len = pos_str ? (two_right - one_left) : (one_right - two_left);
   
-  if(len <= 0){
-    if(VERBOSE){
-      cerr << one << endl;
-      cerr << two << endl;
-      cerr << "len = " << len << endl;
-    } 
-    return false;
-  }
+  assert(len > 0);
   assert(one_left <= one_right && two_left <= two_right);
   assert(overlap_start >= overlap_end || static_cast<size_t>(len) == 
-         ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
+	 ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
   
   string seq(len, 'N');
   string scr(len, 'B');
@@ -117,9 +112,9 @@ merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one,
       
       // use the mate with the most info to fill in the overlap
       if (info_one >= info_two)
-        fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
+	fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
       else
-        fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
+	fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
     }
   }
   
@@ -130,9 +125,16 @@ merge_mates(const bool VERBOSE, const size_t range, const MappedRead &one,
   merged.seq = seq;
   merged.scr = scr;  
   const string name(one.r.get_name());
-  merged.r.set_name("FRAG:" + name.substr(0, name.size()-2));
+  merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
+}
 
-  return true;
+
+inline static bool
+same_read(const size_t suffix_len, 
+	  const MappedRead &a, const MappedRead &b) {
+  const string sa(a.r.get_name());
+  const string sb(b.r.get_name());
+  return std::equal(sa.begin(), sa.end() - suffix_len, sb.begin());
 }
 
 inline static bool
@@ -155,6 +157,7 @@ main(int argc, const char **argv) {
     string mapper;
     bool bam_format = false;
     size_t MAX_FRAG_LENGTH = 500;
+    size_t suffix_len = 1;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
@@ -169,6 +172,9 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("mapper", 'm',
                       "Original mapper: bsmap, bismark or bs_seeker", 
                       true, mapper);
+    opt_parse.add_opt("suffix-len", '\0', "Suffix length of reads name", 
+                      false, suffix_len);
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc < 3 || opt_parse.help_requested()) {
@@ -206,45 +212,29 @@ main(int argc, const char **argv) {
       }
       while (line.substr(0,1) == "@");
 
-      SAM r1(mapper,line), r2(mapper);
-      do {
-        MappedRead mr;
-        if (r1.is_pairend() && r1.is_mapped()
-            && r1.is_primary() ) {
-          if (r1.is_mapping_paired()) {
-            in >> r2;
-            MappedRead mr_1, mr_2;
-            mr_1 = r1.GetMappedRead();
-            mr_2 = r2.GetMappedRead();
-            if(!same_read(mapper,mr_1, mr_2)) {
-              cerr << mr_1 << endl;
-              cerr << mr_2 << endl;
-              throw SMITHLABException("Reads not sorted by name");
-            }
-            bool merge_success = merge_mates(false, MAX_FRAG_LENGTH,
-                                             mr_1, mr_2, mr);
-            if(merge_success)
-              out << mr << endl;
-            else {
-              /********Non-concordant mates are discarded********
-                       cerr << mr_1 << endl;
-                       cerr << mr_2 << endl;
-                       throw SMITHLABException("Problem merging mates");
-              */
-            }
-          }
-          else {
-            out << r1 << endl;
-          }
+      SAM r1(mapper);
+      MappedRead prev_mr;
+      prev_mr.r.set_name("");
+      while (in >> r1) {
+        MappedRead mr = r1.GetMappedRead();
+        if (prev_mr.r.get_name() > mr.r.get_name())
+        {
+          cerr << "ERROR: " <<  prev_mr.r.get_name() << "\t"
+               << mr.r.get_name() << endl;
+          throw SMITHLABException("Reads not sorted by name");
         }
-        else if(r1.is_mapped() && r1.is_primary()) {
-          out << r1 << endl;
+        
+        if(same_read(suffix_len, prev_mr, mr)) {
+          MappedRead merged;
+          if (r1.is_Trich()) std::swap(prev_mr, mr);
+          merge_mates(suffix_len, MAX_FRAG_LENGTH, prev_mr, mr, merged);
+          out << merged << endl;
+          prev_mr.r.set_name("");
+        } else if (!prev_mr.r.get_name().empty()) {
+          out << prev_mr << endl;
+          prev_mr = mr;
         }
-        // if the read is not mapped or is not primary alignment, do nothing
-
-        in >> r1;
       }
-      while (!in.eof());
     }
 
 #ifdef HAVE_BAMTOOLS
