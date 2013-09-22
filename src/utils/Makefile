@@ -30,10 +30,11 @@ endif
 PROGS = lc_approx fastLiftOver to-mr
 
 COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+SAMTOOLS_DIR = $(SRC_ROOT)/src/samtools
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR) $(SAMTOOLS_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas -lz
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -53,12 +54,6 @@ ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
 endif
 
-ifdef BAMTOOLS_ROOT
-INCLUDEDIRS += $(BAMTOOLS_ROOT)/include
-LIBS += -lbamtools -lz -L$(BAMTOOLS_ROOT)/lib
-CXXFLAGS += -DHAVE_BAMTOOLS
-endif
-
 all: $(PROGS)
 
 install: $(PROGS)
@@ -72,16 +67,18 @@ fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o)
-ifdef BAMTOOLS_ROOT
-to-mr: $(addprefix $(COMMON_DIR)/, bamtools_interface.o)
-endif
+to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
+	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
+	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+
+%.o: %.c
+	$(CC) $(CCFLAGS) -c -o $@ $^ $(INCLUDEARGS) $(LIBS) 
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
