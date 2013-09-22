@@ -223,13 +223,20 @@ main(int argc, const char **argv) {
         {
           dangling_mates[read_name] = samr;
         }
-
       }
       else
       {
         if (!samr.is_Trich) revcomp(samr.mr);
         out << samr.mr << endl;
       }
+    }
+
+    // output mates incorrected masked as properly mapped as pairs 
+    while (!dangling_mates.empty()) {
+      if (!dangling_mates.begin()->second.is_Trich)
+        revcomp(dangling_mates.begin()->second.mr);
+      out << dangling_mates.begin()->second.mr << endl;
+      dangling_mates.erase(dangling_mates.begin());
     }
   }
   catch (const SMITHLABException &e) {
