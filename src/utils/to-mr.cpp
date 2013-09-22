@@ -203,7 +203,6 @@ main(int argc, const char **argv) {
         const string read_name
           = samr.mr.r.get_name().substr(
             0, samr.mr.r.get_name().size() - suffix_len);
-
         if (dangling_mates.find(read_name) != dangling_mates.end())
         {
           assert(same_read(suffix_len, samr.mr, dangling_mates[read_name].mr));
@@ -218,13 +217,13 @@ main(int argc, const char **argv) {
             out << merged << endl;
           else
             out << dangling_mates[read_name].mr << endl << samr.mr << endl;
+          dangling_mates.erase(read_name);
         }
         else
         {
           dangling_mates[read_name] = samr;
         }
 
-        dangling_mates.erase(read_name);
       }
       else
       {

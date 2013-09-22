@@ -202,39 +202,39 @@ bool
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
                     double &meth, size_t &coverage) {
-    //in >> chrom >> pos >> strand >> seq >> meth >> coverage;
-    //return in.good();
+    in >> chrom >> pos >> strand >> seq >> meth >> coverage;
+    return in.good();
     
-   string line;
-   getline(in, line);
+   // string line;
+   // getline(in, line);
 
-   std::istringstream is(line);
+   // std::istringstream is(line);
 
-   string pos_str, meth_str, cov_str;
-   if (!(is >> chrom >> pos_str >> strand >>
-         seq >> meth_str >> cov_str)) {
-     return false;
-   }
-   is.clear();
-   is.str(pos_str);
-   if (!(is >> pos))
-     return false;
+   // string pos_str, meth_str, cov_str;
+   // if (!(is >> chrom >> pos_str >> strand >>
+   //       seq >> meth_str >> cov_str)) {
+   //   return false;
+   // }
+   // is.clear();
+   // is.str(pos_str);
+   // if (!(is >> pos))
+   //   return false;
 
-   is.clear();
-   is.str(meth_str);
-   meth= strtod(meth_str.c_str(), NULL);
+   // is.clear();
+   // is.str(meth_str);
+   // meth= strtod(meth_str.c_str(), NULL);
 
-   is.clear();
-   is.str(cov_str);
-   if (!(is >> coverage))
-     return false;
+   // is.clear();
+   // is.str(cov_str);
+   // if (!(is >> coverage))
+   //   return false;
 
-   if (std::isnan(meth) && coverage == 0)
-     meth = 0;
-   else if (std::isnan(meth) )
-     return false;
+   // if (std::isnan(meth) && coverage == 0)
+   //   meth = 0;
+   // else if (std::isnan(meth) )
+   //   return false;
 
-   return in.good();
+   // return in.good();
 }
 
 bool
