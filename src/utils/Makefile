@@ -78,7 +78,7 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 %.o: %.c
-	$(CC) $(CCFLAGS) -c -o $@ $^ $(INCLUDEARGS) $(LIBS) 
+	$(CC) $(CCFLAGS) -c -o $@ $^ $(INCLUDEARGS) 
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
