@@ -138,18 +138,12 @@ revcomp(MappedRead &mr) {
 
 int 
 main(int argc, const char **argv) {
-
-  cerr << 
-"****************************************************" << endl
-       << "WARNING: Testing version: very buggy" << endl
-       << "****************************************************"  << endl
-       << endl;
-  
   try {
     string outfile;
     string mapper;
     size_t MAX_SEGMENT_LENGTH = 1000;
     size_t suffix_len = 1;
+    bool VERBOSE = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
@@ -165,6 +159,9 @@ main(int argc, const char **argv) {
                       false, suffix_len); 
     opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size", 
                       false, MAX_SEGMENT_LENGTH); 
+    opt_parse.add_opt("verbose", 'v', "print more information",
+                      false, VERBOSE);
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc < 3 || opt_parse.help_requested()) {
@@ -190,10 +187,17 @@ main(int argc, const char **argv) {
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    if (VERBOSE)
+    {
+      cerr << "Input file: " << mapped_reads_file << endl
+           << "Output file: " << (outfile.empty() ? "stdout" : outfile) << endl;
+    }
 
     SAMReader sam_reader(mapped_reads_file, mapper);
     std::tr1::unordered_map<string, SAMRecord> dangling_mates;
     
+    size_t count = 0;
+    const size_t progress_step = 1000000;
     SAMRecord samr;
 
     while ((sam_reader >> samr, sam_reader.is_good()))
@@ -223,21 +227,48 @@ main(int argc, const char **argv) {
         {
           dangling_mates[read_name] = samr;
         }
+
+        // flush dangling_mates
+        if (dangling_mates.size() > 5000)
+        {
+          using std::tr1::unordered_map;
+          unordered_map<string, SAMRecord> tmp;
+          for (unordered_map<string, SAMRecord>::iterator
+                 itr = dangling_mates.begin();
+               itr != dangling_mates.end(); ++itr)
+            if (itr->second.mr.r.get_chrom() < samr.mr.r.get_chrom()
+                || (itr->second.mr.r.get_chrom() == samr.mr.r.get_chrom()
+                    && itr->second.mr.r.get_end() + MAX_SEGMENT_LENGTH <
+                    samr.mr.r.get_start()))
+            {
+              if (!itr->second.is_Trich) revcomp(itr->second.mr);
+              out << itr->second.mr << endl;
+            }
+            else
+              tmp[itr->first] = itr->second;
+          std::swap(tmp, dangling_mates);
+        }
       }
       else
       {
         if (!samr.is_Trich) revcomp(samr.mr);
         out << samr.mr << endl;
       }
+      ++count;
+      if (VERBOSE && count % progress_step == 0)
+        cerr << "Processed " << count << " records" << endl;
     }
 
-    // output mates incorrected masked as properly mapped as pairs 
+    // flushing dangling_mates
     while (!dangling_mates.empty()) {
       if (!dangling_mates.begin()->second.is_Trich)
         revcomp(dangling_mates.begin()->second.mr);
       out << dangling_mates.begin()->second.mr << endl;
       dangling_mates.erase(dangling_mates.begin());
     }
+          
+    if (VERBOSE)
+      cerr << "Done." << endl;
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
