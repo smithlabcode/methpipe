@@ -147,9 +147,9 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
-                           "Convert the SAM/BAM output from bsmap,"
+                           "Convert the SAM/BAM output from bsmap, "
                            "bismark or bs_seeker to MethPipe mapped read format",
-                           "sam/bamn_file");
+                           "sam/bam_file");
     opt_parse.add_opt("output", 'o', "Name of output file", 
                       false, outfile);
     opt_parse.add_opt("mapper", 'm',
