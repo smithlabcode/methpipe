@@ -36,6 +36,7 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas -lz
 
+CC = gcc
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
 CXXFLAGS = -Wall -fmessage-length=50
