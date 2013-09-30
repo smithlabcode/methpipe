@@ -219,6 +219,8 @@ main(int argc, const char **argv) {
     bool USE_BIC = false;
 
     string outfile;
+    string chroms_dir;
+
     size_t max_itr = 10;
     double high_prob = 0.75, low_prob = 0.25;
     
@@ -227,7 +229,9 @@ main(int argc, const char **argv) {
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles", 
 			   "<chroms-dir> <bed-regions> <mapped-reads>");
-    opt_parse.add_opt("outfile", 'o', "output file", false, outfile);
+    opt_parse.add_opt("output", 'o', "output file", false, outfile);
+    opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
+                      true, chroms_dir);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
     opt_parse.add_opt("no-bal", 'g', "ignore balanced partition info", 
 		      false, IGNORE_BALANCED_PARTITION_INFO);
@@ -250,12 +254,11 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.size() != 3) {
+    if (leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl
 	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string chroms_dir(leftover_args.front());
     const string regions_file(leftover_args[1]);
     const string reads_file_name(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/

@@ -416,6 +416,7 @@ main(int argc, const char **argv) {
     bool PROGRESS = false;
 
     string outfile;
+    string chroms_dir;
     
     size_t max_itr = 10;
     size_t window_size = 10;
@@ -433,7 +434,9 @@ main(int argc, const char **argv) {
     OptionParser opt_parse(strip_path(argv[0]), 
 			   "identify regions of allele-specific methylation", 
 			   "<chroms-dir> <epireads>");
-    opt_parse.add_opt("outfile", 'o', "output file", false, outfile);
+    opt_parse.add_opt("output", 'o', "output file", false, outfile);
+    opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
+                      true, chroms_dir);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
     opt_parse.add_opt("no-bal", 'u', "no penalty for unbalanced alleles", 
 		      false, IGNORE_BALANCE);
@@ -443,7 +446,7 @@ main(int argc, const char **argv) {
 		      false, min_obs_per_cpg);
     opt_parse.add_opt("gap", 'g', "min allowed gap between amrs (in bp)", 
     		      false, gap_limit);
-    opt_parse.add_opt("crit", 'c', "critical p-value cutoff (default: 0.01)", 
+    opt_parse.add_opt("crit", 'C', "critical p-value cutoff (default: 0.01)", 
 		      false, critical_value);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
     // opt_parse.add_opt("rand", 'R', "randomize reads (for comparison)", 
@@ -465,12 +468,11 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.size() != 2) {
+    if (leftover_args.size() != 1) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string chroms_dir(leftover_args.front());
-    const string reads_file(leftover_args.back());
+    const string reads_file(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
     
     if (VERBOSE)
