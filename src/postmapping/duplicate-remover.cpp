@@ -201,7 +201,7 @@ int main(int argc, const char **argv) {
       good_bases_in += mr.seq.length();
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
 	throw SMITHLABException("input not properly sorted:\n" + 
-				toa(mr) + "\n" + toa(buffer.front()));
+				toa(buffer.front()) + "\n" + toa(mr));
       if (!equivalent(buffer.front(), mr)) {
 	if (USE_SEQUENCE) {
 	  const size_t orig_buffer_size = buffer.size();
