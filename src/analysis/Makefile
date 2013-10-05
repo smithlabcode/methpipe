@@ -72,10 +72,10 @@ hmr pmd: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o Distro.o BetaBin.o numerical_utils.o)
 
-amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o EpireadIO.o Epiread.o) \
+amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 	$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
-amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o EpireadIO.o Epiread.o) \
+amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
