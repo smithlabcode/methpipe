@@ -1,0 +1,37 @@
+MethPipe: a computational pipeline for analyzing bisulfite sequencing
+data
+
+Project homepage: http://smithlab.usc.edu/methpipe/
+
+Release History:
+
+* version 3.0.1 [2013-10-04 Fri]
+
+  1. Fixed a bugs when reading sequence file containing multiple
+     chromosomes in methcounts, allelicmeth and amrfinder
+  2. Updated to-mr substantially to use samtools APIs. It accepts SAM
+     and BAM format as input files native. The bugs in interpreting
+     the meaning FLAGs from output of bismark are fixed
+  3. Thanks to Mark Robinson and Charity Law for pointing out the
+     issues above
+  4. Streamlined IO of epiread files; Fixed some bugs and changed the
+     default parameters in amrfinder and amrtester 
+  5. To check out a snapshot of this version, run:
+	 svn checkout -r 732 http://smithlab.usc.edu/repos/methpipe/tags/methpipe-3.0.0/ methpipe-3.0.1
+
+* version 3.0.0 [2013-09-06 Fri]
+  
+  1. initial public release accompanying the submission of the
+     MethPipe paper
+
+  2. To check out a snapshot of this version, run:
+	 svn checkout -r 697 http://smithlab.usc.edu/repos/methpipe/tags/methpipe-3.0.0/ methpipe-3.0.0
+
+ 
+
+
+
+
+ 
+
+
