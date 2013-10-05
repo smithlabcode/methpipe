@@ -57,9 +57,7 @@ parse_cpg_line_old(const string &buffer, string &chrom, size_t &position,
   const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
   
   n_meth = roundf(meth_freq*total);
-  n_unmeth = roundf((1.0 - meth_freq)*total);
-  
-  assert(n_meth + n_unmeth == total);
+  n_unmeth = total - n_meth;
 }
 
 
@@ -176,7 +174,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
 static void
 optimize_boundaries(const size_t bin_size, 
 		    const string &cpgs_file, 
-		    vector<GenomicRegion> &pmds) {
+		    vector<GenomicRegion> &pmds, bool FORMAT) {
   
   ////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////
@@ -531,7 +529,7 @@ load_intervals(const size_t bin_size,
 	       const string &cpgs_file, 
 	       vector<SimpleGenomicRegion> &intervals,
 	       vector<pair<double, double> > &meth, 
-	       vector<size_t> &reads) {
+	       vector<size_t> &reads, bool FORMAT) {
   
   const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
   
@@ -655,6 +653,8 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     const string cpgs_file = leftover_args.front();
+    bool FORMAT;
+    FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
     /****************** END COMMAND LINE OPTIONS *****************/
 
     if (VERBOSE)
@@ -662,7 +662,7 @@ main(int argc, const char **argv) {
     vector<pair<double, double> > meth;
     vector<size_t> reads;
     vector<SimpleGenomicRegion> cpgs;
-    load_intervals(bin_size, cpgs_file, cpgs, meth, reads);
+    load_intervals(bin_size, cpgs_file, cpgs, meth, reads, FORMAT);
     
     if (VERBOSE)
       cerr << "CPG SITES LOADED: " << cpgs.size() << endl;
@@ -751,7 +751,7 @@ main(int argc, const char **argv) {
       }
     }
     
-    optimize_boundaries(bin_size, cpgs_file, good_domains);
+    optimize_boundaries(bin_size, cpgs_file, good_domains, FORMAT);
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());

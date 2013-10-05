@@ -27,6 +27,7 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <utility>
 
 #include <tr1/unordered_map>
 
@@ -52,6 +53,13 @@ using std::ofstream;
 
 // GLOBGAL VARIABLE TO CONTROL OUTPUT FORMAT
 static bool USE_ALT_OUTPUT = true;
+
+struct Compare : public std::binary_function<
+  std::pair<string, size_t>, std::pair<string, size_t>, bool> {
+  bool operator()(const std::pair<string, size_t> &a,
+                  const std::pair<string, size_t> &b) 
+  {return (a < b);}
+};
 
 struct MethStat {
 
@@ -631,12 +639,30 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
   std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
   for (size_t i = 0; i < chrom_files.size(); ++i) {
-    const string fn(strip_path_and_suffix(chrom_files[i]));
+    const string fn(strip_path(chrom_files[i]));
     if (VERBOSE)
-      cerr << "[LOADING CHROM FILE=" << fn << "]";
+      cerr << "[LOADING CHROM FILE=" << fn << "]" << endl;
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
     fix_chrom_names(chrom_names);
+    if (chrom_names.size() > 1) {
+      // make sure chrosomes comes in lexical order as how input reads
+      // is sorted
+      vector<std::pair<string, size_t> > chrom_idx;
+      for (size_t j = 0; j < chrom_names.size(); ++j)
+        chrom_idx.push_back(std::make_pair(chrom_names[j], j));
+      std::sort(chrom_idx.begin(), chrom_idx.end(), Compare());
+      
+      vector<string> chrom_names_tmp(chrom_names.size()),
+        chroms_tmp(chrom_names.size());
+      for (size_t j = 0; j < chrom_names.size(); ++j)
+      {
+        std::swap(chrom_names_tmp[j], chrom_names[chrom_idx[j].second]);
+        std::swap(chroms_tmp[j], chroms[chrom_idx[j].second]);
+      }
+      std::swap(chrom_names_tmp, chrom_names);
+      std::swap(chroms_tmp, chroms);
+    }
     for (size_t j = 0; j < chroms.size(); ++j) {
       if (VERBOSE) cerr << "[SCANNING=" << chrom_names[j] << "]";
       //TODO: WHAT HAPPENS IF A CHROM IS MISSING??
@@ -647,8 +673,8 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(qc, chroms[j], chrom_region, max_mismatches,
 			       regions, out, meth_stat_collector, max_length);
+      if (VERBOSE) cerr << " [DONE]" << endl;
     }
-    if (VERBOSE) cerr << " [DONE]" << endl;
   }
 }
 
@@ -666,12 +692,30 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
   std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
   
   for (size_t i = 0; i < chrom_files.size(); ++i) {
-    const string fn(strip_path_and_suffix(chrom_files[i]));
+    const string fn(strip_path(chrom_files[i]));
     if (VERBOSE)
-      cerr << "[LOADING CHROM FILE=" << fn << "]";
+      cerr << "[LOADING CHROM FILE=" << fn << "]" << endl;
     vector<string> chrom_names, chroms;
     read_fasta_file(chrom_files[i].c_str(), chrom_names, chroms);
     fix_chrom_names(chrom_names);
+    if (chrom_names.size() > 1) {
+      // make sure chrosomes comes in lexical order as how input reads
+      // is sorted
+      vector<std::pair<string, size_t> > chrom_idx;
+      for (size_t j = 0; j < chrom_names.size(); ++j)
+        chrom_idx.push_back(std::make_pair(chrom_names[j], j));
+      std::sort(chrom_idx.begin(), chrom_idx.end(), Compare());
+      
+      vector<string> chrom_names_tmp(chrom_names.size()),
+        chroms_tmp(chrom_names.size());
+      for (size_t j = 0; j < chrom_names.size(); ++j)
+      {
+        std::swap(chrom_names_tmp[j], chrom_names[chrom_idx[j].second]);
+        std::swap(chroms_tmp[j], chroms[chrom_idx[j].second]);
+      }
+      std::swap(chrom_names_tmp, chrom_names);
+      std::swap(chroms_tmp, chroms);
+    }
     for (size_t j = 0; j < chroms.size(); ++j) {
       if (VERBOSE) cerr << "[SCANNING=" << chrom_names[j] << "]";
       //TODO: WHAT HAPPENS IF A CHROM IS MISSING??
@@ -682,8 +726,8 @@ scan_chroms(const bool VERBOSE, const bool PROCESS_NON_CPGS,
 			regions, out, meth_stat_collector, max_length);
       else scan_chromosome_cpg(chroms[j], chrom_region, max_mismatches,
 			       regions, out, meth_stat_collector, max_length);
+      if (VERBOSE) cerr << " [DONE]" << endl;
     }
-    if (VERBOSE) cerr << " [DONE]" << endl;
   }
 }
 

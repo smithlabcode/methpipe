@@ -118,9 +118,9 @@ main(int argc, const char **argv) {
     double overall_conversion_rate = 0;
     double pos_conv_rate = 0;
     double neg_conv_rate = 0;
-    double sum_bth = 0;
-    double sum_pos = 0;
-    double sum_neg = 0;
+    size_t sum_bth = 0ul;
+    size_t sum_pos = 0ul;
+    size_t sum_neg = 0ul;
     size_t base = 1;
     for (size_t i = 0; i < infiles.size(); ++i)
     {

@@ -26,6 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <numeric>
+#include <tr1/cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -50,8 +51,8 @@ parse_cpg_line(const string &buffer, size_t &n_meth, size_t &n_unmeth) {
   double meth_freq = 0.0;
   is >> dummy >> dummy >> dummy >> name >> meth_freq;
   const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
-  n_meth = roundf(meth_freq*total);
-  n_unmeth = roundf((1.0 - meth_freq)*total);
+  n_meth = std::tr1::round(meth_freq*total);
+  n_unmeth = std::tr1::round((1.0 - meth_freq)*total);
   assert(n_meth + n_unmeth == total);
 }
 
@@ -70,8 +71,8 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
 			     dummy, meth, coverage))
       return false;
     else {
-      n_meth = roundf(meth*coverage);
-      n_unmeth = roundf((1.0 - meth)*coverage);
+      n_meth = std::tr1::round(meth*coverage);
+      n_unmeth = std::tr1::round((1.0 - meth)*coverage);
       assert(n_meth + n_unmeth == coverage);
     }
   }
