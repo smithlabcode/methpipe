@@ -46,7 +46,8 @@ identify_chromosomes(const string chrom_file, const string fasta_suffix,
     for (size_t i = 0; i < the_files.size(); ++i)
       chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
   }
-  else the_files.push_back(chrom_file);
+  else 
+    chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
 }
 
 
@@ -87,14 +88,14 @@ EpireadIO::find_last_position_before(const string &query_chrom,
   string chrom, seq;
   size_t start = 0ul;
   
-  while ((high_pos>low_pos)&&(high_pos - low_pos > 1)) {
+  while ((high_pos > low_pos) && (high_pos - low_pos > 1)) {
     const size_t mid_pos = (low_pos + high_pos)/2;
     in.seekg(mid_pos);
     assert(in.tellg() >= 0);
     backup_to_start_of_current_record(in);
     if (!(in >> chrom >> start >> seq))
       throw SMITHLABException("problem loading reads");
-  
+    
     if (chrom < query_chrom || (chrom == query_chrom && start + 
 				seq.length() <= query_pos))
       low_pos = mid_pos;
@@ -351,11 +352,13 @@ EpireadIO::load_reads(const GenomicRegion &region, vector<epiread> &the_reads) {
     assert(in.tellg() >= 0);
     const streampos low_offset = 
       find_last_position_before(query_chrom, query_start, 0, range_high, in);
-    assert(in.tellg() >= 0);
+    if (in.tellg() < 0)
+      return;
+    
     const streampos high_offset = 
       find_first_position_after(query_chrom, query_end, low_offset, range_high, in);
     in.seekg(low_offset);
-
+    
     string chrom, seq;
     size_t start = 0ul;
     while ((in >> chrom >> start >> seq) && in.tellg() < high_offset)
@@ -473,22 +476,5 @@ EpireadIO::load_reads_next_chrom(string &chrom, vector<epiread> &the_reads) {
       backup_to_start_of_current_record(in);
     position = in.tellg();
     return true;
-  }
-}
-
-
-void
-EpireadIO::convert_coordinates(vector<GenomicRegion> &amrs) const {
-  if(!EPIREAD_FORMAT){
-    unordered_map<string, vector<size_t> >::const_iterator current_cpgs;
-    for (size_t i = 0; i < amrs.size(); ++i) {
-      if (i == 0 || !amrs[i].same_chrom(amrs[i-1])) {
-	current_cpgs = cpg_rev_lookup.find(amrs[i].get_chrom());
-	assert(current_cpgs != cpg_rev_lookup.end());
-      }
-      assert(current_cpgs->second.size() > amrs[i].get_end());
-      amrs[i].set_start(current_cpgs->second[amrs[i].get_start()]);
-      amrs[i].set_end(current_cpgs->second[amrs[i].get_end()]);
-    }
   }
 }

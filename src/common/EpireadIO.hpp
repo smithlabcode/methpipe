@@ -37,8 +37,6 @@ public:
   load_reads(const GenomicRegion &region, std::vector<epiread> &the_reads);
   bool
   load_reads_next_chrom(std::string &chrom, std::vector<epiread> &the_reads);
-  void
-  convert_coordinates(std::vector<GenomicRegion> &amrs) const;
   
   static void
   set_max_fragment_size(const size_t mfs) {max_fragment_size = mfs;}
