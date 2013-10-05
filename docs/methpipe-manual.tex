@@ -1090,6 +1090,24 @@ will have a corresponding line in the output).
 % 1) sed 's/:/\t/g' [filename]
 % 2) cat [filename] | tr ':' '\t'
 
+\subsection{Notes on data quality}
+\label{sec:notes-data-quality}
+The performance of our tools to identify higher-level methylation
+features (HMR, HyperMR, PMDs and AMR) depends on the underlying data
+quality. One major factor is coverage. Based on our experience, HMR
+detection using our method is acceptable above 5x coverage, and we
+recommend 10x for reliable results. Our method for identifying
+HyperMRs is similar to HMR-finding method, and the above statement
+holds. The required coverage therefore is even lower since the
+PMD-finding method internally works by accumulating CpGs in
+fixed-length bins. We feel $\sim$$3$x is sufficient. The AMR method
+depends on both coverage and read length. Datasets with read length
+around 100bp and mean coverage above 10x are recommended for the AMR
+method. Another important measure of data quality is the bisulfite
+conversion rate. Since most datasets have pretty good bisulfite
+conversion rate (above $0.95$), our tools does not explicitly correct
+fo the conversion rate.
+
 \section{Methylome visualization}
 \label{sec:visualization}
 
