@@ -27,7 +27,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fastLiftOver to-mr
+PROGS = lc_approx to-mr
 
 COMMON_DIR = $(SRC_ROOT)/src/common
 SAMTOOLS_DIR = $(SRC_ROOT)/src/samtools
