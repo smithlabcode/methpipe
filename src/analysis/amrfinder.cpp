@@ -433,7 +433,7 @@ main(int argc, const char **argv) {
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), 
 			   "identify regions of allele-specific methylation", 
-			   "<chroms-dir> <epireads>");
+			   "<epireads>");
     opt_parse.add_opt("output", 'o', "output file", false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
