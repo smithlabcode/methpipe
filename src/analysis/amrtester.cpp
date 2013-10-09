@@ -228,7 +228,7 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles", 
-			   "<chroms-dir> <bed-regions> <mapped-reads>");
+			   "<bed-regions> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file", false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
@@ -259,7 +259,7 @@ main(int argc, const char **argv) {
 	   << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    const string regions_file(leftover_args[1]);
+    const string regions_file(leftover_args.front());
     const string reads_file_name(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
 
