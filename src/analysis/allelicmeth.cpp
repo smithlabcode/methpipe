@@ -212,14 +212,14 @@ scan_chromosome_cpg(const string &chrom,
 	    unmeth_meth_count + unmeth_unmeth_count;
 	  out << chrom_name << "\t" << i << "\t" << i + 1 << "\tCpG:" 
 	      << total << "\t" 
-	      << test_similar_population(meth_meth_count, 
+	      << 1.0 - test_similar_population(meth_meth_count, 
 					 meth_unmeth_count,
 					 unmeth_meth_count, 
 					 unmeth_unmeth_count) << "\t"
-	      << meth_meth_count << "\t"
-	      << meth_unmeth_count << "\t"
-	      << unmeth_meth_count << "\t"
-	      << unmeth_unmeth_count << "\n";
+	      << meth_meth_count - 1 << "\t"
+	      << meth_unmeth_count - 1 << "\t"
+	      << unmeth_meth_count - 1 << "\t"
+	      << unmeth_unmeth_count - 1 << "\n";
 	}
       }
       prev = i;
