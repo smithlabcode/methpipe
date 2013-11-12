@@ -153,7 +153,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("output", 'o', "Name of output file", 
                       false, outfile);
     opt_parse.add_opt("mapper", 'm',
-                      "Original mapper: bsmap, bismark or bsseeker", 
+                      "Original mapper: bsmap, bismark or bs_seeker", 
                       true, mapper);
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
                       false, suffix_len); 
