@@ -25,7 +25,7 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hmr_plant methdiff allelicmeth dmr \
 	levels roimethstat  merge-methcounts amrfinder amrtester \
-	methstates merge-bsrate methentropy
+	methstates merge-bsrate methentropy methcounts_snp methstates_snp
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -63,10 +63,10 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-allelicmeth bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
+methcounts_snp allelicmeth bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 	FileIterator.o MappedRead.o) 
 
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
+methcounts_snp bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
 hmr pmd: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
@@ -78,7 +78,7 @@ amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
-methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
+methstates_snp methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 
 %.o: %.cpp %.hpp

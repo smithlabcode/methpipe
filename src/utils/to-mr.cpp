@@ -229,7 +229,7 @@ main(int argc, const char **argv) {
         }
 
         // flush dangling_mates
-        if (dangling_mates.size() > 5000)
+        if (dangling_mates.size() > 500)
         {
           using std::tr1::unordered_map;
           unordered_map<string, SAMRecord> tmp;
@@ -247,6 +247,7 @@ main(int argc, const char **argv) {
             else
               tmp[itr->first] = itr->second;
           std::swap(tmp, dangling_mates);
+          tmp.clear();
         }
       }
       else
