@@ -47,66 +47,6 @@ vector_to_gsl_vector(const vector<double> &vector) {
   return gvector;
 }
 
-double
-stouffer_liptak(vector<double> &pvals,
-                    const vector< vector<double> > &corr_matrix) {
-  
-  const size_t num_pvals = pvals.size();
-
-  vector<double> zscores;
-  
-  transform(pvals.begin(), pvals.end(), back_inserter(zscores), 
-            pval_to_zscores);
-  
-  gsl_vector* gsl_zsocres = vector_to_gsl_vector(zscores); //freed
-  
-  if (!corr_matrix.empty()) {
-    gsl_set_error_handler_off();
-    gsl_matrix *gsl_corr_matrix = matrix_to_gslmatrix(corr_matrix); //freed
-    
-    //Compute Cholesky decomposition.
-    int err_status = gsl_linalg_cholesky_decomp(gsl_corr_matrix);
-   
-    //If successful, get Cholesky matrix by zeroing out 
-    //above the main diagonal.
-    if (err_status != GSL_EDOM) {
-      for (size_t row = 0; row < num_pvals; ++row)
-        for (size_t col = row + 1; col < num_pvals; ++col)
-          gsl_matrix_set(gsl_corr_matrix, row, col, 0);
-    
-      //get LU-decomposition in order to invert Cholesky matrix 
-      gsl_matrix *chol_inv = gsl_matrix_alloc(num_pvals, num_pvals); //freed
-      gsl_permutation *p = gsl_permutation_alloc (num_pvals); //freed
-      int signum;
-      gsl_linalg_LU_decomp (gsl_corr_matrix, p, &signum);
-      gsl_linalg_LU_invert (gsl_corr_matrix, p, chol_inv);
-
-      //Matrix to store Cholesky decomposition
-      //gsl_matrix *chol_inv = gsl_matrix_alloc(num_pvals, num_pvals);
-      
-      //freed
-      gsl_vector* gsl_uncorrelated_zscores = gsl_vector_alloc(num_pvals); 
-      gsl_blas_dgemv( CblasNoTrans, 1.0, chol_inv, gsl_zsocres, 0.0, 
-                      gsl_uncorrelated_zscores );
-
-      gsl_vector_memcpy(gsl_zsocres, gsl_uncorrelated_zscores);
-      
-      gsl_matrix_free(gsl_corr_matrix);
-      gsl_matrix_free(chol_inv);
-      gsl_permutation_free(p);
-      gsl_vector_free(gsl_uncorrelated_zscores);
-    }
-  }
-  
-  double sum = 0;
-  for (size_t ind = 0; ind < num_pvals; ++ind)
-    sum += gsl_vector_get(gsl_zsocres, ind);
-    
-  gsl_vector_free(gsl_zsocres);
-  
-  return 1 - gsl_cdf_gaussian_P(sum/(std::sqrt(num_pvals)), 1);
-}
-
 double 
 stouffer_liptak_zaykin(std::vector<double> &pvals, 
                        const std::vector< std::vector<double> > &cor_matrix) {
