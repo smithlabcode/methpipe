@@ -5,12 +5,7 @@
 #include<vector>
 
 double 
-stouffer_liptak(std::vector<double> &p_vals, 
-                const std::vector< std::vector<double> > &cor_matrix = 
-                                        std::vector< std::vector<double> >());
-
-double 
-stouffer_liptak_zaykin(std::vector<double> &pvals, 
+stouffer_liptak(std::vector<double> &pvals, 
                        const std::vector< std::vector<double> > &cor_matrix = 
                                         std::vector< std::vector<double> >());
   

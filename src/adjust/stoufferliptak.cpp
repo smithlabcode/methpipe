@@ -48,8 +48,8 @@ vector_to_gsl_vector(const vector<double> &vector) {
 }
 
 double 
-stouffer_liptak_zaykin(std::vector<double> &pvals, 
-                       const std::vector< std::vector<double> > &cor_matrix) {
+stouffer_liptak(std::vector<double> &pvals, 
+                const std::vector< std::vector<double> > &cor_matrix) {
   double correction = 0;
   size_t num_pvals = pvals.size();
   for (size_t row_ind = 0; row_ind < cor_matrix.size(); ++row_ind)
@@ -69,4 +69,3 @@ stouffer_liptak_zaykin(std::vector<double> &pvals,
   
   return 1 - gsl_cdf_gaussian_P(test_statistic, 1);
 }
-

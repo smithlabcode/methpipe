@@ -88,7 +88,7 @@ combine_pvals(vector<LocusIterator> &loci_iterators,
     distance_corr_matrix(bin_for_distance, correlation_for_bin,
                                 neighbors, correlation_matrix);
     
-    double combined_pval = stouffer_liptak_zaykin(p_vals, correlation_matrix);
+    double combined_pval = stouffer_liptak(p_vals, correlation_matrix);
     Locus &cur_region = *(loci_iterators[i]);
     
     //cerr << cur_region.begin() << " " << cur_region.score() << " " << combined_pval << endl;

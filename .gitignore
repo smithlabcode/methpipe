@@ -17,3 +17,4 @@ src/wand/tests/test_loglikratio_test
 src/wand/tests/test_pipeline
 src/wand/tests/test_regression
 src/wand/tests/test_table_row
+src/adjust/stoufferliptak
