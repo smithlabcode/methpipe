@@ -21,10 +21,6 @@
 #include <cmath>
 
 #include <gsl/gsl_cdf.h>
-#include <gsl/gsl_matrix.h>
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_blas.h>
-#include <gsl/gsl_errno.h>
 
 #include "stoufferliptak.hpp"
 
@@ -39,28 +35,6 @@ pval_to_zscores(double x) {
   if (x == 0)
     x = 1 - 0.9999;
   return gsl_cdf_ugaussian_Pinv(1 - x);
-}
-
-gsl_matrix* 
-matrix_to_gslmatrix(const vector< vector<double> > &matrix) {
-  //assuming the matrix is not ragged
-  size_t nrows = matrix.size();
-  size_t ncols = matrix[0].size();
-  gsl_matrix* gmatrix = gsl_matrix_alloc(nrows, ncols);
-  for (size_t row = 0; row < nrows; ++row)
-    for (size_t col = 0; col < ncols; ++col)
-      gsl_matrix_set(gmatrix, row, col, matrix[row][col]);
-  return gmatrix;
-}
-
-gsl_vector* 
-vector_to_gsl_vector(const vector<double> &vector) {
-  //assuming the matrix is not ragged
-  size_t nelems = vector.size();
-  gsl_vector* gvector = gsl_vector_alloc(nelems);
-  for (size_t ind = 0; ind < nelems; ++ind)
-    gsl_vector_set(gvector, ind, vector[ind]);
-  return gvector;
 }
 
 double 
