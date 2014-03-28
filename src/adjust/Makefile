@@ -1,6 +1,6 @@
 
 ifndef SMITHLAB_CPP
-SMITHLAB_CPP = /home/egor/smithlab_cpp
+SMITHLAB_CPP=/home/egor/projects/smithlab_cpp
 endif
 
 BIN_DIR = ../../bin
@@ -30,6 +30,4 @@ $(BIN_DIR)/dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 clean:
-	rm -f $(BIN_DIR)/adjust *.o
-
-
+	rm -f $(BIN_DIR)/adjust $(BIN_DIR)/dmrs *.o

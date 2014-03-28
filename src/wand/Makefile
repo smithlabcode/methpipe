@@ -1,6 +1,6 @@
 
 ifndef SMITHLAB_CPP
-$(error Must define SMITHLAB_CPP variable)
+SMITHLAB_CPP=/home/egor/projects/smithlab_cpp
 endif
 
 BIN_DIR = ../../bin
