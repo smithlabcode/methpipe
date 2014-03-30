@@ -1,21 +1,10 @@
-# Please tweak the following variable definitions as needed by your
-# project, except GMOCK_HEADERS and GTEST_HEADERS, which you can use
-# in your own targets but shouldn't modify.
-
-# Points to the root of Google Test, relative to where this file is.
-# Remember to tweak this if you move this file, or if you want to use
-# a copy of Google Test at a different location.
-
-
-# Points to the root of Google Mock, relative to where this file is.
-# Remember to tweak this if you move this file.
 
 ifndef GMOCK_DIR
 GMOCK_DIR = /home/egor/gmock
 endif
 
 ifndef SMITHLAB_CPP
-SMITHLAB_CPP = /home/egor/smithlab_cpp
+SMITHLAB_CPP = /home/egor/projects/smithlab_cpp
 endif
 
 GTEST_DIR = ${GMOCK_DIR}/gtest
@@ -38,7 +27,8 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 LIBS += -lgsl -lgslcblas
 
 # All tests produced by this Makefile.
-TESTS = test_merge test_stoufferliptak
+TESTS = test_bin_for_distance test_combine_pvals test_distance_correlation \
+		test_fdr test_locus test_merge test_proximal_loci test_stoufferliptak   
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -53,6 +43,9 @@ GMOCK_HEADERS = $(GMOCK_DIR)/include/gmock/*.h \
                 $(GTEST_HEADERS)
 
 # House-keeping build targets.
+
+TESTS = test_bin_for_distance test_combine_pvals test_distance_correlation \
+		test_fdr test_locus test_merge test_proximal_loci test_stoufferliptak
 
 all: $(TESTS)
 
@@ -94,13 +87,13 @@ gmock_main.a : gmock-all.o gtest-all.o gmock_main.o
 	$(AR) $(ARFLAGS) $@ $^
 
 $(TESTS): $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
-						smithlab_utils.o OptionParser.o MappedRead.o)
+			smithlab_utils.o OptionParser.o MappedRead.o) \
+			bin_for_distance.o combine_pvals.o distance_correlation.o \
+			fdr.o locus.o merge.o proximal_loci.o stoufferliptak.o \
+			gmock_main.a
 
 %.o : %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 % : %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
-
-test_merge: $(USER_DIR)/locus.o $(USER_DIR)/merge.o gmock_main.a
-test_stoufferliptak: $(USER_DIR)/stoufferliptak.o gmock_main.a
