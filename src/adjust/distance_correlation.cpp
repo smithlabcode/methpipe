@@ -26,11 +26,6 @@ using std::cerr;  using std::vector;
 using std::string;  using std::pair;
 using std::vector;
 
-static bool 
-valid_score(const vector<LocusIterator>::const_iterator &it) {
-  return 0 <= (*it)->score() && (*it)->score() <= 1;
-}
-
 static double 
 to_zscore(double pval) {
   if (pval == 1)
@@ -43,32 +38,27 @@ to_zscore(double pval) {
 }
 
 void
-DistanceCorrelation::bin(const vector<LocusIterator> &loci) {
+DistanceCorrelation::bin(const vector<PvalLocus> &loci) {
   
   x_pvals_for_bin_.clear();
   y_pvals_for_bin_.clear();
   
-  vector<LocusIterator>::const_iterator it = loci.begin();
+  vector<PvalLocus>::const_iterator it = loci.begin();
   
   while (it != loci.end()) {
-    //Skip invalid scores
-    if (valid_score(it)) {
       
-      vector<LocusIterator>::const_iterator forward_it = it + 1;
+    vector<PvalLocus>::const_iterator forward_it = it + 1;
       
       bool too_far = false;
       
       while (forward_it != loci.end() && !too_far) {
-        const size_t dist = (*forward_it)->begin() - (*it)->end();
+        const size_t dist = forward_it->pos - (it->pos + 1);
         const size_t bin = bin_for_dist_.which_bin(dist);
         
         //check if the appropriate bin exists
         if (bin != bin_for_dist_.invalid_bin()) {
-          //Skip invalid scores
-          if (valid_score(forward_it)) {
-            x_pvals_for_bin_[bin].push_back(to_zscore((*it)->score()));
-            y_pvals_for_bin_[bin].push_back(to_zscore((*forward_it)->score()));
-          }
+          x_pvals_for_bin_[bin].push_back(to_zscore(it->raw_pval));
+          y_pvals_for_bin_[bin].push_back(to_zscore(forward_it->raw_pval));
         }
         
         if (dist > bin_for_dist_.max_dist())
@@ -77,7 +67,6 @@ DistanceCorrelation::bin(const vector<LocusIterator> &loci) {
         ++forward_it;
       }
       
-    }
     ++it;
   }
 }
@@ -101,7 +90,7 @@ DistanceCorrelation::correlation(const vector<double> &x,
 }
 
 vector<double>
-DistanceCorrelation::correlation_table(const vector<LocusIterator> &loci) {
+DistanceCorrelation::correlation_table(const vector<PvalLocus> &loci) {
 
     const size_t num_bins = bin_for_dist_.num_bins();
     x_pvals_for_bin_.resize(num_bins);
@@ -114,7 +103,7 @@ DistanceCorrelation::correlation_table(const vector<LocusIterator> &loci) {
     for (size_t bin = 0; bin < num_bins; ++bin) {
 
       const double corr = correlation(x_pvals_for_bin_[bin],
-                                            y_pvals_for_bin_[bin]);
+                                      y_pvals_for_bin_[bin]);
 
       correlation_table.push_back(corr);
     }

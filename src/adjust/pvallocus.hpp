@@ -15,13 +15,28 @@
  *    GNU General Public License for more details.
  */
  
-#ifndef FDR_HPP_
-#define FDR_HPP_
+#ifndef PVALLOCUS_HPP_
+#define PVALLOCUS_HPP_
 
 #include <vector>
+#include <iostream>
 
-#include "pvallocus.hpp"
+struct PvalLocus {
+	PvalLocus(std::size_t new_chrom_ind, std::size_t new_pos, double new_raw_pval)
+		: chrom_ind(new_chrom_ind), pos(new_pos), raw_pval(new_raw_pval),
+		  combined_pval(0), corrected_pval(0) {}
+	std::size_t chrom_ind;
+	std::size_t pos;
+	double raw_pval;
+	double combined_pval;
+	double corrected_pval;
+};
 
-void fdr(std::vector<PvalLocus> &loci);
+void initialize_pval_loci(std::istream &encoding, 
+						 							std::vector<PvalLocus> &pval_loci);
 
-#endif //FDR_HPP_
+void update_pval_loci(std::istream &input_encoding, 
+								 			const std::vector<PvalLocus> &pval_loci, 
+								 			std::ostream &output_loci_encoding);
+
+#endif //PVALLOCUS_HPP_

@@ -1,4 +1,4 @@
-/*    Copyright (C) 2013 University of Southern California and
+	/*    Copyright (C) 2013 University of Southern California and
  *                       Egor Dolzhenko
  *                       Andrew D Smith
  *
@@ -23,7 +23,7 @@
 #include <string>
 #include <algorithm>
 
-#include "locus.hpp"
+#include "pvallocus.hpp"
 
 #include "bin_for_distance.hpp"
 
@@ -31,12 +31,12 @@ class DistanceCorrelation {
 public:
   DistanceCorrelation(BinForDistance bin_for_dist) 
     : bin_for_dist_(bin_for_dist) {};
-  std::vector<double> correlation_table(const std::vector<LocusIterator> &loci);
+  std::vector<double> correlation_table(const std::vector<PvalLocus> &loci);
 
 private:
   double correlation(const std::vector<double> &x, 
                       const std::vector<double> &y);
-  void bin(const std::vector<LocusIterator> &loci);
+  void bin(const std::vector<PvalLocus> &loci);
   std::vector< std::vector<double> > x_pvals_for_bin_;
   std::vector< std::vector<double> > y_pvals_for_bin_;
   const BinForDistance bin_for_dist_;

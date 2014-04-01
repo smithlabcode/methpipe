@@ -23,7 +23,7 @@
 
 #include "OptionParser.hpp"
 
-#include "locus.hpp"
+#include "pvallocus.hpp"
 #include "bin_for_distance.hpp"
 #include "combine_pvals.hpp"
 #include "fdr.hpp"
@@ -72,34 +72,31 @@ int main(int argc, const char **argv) {
     if (!bed_file)
       throw "could not open file: " + bed_filename;
     
-    vector<Locus> loci;
-    read_loci(bed_file, loci);
-    
-    vector<LocusIterator> good_loci_iterators;
-    
-    cerr << "Getting iterators to loci associated with valid p-values." << endl;
-    get_iterators_to_good_loci(loci, good_loci_iterators);
+    vector<PvalLocus> loci;
+    cerr << "Loading input file." << endl;
+    initialize_pval_loci(bed_file, loci);
     cerr << "[done]" << endl;
     
     cerr << "Combining p-values." << endl;
     BinForDistance bin_for_dist(bin_spec);
-    combine_pvals(good_loci_iterators, bin_for_dist);
+    combine_pvals(loci, bin_for_dist);
     cerr << "[done]" << endl;
     
     cerr << "Running multiple test adjustment." << endl;
-    fdr(good_loci_iterators);
+    fdr(loci);
     cerr << "[done]" << endl;
     
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
       std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-        
-    for (vector<Locus>::const_iterator it = loci.begin(); 
-          it != loci.end(); ++it)
-      out << *it << std::endl;
+    
+
+    std::ifstream original_bed_file(bed_filename.c_str());
+
+    update_pval_loci(original_bed_file, loci, out);
     
     //TODO: Check that the regions do not overlap & sorted
-        
+    
   } catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;

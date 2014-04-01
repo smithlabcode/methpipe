@@ -16,7 +16,7 @@ SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 							smithlab_utils.o OptionParser.o)
 							
 OBJ = locus.o bin_for_distance.o distance_correlation.o proximal_loci.o \
-			stoufferliptak.o combine_pvals.o fdr.o $(SMITH_OBJ)
+			stoufferliptak.o combine_pvals.o fdr.o pvallocus.o $(SMITH_OBJ)
 
 all: $(BIN_DIR)/adjust $(BIN_DIR)/dmrs
 

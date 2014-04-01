@@ -21,49 +21,61 @@
 
 #include "fdr.hpp"
 
-#include "locus.hpp"
+#include "pvallocus.hpp"
 
 using std::vector;
 
 static bool 
-lt_locus_iterator_score(LocusIterator r1, LocusIterator r2) {
-  return r1->score() < r2->score();
+lt_locus_pval(const PvalLocus &r1, const PvalLocus &r2) {
+  return r1.combined_pval < r2.combined_pval;
+}
+
+static bool
+ls_locus_position(const PvalLocus &r1, const PvalLocus &r2) {
+  if (r1.chrom_ind < r2.chrom_ind)
+    return true;
+
+  if (r1.chrom_ind == r2.chrom_ind && r1.pos < r2.pos)
+    return true;
+
+  return false;
 }
 
 void
-fdr(vector<LocusIterator> &loci_iterators) {
+fdr(vector<PvalLocus> &loci) {
         
-      std::sort(loci_iterators.begin(), loci_iterators.end(), 
-                lt_locus_iterator_score);
+      std::sort(loci.begin(), loci.end(), lt_locus_pval);
     
-      for (size_t ind = 0; ind < loci_iterators.size(); ++ind) {
-        const double current_score = loci_iterators[ind]->score();
+      for (size_t ind = 0; ind < loci.size(); ++ind) {
+        const double current_score = loci[ind].combined_pval;
         
         //Save current score.
-        std::stringstream ss;
-        ss << loci_iterators[ind]->name() << ":" << current_score;
-        loci_iterators[ind]->set_name(ss.str());
+        //std::stringstream ss;
+        //ss << loci_iterators[ind]->name() << ":" << current_score;
+        //loci_iterators[ind]->set_name(ss.str());
         
         //Assign a new one.
-        const double new_score = loci_iterators.size()*current_score/(ind + 1);
-        loci_iterators[ind]->set_score(new_score);
+        const double corrected_pval = loci.size()*current_score/(ind + 1);
+        loci[ind].corrected_pval = corrected_pval;
       }
     
-      for (vector<LocusIterator>::reverse_iterator 
-          it = loci_iterators.rbegin() + 1; it != loci_iterators.rend(); ++it) {
+      for (vector<PvalLocus>::reverse_iterator 
+            it = loci.rbegin() + 1; it != loci.rend(); ++it) {
         
-        const LocusIterator &prev_region_it = *(it - 1);
-        LocusIterator &cur_region_it = *(it);
+        const PvalLocus &prev_locus = *(it - 1);
+        PvalLocus &cur_locus = *(it);
         
-        cur_region_it->set_score(
-              std::min(prev_region_it->score(), cur_region_it->score())
-            );
+        cur_locus.corrected_pval =
+              std::min(prev_locus.corrected_pval, cur_locus.corrected_pval);
       }
-      
-      for (vector<LocusIterator>::iterator it = loci_iterators.begin();
-            it != loci_iterators.end(); ++it) {
-        LocusIterator &cur_region_it = *(it);
-        if (cur_region_it->score() > 1.0)
-          cur_region_it->set_score(1.0);
+    
+      for (vector<PvalLocus>::iterator it = loci.begin(); 
+            it != loci.end(); ++it) {
+        PvalLocus &cur_locus = *(it);
+        if (cur_locus.corrected_pval > 1.0)
+          cur_locus.corrected_pval = 1.0;
       }
+
+      // Restore original order
+      std::sort(loci.begin(), loci.end(), ls_locus_position);
 }

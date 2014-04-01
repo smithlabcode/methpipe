@@ -26,12 +26,12 @@ using std::copy;  using std::vector;
 using std::back_inserter; using std::cout;
 using std::endl;
 
-bool ProximalLoci::get(vector<LocusIterator> &neighbors) {
+bool ProximalLoci::get(vector<PvalLocus> &neighbors) {
   
   if (next_pos_ == loci_.end())
     return false;
   
-  vector<LocusIterator>::const_iterator cur_pos = next_pos_;
+  vector<PvalLocus>::const_iterator cur_pos = next_pos_;
   
   neighbors.clear();
   
@@ -39,16 +39,15 @@ bool ProximalLoci::get(vector<LocusIterator> &neighbors) {
   
   if ( cur_pos != loci_.begin() ) {
   
-    vector<LocusIterator>::const_iterator up_pos = cur_pos;
+    vector<PvalLocus>::const_iterator up_pos = cur_pos;
   
     bool too_far = false;
   
     do {
       --up_pos;
     
-      size_t up_dist = (*cur_pos)->begin() - (*up_pos)->end();
-      if(up_dist <= max_distance_ 
-          && (*cur_pos)->chrom() == (*up_pos)->chrom()) {
+      size_t up_dist = cur_pos->pos - (up_pos->pos + 1);
+      if(up_dist <= max_distance_ && cur_pos->chrom_ind == up_pos->chrom_ind) {
           neighbors.push_back(*up_pos);
       } else
         too_far = true;
@@ -62,16 +61,16 @@ bool ProximalLoci::get(vector<LocusIterator> &neighbors) {
    
     bool too_far = false;
     
-    vector<LocusIterator>::const_iterator down_pos = cur_pos;
+    vector<PvalLocus>::const_iterator down_pos = cur_pos;
  
     do {
       
       ++down_pos;
       
-      size_t down_dist = (*down_pos)->begin() - (*cur_pos)->end();
+      size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
             
-      if(down_dist <= max_distance_ 
-          && (*down_pos)->chrom() == (*cur_pos)->chrom()) {
+      if( down_dist <= max_distance_ 
+          && down_pos->chrom_ind == cur_pos->chrom_ind) {
           neighbors.push_back(*down_pos);
       } else
         too_far = true;
