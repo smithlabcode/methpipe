@@ -38,7 +38,6 @@ initialize_pval_loci(istream &encoding, vector<PvalLocus> &pval_loci) {
 	size_t chrom_index = 0;
 
 	while(getline(encoding, record)) {
-		//std::cout << record << std::endl;
 		
 		try {
   			std::istringstream iss(record);
@@ -79,7 +78,7 @@ update_pval_loci(istream &input_encoding,
 	double pval;
 
 	string prev_chrom;
-	size_t chrom_index = 0;
+	//size_t chrom_index = 0;
 
 	vector<PvalLocus>::const_iterator cur_locus_iter = pval_loci.begin();
 

@@ -1,11 +1,19 @@
 
 ifndef SMITHLAB_CPP
-SMITHLAB_CPP=/home/egor/projects/smithlab_cpp
+SMITHLAB_CPP=../../smithlab_cpp/
 endif
 
 BIN_DIR = ../../bin
 
 CXXFLAGS += -g -Wall -Wextra -pthread 
+
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
+endif
 
 LIBS += -lgsl -lgslcblas
 

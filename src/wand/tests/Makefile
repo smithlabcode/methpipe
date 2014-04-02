@@ -4,7 +4,7 @@ $(error Must define GMOCK_DIR variable)
 endif
 
 ifndef SMITHLAB_CPP
-$(error Must define SMITHLAB_CPP variable)
+SMITHLAB_CPP=../../smithlab_cpp/
 endif
 
 # The directory gtest must be located inside GMOCK
@@ -21,6 +21,14 @@ CPPFLAGS += -isystem $(GTEST_DIR)/include -isystem $(GMOCK_DIR)/include \
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -Wall -Wextra -pthread -std=c++11
+
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
+endif
 
 LIBS += -lgsl -lgslcblas
 
