@@ -84,10 +84,6 @@ main(int argc, const char **argv) {
     methylomes.push_back(new ifstream(it->c_str()));
   }  
 
-//  for (size_t ind = 1; ind < argc; ++ind) {
-//    names.push_back(argv[ind]);
-//    methylomes.push_back(new ifstream(argv[ind]));
-//  }
   
   if (!methylomes.empty())
     merge_methylomes(names, methylomes, cout);

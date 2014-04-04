@@ -64,7 +64,6 @@ try {
 
   vector<string> leftover_args;
 
-  std::cerr << "argc = " << argc << std::endl; 
 
   opt_parse.parse(argc, argv, leftover_args);
   if (argc == 1 || opt_parse.help_requested()) {
