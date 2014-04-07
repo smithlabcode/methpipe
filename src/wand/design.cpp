@@ -33,6 +33,10 @@ Design::Design(istream &is) {
   
   string row;
   while (getline(is, row)) {
+
+    if (row.empty())
+      continue;
+
     istringstream row_is(row);
     string token;
     row_is >> token;

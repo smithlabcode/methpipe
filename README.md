@@ -14,7 +14,23 @@ http://smithlabresearch.org/
 
 Installation
 ------------
-From the root directory of the project, type "make"
+*Before attempting to compile RADMeth please make sure that GNU Scientific 
+Library (http://www.gnu.org/software/gsl/) is installed on your system*
+Alternatively, you can download pre-compiled binaries for either Lunux or Mac 
+from http://smithlabresearch.org/software/radmeth/
+
+To compile RADMeth, enter the program's root directory (e.g. radmeth/) and  
+execute
+
+> make
+
+After the compilation, the binaries can be found in radmeth/bin/
+
+Usage
+-----
+
+Please see the manual, which can be obtained at 
+http://smithlabresearch.org/software/radmeth/
 
 License
 -------

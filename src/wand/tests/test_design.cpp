@@ -65,6 +65,18 @@ TEST(a_design, parses_matrix_from_file) {
   ASSERT_THAT(design.matrix()[1], ElementsAre(1, 0));
 }
 
+TEST(a_design, parses_matrix_from_file_disregarding_extra_lines) {
+  istringstream iss(  "f1 f2\n"
+                    "s1 1  1\n"
+                    "s2 1  0\n"
+                    "\n" );
+  
+  Design design(iss);
+  ASSERT_THAT(design.matrix().size(), Eq(2));
+  ASSERT_THAT(design.matrix()[0], ElementsAre(1, 1));
+  ASSERT_THAT(design.matrix()[1], ElementsAre(1, 0));
+}
+
 TEST(a_design, verifies_that_factor_levels_are_binary) {
   istringstream iss(  "f1 f2\n"
                     "s1 1  5\n"
