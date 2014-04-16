@@ -66,6 +66,12 @@ get_fdr_cutoff(const size_t n_tests, const vector<GenomicRegion> &amrs,
   return pvals[i];
 }
 
+static void 
+correct_pvals( size_t n_tests, vector<GenomicRegion> &amrs ) {
+  for (size_t i = 0; i < amrs.size(); ++i) {
+    amrs[i].set_score( (amrs[i].get_score()*n_tests)/i );
+  }
+}
 
 static void
 eliminate_amrs_by_fdr(const double fdr_cutoff, vector<GenomicRegion> &amrs) {
@@ -350,7 +356,7 @@ total_states(const vector<epiread> &epireads) {
 static void
 add_amr(const string &chrom_name, const size_t start_cpg, 
 	const size_t cpg_window, const vector<epiread> &reads, 
-	const double score, vector<GenomicRegion> &amrs) {
+        const double score, vector<GenomicRegion> &amrs) {
   static const string name_label("AMR");
   const size_t end_cpg = start_cpg + cpg_window - 1;
   const string amr_name(name_label + toa(amrs.size()) + ":" + toa(reads.size()));
@@ -364,7 +370,7 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 	      const size_t min_obs_per_cpg, const size_t window_size,
 	      const EpireadStats &epistat, const string &chrom_name,
 	      const vector<epiread> &epireads, vector<GenomicRegion> &amrs) {
-  
+
   size_t max_epiread_len = 0;
   for (size_t i = 0; i < epireads.size(); ++i)
     max_epiread_len = std::max(max_epiread_len, epireads[i].length());
@@ -429,6 +435,7 @@ main(int argc, const char **argv) {
     // bool RANDOMIZE_READS = false;
     bool IGNORE_BALANCE = false;
     bool USE_BIC = false;
+    bool CORRECTION = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), 
@@ -448,9 +455,10 @@ main(int argc, const char **argv) {
     		      false, gap_limit);
     opt_parse.add_opt("crit", 'C', "critical p-value cutoff (default: 0.01)", 
 		      false, critical_value);
+    // BOOLEAN FLAGS
+    opt_parse.add_opt("q-vals", 'q', "convert p-values to fdr q-values",
+		      false, CORRECTION);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
-    // opt_parse.add_opt("rand", 'R', "randomize reads (for comparison)", 
-    // 		      false, RANDOMIZE_READS);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
     vector<string> leftover_args;
@@ -515,17 +523,23 @@ main(int argc, const char **argv) {
       cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
-    const double fdr_cutoff = (USE_BIC) ? 0.0 :
-      get_fdr_cutoff(windows_tested, amrs, critical_value);
-    
+    const double fdr_cutoff = (!USE_BIC && !CORRECTION) ?
+      get_fdr_cutoff(windows_tested, amrs, critical_value) : 0.0;
+
+    if (!USE_BIC && CORRECTION)
+      correct_pvals(windows_tested, amrs);
+
     collapse_amrs(amrs);
     const size_t collapsed_amrs = amrs.size();
     convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
     merge_amrs(gap_limit, amrs);
+
     const size_t merged_amrs = amrs.size();
     
     if (!USE_BIC)
-      eliminate_amrs_by_fdr(fdr_cutoff, amrs);
+      (CORRECTION) ? eliminate_amrs_by_fdr(critical_value, amrs) :
+	             eliminate_amrs_by_fdr(fdr_cutoff, amrs);
+    
     const size_t amrs_passing_fdr = amrs.size();
     
     eliminate_amrs_by_size(gap_limit/2, amrs);

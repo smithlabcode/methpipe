@@ -59,23 +59,35 @@ meth_unmeth_calls(const size_t n_meth, const size_t n_unmeth) {
 }
 
 
+/* Takes the sites and the regions. Creates two identical
+simplegenomicregions, a and b. Sets the end of a to the
+start + 1. Makes an iterator and
+*/
 
 static std::pair<size_t, size_t>
 region_bounds(const vector<SimpleGenomicRegion> &sites,
               const GenomicRegion &region) {
   SimpleGenomicRegion a(region);
   a.set_end(a.get_start() + 1);
+
+  // a_insert points to the first cpg site inside region
   vector<SimpleGenomicRegion>::const_iterator a_insert =
     lower_bound(sites.begin(), sites.end(), a);
   
   SimpleGenomicRegion b(region);
   b.set_start(b.get_end());
   b.set_end(b.get_end() + 1);
+
+  // b_insert points to the first cpg site outside the region
   vector<SimpleGenomicRegion>::const_iterator b_insert =
     lower_bound(sites.begin(), sites.end(), b);
-  
+
+  //cout << "here:\n";
+  //cout << a_insert - sites.begin() << "\t" << b_insert - sites.begin() << "\n";
+  //cout << a_insert << "\t" << b_insert << "\n";
   return std::make_pair(a_insert - sites.begin(),
                         b_insert - sites.begin());
+
 }
 
 
@@ -179,7 +191,11 @@ main(int argc, const char **argv) {
       methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
     else 
       not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
-    
+
+    for ( size_t i = 0; i < reads.size(); ++i) {
+        cout << reads[i] << "\n";
+    }    
+
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     assert(check_sorted(regions));
@@ -193,13 +209,15 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < regions.size(); ++i) {
       
       const std::pair<size_t, size_t> bounds(region_bounds(cpgs, regions[i]));
-      
+      //cout << bounds.first << "\t" << bounds.second << "\n";
+
       size_t meth = 0, read = 0;
       size_t cpgs_with_reads = 0;
       size_t called_total = 0, called_meth = 0;
       double mean_meth = 0.0;
-      
+
       for (size_t j = bounds.first; j < bounds.second; ++j) {
+        //cout << reads.size() << "\n";
 	if (reads[j] > 0) {
 	  meth += static_cast<size_t>(meths[j].first);
 	  read += reads[j];

@@ -1,10 +1,10 @@
 /*    amrtester: A program for testing whether a genomic region has
  *    allele-specific methylation
  *
- *    Copyright (C) 2011 University of Southern California and
- *                       Andrew D. Smith and Fang Fang
+ *    Copyright (C) 2014 University of Southern California and
+ *                       Benjamin E Decato and Andrew D. Smith and Fang Fang
  *
- *    Authors: Andrew D. Smith and Fang Fang
+ *    Authors: Andrew D. Smith and Benjamin E Decato and Fang Fang
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ find_first_epiread_ending_after_position(const string &query_chrom,
 					 std::ifstream &in) {
   in.seekg(0, std::ios_base::end);
   size_t high_pos = in.tellg();
+  size_t eof = in.tellg();
   in.seekg(0, std::ios_base::beg);
   size_t low_pos = 0;
   
@@ -68,9 +69,14 @@ find_first_epiread_ending_after_position(const string &query_chrom,
     
     in.seekg(mid_pos);
     backup_to_start_of_current_record(in);
-    if (!(in >> chrom >> start >> seq))
+
+    // we've hit the end of file without finding an epiread
+    if(low_pos == eof-2)
+      return -1;
+
+    if (!(in >> chrom >> start >> seq)) {
       throw SMITHLABException("problem loading reads");
-    
+    }
     if (chrom < query_chrom || 
 	(chrom == query_chrom && start + seq.length() <= query_pos))
       low_pos = mid_pos;
