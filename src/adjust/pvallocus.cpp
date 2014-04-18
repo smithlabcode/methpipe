@@ -105,8 +105,7 @@ update_pval_loci(istream &input_encoding,
       output_encoding << "\t" << pval;
     }
 
-    if (cur_locus_iter != pval_loci.end())
-      output_encoding << "\n";
+    output_encoding << std::endl;
 
   	}
 }

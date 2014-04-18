@@ -26,7 +26,7 @@ TEST(CombinePvalues, FromSameChromosome) {
                  "chr1 10 11 c 0.04\n"
                  "chr1 14 15 c 0.05\n"
                  "chr1 70 71 c 0.15\n"
-                 "chr1 80 81 c 0.55";
+                 "chr1 80 81 c 0.55\n";
 
   istringstream loci_encoding(input);
 
@@ -48,7 +48,7 @@ TEST(CombinePvalues, FromSameChromosome) {
                             "chr1\t10\t11\tc:0.04:0.0197799\t0\n"
                             "chr1\t14\t15\tc:0.05:0.0197799\t0\n"
                             "chr1\t70\t71\tc:0.15:0.322599\t0\n"
-                            "chr1\t80\t81\tc:0.55:0.322599\t0";
+                            "chr1\t80\t81\tc:0.55:0.322599\t0\n";
     
   ASSERT_THAT(output_loci_encoding.str(), Eq(exptected_output));
 }

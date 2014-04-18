@@ -39,7 +39,7 @@ TEST(Fdr, TestOnScoresThatAreValidPvalues) {
                            "chr1\t10\t11\tc:0.01:0.01\t0.03\n"
                            "chr1\t14\t15\tc:0.03:0.03\t0.045\n"
                            "chr1\t70\t71\tc:0.85:0.85\t0.85\n"
-                           "chr1\t80\t81\tc:0.55:0.55\t0.66";
+                           "chr1\t80\t81\tc:0.55:0.55\t0.66\n";
   
   istringstream second_stream_input(input);
   ostringstream output_stream;
@@ -57,7 +57,7 @@ TEST(Fdr, TestOnScoresThatAreValidAndInvalidPvalues) {
                 "chr1 17 18 c -0.1 +\n"
                 "chr1 70 71 c 0.85 +\n"
                 "chr1 72 73 c 1.05 +\n"
-                "chr1 80 81 c 0.55 +";
+                "chr1 80 81 c 0.55 +\n";
  
   istringstream stream_input (input);
   vector<PvalLocus> pval_loci;
@@ -86,7 +86,7 @@ TEST(Fdr, TestOnScoresThatAreValidAndInvalidPvalues) {
                            "chr1\t17\t18\tc\t-0.1\n"
                            "chr1\t70\t71\tc:0.85:0.85\t0.85\n"
                            "chr1\t72\t73\tc\t1.05\n"
-                           "chr1\t80\t81\tc:0.55:0.55\t0.66";
+                           "chr1\t80\t81\tc:0.55:0.55\t0.66\n";
   
   ASSERT_THAT(pval_loci.size(), Eq(6));
   ASSERT_THAT(output_stream.str(), Eq(expected_output));

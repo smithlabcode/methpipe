@@ -25,7 +25,7 @@ TEST(PvalLoci, GetInitializedFromString) {
   istringstream loci_encoding (
   		"chr1  3000573 3000574 c:0.582447:0.143575 0.2273\n"
         "chr1  3000725 3000726 c:0.246345:0.06131  0.702953\n"
-        "chr2  3000900 3000901 c:0.502302:0.11534  0.422782" );
+        "chr2  3000900 3000901 c:0.502302:0.11534  0.422782\n" );
   
   vector<PvalLocus> pval_loci;
   initialize_pval_loci(loci_encoding, pval_loci);
@@ -49,7 +49,7 @@ TEST(PvalLoci, NonPvalueLociSkippedDuringInitialization) {
   istringstream loci_encoding (
   			"chr1  3000573 3000574 c:0.582447:0.143575 0.2273\n"
         "chr1  3000725 3000726 c:0.246345:0.06131  -1\n"
-        "chr2  3000900 3000901 c:0.502302:0.11534  0.422782" );
+        "chr2  3000900 3000901 c:0.502302:0.11534  0.422782\n" );
   
   vector<PvalLocus> pval_loci;
   initialize_pval_loci(loci_encoding, pval_loci);
@@ -69,7 +69,7 @@ TEST(PvalLoci, PvalueLociUpdated) {
   
 	string input = "chr1  3000573 3000574 c:0.582447:0.143575 0.2273\n"
         		   	 "chr1  3000725 3000726 c:0.246345:0.06131  -1\n"
-        		   	 "chr2  3000900 3000901 c:0.502302:0.11534  0.422782";
+        		   	 "chr2  3000900 3000901 c:0.502302:0.11534  0.422782\n";
 
 	istringstream loci_encoding(input);
   
@@ -83,7 +83,7 @@ TEST(PvalLoci, PvalueLociUpdated) {
 
 	string output = "chr1\t3000573\t3000574\tc:0.582447:0.143575:0.2273:0\t0\n"
         		   	  "chr1\t3000725\t3000726\tc:0.246345:0.06131\t-1\n"
-        		   	  "chr2\t3000900\t3000901\tc:0.502302:0.11534:0.422782:0\t0";
+        		   	  "chr2\t3000900\t3000901\tc:0.502302:0.11534:0.422782:0\t0\n";
 
   ASSERT_THAT(output_loci_encoding.str(), Eq(output));
 }
