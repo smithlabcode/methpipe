@@ -1,5 +1,4 @@
 
-
 *********************************
 Copyright and License Information
 *******************************************************************************
@@ -70,6 +69,12 @@ andrewds@usc.edu
 
 Qiang Song
 qiang.song@usc.edu
+
+MethPipe and MethBase Users' Mailinglist
+methpipe@googlegroups.com
+http://groups.google.com/group/methpipe?hl=en
+
+
 
 
 
