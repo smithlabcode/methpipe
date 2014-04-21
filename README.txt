@@ -1,25 +1,11 @@
-
-*********************************
-Copyright and License Information
-*******************************************************************************
-Copyright (C) 2013
-University of Southern California,
-Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
-  
-Authors:  Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
-  
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-  
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-  
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+The MethPipe software package is a computational pipeline for
+analyzing bisulfite sequencing data (BS-seq, WGBS and RRBS). MethPipe
+provides tools for mapping bisulfite sequencing read and estimating
+methylation levels at individual cytosine sites. Additionally,
+MethPipe also includes tools for identifying higher-level methylation
+features, such as hypo-methylated regions (HMR), partially methylated
+domains (PMD), hyper-methylated regions (HyperMR), and allele-specific
+methylated regions (AMR).
 
 
 ***********************
@@ -73,6 +59,29 @@ qiang.song@usc.edu
 MethPipe and MethBase Users' Mailinglist
 methpipe@googlegroups.com
 http://groups.google.com/group/methpipe?hl=en
+
+
+*********************************
+Copyright and License Information
+*******************************************************************************
+Copyright (C) 2013
+University of Southern California,
+Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
+  
+Authors:  Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
+  
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+  
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+  
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
