@@ -117,6 +117,8 @@ bool
 methpipe::is_methpipe_file_single(const string &file)
 {
 
+// ADS: This approach to validation is not robust and should be changed
+
   std::ifstream in(file.c_str());
   string line;
   if (std::getline(in, line)) {
