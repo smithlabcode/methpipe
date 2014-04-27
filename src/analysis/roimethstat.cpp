@@ -187,14 +187,15 @@ main(int argc, const char **argv) {
     vector<SimpleGenomicRegion> cpgs;
     vector<pair<double, double> > meths;
     vector<size_t> reads;
-    if (methpipe::is_methpipe_file_single(cpgs_file))
+
+    const bool IS_METHPIPE = methpipe::is_methpipe_file_single(cpgs_file);
+    if (VERBOSE)
+      cerr << "meth file type: " << (IS_METHPIPE ? "methpipe" : "bed") << endl;
+    
+    if (IS_METHPIPE)
       methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
     else 
       not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
-
-    for ( size_t i = 0; i < reads.size(); ++i) {
-        cout << reads[i] << "\n";
-    }    
 
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
