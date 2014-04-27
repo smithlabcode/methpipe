@@ -114,29 +114,30 @@ methpipe::load_cpgs(const string &cpgs_file,
 }
 
 bool
-methpipe::is_methpipe_file_single(const string &file)
-{
-
-// ADS: This approach to validation is not robust and should be changed
+methpipe::is_methpipe_file_single(const string &file) {
 
   std::ifstream in(file.c_str());
-  string line;
-  if (std::getline(in, line)) {
-    in.close();
+  if (!in)
+    throw SMITHLABException("could not open file: " + file);
   
-    vector<string> fields;
-    smithlab::split_whitespace(line, fields);
-    
-    if (fields.size() == 6
-        && fields[1].find_first_not_of("0123456789") == string::npos
-        && fields[2].find_first_not_of("+-") == string::npos
-        && fields[3].find_first_not_of("ACGTacgtpH") == string::npos
-        && fields[4].find_first_not_of("0123456789.") == string::npos
-        && atof(fields[4].c_str()) >= 0.0 &&  atof(fields[4].c_str()) <= 1.0
-        && fields[5].find_first_not_of("0123456789") == string::npos)
-      return true;
-  }
-  return false;
+  string line;
+  if (!std::getline(in, line))
+    throw SMITHLABException("could not read file: " + file);
+  std::istringstream iss(line);
+
+  string chrom, strand, name;
+  size_t pos = 0, coverage = 0;
+  double meth = 0.0;
+  iss >> chrom >> pos >> strand >> name >> meth >> coverage;
+  
+  if (strand != "+" && strand != "-") return false;
+  
+  if (meth < 0.0 || meth > 1.0) return false;
+  
+  if (name.find_first_not_of("ACGTacgtpH") != string::npos)
+    return false;
+  
+  return true;
 }
 
 
