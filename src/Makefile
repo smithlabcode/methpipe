@@ -1,7 +1,7 @@
 #    Makefile from methpipe software
 #
-#    Copyright (C) 2010 University of Southern California and
-#                       Andrew D. Smith
+#    Copyright (C) 2010-2014 University of Southern California and
+#                            Andrew D. Smith
 #
 #    Authors: Andrew D. Smith
 #
@@ -19,19 +19,20 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-ifndef SMITHLAB_CPP
-SMITHLAB_CPP=$(METHPIPE_ROOT)/src/smithlab_cpp
-endif
-
-all_subdirs=smithlab_cpp common postmapping analysis
-lib_subdirs=smithlab_cpp common
+all_subdirs=common postmapping analysis
+lib_subdirs=common
 app_subdirs=postmapping analysis utils experimental
 
-## COMMENT: The smithlab_cpp directory is only appearing in the
-## "clean" target below because the compilation of object files inside
-## that directory is achieved through dependency structure -- the
-## reason we do it this way is because much in smithlab_cpp is not
-## needed for methpipe.
+# check if a global copy of smithlab_cpp cannot be found and try to
+# use a copy that is in the current directory
+ifndef SMITHLAB_CPP
+SMITHLAB_CPP=$(abspath $(dir $(MAKEFILE_LIST)))/smithlab_cpp
+ifeq ("$(wildcard $(SMITHLAB_CPP))","")
+$(error SMITHLAB_CPP not set and smithlab_cpp not found)
+endif
+all_subdirs += $(SMITHLAB_CPP)
+lib_subdirs += ($SMITHLAB_CPP)
+endif
 
 all:
 	@for i in $(app_subdirs); do \
