@@ -1,8 +1,7 @@
 /*    Copyright (C) 2014 University of Southern California and
- *                       Andrew D. Smith and Benjamin Decato and
- *                       Fang Fang
+ *                       Andrew D. Smith and Fang Fang and Benjamin Decato
  *
- *    Authors: Benjamin Decato, Fang Fang and Andrew D. Smith
+ *    Authors: Fang Fang and Benjamin Decato and Andrew D. Smith
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,12 +26,11 @@
 #include <numeric>
 #include <limits>
 #include <iostream>
-
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_cdf.h>
+
 using std::string;
 using std::vector;
-using std::cout;
 using std::cerr;
 
 
@@ -58,7 +56,8 @@ log_likelihood(const epiread &r, const double z,
 }
 
 double
-log_likelihood(const epiread &r, const vector<double> &a1, const vector<double> &a2) {
+log_likelihood(const epiread &r, const vector<double> &a1,
+	       	const vector<double> &a2) {
   return log(exp(log_likelihood(r, 1.0, a1)) + exp(log_likelihood(r, 1.0, a2)));
 }
 
@@ -96,12 +95,12 @@ expectation_step(const vector<epiread> &reads, const double mixing,
 
 void
 fit_epiallele(const vector<epiread> &reads, 
-	      const vector<double> &indicators, vector<double> &a ) {
+	      const vector<double> &indicators, vector<double> &a) {
   const size_t n_cpgs = a.size();
   vector<double> meth(n_cpgs, 0.0), total(n_cpgs, 0.0);
   for (size_t i = 0; i < reads.size(); ++i) {
     const size_t start = reads[i].pos;
-    const double weight =indicators[i];
+    const double weight = indicators[i];
     for (size_t j = 0; j < reads[i].seq.length(); ++j)
       if (reads[i].seq[j] == 'C' || reads[i].seq[j] == 'T') {
 	meth[start + j] += weight*(reads[i].seq[j] == 'C');
@@ -114,64 +113,38 @@ fit_epiallele(const vector<epiread> &reads,
 
 
 static void
-maximization_step(const vector<epiread> &reads, vector<double> &indicators,
-		  double &mixing, vector<double> &a1, vector<double> &a2,
-		  bool OPTIMIZE_ALLELE_PROP) {
+maximization_step(const vector<epiread> &reads, const vector<double> &indicators,
+		  double &mixing, vector<double> &a1, vector<double> &a2) {
   
   vector<double> inverted_indicators(indicators);
-  double num_reads_in_a1 = 0;
-  double num_reads_in_a2 = 0;
-  for (size_t i = 0; i < inverted_indicators.size(); ++i) {
-    //cout << "\t" << a1[i] << "\t"<< indicators[i] << "\n";
-    num_reads_in_a1 += indicators[i];
+  for (size_t i = 0; i < inverted_indicators.size(); ++i)
     inverted_indicators[i] = 1.0 - inverted_indicators[i];
-    num_reads_in_a2 += inverted_indicators[i];
-  }
-  vector<double> test = indicators;
-  vector<double> test2 = inverted_indicators; 
-  if ( !OPTIMIZE_ALLELE_PROP ) {
-    //cerr << num_reads_in_a1 << "\t" << num_reads_in_a2 << "\n";
-    //cerr << "unmeth: " << a1[0] << "\tmeth: " << a2[0] << "\n";
-    for(size_t i = 0; i<inverted_indicators.size(); ++i) {
-      test[i] = indicators[i];
-      test2[i] = inverted_indicators[i];
-
-      if (num_reads_in_a2 > num_reads_in_a1)
-      {
-        test[i] = indicators[i]*(num_reads_in_a2/num_reads_in_a1);
-      }
-      else
-      {
-        test2[i] = inverted_indicators[i]*(num_reads_in_a1/num_reads_in_a2);
-      }
-  }
-  }
-
+  
   // Fit the regular model parameters
-  fit_epiallele(reads, test, a1);
-  fit_epiallele(reads, test2, a2);
+  fit_epiallele(reads, indicators, a1);
+  fit_epiallele(reads, inverted_indicators, a2);
 
-  // Fit the mixing parameters if optimizing for them.
-  mixing = OPTIMIZE_ALLELE_PROP ? num_reads_in_a1/indicators.size() : 0.5;
+  // Fit the mixing parameters
+  //!!!! NO NEED BECAUSE THESE ARE ALWAYS 0.5!!!
+  mixing = 0.5;
 }
-
 
 static double
 expectation_maximization(const size_t max_itr, const vector<epiread> &reads, 
 			 double &mixing, vector<double> &indicators, 
-			 vector<double> &a1, vector<double> &a2,
-			 bool OPTIMIZE_ALLELE_PROP) {
+			 vector<double> &a1, vector<double> &a2) {
+  //!!!! MIXING ALWAYS 0.5 IN CURRENT IMPLEMENTATION !!
+  mixing = 0.5;
   double prev_score = -std::numeric_limits<double>::max();
   for (size_t i = 0; i < max_itr; ++i) {
     
     const double score = expectation_step(reads, mixing, a1, a2, indicators);
-    maximization_step(reads, indicators, mixing, a1, a2, OPTIMIZE_ALLELE_PROP);
+    maximization_step(reads, indicators, mixing, a1, a2);
     
     if ((prev_score - score)/prev_score < EPIREAD_STATS_TOLERANCE)
       break;
     prev_score = score;
   }
-  //cerr << "\n";
   return prev_score;
 }
 
@@ -179,8 +152,10 @@ expectation_maximization(const size_t max_itr, const vector<epiread> &reads,
 double
 resolve_epialleles(const size_t max_itr, const vector<epiread> &reads, 
 		   vector<double> &indicators, 
-		   vector<double> &a1, vector<double> &a2, double &mixing,
-		   bool OPTIMIZE_ALLELE_PROP) {
+		   vector<double> &a1, vector<double> &a2) {
+  // In current implementation mixing will never change
+  /*static const*/ 
+  double MIXING_PARAMETER = 0.5; 
   indicators.clear();
   indicators.resize(reads.size(), 0.0);
   for (size_t i = 0; i < reads.size(); ++i) {
@@ -189,15 +164,14 @@ resolve_epialleles(const size_t max_itr, const vector<epiread> &reads,
     indicators[i] = exp(l1 - log(exp(l1) + exp(l2)));
   }
   
-  return expectation_maximization(max_itr, reads, mixing, 
-				  indicators, a1, a2, OPTIMIZE_ALLELE_PROP);
+  return expectation_maximization(max_itr, reads, MIXING_PARAMETER, 
+				  indicators, a1, a2);
 }
 
 double
 fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
   assert(reads.size() > 0);
   vector<double> indicators(reads.size(), 1.0);
-  // REQUIRED TO PREVENT REBALANCE ON INDICATORS
   fit_epiallele(reads, indicators, a);
   
   double score = 0.0;
@@ -414,11 +388,11 @@ test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob
   // try a single epi-allele
   vector<double> a0(n_cpgs, 0.5);
   const double single_score = fit_single_epiallele(reads, a0);
-  double mixing = 0.5;
+  
   // initialize the pair epi-alleles and indicators, and do the actual
   // computation to infer alleles
   vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2, mixing, false);
+  resolve_epialleles(max_itr, reads, indicators, a1, a2);
   
   double log_likelihood_pair = 0.0;
   for (size_t i = 0; i < reads.size(); ++i)
@@ -438,7 +412,7 @@ test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_pro
   
   adjust_read_offsets(reads);
   const size_t n_cpgs = get_n_cpgs(reads);
-  double mixing = 0.5;
+  
   // try a single epi-allele
   vector<double> a0(n_cpgs, 0.5);
   const double single_score = fit_single_epiallele(reads, a0);
@@ -446,7 +420,7 @@ test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_pro
   // initialize the pair epi-alleles and indicators, and do the actual
   // computation to infer alleles
   vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2, mixing, false);
+  resolve_epialleles(max_itr, reads, indicators, a1, a2);
   
   const double indic_sum = 
     std::accumulate(indicators.begin(), indicators.end(), 0.0);
@@ -457,6 +431,7 @@ test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_pro
   const size_t df = n_cpgs + reads.size();
   
   const double llr_stat = -2*(single_score - log_likelihood_pair);
+  cerr << llr_stat << "\n";
   const double p_value = 1.0 - gsl_cdf_chisq_P(llr_stat, df);
   return p_value;
 }
@@ -468,50 +443,27 @@ test_asm_bic(const size_t max_itr, const double low_prob, const double high_prob
   adjust_read_offsets(reads);
   const size_t n_cpgs = get_n_cpgs(reads);
   
-  // compute the score for the single-allele model
+  // try a single epi-allele
   vector<double> a0(n_cpgs, 0.5);
   const double single_score = fit_single_epiallele(reads, a0);
   
-  double mixing = 0.5;
-
-  // compute the score for the balanced two-allele model
+  // initialize the pair epi-alleles and indicators, and do the actual
+  // computation to infer alleles
   vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2, mixing, false);
+  resolve_epialleles(max_itr, reads, indicators, a1, a2);
   
-  // compute the score for the optimized proportion two-allele model
-  vector<double> a1_op(n_cpgs,low_prob),a2_op(n_cpgs,high_prob), indicators_op;
-  resolve_epialleles(max_itr, reads, indicators_op, a1_op, a2_op, mixing, true);
-
   const double indic_sum = 
     std::accumulate(indicators.begin(), indicators.end(), 0.0);
-
-  const double indic_op_sum =
-    std::accumulate(indicators_op.begin(), indicators_op.end(), 0.0);
   
-  //
-  //std::cerr << "indic_sum: " << indic_sum << "\treads.size(): "
-  // << reads.size() << "\n";
-
   const double pair_score = log_likelihood(reads, indicators, a1, a2)
-    - gsl_sf_lnbeta(indic_sum,  reads.size()-indic_sum)
+    - gsl_sf_lnbeta(indic_sum, reads.size() - indic_sum)
+    + gsl_sf_lnbeta(reads.size()/2.0, reads.size()/2.0)
     + reads.size()*log(0.5);
-
-  const double op_score = log_likelihood(reads, indicators_op, a1_op, a2_op)
-    - gsl_sf_lnbeta(indic_op_sum, reads.size() - indic_op_sum)
-    + indic_op_sum*log(mixing)+(reads.size()-indic_op_sum)*log(1-mixing);
-
+  
   const double bic_single = n_cpgs*log(reads.size()) - 2*single_score;
   const double bic_pair = 2*n_cpgs*log(reads.size()) - 2*pair_score;
-
-  // one extra free parameter: mixing (mu)
-  const double bic_op = (1+2*n_cpgs)*log(reads.size()) - 2*op_score;
-  //cout << single_score << "\t" << pair_score << "\t" << op_score << "\n";
-  //cout << pair_score << "\t2\n";
-  //cout << op_score << "\t3\n";
-  //cout << bic_single << "\t" << bic_pair << "\t" << bic_op << "\n";
-  // if bic_pair is the minimum BIC for the 3 models, return true (significant)
-  return (bic_pair < bic_single && bic_pair < bic_op) ?
-	  bic_pair - std::max(bic_single, bic_op) : 1;
+  
+  return bic_pair - bic_single;
 }
 
 
