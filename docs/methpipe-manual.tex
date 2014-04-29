@@ -656,8 +656,8 @@ generated in previous steps and produce methylome wide profiles of
 various methylation characteristics. In the context of Methpipe, these
 characteristics consist of hypomethylated regions (HMRs), partially
 methylated regions (PMRs), differentially methylated regions between
-two methylomes (DMRs), and regions with allele-specific methylation
-(AMRs).
+two methylomes (DMRs), regions with allele-specific methylation (AMRs),
+and hydroxymethylation.
 
 \subsection{Hypomethylated and hypermethylated regions (HMRs)}
 \label{sec:indent-hypo-methyl}
@@ -1022,6 +1022,63 @@ used, the score is the $p$-value, which can easily be filtered later.
 % through reverse complemetation, and read duplicates that are likely to
 % be by-products of PCR overamplication must be excluded. The following
 % sections discuss how to address each of these using Methpipe.
+
+\subsection{Consistent estimation of hydroxymethylation and methylation
+levels}
+\label{sec:hydroxy}
+If you are interested in estimating hydroxymethylation level and have any
+two of \underline{T}et-\underline{A}ssisted \underline{B}isulfite sequencing 
+(TAB-seq), oxidative bisulfite sequencing (oxBS-seq) and BS-seq data available,
+you can use \prog{mlml} \cite{qu2013mlml} to perform consistent and 
+simultaneous estimation.
+
+The input file format could be the default \prog{methcounts} output format
+described in Section~\ref{sec:estim-methyl-freq}, or BED format file with 6
+columns as the example below:
+\begin{verbatim}
+chr1    3001345 3001346 CpG:9   0.777777777778  +
+\end{verbatim}
+Here the fourth column indicates that this site is a CpG site, and the 
+number of reads covering this site is 9. The fifth column is the 
+methylation level of the CpG site, ranging from 0 to 1. Note that all input
+files must be sorted. Assume you have three input files ready: 
+\fn{meth\_BS-seq.meth}, \fn{meth\_oxBS-seq.meth} and \fn{meth\_Tab-seq.meth}.
+The following command will take all the inputs:
+\begin{verbatim}
+$ ./mlml -v -u meth_BS-seq.meth -m meth_oxBS-seq.meth \
+         -h meth_Tab-seq.meth -o result.txt
+\end{verbatim}
+If only two types of input are available, e.g. \fn{meth\_BS-seq.meth} and
+\fn{meth\_oxBS-seq.meth}, then use the following command:
+\begin{verbatim}
+$ ./mlml -u meth_BS-seq.meth -m meth_oxBS-seq.meth \
+         -o result.txt
+\end{verbatim}
+
+In some cases, you might want to specify the convergence tolerance for EM
+algorithm. This can be done through \op{-t} option. For example:
+\begin{verbatim}
+$ ./mlml -u meth_BS-seq.meth -m meth_oxBS-seq.meth \
+         -o result.txt -t 1e-2
+\end{verbatim}
+This command will make the iteration process stop when the difference of
+estimation between two iterations is less than $10^{-2}$. The value format 
+can be scientific notation, e.g. 1e-5, or float number, e.g. 0.00001.
+
+The output of \prog{mlml} is tab-delimited format. Here is an example:
+\begin{verbatim}
+chr11	15	16	0.166667	0.19697	0.636364	0 
+chr12	11	12	0.222222	0	0.777778	2
+\end{verbatim}
+The columns are chromosome name, start posistion, end position, 5-mC level, 
+5-hmC level, unmethylated level and number of conflicts. To calculate the last
+column, a binomial test is performed for each input methylation level 
+(can be 2 or 3 in total depending on parameters). If the estimated 
+methylation level falls out of the confidence interval calculated from 
+input coverage and methylation level, then such event is counted as one 
+conflict. It is recommended to filter estimation results based on the number 
+of conflicts; if more conflicts happens on one site then it is possible 
+that information from such site is not reliable.
 
 \subsection{Computing average methylation level in a genomic interval}
 \label{sec:roimethstat}
