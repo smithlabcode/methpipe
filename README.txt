@@ -8,8 +8,9 @@ domains (PMD), hyper-methylated regions (HyperMR), and allele-specific
 methylated regions (AMR).
 
 
-***********************
 Building and Installing 
+====
+
 *******************************************************************************
 You may download the latest stable release from:http://smithlabresearch.org/software/methpipe/  
 This software package has been designed to operate in a UNIX-like environment.
