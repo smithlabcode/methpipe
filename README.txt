@@ -12,22 +12,8 @@ methylated regions (AMR).
 Building and Installing 
 *******************************************************************************
 You may download the latest stable release from:http://smithlabresearch.org/software/methpipe/  
-
-Altertively, for advanced users, you may obtain the latest source code by cloning the MethPipe repository:
-
-> git clone https://github.com/smithlabcode/methpipe.git
-
-Then run the following commands to pull required submodules:
-
-> cd methpipe
-> git submodule init
-> git submodule update
-
-Compile and install binaries:
-
-> make
-> make install
-
+This software package has been designed to operate in a UNIX-like environment.
+It has been tested on MacOS X Snow Leopard and Linux. 
 
 Step 0
 ------
@@ -54,8 +40,21 @@ Step 2
   add that directory to your PATH environment variable to avoid having to 
   specify their full paths, or you can copy the binaries to another directory
   of your choice in your PATH 
-  
-  
+
+
+For advanced users who are interested in the newest features, you may obtain the 
+latest source code by cloning the MethPipe repository:
+
+  > git clone https://github.com/smithlabcode/methpipe.git
+
+Then run the following commands to pull required submodules:
+
+  > cd methpipe
+  > git submodule init
+  > git submodule update
+
+After you clone the latest source code, follow the above steps for installation.
+
 *****
 Usage
 *******************************************************************************
