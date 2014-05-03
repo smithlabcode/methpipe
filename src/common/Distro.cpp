@@ -53,6 +53,7 @@ using std::pair;
 using std::make_pair;
 using std::accumulate;
 using std::max_element;
+using std::isfinite;
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -75,7 +76,7 @@ Distro_::log_sum_log_vec(const vector<double> &vals, size_t limit) {
     if (i != max_idx) {
       sum += exp(vals[i] - max_val);
 #ifdef DEBUG
-      assert(finite(sum));
+      assert(isfinite(sum));
 #endif
     }
   }
@@ -452,7 +453,7 @@ ExpDistro::set_params(const std::vector<double> &p)
 
 double
 Gamma::sample() const {
-  assert(params.empty() >= 2);
+  assert(params.size() >= 2);
   const double &k = params[0];
   const double &theta = params[1];
   return gsl_ran_gamma(Distro_::rng, k, theta);
@@ -684,7 +685,7 @@ NegBinomDistro::log_likelihood(const double val) const {
   const double P = (gsl_sf_lngamma(val + n_helper) - 
 		    gsl_sf_lnfact(static_cast<size_t>(val))) +
     n_log_p_minus_lngamma_n_helper + val*log_q_helper;
-  if (!finite(P))
+  if (!isfinite(P))
     return -40;
   return P;
 }
@@ -704,7 +705,7 @@ NegBinomDistro::log_likelihood(const double &val,
     const double P = (gsl_sf_lngamma(val + n_helper) - 
                       gsl_sf_lnfact(static_cast<size_t>(val))) +
         scaled_n_log_p_minus_lngamma_n_helper + val * scaled_log_q_helper;
-    if (!finite(P))
+    if (!isfinite(P))
         return -40;
     return P;
 }
@@ -825,9 +826,9 @@ NegBinomDistro::estimate_params_ml(const vector<double> &vals,
     workspace_probs.resize(lim);
   }
   for (size_t i = 0; i < lim; ++i) {
-    // assert(finite(probs[i]));
+    // assert(isfinite(probs[i]));
     workspace_probs[i] = log(probs[i]);// - centering_value;
-    // assert(finite(workspace_probs[i]));
+    // assert(isfinite(workspace_probs[i]));
     workspace_vals[i] = log(vals[i]) + log(probs[i]);// - centering_value;
   }
   
