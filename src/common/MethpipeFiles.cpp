@@ -17,8 +17,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <tr1/cmath>
-
+#include <cmath>
 #include <vector>
 #include <string>
 #include <utility>
@@ -50,8 +49,8 @@ methpipe::load_cpgs(const string &cpgs_file,
   std::ifstream in(cpgs_file.c_str());
   while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) {
     // sanity check
-    if (chrom.empty() || strand.empty() || seq.empty()
-        || meth < 0 || meth > 1 || coverage < 0) {
+    if (chrom.empty() || strand.empty() || seq.empty() || 
+	meth < 0.0 || meth > 1.0) {
       std::ostringstream oss;
       oss << chrom << "\t" << pos << "\t" << strand << "\t"
           << seq << "\t" << meth << "\t" << coverage << "\n";
@@ -69,7 +68,7 @@ methpipe::load_cpgs(const string &cpgs_file,
     cpgs.push_back(SimpleGenomicRegion(chrom, pos, pos+1));
     reads.push_back(coverage);
     meths.push_back(std::make_pair(0.0, 0.0));
-    meths.back().first = static_cast<size_t>(std::tr1::round(meth * coverage));
+    meths.back().first = static_cast<size_t>(round(meth * coverage));
     meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
   }
 }
@@ -90,7 +89,7 @@ methpipe::load_cpgs(const string &cpgs_file,
   while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) {
     // sanity check
     if (chrom.empty() || strand.empty() || seq.empty()
-        || meth < 0 || meth > 1 || coverage < 0) {
+        || meth < 0.0 || meth > 1.0) {
       std::ostringstream oss;
       oss << chrom << "\t" << pos << "\t" << strand << "\t"
           << seq << "\t" << meth << "\t" << coverage << "\n";
@@ -108,7 +107,7 @@ methpipe::load_cpgs(const string &cpgs_file,
     cpgs.push_back(GenomicRegion(chrom, pos, pos+1, seq, 0, strand[0]));
     reads.push_back(coverage);
     meths.push_back(std::make_pair(0.0, 0.0));
-    meths.back().first = static_cast<size_t>(std::tr1::round(meth * coverage));
+    meths.back().first = static_cast<size_t>(round(meth * coverage));
     meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
   }
 }
