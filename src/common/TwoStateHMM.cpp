@@ -39,6 +39,7 @@ using std::cerr;
 using std::endl;
 using std::string;
 using std::setprecision;
+using std::isfinite;
 
 
 struct betabin {
@@ -144,7 +145,7 @@ TwoStateHMMB::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
     if (i != max_idx) {
       sum += exp(vals[i] - max_val);
 #ifdef DEBUG
-      assert(finite(sum));
+      assert(isfinite(sum));
 #endif
     }
   }
@@ -167,7 +168,7 @@ TwoStateHMMB::forward_algorithm(const vector<pair<double, double> > &vals,
   f[start].first = fg_distro(vals[start]) + lp_sf;
   f[start].second = bg_distro(vals[start]) + lp_sb;
   for (size_t i = start + 1; i < end; ++i) {
-    // assert(finite(fg_distro.log_likelihood(vals[i])));
+    // assert(isfinite(fg_distro.log_likelihood(vals[i])));
     const size_t k = i - 1;
     f[i].first = (fg_distro(vals[i]) +
 		  log_sum_log(f[k].first + lp_ff, f[k].second + lp_bf));
@@ -278,9 +279,9 @@ TwoStateHMMB::single_iteration(const vector<pair<double, double> > &values,
   const double lp_bb = log(p_bb);
   const double lp_bt = log(p_bt);
   
-  assert(finite(lp_sf) && finite(lp_sb) && 
-	 finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
-	 finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && 
+	 isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) && 
+	 isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
 
   // for estimating transitions
   vector<double> ff_vals(values.size(), 0);
@@ -554,9 +555,9 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
   const double lp_bb = log(p_bb);
   const double lp_bt = log(p_bt);
   
-  assert(finite(lp_sf) && finite(lp_sb) && 
-	 finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
-	 finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && 
+	 isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) && 
+	 isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
 
   vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
   vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
@@ -653,9 +654,9 @@ TwoStateHMMB::PosteriorScores(const vector<pair<double, double> > &values,
   const double lp_bb = log(p_bb);
   const double lp_bt = log(p_bt);
   
-  assert(finite(lp_sf) && finite(lp_sb) && 
-	 finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
-	 finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && 
+	 isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) && 
+	 isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
   
   vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
   vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
@@ -749,9 +750,9 @@ TwoStateHMMB::TransitionPosteriors(const vector<pair<double, double> > &values,
   const double lp_bb = log(p_bb);
   const double lp_bt = log(p_bt);
   
-  assert(finite(lp_sf) && finite(lp_sb) && 
-	 finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
-	 finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && 
+	 isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) && 
+	 isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
   
   vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
   vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
@@ -862,9 +863,9 @@ TwoStateHMMB::PosteriorDecoding(const vector<pair<double, double> > &values,
   const double lp_bb = log(p_bb);
   const double lp_bt = log(p_bt);
   
-  assert(finite(lp_sf) && finite(lp_sb) && 
-	 finite(lp_ff) && finite(lp_fb) && finite(lp_ft) && 
-	 finite(lp_bf) && finite(lp_bb) && finite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && 
+	 isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) && 
+	 isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
 
   vector<pair<double, double> > forward(values.size(), pair<double, double>(0, 0));
   vector<pair<double, double> > backward(values.size(), pair<double, double>(0, 0));
