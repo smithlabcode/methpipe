@@ -45,7 +45,7 @@ struct betabin
     double beta;
     double lnbeta_helper;
     
-    static const double tolerance = 1e-10;
+    static const double tolerance;
 };
 
 #endif

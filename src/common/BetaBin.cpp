@@ -46,6 +46,8 @@ using std::setprecision;
 //////       struct betabin             //////
 //////////////////////////////////////////////
 
+const double betabin::tolerance = 1e-10;
+
 betabin::betabin() : 
     alpha(1), beta(1), lnbeta_helper(gsl_sf_lnbeta(1, 1)) {}
 
