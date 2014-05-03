@@ -52,11 +52,14 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
 
-CXX = g++
-CFLAGS = -Wall -fmessage-length=50
-CXXFLAGS = -Wall -fmessage-length=50
-OPTFLAGS = -O2
-DEBUGFLAGS = -g
+# Flags for Mavericks
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
+endif
 
 all: $(PROGS)
 
