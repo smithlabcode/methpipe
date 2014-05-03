@@ -32,6 +32,7 @@
 using std::string;
 using std::vector;
 using std::cerr;
+using std::isfinite;
 
 
 static const double EPIREAD_STATS_TOLERANCE = 1e-20;
@@ -42,7 +43,7 @@ log_likelihood(const epiread &r, const double z, const vector<double> &a) {
   for (size_t i = 0; i < r.seq.length(); ++i) {
     if (r.seq[i] == 'C' || r.seq[i] == 'T') {
       const double val = (r.seq[i] == 'C') ? a[r.pos + i] : (1.0 - a[r.pos + i]);
-      assert(finite(val) && finite(log(val)));
+      assert(isfinite(val) && isfinite(log(val)));
       ll += z*log(val);
     }
   }
@@ -77,17 +78,17 @@ expectation_step(const vector<epiread> &reads, const double mixing,
 		 vector<double> &indicators) {
   const double log_mixing1 = log(mixing);
   const double log_mixing2 = log(1.0 - mixing);
-  assert(finite(log_mixing1) && finite(log_mixing2));
+  assert(isfinite(log_mixing1) && isfinite(log_mixing2));
   
   double score = 0;
   for (size_t i = 0; i < reads.size(); ++i) {
     const double ll1 = log_mixing1 + log_likelihood(reads[i], 1.0, a1);
     const double ll2 = log_mixing2 + log_likelihood(reads[i], 1.0, a2);
-    assert(finite(ll1) && finite(ll2));
+    assert(isfinite(ll1) && isfinite(ll2));
     const double log_denom = log(exp(ll1) + exp(ll2));
     score += log_denom;
     indicators[i] = exp(ll1 - log_denom);
-    assert(finite(log_denom) && finite(indicators[i]));
+    assert(isfinite(log_denom) && isfinite(indicators[i]));
   }
   return score;
 }
@@ -177,7 +178,7 @@ fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
   double score = 0.0;
   for (size_t i = 0; i < reads.size(); ++i) {
     score += log_likelihood(reads[i], 1.0, a);
-    assert(std::isfinite(score));
+    assert(isfinite(score));
   }  
   return score;
 }
@@ -196,7 +197,7 @@ fit_single_epiallele(const size_t read_start, const size_t read_end,
   double score = 0.0;
   for (size_t i = 0; i < reads.size(); ++i) {
     score += log_likelihood(start, end, reads[i], 1.0, a);
-    assert(std::isfinite(score));
+    assert(isfinite(score));
   }  
   return score;
 }
@@ -233,7 +234,7 @@ log_likelihood(const size_t start, const size_t end,
 	const double val = (curr == 'C') ? 
 	  a[p + i - start] : (1.0 - a[p + i - start]);
 	ll += log(val);
-	assert(finite(ll));
+	assert(isfinite(ll));
       }
     }
   }
@@ -270,17 +271,17 @@ expectation_step(const size_t read_start, const size_t read_end,
 
   const double log_mixing1 = log(mixing);
   const double log_mixing2 = log(1.0 - mixing);
-  assert(finite(log_mixing1) && finite(log_mixing2));
+  assert(isfinite(log_mixing1) && isfinite(log_mixing2));
   double score = 0;
   for (size_t i = read_start; i < read_end; ++i) {
     if (reads[i].pos + reads[i].seq.length() > start && reads[i].pos < end) {
       const double ll1 = log_mixing1 + log_likelihood(start, end, reads[i], 1.0, a1);
       const double ll2 = log_mixing2 + log_likelihood(start, end, reads[i], 1.0, a2);
-      assert(finite(ll1) && finite(ll2));
+      assert(isfinite(ll1) && isfinite(ll2));
       const double log_denom = log(exp(ll1) + exp(ll2));
       score += log_denom;
       indicators[i - read_start] = exp(ll1 - log_denom);
-      assert(finite(log_denom) && finite(indicators[i - read_start]));
+      assert(isfinite(log_denom) && isfinite(indicators[i - read_start]));
     }
   }
   return score;
