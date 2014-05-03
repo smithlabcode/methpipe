@@ -29,16 +29,21 @@ DEBUGFLAGS = -g
 INCLUDEDIRS =  $(SMITHLAB_CPP)/
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-ifeq "$(shell uname)" "Darwin"
-CXXFLAGS += -arch x86_64
-endif
-
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
 endif
 
 ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
+endif
+
+# Flags for Mavericks
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
 endif
 
 %.o: %.cpp %.hpp
