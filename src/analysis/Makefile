@@ -53,6 +53,15 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
 
+# Flags for Mavericks
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
+endif
+
 all: $(PROGS)
 
 install: $(PROGS)
@@ -70,7 +79,8 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
 hmr pmd: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
-hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o Distro.o BetaBin.o numerical_utils.o)
+hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
+	Distro.o BetaBin.o numerical_utils.o)
 
 amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 	$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
