@@ -116,8 +116,8 @@ separate_sites(const vector<GenomicRegion> &dmrs,
 
 template <class T> bool
 starts_before(const T &a, const T &b) {
-  return a.get_chrom() < b.get_chrom() ||
-    a.same_chrom(b) && a.get_start() < b.get_start();
+  return (a.get_chrom() < b.get_chrom()) ||
+    (a.same_chrom(b) && a.get_start() < b.get_start());
 }
 
 template <class T> bool
