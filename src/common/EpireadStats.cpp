@@ -37,13 +37,20 @@ using std::isfinite;
 
 static const double EPIREAD_STATS_TOLERANCE = 1e-20;
 
+inline bool
+is_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'C');}
+
+
+inline bool
+un_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'T');}
+
 double
 log_likelihood(const epiread &r, const double z, const vector<double> &a) {
   double ll = 0.0;
   for (size_t i = 0; i < r.seq.length(); ++i) {
-    if (r.seq[i] == 'C' || r.seq[i] == 'T') {
-      const double val = (r.seq[i] == 'C') ? a[r.pos + i] : (1.0 - a[r.pos + i]);
-      assert(isfinite(val) && isfinite(log(val)));
+    if (is_meth(r, i) || un_meth(r, i)) {
+      const double val = (is_meth(r, i) ? a[r.pos + i] : (1.0 - a[r.pos + i]));
+      assert(isfinite(log(val)));
       ll += z*log(val);
     }
   }
@@ -103,8 +110,8 @@ fit_epiallele(const vector<epiread> &reads,
     const size_t start = reads[i].pos;
     const double weight = indicators[i];
     for (size_t j = 0; j < reads[i].seq.length(); ++j)
-      if (reads[i].seq[j] == 'C' || reads[i].seq[j] == 'T') {
-	meth[start + j] += weight*(reads[i].seq[j] == 'C');
+      if (is_meth(reads[i], j) || un_meth(reads[i], j)) {
+	meth[start + j] += weight*(is_meth(reads[i], j));
 	total[start + j] += weight;
       }
   }
