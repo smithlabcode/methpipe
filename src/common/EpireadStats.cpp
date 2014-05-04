@@ -177,9 +177,9 @@ double
 resolve_epialleles(const size_t max_itr, const vector<epiread> &reads, 
 		   vector<double> &indicators, 
 		   vector<double> &a1, vector<double> &a2) {
-  // In current implementation mixing will never change
-  /*static const*/ 
-  double MIXING_PARAMETER = 0.5; 
+  
+  static const double MIXING_PARAMETER = 0.5; 
+  
   indicators.clear();
   indicators.resize(reads.size(), 0.0);
   for (size_t i = 0; i < reads.size(); ++i) {
@@ -260,7 +260,6 @@ test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_pro
   const size_t df = n_cpgs + reads.size();
   
   const double llr_stat = -2*(single_score - log_likelihood_pair);
-  cerr << llr_stat << "\n";
   const double p_value = 1.0 - gsl_cdf_chisq_P(llr_stat, df);
   return p_value;
 }
