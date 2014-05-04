@@ -123,7 +123,7 @@ fit_epiallele(const vector<epiread> &reads,
 
 static void
 maximization_step(const vector<epiread> &reads, const vector<double> &indicators,
-		  double &mixing, vector<double> &a1, vector<double> &a2) {
+		  vector<double> &a1, vector<double> &a2) {
   
   vector<double> inverted_indicators(indicators);
   for (size_t i = 0; i < inverted_indicators.size(); ++i)
@@ -132,23 +132,19 @@ maximization_step(const vector<epiread> &reads, const vector<double> &indicators
   // Fit the regular model parameters
   fit_epiallele(reads, indicators, a1);
   fit_epiallele(reads, inverted_indicators, a2);
-
-  // Fit the mixing parameters
-  //!!!! NO NEED BECAUSE THESE ARE ALWAYS 0.5!!!
-  mixing = 0.5;
 }
+
 
 static double
 expectation_maximization(const size_t max_itr, const vector<epiread> &reads, 
-			 double &mixing, vector<double> &indicators, 
+			 const double &mixing, vector<double> &indicators, 
 			 vector<double> &a1, vector<double> &a2) {
   //!!!! MIXING ALWAYS 0.5 IN CURRENT IMPLEMENTATION !!
-  mixing = 0.5;
   double prev_score = -std::numeric_limits<double>::max();
   for (size_t i = 0; i < max_itr; ++i) {
     
     const double score = expectation_step(reads, mixing, a1, a2, indicators);
-    maximization_step(reads, indicators, mixing, a1, a2);
+    maximization_step(reads, indicators, a1, a2);
     
     if ((prev_score - score)/prev_score < EPIREAD_STATS_TOLERANCE)
       break;
@@ -212,7 +208,7 @@ test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob
   for (size_t i = 0; i < reads.size(); ++i)
     log_likelihood_pair += log_likelihood(reads[i], a1, a2);
   log_likelihood_pair += reads.size()*log(0.5);
-  // static const double correction = 1.5;
+  
   const size_t df = n_cpgs;
   
   const double llr_stat = -2*(single_score - log_likelihood_pair);
