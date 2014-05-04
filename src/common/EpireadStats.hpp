@@ -38,17 +38,8 @@ log_likelihood(const size_t start, const size_t end,
 void
 fit_epiallele(const std::vector<epiread> &reads, 
 	      const std::vector<double> &indicators, std::vector<double> &a);
-void
-fit_epiallele(const size_t read_start, const size_t read_end,
-	      const size_t start, const size_t end,
-	      const std::vector<epiread> &reads, 
-	      const std::vector<double> &indicators, std::vector<double> &a);
 double
 fit_single_epiallele(const std::vector<epiread> &reads, std::vector<double> &a);
-double
-fit_single_epiallele(const size_t read_start, const size_t read_end,
-		     const size_t start, const size_t end,
-		     const std::vector<epiread> &reads, std::vector<double> &a);
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -65,21 +56,10 @@ log_likelihood(const epiread &r, const std::vector<double> &a1,
 double
 log_likelihood(const std::vector<epiread> &reads, const std::vector<double> &indicators,
  	       const std::vector<double> &a1, const std::vector<double> &a2);
-double
-log_likelihood(const size_t read_start, const size_t read_end,
-	       const size_t start, const size_t end,
-	       const std::vector<epiread> &reads, const std::vector<double> &indicators,
-	       const std::vector<double> &a1, const std::vector<double> &a2);
 
 double
 resolve_epialleles(const size_t max_itr,
 		   const std::vector<epiread> &reads, 
-		   std::vector<double> &indicators, 
-		   std::vector<double> &a1, std::vector<double> &a2);
-double
-resolve_epialleles(const size_t read_start, const size_t read_end,
-		   const size_t start, const size_t end,
-		   const size_t max_itr, const std::vector<epiread> &reads,
 		   std::vector<double> &indicators, 
 		   std::vector<double> &a1, std::vector<double> &a2);
 
