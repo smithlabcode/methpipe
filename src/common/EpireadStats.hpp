@@ -31,10 +31,7 @@
 //////
 
 double
-log_likelihood(const epiread &r, const double z, const std::vector<double> &a);
-double
-log_likelihood(const size_t start, const size_t end, 
-	       const epiread &r, const double z, const std::vector<double> &a);
+log_likelihood(const epiread &r, const std::vector<double> &a);
 void
 fit_epiallele(const std::vector<epiread> &reads, 
 	      const std::vector<double> &indicators, std::vector<double> &a);

@@ -46,13 +46,13 @@ inline bool
 un_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'T');}
 
 double
-log_likelihood(const epiread &r, const double z, const vector<double> &a) {
+log_likelihood(const epiread &r, const vector<double> &a) {
   double ll = 0.0;
   for (size_t i = 0; i < r.seq.length(); ++i) {
     if (is_meth(r, i) || un_meth(r, i)) {
       const double val = (is_meth(r, i) ? a[r.pos + i] : (1.0 - a[r.pos + i]));
       assert(isfinite(log(val)));
-      ll += z*log(val);
+      ll += log(val);
     }
   }
   return ll;
@@ -61,13 +61,13 @@ log_likelihood(const epiread &r, const double z, const vector<double> &a) {
 double
 log_likelihood(const epiread &r, const double z,
  	       const vector<double> &a1, const vector<double> &a2) {
-  return log_likelihood(r, z, a1) + log_likelihood(r, 1.0 - z, a2);
+  return z*log_likelihood(r, a1) + (1.0 - z)*log_likelihood(r, a2);
 }
 
 double
 log_likelihood(const epiread &r, const vector<double> &a1,
-	       	const vector<double> &a2) {
-  return log(exp(log_likelihood(r, 1.0, a1)) + exp(log_likelihood(r, 1.0, a2)));
+	       const vector<double> &a2) {
+  return log(exp(log_likelihood(r, a1)) + exp(log_likelihood(r, a2)));
 }
 
 double
@@ -90,8 +90,8 @@ expectation_step(const vector<epiread> &reads, const double mixing,
   
   double score = 0;
   for (size_t i = 0; i < reads.size(); ++i) {
-    const double ll1 = log_mixing1 + log_likelihood(reads[i], 1.0, a1);
-    const double ll2 = log_mixing2 + log_likelihood(reads[i], 1.0, a2);
+    const double ll1 = log_mixing1 + log_likelihood(reads[i], a1);
+    const double ll2 = log_mixing2 + log_likelihood(reads[i], a2);
     assert(isfinite(ll1) && isfinite(ll2));
     const double log_denom = log(exp(ll1) + exp(ll2));
     score += log_denom;
@@ -168,8 +168,8 @@ resolve_epialleles(const size_t max_itr, const vector<epiread> &reads,
   indicators.clear();
   indicators.resize(reads.size(), 0.0);
   for (size_t i = 0; i < reads.size(); ++i) {
-    const double l1 = log_likelihood(reads[i], 1.0, a1);
-    const double l2 = log_likelihood(reads[i], 1.0, a2);
+    const double l1 = log_likelihood(reads[i], a1);
+    const double l2 = log_likelihood(reads[i], a2);
     indicators[i] = exp(l1 - log(exp(l1) + exp(l2)));
   }
   
@@ -185,7 +185,7 @@ fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
   
   double score = 0.0;
   for (size_t i = 0; i < reads.size(); ++i) {
-    score += log_likelihood(reads[i], 1.0, a);
+    score += log_likelihood(reads[i], a);
     assert(isfinite(score));
   }  
   return score;
@@ -279,5 +279,3 @@ test_asm_bic(const size_t max_itr, const double low_prob, const double high_prob
   
   return bic_pair - bic_single;
 }
-
-
