@@ -135,15 +135,34 @@ maximization_step(const vector<epiread> &reads, const vector<double> &indicators
 }
 
 
+static void
+rescale_indicators(const double mixing, vector<double> &indic) {
+  const double n_reads = indic.size();
+  const double total = accumulate(indic.begin(), indic.end(), 0.0);
+  const double ratio = total/n_reads;
+  
+  if (mixing < ratio)
+    for (size_t i = 0; i < indic.size(); ++i)
+      indic[i] *= (mixing/ratio);
+
+  else {
+    const double adjustment = mixing/(1.0 - ratio);
+    for (size_t i = 0; i < indic.size(); ++i)
+      indic[i] = 1.0 - (1.0 - indic[i])*adjustment;
+  }
+}
+
+
 static double
 expectation_maximization(const size_t max_itr, const vector<epiread> &reads, 
 			 const double &mixing, vector<double> &indicators, 
 			 vector<double> &a1, vector<double> &a2) {
-  //!!!! MIXING ALWAYS 0.5 IN CURRENT IMPLEMENTATION !!
+
   double prev_score = -std::numeric_limits<double>::max();
   for (size_t i = 0; i < max_itr; ++i) {
     
     const double score = expectation_step(reads, mixing, a1, a2, indicators);
+    rescale_indicators(mixing, indicators);
     maximization_step(reads, indicators, a1, a2);
     
     if ((prev_score - score)/prev_score < EPIREAD_STATS_TOLERANCE)
