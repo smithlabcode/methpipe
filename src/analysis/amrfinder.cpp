@@ -47,37 +47,11 @@ using std::tr1::unordered_map;
 //////////////  MERGING THEM TO OBTAIN FINAL AMRS
 //////////////
 
-
-static double
-get_fdr_cutoff(const size_t n_tests, const vector<GenomicRegion> &amrs, 
-	       const double fdr) {
-  if (fdr <= 0) return std::numeric_limits<double>::max();
-  else if (fdr > 1) return std::numeric_limits<double>::min();
-  
-  vector<double> pvals;
-  for (size_t i = 0; i < amrs.size(); ++i)
-    pvals.push_back(amrs[i].get_score());
-  std::sort(pvals.begin(), pvals.end());
-  
-  const size_t n_pvals = pvals.size();
-  size_t i = 0;
-  while (i < n_pvals - 1 && pvals[i+1] < fdr*static_cast<double>(i+1)/n_tests)
-    ++i;
-  return pvals[i];
-}
-
-static void 
-correct_pvals( size_t n_tests, vector<GenomicRegion> &amrs ) {
-  for (size_t i = 0; i < amrs.size(); ++i) {
-    amrs[i].set_score( (amrs[i].get_score()*n_tests)/i );
-  }
-}
-
 static void
-eliminate_amrs_by_fdr(const double fdr_cutoff, vector<GenomicRegion> &amrs) {
+eliminate_amrs_by_cutoff(const double cutoff, vector<GenomicRegion> &amrs) {
   size_t j = 0;
   for (size_t i = 0; i < amrs.size(); ++i)
-    if (amrs[i].get_score() < fdr_cutoff) {
+    if (amrs[i].get_score() < cutoff) {
       amrs[j] = amrs[i];
       ++j;
     }
@@ -456,7 +430,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("crit", 'C', "critical p-value cutoff (default: 0.01)", 
 		      false, critical_value);
     // BOOLEAN FLAGS
-    opt_parse.add_opt("q-vals", 'q', "convert p-values to fdr q-values",
+    opt_parse.add_opt("pvals", 'h', "adjusts p-values using Hochberg step-up",
 		      false, CORRECTION);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -523,12 +497,24 @@ main(int argc, const char **argv) {
       cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
+
+    // Could potentially only get the first n p-vals, but would
+    // have to sort here and assume sorted for smithlab_utils, or
+    // sort twice...
+    vector<double> pvals;
+    for ( size_t i = 0; i < amrs.size(); ++i)
+        pvals.push_back(amrs[i].get_score());
+
     const double fdr_cutoff = (!USE_BIC && !CORRECTION) ?
-      get_fdr_cutoff(windows_tested, amrs, critical_value) : 0.0;
+       smithlab::get_fdr_cutoff(windows_tested, pvals, critical_value) : 0.0;
 
-    if (!USE_BIC && CORRECTION)
-      correct_pvals(windows_tested, amrs);
-
+    if (!USE_BIC && CORRECTION) {
+      smithlab::correct_pvals(windows_tested, pvals);
+      for ( size_t i = 0; i < pvals.size(); ++i) {
+        amrs[i].set_score(pvals[i]);
+      }
+    }
+    
     collapse_amrs(amrs);
     const size_t collapsed_amrs = amrs.size();
     convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
@@ -537,8 +523,8 @@ main(int argc, const char **argv) {
     const size_t merged_amrs = amrs.size();
     
     if (!USE_BIC)
-      (CORRECTION) ? eliminate_amrs_by_fdr(critical_value, amrs) :
-	             eliminate_amrs_by_fdr(fdr_cutoff, amrs);
+      (CORRECTION) ? eliminate_amrs_by_cutoff(critical_value, amrs) :
+	             eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
     
     const size_t amrs_passing_fdr = amrs.size();
     
