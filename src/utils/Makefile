@@ -27,21 +27,15 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fastLiftOver
-
-COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+PROGS = lc_approx fastLiftOver to-mr
 
 # if SAMTOOLS location not set, try to set it
 ifndef SAMTOOLS_DIR
 SAMTOOLS_DIR = $(SRC_ROOT)/src/samtools
 endif
 
-# if SAMTOOLS location seems good, add the to-mr rules
-ifneq ("$(wildcard $(SAMTOOLS_DIR))","")
-PROGS += to-mr
-INCLUDEDIRS +=  $(SAMTOOLS_DIR)
-endif
+COMMON_DIR = $(SRC_ROOT)/src/common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR) $(SAMTOOLS_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
