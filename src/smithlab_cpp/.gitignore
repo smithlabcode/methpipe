@@ -1,0 +1,6 @@
+# no compiled object file
+*.[oa]
+*.so
+
+# no temparary file
+*~
