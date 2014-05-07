@@ -47,12 +47,6 @@ latest source code by cloning the MethPipe repository:
 
   > git clone https://github.com/smithlabcode/methpipe.git
 
-Then run the following commands to pull required submodules:
-
-  > cd methpipe
-  > git submodule init
-  > git submodule update
-
 After you clone the latest source code, follow the above steps for installation.
 
 *****
@@ -97,7 +91,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
+SamTools
+Copyright (c) 2008-2009 Genome Research Ltd.
+SamTools software is free software distributed under the MIT License.
+Refer to the COPYING file in src/samtoos/ for further information.
 
