@@ -406,7 +406,6 @@ main(int argc, const char **argv) {
     double critical_value = 0.01;
     
     // bool RANDOMIZE_READS = false;
-    bool IGNORE_BALANCE = false;
     bool USE_BIC = false;
     bool CORRECTION = false;
     
@@ -418,8 +417,6 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
-    opt_parse.add_opt("no-bal", 'u', "no penalty for unbalanced alleles", 
-		      false, IGNORE_BALANCE);
     opt_parse.add_opt("window", 'w', "size of sliding window", 
 		      false, window_size);
     opt_parse.add_opt("min-cov", 'm', "min coverage per cpg to test windows", 
@@ -459,11 +456,10 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "AMR TESTING OPTIONS: "
 	   << "[test=" << (USE_BIC ? "BIC" : "LRT") << "] "
-	   << "[balance=" << (IGNORE_BALANCE ? "FALSE" : "TRUE") << "] "
 	   << "[iterations=" << max_itr << "]" << endl;
     
     const EpireadStats epistat(low_prob, high_prob, critical_value, max_itr,
-			       IGNORE_BALANCE, USE_BIC);
+			        USE_BIC);
     
     std::ifstream in(reads_file.c_str());
     if (!in)
