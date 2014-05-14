@@ -41,7 +41,6 @@ using std::endl;
 using std::tr1::unordered_map;
 
 
-
 static void
 backup_to_start_of_current_record(std::ifstream &in) {
   while (in.tellg() > 0 && in.peek() != '\n' && in.peek() != '\r') {
@@ -87,7 +86,6 @@ find_first_epiread_ending_after_position(const string &query_chrom,
 }
 
 
-
 static void
 load_reads(const string &reads_file_name,
 	   const GenomicRegion &region, vector<epiread> &the_reads) {
@@ -114,12 +112,10 @@ load_reads(const string &reads_file_name,
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-
 
 
 static void
@@ -163,6 +159,7 @@ is_cpg(const string &s, const size_t idx) {
   return toupper(s[idx]) == 'C' && toupper(s[idx + 1]) == 'G';
 }
 
+
 static void
 collect_cpgs(const string &s, vector<size_t> &cpgs) {
   const size_t lim = s.length() - 1;
@@ -170,6 +167,7 @@ collect_cpgs(const string &s, vector<size_t> &cpgs) {
     if (is_cpg(s, i))
       cpgs.push_back(i);
 }
+
 
 static void
 get_cpg_positions(const string &chrom_file, 
@@ -230,8 +228,6 @@ main(int argc, const char **argv) {
     size_t max_itr = 10;
     double high_prob = 0.75, low_prob = 0.25;
     
-    bool IGNORE_BALANCED_PARTITION_INFO = false;
-    
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles", 
 			   "<bed-regions> <mapped-reads>");
@@ -239,8 +235,6 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
-    opt_parse.add_opt("no-bal", 'g', "ignore balanced partition info", 
-		      false, IGNORE_BALANCED_PARTITION_INFO);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
@@ -314,10 +308,8 @@ main(int argc, const char **argv) {
       
       if (!reads.empty()) {
 	regions[i].set_score((USE_BIC) ?
-			     test_asm_bic(max_itr, low_prob, high_prob, reads) :
-			     ((IGNORE_BALANCED_PARTITION_INFO) ?
-			      test_asm_lrt(max_itr, low_prob, high_prob, reads) :
-			      test_asm_lrt2(max_itr, low_prob, high_prob, reads)));
+			     test_asm_bic(max_itr, low_prob, high_prob, reads):
+			     test_asm_lrt(max_itr, low_prob, high_prob, reads));
       }
       else regions[i].set_score(1.0);
       
