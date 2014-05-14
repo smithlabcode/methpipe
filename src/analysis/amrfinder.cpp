@@ -110,7 +110,6 @@ merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -181,8 +180,6 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 }
 
 
-
-
 static void
 convert_coordinates(const unordered_map<size_t, size_t> &cpgs, 
                     GenomicRegion &region)  {
@@ -195,6 +192,7 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
   region.set_start(start_itr->second);
   region.set_end(end_itr->second);
 }
+
 
 static void
 get_chrom(const bool VERBOSE, const GenomicRegion &r, 
@@ -213,6 +211,7 @@ get_chrom(const bool VERBOSE, const GenomicRegion &r,
   }
 }
 
+
 static void
 identify_chromosomes(const string chrom_file, const string fasta_suffix, 
 		     unordered_map<string, string> &chrom_files) {
@@ -230,6 +229,7 @@ identify_chromosomes(const string chrom_file, const string fasta_suffix,
       chrom_files[names[j]] = the_files[i];
   }
 }
+
 
 // static void
 // identify_chromosomes(const string chrom_file, const string fasta_suffix, 
@@ -384,7 +384,6 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 }
 
 
-
 int 
 main(int argc, const char **argv) {
   
@@ -497,7 +496,10 @@ main(int argc, const char **argv) {
       cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
-
+    if ( amrs.size() == 0 ) {
+      cout << "No AMRs found.\n";
+      return 0;
+    }
     // Could potentially only get the first n p-vals, but would
     // have to sort here and assume sorted for smithlab_utils, or
     // sort twice...
