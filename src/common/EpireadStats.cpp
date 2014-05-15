@@ -26,21 +26,19 @@
 #include <numeric>
 #include <limits>
 #include <iostream>
+#include <tr1/unordered_map>
 
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_cdf.h>
 
 using std::string;
 using std::vector;
-using std::cerr;
 using std::isfinite;
-
 
 static const double EPIREAD_STATS_TOLERANCE = 1e-20;
 
 inline bool
 is_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'C');}
-
 
 inline bool
 un_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'T');}
@@ -48,34 +46,30 @@ un_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'T');}
 double
 log_likelihood(const epiread &r, const vector<double> &a) {
   double ll = 0.0;
-  for (size_t i = 0; i < r.seq.length(); ++i) {
+  for (size_t i = 0; i < r.seq.length(); ++i)
     if (is_meth(r, i) || un_meth(r, i)) {
       const double val = (is_meth(r, i) ? a[r.pos + i] : (1.0 - a[r.pos + i]));
       assert(isfinite(log(val)));
       ll += log(val);
     }
-  }
   return ll;
 }
 
-double
-log_likelihood(const epiread &r, const double z,
- 	       const vector<double> &a1, const vector<double> &a2) {
-  return z*log_likelihood(r, a1) + (1.0 - z)*log_likelihood(r, a2);
-}
 
 double
-log_likelihood(const epiread &r, const vector<double> &a1,
-	       const vector<double> &a2) {
-  return log(exp(log_likelihood(r, a1)) + exp(log_likelihood(r, a2)));
+log_likelihood(const epiread &r, const double mixing, 
+		const vector<double> &a1, const vector<double> &a2) {
+  return log(mixing*exp(log_likelihood(r, a1)) + 
+	     (1.0 - mixing)*exp(log_likelihood(r, a2)));
 }
 
+
 double
-log_likelihood(const vector<epiread> &reads, const vector<double> &indicators,
-	       const vector<double> &a1, const vector<double> &a2) {
+log_likelihood(const vector<epiread> &reads, const double mixing,
+		const vector<double> &a1, const vector<double> &a2) {
   double ll = 0.0;
   for (size_t i = 0; i < reads.size(); ++i)
-    ll += log_likelihood(reads[i], indicators[i], a1, a2);
+    ll += log_likelihood(reads[i], mixing, a1, a2);
   return ll;
 }
 
@@ -192,6 +186,7 @@ resolve_epialleles(const size_t max_itr, const vector<epiread> &reads,
 				  indicators, a1, a2);
 }
 
+
 double
 fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
   assert(reads.size() > 0);
@@ -207,89 +202,61 @@ fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
 }
 
 
+void
+compute_model_likelihoods( double &single_score, double &pair_score,
+       const size_t &max_itr, const double &low_prob, const double &high_prob,
+       const size_t &n_cpgs, vector<epiread> &reads ) {
+
+  static const double mixing = 0.5;
+
+  // try a single epi-allele and compute its log likelihood
+  vector<double> a0(n_cpgs, 0.5);
+  single_score = fit_single_epiallele(reads, a0);
+  
+  // initialize the pair epi-alleles and indicators, and do the actual
+  // computation to infer alleles, compute its log likelihood
+  vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
+  resolve_epialleles(max_itr, reads, indicators, a1, a2);
+  pair_score = log_likelihood(reads, mixing, a1, a2);
+
+}
+
+
 double
 test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob, 
 	     vector<epiread> reads) {
-  
+  double single_score = std::numeric_limits<double>::min();
+  double pair_score = std::numeric_limits<double>::min();
   adjust_read_offsets(reads);
   const size_t n_cpgs = get_n_cpgs(reads);
-  
-  // try a single epi-allele
-  vector<double> a0(n_cpgs, 0.5);
-  const double single_score = fit_single_epiallele(reads, a0);
-  
-  // initialize the pair epi-alleles and indicators, and do the actual
-  // computation to infer alleles
-  vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2);
-  
-  double log_likelihood_pair = 0.0;
-  for (size_t i = 0; i < reads.size(); ++i)
-    log_likelihood_pair += log_likelihood(reads[i], a1, a2);
-  log_likelihood_pair += reads.size()*log(0.5);
-  
+
+  compute_model_likelihoods( single_score, pair_score, max_itr, low_prob,
+         high_prob, n_cpgs, reads );
+
+  // degrees of freedom = 2*n_cpgs for two-allele model 
+  // minus n_cpgs for one-allele model
   const size_t df = n_cpgs;
   
-  const double llr_stat = -2*(single_score - log_likelihood_pair);
+  const double llr_stat = -2*(single_score - pair_score);
   const double p_value = 1.0 - gsl_cdf_chisq_P(llr_stat, df);
   return p_value;
 }
 
-double
-test_asm_lrt2(const size_t max_itr, const double low_prob, const double high_prob, 
-	      vector<epiread> reads) {
-  
-  adjust_read_offsets(reads);
-  const size_t n_cpgs = get_n_cpgs(reads);
-  
-  // try a single epi-allele
-  vector<double> a0(n_cpgs, 0.5);
-  const double single_score = fit_single_epiallele(reads, a0);
-  
-  // initialize the pair epi-alleles and indicators, and do the actual
-  // computation to infer alleles
-  vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2);
-  
-  const double indic_sum = 
-    std::accumulate(indicators.begin(), indicators.end(), 0.0);
-  
-  const double log_likelihood_pair = log_likelihood(reads, indicators, a1, a2)
-    - gsl_sf_lnbeta(indic_sum, reads.size() - indic_sum)
-    + reads.size()*log(0.5);
-  const size_t df = n_cpgs + reads.size();
-  
-  const double llr_stat = -2*(single_score - log_likelihood_pair);
-  const double p_value = 1.0 - gsl_cdf_chisq_P(llr_stat, df);
-  return p_value;
-}
 
 double
 test_asm_bic(const size_t max_itr, const double low_prob, const double high_prob,
 	     vector<epiread> reads) {
-  
+
+  double single_score = std::numeric_limits<double>::min();
+  double pair_score = std::numeric_limits<double>::min();
   adjust_read_offsets(reads);
   const size_t n_cpgs = get_n_cpgs(reads);
-  
-  // try a single epi-allele
-  vector<double> a0(n_cpgs, 0.5);
-  const double single_score = fit_single_epiallele(reads, a0);
-  
-  // initialize the pair epi-alleles and indicators, and do the actual
-  // computation to infer alleles
-  vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2);
-  
-  const double indic_sum = 
-    std::accumulate(indicators.begin(), indicators.end(), 0.0);
-  
-  const double pair_score = log_likelihood(reads, indicators, a1, a2)
-    - gsl_sf_lnbeta(indic_sum, reads.size() - indic_sum)
-    + gsl_sf_lnbeta(reads.size()/2.0, reads.size()/2.0)
-    + reads.size()*log(0.5);
-  
+
+  compute_model_likelihoods( single_score, pair_score, max_itr, low_prob,
+         high_prob, n_cpgs, reads );
+
+  // compute bic scores and compare
   const double bic_single = n_cpgs*log(reads.size()) - 2*single_score;
   const double bic_pair = 2*n_cpgs*log(reads.size()) - 2*pair_score;
-  
   return bic_pair - bic_single;
 }
