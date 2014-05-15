@@ -19,9 +19,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all_subdirs=common postmapping analysis
+all_subdirs=common postmapping analysis amrfinder
 lib_subdirs=common
-app_subdirs=postmapping analysis utils experimental
+app_subdirs=postmapping analysis utils experimental amrfinder
 
 # check if a global copy of smithlab_cpp cannot be found and try to
 # use a copy that is in the current directory

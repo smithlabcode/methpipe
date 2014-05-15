@@ -23,9 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = pmd methcounts bsrate hmr hmr_plant methdiff dmr \
-	levels roimethstat  merge-methcounts \
-	methstates merge-bsrate methentropy mlml
+PROGS = allelicmeth amrfinder amrtester
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -72,18 +70,14 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
+allelicmeth: $(addprefix $(SMITHLAB_CPP)/, \
 	FileIterator.o MappedRead.o) 
 
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
+amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
+	$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
-hmr pmd: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
-
-hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
-	Distro.o BetaBin.o numerical_utils.o)
-
-methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
-
+amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
+		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
