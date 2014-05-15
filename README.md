@@ -14,25 +14,25 @@ You may download the latest stable release from:http://smithlabresearch.org/soft
 This software package has been designed to operate in a UNIX-like environment.
 It has been tested on MacOS X Snow Leopard and Linux. 
 
-Step 0
-
+* Step 0
+  
   This software package requires a functioning installation of the GNU 
   Scientific Library (GSL). If you don't already have this installed, you 
   will need to download and install it from http://www.gnu.org/software/gsl/
 
-Step 1
-
+* Step 1
+  
   To build the binaries, type the following, where '>' is your prompt and the
   CWD is the root of the distribution:
   
-    > make all 
-  
-Step 2
+      > make all
 
+* Step 2
+  
   To install the binaries, type the following, where '>' is your prompt and the
   CWD is the root of the distribution:
   
-    > make install
+      > make install
   
   This will place the binaries in the bin directory under the package root.
   They can be used directly from there without any additional steps. You can
