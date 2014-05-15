@@ -25,7 +25,7 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hmr_plant methdiff dmr \
 	levels roimethstat  merge-methcounts \
-	methstates merge-bsrate methentropy mlml
+	methstates merge-bsrate methentropy
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
