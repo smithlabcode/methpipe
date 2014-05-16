@@ -1,7 +1,7 @@
 /*    bsrate: a program for determining the rate of bisulfite
  *    conversion in a bisulfite sequencing experiment
  *
- *    Copyright (C) 2009-2013 University of Southern California and
+ *    Copyright (C) 2009-2014 University of Southern California and
  *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
@@ -23,11 +23,9 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <iterator>
 #include <fstream>
 #include <algorithm>
 #include <numeric>
-#include <iterator>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -36,7 +34,6 @@
 #include "MappedRead.hpp"
 
 #include "bsutils.hpp"
-#include "FileIterator.hpp"
 
 using std::string;
 using std::vector;
@@ -59,7 +56,7 @@ revcomp(MappedRead &mr) {
 
 
 static void
-count_states_pos(const bool COUNT_CPGS, const string &chrom, 
+count_states_pos(const bool INCLUDE_CPGS, const string &chrom, 
 		 const MappedRead &r, 
 		 vector<size_t> &unconv, vector<size_t> &conv, 
 		 vector<size_t> &err) {
@@ -71,9 +68,10 @@ count_states_pos(const bool COUNT_CPGS, const string &chrom,
   for (size_t i = 0; i < width; ++i, ++position) {
     assert(position < chrom.length());
     
-    if (is_cytosine(chrom[position]) && 
-	(!is_guanine(chrom[position + 1]) || 
-	 position == chrom.length() || COUNT_CPGS)) {
+    if (is_cytosine(chrom[position]) &&
+	(!is_guanine(chrom[position+1]) ||
+	 position == chrom.length() || 
+	 INCLUDE_CPGS)) {
       
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
@@ -86,7 +84,7 @@ count_states_pos(const bool COUNT_CPGS, const string &chrom,
 
 
 static void
-count_states_neg(const bool COUNT_CPGS, const string &chrom,
+count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
 		 const MappedRead &r,
 		 vector<size_t> &unconv, vector<size_t> &conv,
 		 vector<size_t> &err) {
@@ -98,9 +96,10 @@ count_states_neg(const bool COUNT_CPGS, const string &chrom,
   for (size_t i = 0; i < width; ++i, --position) {
     assert(position < chrom.length());
     
-    if (is_guanine(chrom[position]) && 
-	(!is_cytosine(chrom[position - 1]) || 
-	 position == 0 || COUNT_CPGS)) {
+    if (is_guanine(chrom[position]) &&
+	(position == 0 ||
+	 !is_cytosine(chrom[position-1]) ||
+	 INCLUDE_CPGS)) {
       
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
@@ -136,16 +135,14 @@ write_output(const string &outfile,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
   
   // Get some totals first
-  const size_t pos_cvt = accumulate(cvt_count_p.begin(),
-				    cvt_count_p.end(), 0UL);
-  const size_t neg_cvt = accumulate(cvt_count_n.begin(),
-				    cvt_count_n.end(), 0UL);
+  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0ul);
+  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0ul);
   const size_t total_cvt = pos_cvt + neg_cvt;
   
   const size_t pos_ucvt = 
-    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0UL);
+    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0ul);
   const size_t neg_ucvt = 
-    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0UL);
+    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0ul);
   const size_t total_ucvt = pos_ucvt + neg_ucvt;
   
   std::ofstream of;
@@ -178,7 +175,7 @@ write_output(const string &outfile,
   // Figure out how many positions to print in the output, capped at 1000
   size_t output_len =
     (ucvt_count_p.size() > 1000) ? 1000 : ucvt_count_p.size();
-
+  
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +
 	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] == 0))
@@ -231,7 +228,7 @@ get_chrom(const bool VERBOSE, const MappedRead &mr,
   if (chrom.empty()) 
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
   
-  else chrom_region.set_chrom(mr.r.get_chrom());
+  chrom_region.set_chrom(mr.r.get_chrom());
 }
 
 
@@ -244,7 +241,7 @@ main(int argc, const char **argv) {
     static const size_t OUTPUT_SIZE = 10000;
     
     bool VERBOSE = false;
-    bool COUNT_CPGS = false;
+    bool INCLUDE_CPGS = false;
     bool A_RICH_READS = false;
     
     string chrom_file;
@@ -267,7 +264,7 @@ main(int argc, const char **argv) {
     // 		      "(assumes -c indicates dir)", 
     // 		      false , fasta_suffix);
     opt_parse.add_opt("all", 'N', "count all Cs (including CpGs)", 
-		      false , COUNT_CPGS);
+		      false , INCLUDE_CPGS);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)", 
 		      false , max_mismatches);
     opt_parse.add_opt("a-rich", 'A', "reads are A-rich", false, A_RICH_READS);
@@ -295,17 +292,17 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
     if (VERBOSE && max_mismatches != std::numeric_limits<double>::max())
-      cerr << "MAX MISMATCHES=" << max_mismatches << endl;
+      cerr << "MAX_MISMATCHES=" << max_mismatches << endl;
     
     chrom_file_map chrom_files;
     identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
     if (VERBOSE)
-      cerr << "N_CHROMS:\t" << chrom_files.size() << endl;
+      cerr << "N_CHROMS=" << chrom_files.size() << endl;
     
     std::ifstream in(mapped_reads_file.c_str());
     if (!in) 
-      throw SMITHLABException("cannot open input file " + mapped_reads_file);
-
+      throw SMITHLABException("cannot open file: " + mapped_reads_file);
+    
     vector<size_t> unconv_count_pos(OUTPUT_SIZE, 0ul);
     vector<size_t> conv_count_pos(OUTPUT_SIZE, 0ul);
     vector<size_t> unconv_count_neg(OUTPUT_SIZE, 0ul);
@@ -315,7 +312,7 @@ main(int argc, const char **argv) {
     
     string chrom;
     MappedRead mr;
-    GenomicRegion chrom_region;
+    GenomicRegion chrom_region; // exists only for faster comparison
     
     while (in >> mr) {
       
@@ -328,10 +325,10 @@ main(int argc, const char **argv) {
       
       // do the work for this mapped read
       if (mr.r.pos_strand())
-	count_states_pos(COUNT_CPGS, chrom, mr,
+	count_states_pos(INCLUDE_CPGS, chrom, mr,
 			 unconv_count_pos, conv_count_pos, err_pos);
       else
-	count_states_neg(COUNT_CPGS, chrom, mr, 
+	count_states_neg(INCLUDE_CPGS, chrom, mr, 
 			 unconv_count_neg, conv_count_neg, err_neg);
     }
     write_output(outfile, unconv_count_pos, 
