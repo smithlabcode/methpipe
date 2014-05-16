@@ -492,13 +492,6 @@ also shown for each position, though this is an underestimate because
 we assume at these genomic sites any read with either a C or a T
 contains no error.
 
-When using \prog{bsrate} on paired-end reads that have not yet gone
-through the \prog{clipmates} stage of the pipeline, the second-end
-reads must be treated separately as they will still be A-rich:
-\begin{verbatim}
-$ ./bsrate -c hg18 -o s_1_1_sequence.bsrate s_1_1_sequence.mr
-$ ./bsrate -c hg18 -o s_1_2_sequence.bsrate -A s_1_2_sequence.mr
-\end{verbatim}
 If you are using reads from an unmethylated spike-in or reads mapping
 to mitochondria, then there is an option to use all Cs, including those
 at CpG sites:
@@ -510,7 +503,8 @@ $ ./bsrate -N -c chrM.fa -o Human_ESC.bsrate Human_ESC.mr.chrM
 After completing bisulfite conversion rate analysis, remember to
 remove any control reads not naturally occurring in the sample
 (lambda virus, mitochondrial DNA from another organism, etc.)
-before continuing.
+before continuing. The output from two different runs of \prog{bsrate}
+can be merged using the program \prog{merge-bsrate}.
 
 \subsection{Computing single-site methylation levels}
 \label{sec:estim-methyl-freq}
@@ -565,10 +559,11 @@ to that position. The final column is number of reads overlapping with
 that site.
 
 \paragraph{Counting all cytosines:}
-While methylation usually exists in the CpG contexts, in certain
-mammalian cells and most plant cells, cytosines in other sequence
-contexts, such as CHG or CHH (where H denotes adenines, thymines or
-cytosines), may also be methylated. This type of methylation is
+While most DNA methylation exists in the CpG context, cytosines in
+other sequence contexts, such as CHG or CHH (where H denotes adenines,
+thymines, or cytosines) may also be methylated. Non-CpG methylation
+occurs most frequently in plant genomes and pluripotent mammalian
+cells such as embryonic stem cells. This type of methylation is
 asymmetric since the cytosines on the complementary strand do not
 necessarily have the same methylation status. The methylation level
 for each cytosine loci is estimated individually with only reads
@@ -577,7 +572,7 @@ the methylation level is given by the number of methylated reads
 mapped to that cytosine divided by the total number of reads. Since
 most mammalian methylation occurs in the context of CpG dinucleotides,
 \prog{methcounts} calculates methylation levels for only CpG sites by
-default; to calculate methylation levels for all cytosines in an
+default. To calculate methylation levels for all cytosines in an
 asymmetric way, add the \op{-N} option like the following,
 \begin{verbatim}
 $ ./methcounts -N -c hg18 -o Human_ESC_All.meth \
@@ -621,7 +616,7 @@ Our convention is to name \prog{methcounts} output with all cytosines
 like \fn{*\_All.meth}, with CHG like \fn{*\_CHG.meth} and
 with CHH like \fn{*\_CHH.meth}.
 
-\paragraph{Merging methcounts file from multiple replicates:}
+\paragraph{Merging methcounts files from multiple replicates:}
 \label{sec:merg-methc-file} 
 When working with a BS-seq project with multiple replicates, you may
 first produce a methcount output file for each replicate individually
@@ -735,7 +730,9 @@ hyper-methylated, which we termed HyperMRs to stress their difference
 from \textit{hypo-methylated regions} in mammalian methylomes. DNA
 methylation in plants has been associated with expression regulation
 and transposon repression, and therefore characterizing HyperMRs is of
-much biological relevance.
+much biological relevance. In addition to plants, hydroxymethylation
+tends to appear in a small fraction of the mammalian genome, and therefore
+it makes sense to identify hyper-hydroxymethylated regions.
 
 The first kind of HyperMR analysis involves finding continuous blocks
 of hyper-methylated CpGs with the \prog{hmr} program. Since \prog{hmr}
@@ -842,7 +839,9 @@ given site is lower in \fn{Human\_NHFF.meth} than in
 swap the order of those two input files, or just subtract the
 probability from 1.0. The method used is due to Altham
 (1971)~\cite{altham1969exact}, and is like a one-directional version
-of Fisher's exact test.
+of Fisher's exact test. The fourth column of the output file contains
+the cytosine's context, and then the number of reads methylated and
+total coverage for each of the two samples being compared at that site.
 
 \subsubsection{Differentially methylated regions (DMRs)}
 \label{sec:dmr}
@@ -927,10 +926,8 @@ $ ./amrfinder -o Human_ESC.amr -c hg18 Human_ESC.epiread
 There are several options for running \prog{amrfinder}. The \op{-b}
 switches from using a likelihood ratio test to BIC as the criterion
 for calling an AMR. The \op{-i} option changes the number of
-iterations used in the EM procedure when fitting the models. The
-\op{-u} option eliminates the penalty for alleles being out of balance
--- the program usually assumes roughly 50\% of the reads should come
-each allele. The \op{-w} option changes the size of the sliding
+iterations used in the EM procedure when fitting the models.
+The \op{-w} option changes the size of the sliding
 window, which is in terms of CpGs. The default of 10 CpGs per window
 has worked well for us. The \op{-m} indicates the minimum coverage per
 CpG site required for a window to be tested as an AMR. The default
@@ -945,10 +942,18 @@ distinct. In the current version of the program, at the end of the
 procedure, any AMRs whose size in terms of base-pairs is less than
 half the ``gap'' size are eliminated. This is a hack that has produced
 excellent results, but will eventually be eliminated (hopefully
-soon). Finally, the \op{-C} parameter specifies the critical value for
+soon).
+
+Finally, the \op{-C} parameter specifies the critical value for
 keeping windows as AMRs, and is only useful when the likelihood ratio
 test is the used; for BIC windows are retained if the BIC for the
 two-allele model is less than that for the single-allele model.
+\prog{amrfinder} calculates a false discovery rate to correct for
+multiple testing, and therefore most p-values that pass the test
+will be significantly below the critical value. The \op{-h} option
+produces FDR-adjusted p-values according to a step-up procedure
+and then compares them directly to the given critical value, which 
+allows further use of the p-values without multiple testing correction.
 
 In addition to \prog{amrfinder}, which uses a sliding window, there is
 also the \prog{amrtester} program, which tests for allele-specific
@@ -1410,20 +1415,20 @@ results in the following directories.
 \subsection{Count number of lines in a big file}
 \label{sec:count-number-lines}
 
-When working with next-generation sequencing data, you may usually
-needs to work with very big files, such as FASTQ files containing raw
-reads and \fn{*.mr} files containing mapped reads. You may would like
-to know the approximate number of reads in those large files. The
-program \prog{lc\_approx} estimate the number of lines by counting the
-number of lines in a small chunk randomly chosen from the big file and
-scaling the estimate by file sizes. For example, in order to estimate
-the number of reads in a FASTQ file \fn{s\_1\_1\_sequence.fq}, run
+When working with next-generation sequencing data, researchers often
+handle very large files, such as FASTQ files containing raw reads
+and \fn{*.mr} files containing mapped reads. \prog{lc\_approx} is
+an auxiliary tool designed to approximate the number of lines in a
+very large file by counting the number of lines in a small, randomly
+chosen chunk from the big file and scaling the estimate by file size.
+For example, in order to estimate the number of reads in a FASTQ file
+\fn{s\_1\_1\_sequence.fq}, run
 \begin{verbatim}
 $ lc_approx  s_1_1_sequence.fq
 \end{verbatim}
 It will return the approximate number of lines in this file and by
 dividing the above number by 4, you get the approximate number of
-reads in that file. The \prog{lc\_apprix} can be hundreds of times
+reads in that file. The \prog{lc\_approx} can be hundreds of times
 faster than the unix tool \prog{wc -l}.
 
 \subsection{Automating methylome analysis}
