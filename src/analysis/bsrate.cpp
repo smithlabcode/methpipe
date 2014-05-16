@@ -60,7 +60,8 @@ revcomp(MappedRead &mr) {
 
 static void
 count_states_pos(const bool COUNT_CPGS, const string &chrom, 
-		 const MappedRead &r, vector<size_t> &unconv, vector<size_t> &conv, 
+		 const MappedRead &r, 
+		 vector<size_t> &unconv, vector<size_t> &conv, 
 		 vector<size_t> &err) {
   
   const size_t width = r.r.get_width();
@@ -69,13 +70,16 @@ count_states_pos(const bool COUNT_CPGS, const string &chrom,
   size_t position = offset;
   for (size_t i = 0; i < width; ++i, ++position) {
     assert(position < chrom.length());
+    
     if (is_cytosine(chrom[position]) && 
 	(!is_guanine(chrom[position + 1]) || 
 	 position == chrom.length() || COUNT_CPGS)) {
+      
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
       else if (toupper(r.seq[i]) != 'N')
 	++err[i];
+      
     }
   }
 }
@@ -93,12 +97,16 @@ count_states_neg(const bool COUNT_CPGS, const string &chrom,
   size_t position = offset + width - 1;
   for (size_t i = 0; i < width; ++i, --position) {
     assert(position < chrom.length());
+    
     if (is_guanine(chrom[position]) && 
-	(!is_cytosine(chrom[position - 1]) || position == 0 || COUNT_CPGS)) {
+	(!is_cytosine(chrom[position - 1]) || 
+	 position == 0 || COUNT_CPGS)) {
+      
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
       else if (toupper(r.seq[i]) != 'N')
 	++err[i];
+      
     }
   }
 }
@@ -107,12 +115,10 @@ static void
 identify_chromosomes(const string chrom_file, const string fasta_suffix, 
 		     unordered_map<string, string> &chrom_files) {
   vector<string> the_files;
-  if (isdir(chrom_file.c_str())) {
+  if (isdir(chrom_file.c_str()))
     read_dir(chrom_file, fasta_suffix, the_files);
-  }
-  else
-    the_files.push_back(chrom_file);
-
+  else the_files.push_back(chrom_file);
+  
   for (size_t i = 0; i < the_files.size(); ++i) {
     vector<string> names, seqs;
     read_fasta_file(the_files[i], names, seqs);
@@ -128,14 +134,14 @@ write_output(const string &outfile,
 	     const vector<size_t> &ucvt_count_n, 
 	     const vector<size_t> &cvt_count_n,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
-
+  
   // Get some totals first
   const size_t pos_cvt = accumulate(cvt_count_p.begin(),
-		  cvt_count_p.end(), 0UL);
+				    cvt_count_p.end(), 0UL);
   const size_t neg_cvt = accumulate(cvt_count_n.begin(),
-		  cvt_count_n.end(), 0UL);
+				    cvt_count_n.end(), 0UL);
   const size_t total_cvt = pos_cvt + neg_cvt;
-
+  
   const size_t pos_ucvt = 
     accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0UL);
   const size_t neg_ucvt = 
@@ -171,17 +177,17 @@ write_output(const string &outfile,
 
   // Figure out how many positions to print in the output, capped at 1000
   size_t output_len =
-         (ucvt_count_p.size() > 1000) ? 1000 : ucvt_count_p.size();
-//  cout << output_len << " before ... \n";
+    (ucvt_count_p.size() > 1000) ? 1000 : ucvt_count_p.size();
+
   while (output_len > 0 && 
 	 (ucvt_count_p[output_len-1] + cvt_count_p[output_len-1] +
 	  ucvt_count_n[output_len-1] + cvt_count_n[output_len-1] == 0))
     --output_len;
-//  cout << output_len << " and after! \n";
   
   // Now actually output the results
   static const size_t precision_val = 5;
   for (size_t i = 0; i < output_len; ++i) {
+    
     const size_t total_p = ucvt_count_p[i] + cvt_count_p[i];
     const size_t total_n = ucvt_count_n[i] + cvt_count_n[i];
     const size_t total_valid = total_p + total_n;
@@ -213,18 +219,19 @@ write_output(const string &outfile,
 typedef unordered_map<string, string> chrom_file_map;
 static void
 get_chrom(const bool VERBOSE, const MappedRead &mr, 
-	  const chrom_file_map& chrom_files, GenomicRegion &chrom_region, 
-	  string &chrom) {
+	  const chrom_file_map& chrom_files, 
+	  GenomicRegion &chrom_region, string &chrom) {
+  
   const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
   if (fn == chrom_files.end())
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+  
   chrom.clear();
   read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
   if (chrom.empty()) 
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
-  else {
-    chrom_region.set_chrom(mr.r.get_chrom());
-  }
+  
+  else chrom_region.set_chrom(mr.r.get_chrom());
 }
 
 
@@ -280,7 +287,7 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.empty()) {
+    if (leftover_args.size() != 1) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
@@ -309,27 +316,21 @@ main(int argc, const char **argv) {
     string chrom;
     MappedRead mr;
     GenomicRegion chrom_region;
-    while (!in.eof() && in >> mr) {
+    
+    while (in >> mr) {
       
       if (A_RICH_READS)
         revcomp(mr);
       
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region))
-        try {
-          get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
-        } catch (const SMITHLABException &e) {
-          if (e.what().find("could not find chrom") != string::npos)
-            continue;
-            throw;
-        }
-
+	get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
       
       // do the work for this mapped read
       if (mr.r.pos_strand())
-	count_states_pos(COUNT_CPGS, chrom, mr, 
+	count_states_pos(COUNT_CPGS, chrom, mr,
 			 unconv_count_pos, conv_count_pos, err_pos);
-      else 
+      else
 	count_states_neg(COUNT_CPGS, chrom, mr, 
 			 unconv_count_neg, conv_count_neg, err_neg);
     }
