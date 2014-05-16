@@ -1,7 +1,7 @@
 #    This file is part of the methpipe system
 #
-#    Copyright (C) 2010 University of Southern California and
-#                       Andrew D. Smith
+#    Copyright (C) 2010-2014 University of Southern California and
+#                            Andrew D. Smith
 #
 #    Authors: Andrew D. Smith
 #
