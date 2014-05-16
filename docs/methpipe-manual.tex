@@ -357,12 +357,12 @@ a problem, just use the \prog{cat} command.
 
 \paragraph{Alternative mappers:}
 \label{sec:alternative-mappers}
-We described how to map bisulfite treated reads with the \prog{rmapbs}
-program. Users may also use alternative mappers, for example,
-BSSeeker, which uses three-alphabeta stragy, and BSMAP, which allows
-gaps during mapping. The program \prog{to-mr} is used to convert the
-output from those mappers to the \fn{*.mr} format used in our pipeline. To
-convert BSMAP mapped read file in .bam format, run
+In addition to \prog{rmapbs} described above, users may also wish
+to process raw reads using alternative mapping algorithms, including
+BSSeeker, which uses a three nucleotide alphabet strategy, and BSMAP,
+which allows for gaps during mapping. The program \prog{to-mr} is used
+to convert the output from those mappers to the \fn{*.mr} format used in
+our pipeline. To convert BSMAP mapped read file in .bam format, run
 \begin{verbatim}
 $ ./to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.bam
 \end{verbatim}
@@ -374,13 +374,13 @@ converter, run \prog{to-mr} without any options.
 \label{sec:mapping}
 
 Before calculating methylation level, you should now remove read
-duplicates, or reads that were mapped to the same genomic
-location. These reads are most likely the results of PCR
+duplicates, or reads that were mapped to identical genomic
+locations. These reads are most likely the results of PCR
 over-amplication rather than true representations of distinct DNA
 molecules. The program \prog{duplicate-remover} aims to remove such
 duplicates. It collects duplicate reads and/or fragments that have
 identical sequences and are mapped to the same genomic location (same
-chromosom, same start and end, and same strand), and chooses a random
+chromosome, same start and end, and same strand), and chooses a random
 one to be the representative of the original DNA sequence.
 
 \prog{duplicate-remover} can take reads sorted by (chrom, start, end,
@@ -415,7 +415,7 @@ Unmethylated cytosines in DNA fragments are converted to uracils by
 sodium bisulfite treatment. As these fragments are amplified, the
 uracils are converted to thymines and so unmethylated Cs are
 ultimately read as Ts (barring error). Despite its high fidelity,
-bisulphite conversion of C to T does have some inherent failure rate,
+bisulfite conversion of C to T does have some inherent failure rate,
 depending on the bisulfite kit used, reagent concentration, time of
 treatment, etc., and these factors may impact the success rate of the
 reaction. Therefore, the bisulfite conversion rate, defined as the
@@ -426,13 +426,14 @@ sequenced reads, should be measured and should be very high ({\em
 Measuring the bisulfite conversion rate this way requires some kind of
 control set of genomic cytosines not believed to be methylated. Three
 options are (1) to spike in some DNA known not to be methylated, such
-as a Lambda virus, (2) to use the mitochondrial or chloroplast genomes
-which are believed not to be methylated, (3) to use non-CpG cytosines
+as a Lambda virus, (2) to use the human mitochondrial genome, which
+is known to be entirely unmethylated, or chloroplast genomes
+which are believed not to be methylated, or (3) to use non-CpG cytosines
 which are believed to be almost completely unmethylated in most
 mammalian cells. In general the procedure is to identify the positions
 in reads that correspond to these presumed unmethylated cytosines,
 then compute the ratio of C to (C + T) at these positions. If the
-bisulfite reaction were perfect, then this ratio should be very close
+bisulfite reaction was perfect, then this ratio should be very close
 to 1, and if there is no bisulfite treatment, then this ratio should
 be close to 0.
 
