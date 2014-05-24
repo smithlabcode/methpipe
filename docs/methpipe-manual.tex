@@ -371,7 +371,6 @@ BSMAP. To obtain a list of alternative mappers supported by our
 converter, run \prog{to-mr} without any options. 
 
 \subsection{Merging libraries and removing duplicates}
-\label{sec:mapping}
 
 Before calculating methylation level, you should now remove read
 duplicates, or reads that were mapped to identical genomic
@@ -966,68 +965,6 @@ This program works very similarly to \prog{amrfinder}, but does not
 have options related to the sliding window. This program outputs a
 score for each input interval, and when the likelihood ratio test is
 used, the score is the $p$-value, which can easily be filtered later.
-
-% \newpage
-% The following figure shows a detailed work flow of the steps involved
-% in running Methpipe.
-
-% Processes and corresponding tools are shown with rectangles: incoming
-% and outgoing arrows represent the number of input and output files
-% respectively.  Files with intermediate input or output data are shown
-% as parallelograms and files with the final results are shown as ovals.
-% The order of processing is important.
-
-% \textbf{NOTE:I think this figure needs to be revisited}\\
-
-% %\begin{figure}[htbp]
-%   %\centering
-%   %\includegraphics[width=6.3in]{figs/Methpipe_work_flow.pdf}
-%   %\caption{Methpipe's Workflow}
-%   %\label{fig:workflow}
-% %\end{figure}
-
-% Example data, consiting of BS-seq data from human (?) embryonic stem
-% cells (ESC) and normal human foreskin fibroblasts (NHFF), has been
-% provided as a tool for learning how to use the pipeline. We will refer
-% to this data in the examples that illustrate each step of the pipeline
-% and feel that the consistency and continuity afforded by such an
-% approach will provide for the clearest learning experience. The ESC
-% data consists of paired-end reads while the NHFF data consists of
-% single\_end reads.
-
-% \textbf{NOTE: I changed these file names. If these file actually
-% exist, their names should be correspondingly changed.}\\
-
-% The following are the three file names of the provided example
-% data. These files are in FASTQ format, the format you should make sure
-% your BS-seq data are in before running Methpipe on them. Two files
-% belong to the ESC data set, where a "\_1" denontes the 5' end reads
-% and a "\_2" denotes the 3' end reads (one file for each paired-end
-% read type). The third file contains all of the single end reads of the
-% NHFF data set.
-% \begin{verbatim}
-% Human_ESC_1.fastq, Human_ESC_2.fastq, Human_NHFF.fastq
-% \end{verbatim}
-% An example reference genome, to which both cell types map, is located
-% in the directory \fn{hg18}. This genome is broken into 24 separate
-% files (1 per chromsome), each named as \fn{chr*.fa} where \fn{*}
-% denotes the chromosome number (or 'X' or 'Y' for the sex chromosomes).
-% For each component of the pipeline, we complement discussion of the
-% theory and purpose of each step by highlighting program options and
-% input/output formats. For each of the two cell types, and example
-% command will be shown for each step of Methpipe. This example command
-% will only contain the basic options that are neccessary for the
-% command to run.
-
-% \section{Post-mapping processing}
-% \label{sec:postmapping}
-
-% Before mapped reads can be processed for higher level analyses,
-% certain error avoiding steps must be taken. Paired mates can have
-% overlapping regions, A-rich reads must be converted to T-rich reads
-% through reverse complemetation, and read duplicates that are likely to
-% be by-products of PCR overamplication must be excluded. The following
-% sections discuss how to address each of these using Methpipe.
 
 \subsection{Consistent estimation of hydroxymethylation and methylation
 levels}
