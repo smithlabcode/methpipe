@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = pmd methcounts bsrate hmr hmr_plant methdiff dmr \
+PROGS = pmd methcounts bsrate hmr hypermr methdiff dmr \
 	levels roimethstat  merge-methcounts \
 	methstates merge-bsrate methentropy
 
@@ -79,7 +79,7 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
 hmr pmd: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
-hmr_plant: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
+hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
 
 methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)

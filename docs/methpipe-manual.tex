@@ -754,12 +754,12 @@ particular, such continuous blocks of hyper-methylated CpGs are
 separated by a few unmethylated CpGs, which have distinct sequence
 preference when compared to those CpGs in the majority of unmethylated
 genome. The blocks of hyper-methylated CpGs and gap CpGs together form
-composite HyperMRs. The \prog{hmr-plant} program, which implements a
+composite HyperMRs. The \prog{hypermr} program, which implements a
 three-state HMM, is used to identify such HyperMRs. Suppose the
 \prog{methcounts} output file is \fn{Col0\_Meth.bed}, to find HyperMRs
 from this dataset, run
 \begin{verbatim}
-$ ./hmr-plant -o Col0.hypermr Col0.meth
+$ ./hypermr -o Col0.hypermr Col0.meth
 \end{verbatim}
 The output file is a 6-column BED file. The first three columns give
 the chromosome, starting position and ending position of that
