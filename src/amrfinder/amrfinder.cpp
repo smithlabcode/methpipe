@@ -1,10 +1,10 @@
 /*    amrfinder: program for resolving epialleles in a sliding window
  *    along a chromosome.
  *
- *    Copyright (C) 2011-2013 University of Southern California and
- *                            Andrew D. Smith and Fang Fang
+ *    Copyright (C) 2014-2017 University of Southern California and
+ *                            Andrew D. Smith and Benjamin E. Decato
  *
- *    Authors: Fang Fang and Andrew D. Smith
+ *    Authors: Fang Fang and Benjamin E. Decato and Andrew D. Smith
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::tr1::unordered_map;
-
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -197,9 +196,9 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
 static void
 get_chrom(const bool VERBOSE, const GenomicRegion &r, 
 	  const unordered_map<string, string>& chrom_files,
-      GenomicRegion &chrom_region, 
-	  string &chrom) {
-  const unordered_map<string, string>::const_iterator fn(chrom_files.find(r.get_chrom()));
+      GenomicRegion &chrom_region,  string &chrom) {
+  const unordered_map<string, string>::const_iterator
+                              fn(chrom_files.find(r.get_chrom()));  
   if (fn == chrom_files.end())
     throw SMITHLABException("could not find chrom: " + r.get_chrom());
   chrom.clear();
@@ -296,7 +295,6 @@ clip_read(const size_t start_pos, const size_t end_pos, epiread &r) {
 }
 
 
-
 static void
 get_current_epireads(const vector<epiread> &epireads, 
 		     const size_t max_epiread_len,
@@ -315,7 +313,6 @@ get_current_epireads(const vector<epiread> &epireads,
     }
   }
 }
-
 
 
 static size_t
@@ -344,7 +341,6 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 	      const size_t min_obs_per_cpg, const size_t window_size,
 	      const EpireadStats &epistat, const string &chrom_name,
 	      const vector<epiread> &epireads, vector<GenomicRegion> &amrs) {
-
   size_t max_epiread_len = 0;
   for (size_t i = 0; i < epireads.size(); ++i)
     max_epiread_len = std::max(max_epiread_len, epireads[i].length());
@@ -369,8 +365,7 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
     vector<epiread> current_epireads;
     get_current_epireads(epireads, max_epiread_len,
 			 window_size, i, start_idx, current_epireads);
-    
-    if (total_states(current_epireads) > min_obs_per_window) {
+    if (total_states(current_epireads) >= min_obs_per_window) {
       bool is_significant = false;
       const double score = epistat.test_asm(current_epireads, is_significant);
       if (is_significant)
@@ -492,56 +487,59 @@ main(int argc, const char **argv) {
       cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
-    if ( amrs.size() == 0 ) {
-      cout << "No AMRs found.\n";
-      return 0;
-    }
-    // Could potentially only get the first n p-vals, but would
-    // have to sort here and assume sorted for smithlab_utils, or
-    // sort twice...
-    vector<double> pvals;
-    for ( size_t i = 0; i < amrs.size(); ++i)
-        pvals.push_back(amrs[i].get_score());
 
-    const double fdr_cutoff = (!USE_BIC && !CORRECTION) ?
-       smithlab::get_fdr_cutoff(windows_tested, pvals, critical_value) : 0.0;
+    if (!amrs.empty()) {
+      // Could potentially only get the first n p-vals, but would
+      // have to sort here and assume sorted for smithlab_utils, or
+      // sort twice...
+      vector<double> pvals;
+      for ( size_t i = 0; i < amrs.size(); ++i)
+          pvals.push_back(amrs[i].get_score());
+    
+      const double fdr_cutoff = (!USE_BIC && !CORRECTION) ?
+         smithlab::get_fdr_cutoff(windows_tested, pvals, critical_value) : 0.0;
 
-    if (!USE_BIC && CORRECTION) {
-      smithlab::correct_pvals(windows_tested, pvals);
-      for ( size_t i = 0; i < pvals.size(); ++i) {
-        amrs[i].set_score(pvals[i]);
+      if (!USE_BIC && CORRECTION) {
+        smithlab::correct_pvals(windows_tested, pvals);
+        for ( size_t i = 0; i < pvals.size(); ++i) {
+          amrs[i].set_score(pvals[i]);
+        }
       }
-    }
     
-    collapse_amrs(amrs);
-    const size_t collapsed_amrs = amrs.size();
-    convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
-    merge_amrs(gap_limit, amrs);
+      collapse_amrs(amrs);
+      const size_t collapsed_amrs = amrs.size();
+      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
+      merge_amrs(gap_limit, amrs);
 
-    const size_t merged_amrs = amrs.size();
+      const size_t merged_amrs = amrs.size();
     
-    if (!USE_BIC)
-      (CORRECTION) ? eliminate_amrs_by_cutoff(critical_value, amrs) :
-	             eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
+      if (!USE_BIC)
+        (CORRECTION) ? eliminate_amrs_by_cutoff(critical_value, amrs) :
+	               eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
     
-    const size_t amrs_passing_fdr = amrs.size();
+      const size_t amrs_passing_fdr = amrs.size();
     
-    eliminate_amrs_by_size(gap_limit/2, amrs);
+      eliminate_amrs_by_size(gap_limit/2, amrs);
     
-    if (VERBOSE)
-      cerr << "WINDOWS TESTED: " << windows_tested << endl
-	   << "WINDOWS ACCEPTED: " << windows_accepted << endl
-     	   << "COLLAPSED WINDOWS: " << collapsed_amrs << endl
-	   << "MERGED WINDOWS: " << merged_amrs << endl
-	   << "FDR CUTOFF: " << fdr_cutoff << endl
-     	   << "WINDOWS PASSING FDR: " << amrs_passing_fdr << endl
-     	   << "AMRS (WINDOWS PASSING FDR: " << amrs.size() << endl;
+      if (VERBOSE)
+        cerr << "WINDOWS TESTED: " << windows_tested << endl
+	     << "WINDOWS ACCEPTED: " << windows_accepted << endl
+         << "COLLAPSED WINDOWS: " << collapsed_amrs << endl
+         << "MERGED WINDOWS: " << merged_amrs << endl
+  	     << "FDR CUTOFF: " << fdr_cutoff << endl
+       	 << "WINDOWS PASSING FDR: " << amrs_passing_fdr << endl
+         << "AMRS (WINDOWS PASSING FDR: " << amrs.size() << endl;
     
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    copy(amrs.begin(), amrs.end(), 
-	 std::ostream_iterator<GenomicRegion>(out, "\n"));
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+      std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+      copy(amrs.begin(), amrs.end(), 
+      std::ostream_iterator<GenomicRegion>(out, "\n"));
+    }
+    else {
+      if (VERBOSE)
+          cerr << "No AMRs found." << endl;
+    }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
