@@ -43,7 +43,14 @@ SAMReader::SAMReader(const string fn, const string mapper_used) :
       && mapper != "bs_seeker" && mapper != "general")
     throw SMITHLABException("Mapper unsupported:" + mapper);
 
-  const string ext_name = filename.substr(filename.find_last_of('.'));
+  size_t ext_pos = filename.find_last_of('.');
+  string ext_name;
+  if (ext_pos == string::npos) {
+    ext_name = ".sam";
+  }
+  else {
+    ext_name = filename.substr(ext_pos);
+  }
   mode = ext_name == ".bam" ? "rb" : "r";
   
   if ((file_handler = samopen(filename.c_str(), mode.c_str(), NULL))
