@@ -785,19 +785,21 @@ $ ./hmr -partial -o Human_ESC.pmr Human_ESC.meth
 
 %%%% Cancer
 \paragraph{Giant HMRs observed in cancer samples (AKA PMDs):}
-Huge genomic blocks with abnormal hypomethylation have been
-extensively observed in human cancer methylomes, with high enrichment
-in intergenic regions or Lamina associated domains (LAD), which are
-usually hypermethylated in normal tissues. These huge blocks are not
-homogeneously hypo-methylated in most cases. Focal hypermethylation
-are also observed within these blocks.  Hidden Markov Model can catch
-these big blocks, and is also sensitive to methylation changes at a
-smaller scale. As a result, the cancer-specific hypomethylated blocks
-can be identified with clusters of HMRs given by the \prog{hmr}
-program.  These HMRs are usually longer and closer to each other than
-normal HMRs.  Definition of blocks can be achieved by merging these
-clustered cancer-specific HMRs.
 
+Huge genomic blocks with abnormal hypomethylation have been
+extensively observed in human cancer methylomes and more recently
+in extraembryonic tissues like the placenta. These domains are
+characterized by enrichment in intergenic regions or Lamina 
+associated domains (LAD), which are usually hypermethylated in 
+normal tissues. Partially methylated domains (PMDs) are not
+homogeneously hypomethylated as in the case of HMRs, and contain
+focal hypermethylation at specific sites. Hidden Markov Models
+can also identify these larger domains. The program \prog{pmd}
+is provided for their identification, and can be run as follows:
+
+\begin{verbatim}
+$ ./pmd -o Human_ESC.pmd Human_ESC.meth
+\end{verbatim}
 
 \subsection{Differential methylation between two methylomes}
 \label{sec:differential_methylation}
