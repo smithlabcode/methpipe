@@ -172,10 +172,8 @@ expectation_maximization(const size_t max_itr, const vector<epiread> &reads,
 
 double
 resolve_epialleles(const size_t max_itr, const vector<epiread> &reads, 
-		   vector<double> &indicators, 
+		   const double &mixing, vector<double> &indicators, 
 		   vector<double> &a1, vector<double> &a2) {
-  
-  static const double MIXING_PARAMETER = 0.5;
   
   indicators.clear();
   indicators.resize(reads.size(), 0.0);
@@ -185,7 +183,7 @@ resolve_epialleles(const size_t max_itr, const vector<epiread> &reads,
     indicators[i] = exp(l1 - log(exp(l1) + exp(l2)));
   }
   
-  return expectation_maximization(max_itr, reads, MIXING_PARAMETER, 
+  return expectation_maximization(max_itr, reads, mixing, 
 				  indicators, a1, a2);
 }
 
@@ -219,7 +217,7 @@ compute_model_likelihoods( double &single_score, double &pair_score,
   // initialize the pair epi-alleles and indicators, and do the actual
   // computation to infer alleles, compute its log likelihood
   vector<double> a1(n_cpgs, low_prob), a2(n_cpgs, high_prob), indicators;
-  resolve_epialleles(max_itr, reads, indicators, a1, a2);
+  resolve_epialleles(max_itr, reads, mixing, indicators, a1, a2);
   pair_score = log_likelihood(reads, mixing, a1, a2);
 
 }
