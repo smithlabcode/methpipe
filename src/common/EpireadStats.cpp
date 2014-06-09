@@ -36,6 +36,7 @@ using std::vector;
 using std::isfinite;
 
 static const double EPIREAD_STATS_TOLERANCE = 1e-20;
+static const double PSEUDOCOUNT = 1e-10;
 
 inline bool
 is_meth(const epiread &r, const size_t pos) {return (r.seq[pos] == 'C');}
@@ -97,7 +98,7 @@ expectation_step(const vector<epiread> &reads, const double mixing,
 
 
 void
-fit_epiallele(const vector<epiread> &reads, 
+fit_epiallele(double pseudo, const vector<epiread> &reads, 
 	      const vector<double> &indicators, vector<double> &a) {
   const size_t n_cpgs = a.size();
   vector<double> meth(n_cpgs, 0.0), total(n_cpgs, 0.0);
@@ -111,7 +112,7 @@ fit_epiallele(const vector<epiread> &reads,
       }
   }
   for (size_t i = 0; i < n_cpgs; ++i)
-    a[i] = (meth[i] + 0.5)/(total[i] + 1.0);
+    a[i] = (meth[i] + pseudo)/(total[i] + 2*pseudo);
 }
 
 
@@ -123,9 +124,11 @@ maximization_step(const vector<epiread> &reads, const vector<double> &indicators
   for (size_t i = 0; i < inverted_indicators.size(); ++i)
     inverted_indicators[i] = 1.0 - inverted_indicators[i];
   
-  // Fit the regular model parameters
-  fit_epiallele(reads, indicators, a1);
-  fit_epiallele(reads, inverted_indicators, a2);
+  // Fit the regular model parameters. Since the two epialleles'
+  // likelihoods are summed, we need to make sure the pseudocount
+  // is proportional to the pseudocount used in the single allele model.
+  fit_epiallele(0.5*PSEUDOCOUNT, reads, indicators, a1);
+  fit_epiallele(0.5*PSEUDOCOUNT, reads, inverted_indicators, a2);
 }
 
 
@@ -172,7 +175,7 @@ resolve_epialleles(const size_t max_itr, const vector<epiread> &reads,
 		   vector<double> &indicators, 
 		   vector<double> &a1, vector<double> &a2) {
   
-  static const double MIXING_PARAMETER = 0.5; 
+  static const double MIXING_PARAMETER = 0.5;
   
   indicators.clear();
   indicators.resize(reads.size(), 0.0);
@@ -191,7 +194,7 @@ double
 fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
   assert(reads.size() > 0);
   vector<double> indicators(reads.size(), 1.0);
-  fit_epiallele(reads, indicators, a);
+  fit_epiallele(PSEUDOCOUNT, reads, indicators, a);
   
   double score = 0.0;
   for (size_t i = 0; i < reads.size(); ++i) {
