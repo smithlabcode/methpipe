@@ -354,9 +354,7 @@ main(int argc, const char **argv)
     
         // corrections for small values (not parameters):
         double tolerance = 1e-10;
-        double min_prob  = 1e-10;
         
-        size_t MAX_LEN = 200;
         double MIN_ACCUMULATIVE_METH = 4.0;
         size_t bin_size = 0;
         double BIN_BY_LOCI = false;
@@ -382,8 +380,6 @@ main(int argc, const char **argv)
                           OptionParser::OPTIONAL, BIN_BY_LOCI);
         opt_parse.add_opt("desert", 'd', "desert size", false, desert_size);
         opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations); 
-        // opt_parse.add_opt("max-len", 'L', "max hyper-methylated region size",
-        //                   OptionParser::OPTIONAL, MAX_LEN); 
         opt_parse.add_opt("viterbi", 'V', "Use Viterbi decoding",
                           OptionParser::OPTIONAL, USE_VITERBI_DECODING); 
         opt_parse.add_opt("min-meth", 'M',
@@ -452,8 +448,7 @@ main(int argc, const char **argv)
         vector<size_t> reset_points;
         separate_regions(VERBOSE, desert_size, cpgs, meth, reads, reset_points);
     
-        ThreeStateHMM hmm(meth, reset_points, min_prob, tolerance,
-                          max_iterations, VERBOSE, MAX_LEN);
+        ThreeStateHMM hmm(meth, reset_points, tolerance, max_iterations, VERBOSE);
     
         betabin hypo_emission, HYPER_emission, HYPO_emission;
         vector<vector<double> > trans(3, vector<double>(3, 0.0));

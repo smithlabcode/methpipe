@@ -40,9 +40,7 @@ public:
   
     ThreeStateHMM(const std::vector<std::pair<double, double> > &_observations,
                   const std::vector<size_t> &_reset_points,
-                  const double mp, const double tol,
-                  const size_t max_itr, const bool v,
-                  const size_t _MAX_LEN);
+                  const double tol, const size_t max_itr, const bool v);
     
     void
     set_parameters(const betabin & _hypo_emission,
@@ -126,12 +124,9 @@ private:
     std::vector<Triplet> state_posteriors;
     
     // parameters
-    double MIN_PROB;
     double tolerance;
     size_t max_iterations;
     bool VERBOSE;
-    bool DEBUG;
-    size_t MAX_LEN;
 };
 
 #endif
