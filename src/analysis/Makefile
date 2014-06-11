@@ -44,11 +44,6 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 
-ifdef BAMTOOLS_ROOT
-INCLUDEDIRS += $(BAMTOOLS_ROOT)/include
-LIBS += -lbamtools -lz -L$(BAMTOOLS_ROOT)/lib
-endif
-
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas 
@@ -56,6 +51,8 @@ LIBS = -lgsl -lgslcblas
 # Flags for Mavericks
 ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
+INCLUDEARGS += -I/usr/local/include
+LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
               then echo 'true'; fi)" "true"
 CXXFLAGS += -stdlib=libstdc++

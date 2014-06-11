@@ -59,6 +59,9 @@ endif
 # Flags for Mavericks
 ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
+CFLAGS += -arch x86_64 -std=gnu89
+INCLUDEARGS += -I/usr/local/include
+LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
               then echo 'true'; fi)" "true"
 CXXFLAGS += -stdlib=libstdc++
@@ -89,7 +92,7 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 %.o: %.c
-	$(CC) $(CCFLAGS) -c -o $@ $^ $(INCLUDEARGS) 
+	$(CC) $(CFLAGS) -c -o $@ $^ $(INCLUDEARGS) 
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

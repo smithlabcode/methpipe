@@ -19,7 +19,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all_subdirs=common postmapping analysis amrfinder mlml
+all_subdirs=common postmapping analysis amrfinder mlml samtools
 lib_subdirs=common
 app_subdirs=postmapping analysis utils experimental amrfinder mlml
 
