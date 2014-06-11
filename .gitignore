@@ -48,9 +48,6 @@ src/smithlab_cpp/libsmithlab_cpp.so
 src/pipeline/run_clipmates.py
 src/pipeline/build_methylome.py
 src/rmapbs/rmapbs
-src/analysis/allelicmeth
-src/analysis/amrfinder
-src/analysis/amrtester
 src/analysis/hmr_plant
 src/analysis/levels
 src/analysis/merge-bsrate
@@ -63,4 +60,11 @@ src/experimental/dmr-hdhmm
 src/utils/fastLiftOver
 src/utils/lc_approx
 src/utils/to-mr
+src/amrfinder/allelicmeth
+src/amrfinder/amrfinder
+src/amrfinder/amrtester
+src/analysis/hypermr
+src/mlml/mlml
+
+
 
