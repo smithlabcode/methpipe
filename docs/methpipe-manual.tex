@@ -866,19 +866,18 @@ $ ./dmr Human_ESC_NHFF.methdiff Human_ESC.hmr \
 
 \subsection{Allele-specific methylation}
 
-If you are interested in different methylation states of the two
-alleles, use the programs \prog{allelicmeth} and \prog{amrfinder}. For
-each CpG site, \prog{allelicmeth} calculates the probability that the
-site has allele-specific methylation (ASM). The higher the score, the
-more likely the CpG site has ASM. \prog{amrfinder} is used to identify
-allelically methylated regions (AMRs). Both programs make use of the
-dependency between adjacent CpGs. Therefore, longer reads and higher
-coverage may improve the accuracy. Also the programs work better in
-CpG dense regions ({\em e.g.} CpG islands). Typically, 10$\times$
-coverage and 100bp reads can ensure good performance in the human
+Allele-specific methylation (ASM) occurs when the same cytosine is
+differentially methylated on the two alleles of a diploid organism.
+ASM is a major mechanism of genomic imprinting, and aberrations can
+lead to disease. Included in \prog{methpipe} are three tools to
+analyze ASM: \prog{allelicmeth}, \prog{amrfinder}, and \prog{amrtester}.
+All of these programs calculate the probability of ASM in a site or
+region by counting methylation on reads and analyzing the dependency
+between adjacent CpGs, and therefore it is recommended that any samples
+analyzed have at least 10$\times$ coverage and 100bp reads for the human
 genome.
 
-\subsubsection{Allele-specific methylation scores}
+\subsubsection{Single-site ASM scoring}
 \label{sec:allelic_scores}
 
 The program \prog{allelicmeth} calculates allelic-specific methylation
@@ -894,6 +893,7 @@ methylated unmethylated (mu), unmethylated methylated (um), or
 unmethylated unmethylated (uu). The following command will calculate
 allele-specific methylation scores using the \prog{allelicmeth}
 component of Methpipe.
+
 \begin{verbatim}
 $ ./allelicmeth -c hg18 -o Human_ESC.allelicmeth Human_ESC.mr
 \end{verbatim}
@@ -915,6 +915,7 @@ last column is the CpG only sequence of the read.
 
 You can use the program \prog{methstates} to convert the mapped reads
 file to the epiread format as below:
+
 \begin{verbatim}
 $ ./methstates -c hg18 -o Human_ESC.epiread Human_ESC.mr 
 \end{verbatim}
@@ -924,6 +925,7 @@ The following command shows an example to run the program
 \begin{verbatim}
 $ ./amrfinder -o Human_ESC.amr -c hg18 Human_ESC.epiread
 \end{verbatim}
+
 There are several options for running \prog{amrfinder}. The \op{-b}
 switches from using a likelihood ratio test to BIC as the criterion
 for calling an AMR. The \op{-i} option changes the number of
