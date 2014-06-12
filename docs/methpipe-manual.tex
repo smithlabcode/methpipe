@@ -1423,6 +1423,59 @@ appropriate. These tools should provide a convenient, consistent
 workflow for researchers to quickly analyze and compare their
 methylomes with those made publically available in methbase.
 
+\subsection{Mapping methylomes between species}
+\label{sec:mapp-methyl-betw}
+Mapping methylomes between species builds on the The \prog{liftOver}
+tool provided by UCSC Genome Browser
+\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
+consuming to directly convert large \prog{methcounts} output files
+containing millions of CpG sites. We therefore provide the
+\prog{fastLiftOver} tool. 
+
+\prog{fastLiftOver} requires its own chain files which are generated
+with the UCSC \prog{liftOver} program. To generate \prog{fastLiftOver}
+chain file from the mouse mm9 genome to the human hg19 genome, you
+need a BED file (CpGs-mm9.bed) with all CpG sites in the mouse genome
+and the \prog{liftOver} chain file (mm9ToHg19.over.chain) from the
+UCSC Genome Browser website. The BED file of mm9 CpG sites follows the
+format below, with the fourth column composed of the chromosome name
+and the starting location.
+\begin{verbatim}
+chr1 3000573 3000574 chr1:3000573
+chr1 3000725 3000726 chr1:3000725
+chr1 3000900 3000901 chr1:3000900
+...
+\end{verbatim}
+First, we will use the UCSC \prog{liftOver} program to map the mouse
+CpG sites to the human reference genome:
+\begin{verbatim}
+liftOver CpGs-mm9.bed mm9ToHg19.over.chain CpGs-mm9Tohg19.bed CpGs-mm9Tohg19-left.bed 
+\end{verbatim}
+Next, we need to sort the file \prog{CpGs-mm9Tohg19.bed}, that
+contains CpG sites mapped to the human reference genome
+\begin{verbatim}
+export LC_ALL=C;
+sort -k1,1 -k2,2n  CpGs-mm9Tohg19.bed -o tmpfile 
+mv tmpfile CpGs-mm9Tohg19.bed
+\end{verbatim}
+The file CpGs-mm9Tohg19.bed will be the \prog{fastLiftOver} chain file
+for mapping mouse methcounts output files to the human reference
+genome. For example, if we want to map the mouse methcounts file
+(Mouse\_ESC.meth) to the human reference genome, we may run the
+following command:
+\begin{verbatim}
+fastLiftOver -f Mouse_ESC.meth -i CpGs-mm9Tohg19.bed -t Mouse_ESC-hg19.meth -v
+\end{verbatim}
+
+It is possible that multiple CpG sites in the mouse reference genome
+are mapped to the same location in the human reference genome,
+therefore the many-to-one conversion problem. In this situation, we
+may use the average methylation level weighted by coverage. Please
+checkout
+\url{https://github.com/songqiang/MethPipe/blob/master/run-fastLiftOver.sh}
+for example scripts that go over the whole procedure.
+
+
 \newpage
 
 \bibliographystyle{plain}
