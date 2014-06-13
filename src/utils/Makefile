@@ -27,7 +27,8 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fastLiftOver to-mr
+PROGS = lc_approx fastLiftOver to-mr merge-bsrate merge-methcounts \
+        duplicate-remover
 
 # if SAMTOOLS location not set, try to set it
 ifndef SAMTOOLS_DIR
@@ -75,7 +76,8 @@ install: $(PROGS)
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o)
+	MappedRead.o smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
+    $(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
@@ -84,6 +86,8 @@ fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
 to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
 	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
+duplicate-remover: \
+    $(addprefix $(SMITHLAB_CPP)/, RNG.o FileIterator.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
