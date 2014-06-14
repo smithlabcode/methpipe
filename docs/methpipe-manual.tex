@@ -1092,6 +1092,25 @@ will have a corresponding line in the output).
 % 1) sed 's/:/\t/g' [filename]
 % 2) cat [filename] | tr ':' '\t'
 
+
+\subsection{Computing methylation entropy}
+\label{sec:methentropy}
+
+The concept of Entropy was introduced into epigenetics study to characterize the randomness of methylation patterns over several consecutive CpG sites \cite{xie2011}. The\prog{methentropy} program processes epireads and calculates the methylation entropy value in sliding windows of specified number of CpGs. Two input files are required, including the directory containing the chromosome fasta files, and an epiread file as produced by \prog{methstates} program. Use the \op{-w} option to specify the desired number of CpGs in the sliding window; if unspecified, the default value is $4$. In cases where symmetric patterns are considered the same, specify option \op{-F}, this will cause the majority state in each epiread to be forced into ``methylated'', and the minority to ``unmethylated''. The processed epireads will then be used for entropy calculation. To run the program, type command:
+\begin{verbatim}
+$ ./methentropy -w 5 -v -o Human_ESC.entropy hg18 Human_ESC.epiread
+\end{verbatim} 
+The output format is the same as \prog{methcount} output. The first 3 columns indicate the genomic location of the center CpG in each sliding window, the 5th column contains the entropy values, and the 6th column shows the number of reads used for each sliding window. Below is an output example.
+\begin{verbatim}
+chr1	483	+	CpG	2.33914	27
+chr1	488	+	CpG	2.05298	23
+chr1	492	+	CpG	1.4622	24
+chr1	496	+	CpG	1.8784	35
+\end{verbatim}
+
+
+
+
 \subsection{Notes on data quality}
 \label{sec:notes-data-quality}
 The performance of our tools to identify higher-level methylation
