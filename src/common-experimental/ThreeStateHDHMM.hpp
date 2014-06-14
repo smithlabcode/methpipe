@@ -38,7 +38,7 @@ public:
     ThreeStateHDHMM(
         const std::vector<double> &_observations,
         const std::vector<size_t> &_reset_points, 
-        const double mp, const double tol,
+        const double tol,
         const size_t max_itr, const bool v,
         const size_t _MAX_LEN);
 
@@ -113,7 +113,7 @@ private:
     std::vector<double> gain_posteriors, same_posteriors, loss_posteriors;
 
     // parameters
-    double MIN_PROB;
+    // double MIN_PROB;
     double tolerance;
     size_t max_iterations;
     bool VERBOSE;

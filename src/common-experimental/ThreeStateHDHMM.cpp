@@ -58,7 +58,7 @@ get_state(const double gain, const double same, const double loss)
 ThreeStateHDHMM::ThreeStateHDHMM(
     const std::vector<double> &_observations,
     const std::vector<size_t> &_reset_points, 
-    const double mp, const double tol,
+    const double tol,
     const size_t max_itr, const bool v,
     const size_t _MAX_LEN):
     observations(_observations), reset_points(_reset_points),
@@ -71,7 +71,7 @@ ThreeStateHDHMM::ThreeStateHDHMM(
     gain_posteriors(_observations.size()),
     same_posteriors(_observations.size()),
     loss_posteriors(_observations.size()),
-    MIN_PROB(mp), tolerance(tol), max_iterations(max_itr),
+    tolerance(tol), max_iterations(max_itr),
     VERBOSE(v), MAX_LEN(_MAX_LEN)
 {
     for (size_t i = 0; i < observations.size(); ++i)

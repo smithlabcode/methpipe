@@ -481,7 +481,6 @@ main(int argc, const char **argv)
         
         // corrections for small values (not parameters):
         double tolerance = 1e-10;
-        double min_prob  = 1e-10;
         size_t MAX_LEN = 200;
 
         // run mode flags
@@ -558,7 +557,7 @@ main(int argc, const char **argv)
         // those isolated CpGs
         vector<size_t> reset_points;
         separate_regions(VERBOSE, desert_size, cpgs, diffscores, reset_points);
-        ThreeStateHDHMM hmm(diffscores, reset_points, min_prob, tolerance,
+        ThreeStateHDHMM hmm(diffscores, reset_points, tolerance,
                             max_iterations, VERBOSE, MAX_LEN);
     
 
@@ -600,7 +599,7 @@ main(int argc, const char **argv)
                 pick_sample(diffscores, reset_points, training_size,
                             diffscores_sample, reset_points_sample);
                 ThreeStateHDHMM hmm_training(
-                    diffscores_sample, reset_points_sample, min_prob,
+                    diffscores_sample, reset_points_sample,
                     tolerance, max_iterations, VERBOSE, MAX_LEN);
                 
                 hmm_training.set_parameters(
