@@ -24,8 +24,8 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = pmd methcounts bsrate hmr hypermr methdiff dmr \
-	levels roimethstat  merge-methcounts \
-	methstates merge-bsrate methentropy
+	levels roimethstat  \
+	methstates methentropy
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
