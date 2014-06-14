@@ -89,9 +89,7 @@ max_value(const Triplet &likelihoods)
 ThreeStateHMM::ThreeStateHMM(
     const std::vector<std::pair<double, double> > &_observations,
     const std::vector<size_t> &_reset_points,
-    const double mp, const double tol,
-    const size_t max_itr, const bool v,
-    const size_t _MAX_LEN) :
+    const double tol, const size_t max_itr, const bool v) :
     observations(_observations), reset_points(_reset_points),
     meth_lp(_observations.size()), unmeth_lp(_observations.size()),
     hypo_log_likelihood(_observations.size()),
@@ -106,8 +104,8 @@ ThreeStateHMM::ThreeStateHMM(
     HYPER_HYPO(_observations.size()), HYPO_HYPER(_observations.size()),
     HYPO_HYPO(_observations.size()), classes(_observations.size()),
     state_posteriors(_observations.size()),
-    MIN_PROB(mp), tolerance(tol), max_iterations(max_itr),
-    VERBOSE(v), MAX_LEN(_MAX_LEN) 
+    tolerance(tol), max_iterations(max_itr),
+    VERBOSE(v) 
 {
     for (size_t i = 0; i < observations.size(); ++i)
     {

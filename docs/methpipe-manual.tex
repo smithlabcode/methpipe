@@ -866,19 +866,18 @@ $ ./dmr Human_ESC_NHFF.methdiff Human_ESC.hmr \
 
 \subsection{Allele-specific methylation}
 
-If you are interested in different methylation states of the two
-alleles, use the programs \prog{allelicmeth} and \prog{amrfinder}. For
-each CpG site, \prog{allelicmeth} calculates the probability that the
-site has allele-specific methylation (ASM). The higher the score, the
-more likely the CpG site has ASM. \prog{amrfinder} is used to identify
-allelically methylated regions (AMRs). Both programs make use of the
-dependency between adjacent CpGs. Therefore, longer reads and higher
-coverage may improve the accuracy. Also the programs work better in
-CpG dense regions ({\em e.g.} CpG islands). Typically, 10$\times$
-coverage and 100bp reads can ensure good performance in the human
+Allele-specific methylation (ASM) occurs when the same cytosine is
+differentially methylated on the two alleles of a diploid organism.
+ASM is a major mechanism of genomic imprinting, and aberrations can
+lead to disease. Included in \prog{methpipe} are three tools to
+analyze ASM: \prog{allelicmeth}, \prog{amrfinder}, and \prog{amrtester}.
+All of these programs calculate the probability of ASM in a site or
+region by counting methylation on reads and analyzing the dependency
+between adjacent CpGs, and therefore it is recommended that any samples
+analyzed have at least 10$\times$ coverage and 100bp reads for the human
 genome.
 
-\subsubsection{Allele-specific methylation scores}
+\subsubsection{Single-site ASM scoring}
 \label{sec:allelic_scores}
 
 The program \prog{allelicmeth} calculates allelic-specific methylation
@@ -894,6 +893,7 @@ methylated unmethylated (mu), unmethylated methylated (um), or
 unmethylated unmethylated (uu). The following command will calculate
 allele-specific methylation scores using the \prog{allelicmeth}
 component of Methpipe.
+
 \begin{verbatim}
 $ ./allelicmeth -c hg18 -o Human_ESC.allelicmeth Human_ESC.mr
 \end{verbatim}
@@ -915,6 +915,7 @@ last column is the CpG only sequence of the read.
 
 You can use the program \prog{methstates} to convert the mapped reads
 file to the epiread format as below:
+
 \begin{verbatim}
 $ ./methstates -c hg18 -o Human_ESC.epiread Human_ESC.mr 
 \end{verbatim}
@@ -924,6 +925,7 @@ The following command shows an example to run the program
 \begin{verbatim}
 $ ./amrfinder -o Human_ESC.amr -c hg18 Human_ESC.epiread
 \end{verbatim}
+
 There are several options for running \prog{amrfinder}. The \op{-b}
 switches from using a likelihood ratio test to BIC as the criterion
 for calling an AMR. The \op{-i} option changes the number of
@@ -1439,6 +1441,59 @@ consistent with data in methbase, and therefore direct comparison is
 appropriate. These tools should provide a convenient, consistent
 workflow for researchers to quickly analyze and compare their
 methylomes with those made publically available in methbase.
+
+\subsection{Mapping methylomes between species}
+\label{sec:mapp-methyl-betw}
+Mapping methylomes between species builds on the the \prog{liftOver}
+tool provided by UCSC Genome Browser
+\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
+consuming to directly convert large \prog{methcounts} output files
+containing millions of CpG sites. We therefore provide the
+\prog{fastLiftOver} tool.
+
+\prog{fastLiftOver} requires its own chain files which are generated
+with the UCSC \prog{liftOver} program. To generate \prog{fastLiftOver}
+chain file from the mouse mm9 genome to the human hg19 genome, you
+need a BED file (CpGs-mm9.bed) with all CpG sites in the mouse genome
+and the \prog{liftOver} chain file (mm9ToHg19.over.chain) from the
+UCSC Genome Browser website. The BED file of mm9 CpG sites follows the
+format below, with the fourth column composed of the chromosome name
+and the starting location.
+\begin{verbatim}
+chr1 3000573 3000574 chr1:3000573
+chr1 3000725 3000726 chr1:3000725
+chr1 3000900 3000901 chr1:3000900
+...
+\end{verbatim}
+First, we will use the UCSC \prog{liftOver} program to map the mouse
+CpG sites to the human reference genome:
+\begin{verbatim}
+liftOver CpGs-mm9.bed mm9ToHg19.over.chain CpGs-mm9Tohg19.bed CpGs-mm9Tohg19-left.bed 
+\end{verbatim}
+Next, we need to sort the file \prog{CpGs-mm9Tohg19.bed}, that
+contains CpG sites mapped to the human reference genome
+\begin{verbatim}
+export LC_ALL=C;
+sort -k1,1 -k2,2n  CpGs-mm9Tohg19.bed -o tmpfile 
+mv tmpfile CpGs-mm9Tohg19.bed
+\end{verbatim}
+The file CpGs-mm9Tohg19.bed will be the \prog{fastLiftOver} chain file
+for mapping mouse methcounts output files to the human reference
+genome. For example, if we want to map the mouse methcounts file
+(Mouse\_ESC.meth) to the human reference genome, we may run the
+following command:
+\begin{verbatim}
+fastLiftOver -f Mouse_ESC.meth -i CpGs-mm9Tohg19.bed -t Mouse_ESC-hg19.meth -v
+\end{verbatim}
+
+It is possible that multiple CpG sites in the mouse reference genome
+are mapped to the same location in the human reference genome,
+therefore the many-to-one conversion problem. In this situation, we
+may use the average methylation level weighted by coverage. Please
+checkout
+\url{https://github.com/songqiang/MethPipe/blob/master/run-fastLiftOver.sh}
+for example scripts that go over the whole procedure.
+
 
 \newpage
 
