@@ -46,6 +46,8 @@ using std::endl;
 using std::max;
 using std::accumulate;
 
+using std::tr1::round;
+
 struct MethStat {
 
   MethStat() : 
@@ -95,27 +97,83 @@ MethStat::tostring() const {
 }
 
 
+
 std::ostream& 
 operator<<(std::ostream& the_stream, const MethStat& ms) {
   return the_stream << ms.tostring();
 }
 
+
+
+static bool
+read_site(const bool is_new_fmt, std::istream &in, string &chrom,
+	  size_t &pos, string &strand, string &seq,
+	  double &meth, size_t &coverage) {
+  return (is_new_fmt ?
+	  methpipe::read_site(in, chrom, pos, strand,
+			      seq, meth, coverage) :
+	  methpipe::read_site_old(in, chrom, pos, strand,
+				  seq, meth, coverage));
+}
+
+
+
+static void
+write_site(const bool is_new_fmt, std::ostream &outf,
+	   const string &chrom, const size_t pos, const string &strand, 
+	   const string &seq, const double meth, const size_t coverage) {
+  if (is_new_fmt)
+    methpipe::write_site(outf, chrom, pos, strand, seq, meth, coverage);
+  else
+    methpipe::write_site_old(outf, chrom, pos, strand, seq, meth, coverage);
+}
+
+
+
+static void
+check_consistent_sites(const size_t line_number, const string &file_name,
+		       const string &chrom, const size_t pos, 
+		       const string &strand, const string &context, 
+		       const string &other_chrom, const size_t other_pos, 
+		       const string &other_strand, const string &other_context) {
+  if (chrom != other_chrom)
+    throw SMITHLABException("inconsistent chromosome name " 
+			    "[line=" + toa(line_number) + ",file="
+			    + file_name + "]");
+  if (pos != other_pos)
+    throw SMITHLABException("inconsistent position " 
+			    "[line=" + toa(line_number) + ",file="
+			    + file_name + "]");
+
+  if (strand != other_strand)
+    throw SMITHLABException("inconsistent strand " 
+			    "[line=" + toa(line_number) + ",file="
+			    + file_name + "]");
+  
+  if (context != other_context)
+    throw SMITHLABException("inconsistent context " 
+			    "[line=" + toa(line_number) + ",file="
+			    + file_name + "]");
+}
+
+
+
 int 
-main(int argc, const char **argv) 
-{
+main(int argc, const char **argv) {
   
   try {
-    string outfile("/dev/stdout");
+    
+    string outfile;
     string out_stat;
     bool VERBOSE;
-        
+    
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "merge multiple methcounts files",
                            "<methcounts-files>");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
+    opt_parse.add_opt("output", 'o', "output file name (default: stdout)", 
                       false, outfile);
-    opt_parse.add_opt("output_stat", 'S', "Name of output file with statistics",
+    opt_parse.add_opt("stat", 'S', "file to write statistics",
                       false , out_stat);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
@@ -145,64 +203,58 @@ main(int argc, const char **argv)
       infiles[i] = new std::ifstream(methcounts_files[i].c_str());
     const bool new_methcount_fmt =
       methpipe::is_methpipe_file_single(methcounts_files.front());
-    std::ofstream outf(outfile.c_str());
 
+    std::ofstream of;
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    
     string chrom, strand, seq;
     size_t pos, coverage;
     double meth;
-
-    MethStat meth_stat_collector;
     
-    while (new_methcount_fmt
-           ? methpipe::read_site(*infiles.front(), chrom, pos, strand,
-                                 seq, meth, coverage)
-           : methpipe::read_site_old(*infiles.front(), chrom, pos, strand,
-                           seq, meth, coverage)) {	
+    MethStat meth_stat_collector;
 
-      const string ref_chrom = chrom;
-      const size_t ref_pos = pos;
-      const string ref_strand = strand;
+    size_t line_count = 0;
+    
+    while (read_site(new_methcount_fmt, *infiles.front(), chrom, pos, 
+		     strand, seq, meth, coverage)) {
+      ++line_count;
       
-      size_t n_total = coverage;
-      double n_meth = static_cast<size_t>(std::tr1::round(coverage * meth));
-            
+      size_t total_coverage = coverage;
+      double total_meth = static_cast<size_t>(round(coverage*meth));
+      
+      string other_chrom, other_strand, other_seq;
+      size_t other_pos = 0ul;
+      
       for (size_t i = 1; i < infiles.size(); ++i) {
-        if ((new_methcount_fmt
-            ? methpipe::read_site(*infiles[i], chrom, pos, strand,
-                                  seq, meth, coverage)
-            : methpipe::read_site_old(*infiles[i], chrom, pos, strand,
-                            seq, meth, coverage))
-            && ref_chrom == chrom
-            && ref_pos  == pos
-            && ref_strand == strand) {
-          n_total += coverage;
-          n_meth += static_cast<size_t>(std::tr1::round(coverage * meth));
-        } else
-          throw SMITHLABException("error reading methcount file: "
-                                  + methcounts_files[i]);
+        read_site(new_methcount_fmt, *infiles[i], other_chrom, 
+		  other_pos, other_strand, other_seq, meth, coverage);
+	
+	check_consistent_sites(line_count, methcounts_files[i], 
+			       chrom, pos, strand, seq,
+			       other_chrom, other_pos, other_strand, other_seq);
+	
+	total_coverage += coverage;
+	total_meth += static_cast<size_t>(round(coverage*meth));
       }
-
-      meth_stat_collector.collect(n_meth, n_total);
-
-      if (new_methcount_fmt)
-        methpipe::write_site(outf, chrom, pos, strand, seq,
-                             n_total == 0 ? 0 : (n_meth / n_total), n_total);
-      else
-        methpipe::write_site_old(outf, chrom, pos, strand, seq,
-                       n_total == 0 ? 0 : (n_meth / n_total), n_total);
+      
+      meth_stat_collector.collect(total_meth, total_coverage);
+      
+      const double methout = total_meth/std::max(total_coverage, 1ul);
+      write_site(new_methcount_fmt, out, chrom, pos, strand,
+		 seq, methout, total_coverage);
     } 
-    for (size_t i = 0; i < infiles.size(); ++i)
-    {
-        infiles[i]->close();
-        delete infiles[i];
+    
+    for (size_t i = 0; i < infiles.size(); ++i) {
+      infiles[i]->close();
+      delete infiles[i];
     }
-
-    outf.close();
+    
     if (VERBOSE || !out_stat.empty()) {
-      std::ofstream of;
+      std::ofstream stat_of;
       if (!out_stat.empty()) of.open(out_stat.c_str());
-      std::ostream out(out_stat.empty() ? cerr.rdbuf() : of.rdbuf());
-      out << meth_stat_collector << endl;
+      std::ostream stat_out(out_stat.empty() ? cout.rdbuf() : stat_of.rdbuf());
+      stat_out << meth_stat_collector << endl;
     }
   }
   catch (const SMITHLABException &e)  {
