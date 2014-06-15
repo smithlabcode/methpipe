@@ -1,4 +1,4 @@
-/*  
+/*
  *    conversion in a bisulfite sequencing experiment
  *
  *    Copyright (C) 2009-2012 University of Southern California and
@@ -50,12 +50,12 @@ using std::tr1::round;
 
 struct MethStat {
 
-  MethStat() : 
+  MethStat() :
     total_sites(0), total_covered(0),
     max_cov(0), sum_cov(0), sum_cov_Cs(0) {}
-  
+
   string tostring() const;
-  
+
   void collect(const size_t meth_count, const size_t total) {
     total_sites++;
     if (total > 0) {
@@ -65,7 +65,7 @@ struct MethStat {
       sum_cov_Cs += meth_count;
     }
   }
-  
+
   size_t total_sites;
   size_t total_covered;
   size_t max_cov;
@@ -77,20 +77,20 @@ struct MethStat {
 string
 MethStat::tostring() const {
   std::ostringstream out;
-  
+
   out << "SITES:\t" << total_sites << endl
       << "SITES COVERED:\t" << total_covered << endl
       << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
-  
-  const double overall_cov = 
+
+  const double overall_cov =
     static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_sites);
-  const double covered_cov = 
+  const double covered_cov =
     static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_covered);
   out << "MAX COVERAGE:\t" << max_cov << endl
       << "MEAN COVERAGE:\t" << overall_cov << endl
       << "MEAN (WHEN > 0):\t" << covered_cov << endl;
-  
-  const double meth_level = 
+
+  const double meth_level =
     static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1), sum_cov);
   out << "MEAN METHYLATION:\t" << meth_level;
   return out.str();
@@ -98,7 +98,7 @@ MethStat::tostring() const {
 
 
 
-std::ostream& 
+std::ostream&
 operator<<(std::ostream& the_stream, const MethStat& ms) {
   return the_stream << ms.tostring();
 }
@@ -120,7 +120,7 @@ read_site(const bool is_new_fmt, std::istream &in, string &chrom,
 
 static void
 write_site(const bool is_new_fmt, std::ostream &outf,
-	   const string &chrom, const size_t pos, const string &strand, 
+	   const string &chrom, const size_t pos, const string &strand,
 	   const string &seq, const double meth, const size_t coverage) {
   if (is_new_fmt)
     methpipe::write_site(outf, chrom, pos, strand, seq, meth, coverage);
@@ -132,46 +132,46 @@ write_site(const bool is_new_fmt, std::ostream &outf,
 
 static void
 check_consistent_sites(const size_t line_number, const string &file_name,
-		       const string &chrom, const size_t pos, 
-		       const string &strand, const string &context, 
-		       const string &other_chrom, const size_t other_pos, 
+		       const string &chrom, const size_t pos,
+		       const string &strand, const string &context,
+		       const string &other_chrom, const size_t other_pos,
 		       const string &other_strand, const string &other_context) {
   if (chrom != other_chrom)
-    throw SMITHLABException("inconsistent chromosome name " 
+    throw SMITHLABException("inconsistent chromosome name "
 			    "[line=" + toa(line_number) + ",file="
 			    + file_name + "]");
   if (pos != other_pos)
-    throw SMITHLABException("inconsistent position " 
+    throw SMITHLABException("inconsistent position "
 			    "[line=" + toa(line_number) + ",file="
 			    + file_name + "]");
 
   if (strand != other_strand)
-    throw SMITHLABException("inconsistent strand " 
+    throw SMITHLABException("inconsistent strand "
 			    "[line=" + toa(line_number) + ",file="
 			    + file_name + "]");
-  
+
   if (context != other_context)
-    throw SMITHLABException("inconsistent context " 
+    throw SMITHLABException("inconsistent context "
 			    "[line=" + toa(line_number) + ",file="
 			    + file_name + "]");
 }
 
 
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
-    
+
     string outfile;
     string out_stat;
     bool VERBOSE;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "merge multiple methcounts files",
                            "<methcounts-files>");
-    opt_parse.add_opt("output", 'o', "output file name (default: stdout)", 
+    opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("stat", 'S', "file to write statistics",
                       false , out_stat);
@@ -207,49 +207,49 @@ main(int argc, const char **argv) {
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    
+
     string chrom, strand, seq;
     size_t pos, coverage;
     double meth;
-    
+
     MethStat meth_stat_collector;
 
     size_t line_count = 0;
-    
-    while (read_site(new_methcount_fmt, *infiles.front(), chrom, pos, 
+
+    while (read_site(new_methcount_fmt, *infiles.front(), chrom, pos,
 		     strand, seq, meth, coverage)) {
       ++line_count;
-      
+
       size_t total_coverage = coverage;
       double total_meth = static_cast<size_t>(round(coverage*meth));
-      
+
       string other_chrom, other_strand, other_seq;
       size_t other_pos = 0ul;
-      
+
       for (size_t i = 1; i < infiles.size(); ++i) {
-        read_site(new_methcount_fmt, *infiles[i], other_chrom, 
+        read_site(new_methcount_fmt, *infiles[i], other_chrom,
 		  other_pos, other_strand, other_seq, meth, coverage);
-	
-	check_consistent_sites(line_count, methcounts_files[i], 
+
+	check_consistent_sites(line_count, methcounts_files[i],
 			       chrom, pos, strand, seq,
 			       other_chrom, other_pos, other_strand, other_seq);
-	
+
 	total_coverage += coverage;
 	total_meth += static_cast<size_t>(round(coverage*meth));
       }
-      
+
       meth_stat_collector.collect(total_meth, total_coverage);
-      
+
       const double methout = total_meth/std::max(total_coverage, 1ul);
       write_site(new_methcount_fmt, out, chrom, pos, strand,
 		 seq, methout, total_coverage);
-    } 
-    
+    }
+
     for (size_t i = 0; i < infiles.size(); ++i) {
       infiles[i]->close();
       delete infiles[i];
     }
-    
+
     if (VERBOSE || !out_stat.empty()) {
       std::ofstream stat_of;
       if (!out_stat.empty()) of.open(out_stat.c_str());
