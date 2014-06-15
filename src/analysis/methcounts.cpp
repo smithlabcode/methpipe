@@ -445,7 +445,7 @@ scan_chromosome(const QualityChecker &qc,
       else
         out << chrom_name << "\t" << i << "\t" << i + 1 << "\t" 
             << cytosine_type_tag(chrom, i, '-') << ":"
-            << total << "\t" << total << "\t+\n";
+            << total << "\t" << total << "\t-\n";
     }
   }//for
 }
