@@ -44,9 +44,9 @@ using std::endl;
 
 
 static void
-parse_cpg_line(const string &buffer, 
+parse_cpg_line(const string &buffer,
 	       string &context, size_t &n_meth, size_t &n_unmeth) {
-  
+
   std::istringstream is(buffer);
   string name, dummy;
   double meth_freq = 0.0;
@@ -64,13 +64,13 @@ parse_cpg_line(const string &buffer,
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
 		string &context, size_t &n_meth, size_t &n_unmeth) {
-  
+
   if (IS_METHPIPE_FILE) {
     string dummy;
     size_t dummy_pos = 0;
     double meth = 0.0;
     size_t coverage = 0;
-    if (!methpipe::read_site(in, dummy, dummy_pos, dummy, 
+    if (!methpipe::read_site(in, dummy, dummy_pos, dummy,
 			     context, meth, coverage))
       return false;
     else {
@@ -90,24 +90,24 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
 
 
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
-    
+
     bool VERBOSE = false;
     bool IS_METHPIPE_FILE = true;
     string outfile;
     double alpha = 0.95;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "compute methylation levels",
 			   "<cpgs-file>");
-    opt_parse.add_opt("output", 'o', "output file (default: stdout)", 
+    opt_parse.add_opt("output", 'o', "output file (default: stdout)",
 		      false, outfile);
-    opt_parse.add_opt("alpha", 'a', "alpha for confidence interval", 
+    opt_parse.add_opt("alpha", 'a', "alpha for confidence interval",
 		      false, alpha);
-    opt_parse.add_opt("bed", 'b', "file in bed format", 
+    opt_parse.add_opt("bed", 'b', "file in bed format",
 		      false, IS_METHPIPE_FILE);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
@@ -131,7 +131,7 @@ main(int argc, const char **argv) {
     }
     const string cpgs_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     std::ifstream in(cpgs_file.c_str());
     if (!in)
       throw SMITHLABException("bad input file: " + cpgs_file);
@@ -139,7 +139,7 @@ main(int argc, const char **argv) {
     size_t mapped_sites = 0, total_sites = 0;
     size_t total_c = 0, total_t = 0;
     size_t called_meth = 0, called_unmeth = 0;
-    
+
     vector<double> meth_levels;
     string buffer;
 
@@ -147,42 +147,42 @@ main(int argc, const char **argv) {
     string context;
     while (get_meth_unmeth(IS_METHPIPE_FILE,
 			   in, context, n_meth, n_unmeth)) {
-      
+
       if (n_meth + n_unmeth > 0) {
 	// get info for weighted mean methylation
 	total_c += n_meth;
 	total_t += n_unmeth;
-	
+
 	// get info for mean methylation
 	const size_t N = n_meth + n_unmeth;
 	const double level = static_cast<double>(n_meth)/N;
 	meth_levels.push_back(level);
-	
+
 	// get info for binomial test
 	double lower = 0.0, upper = 0.0;
 	wilson_ci_for_binomial(alpha, N, level, lower, upper);
 	called_meth += (lower > 0.5);
 	called_unmeth += (upper < 0.5);
-	
+
 	++mapped_sites;
       }
       ++total_sites;
     }
-    
-    const double weighted_mean_meth = 
+
+    const double weighted_mean_meth =
       static_cast<double>(total_c)/(total_c + total_t);
-    
-    const double fractional_meth = 
-      static_cast<double>(called_meth)/(called_meth + called_unmeth); 
-    
-    const double mean_meth = 
+
+    const double fractional_meth =
+      static_cast<double>(called_meth)/(called_meth + called_unmeth);
+
+    const double mean_meth =
       std::accumulate(meth_levels.begin(), meth_levels.end(), 0.0)/
       meth_levels.size();
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-    
+
     out << "mean_meth" << '\t' << mean_meth << endl
 	<< "w_mean_meth" << '\t' << weighted_mean_meth << endl
 	<< "frac_meth" << '\t' << fractional_meth << '\t'
