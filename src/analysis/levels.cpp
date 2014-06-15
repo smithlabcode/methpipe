@@ -44,13 +44,16 @@ using std::endl;
 
 
 static void
-parse_cpg_line(const string &buffer, size_t &n_meth, size_t &n_unmeth) {
+parse_cpg_line(const string &buffer, 
+	       string &context, size_t &n_meth, size_t &n_unmeth) {
   
   std::istringstream is(buffer);
   string name, dummy;
   double meth_freq = 0.0;
   is >> dummy >> dummy >> dummy >> name >> meth_freq;
-  const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
+  const size_t sep_pos = name.find_first_of(":");
+  const size_t total = atoi(name.substr(sep_pos + 1).c_str());
+  context = name.substr(0, sep_pos);
   n_meth = std::tr1::round(meth_freq*total);
   n_unmeth = std::tr1::round((1.0 - meth_freq)*total);
   assert(n_meth + n_unmeth == total);
@@ -60,7 +63,7 @@ parse_cpg_line(const string &buffer, size_t &n_meth, size_t &n_unmeth) {
 
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
-		size_t &n_meth, size_t &n_unmeth) {
+		string &context, size_t &n_meth, size_t &n_unmeth) {
   
   if (IS_METHPIPE_FILE) {
     string dummy;
@@ -68,7 +71,7 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
     double meth = 0.0;
     size_t coverage = 0;
     if (!methpipe::read_site(in, dummy, dummy_pos, dummy, 
-			     dummy, meth, coverage))
+			     context, meth, coverage))
       return false;
     else {
       n_meth = std::tr1::round(meth*coverage);
@@ -80,7 +83,7 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, std::ifstream &in,
     string buffer;
     if (!getline(in, buffer))
       return false;
-    parse_cpg_line(buffer, n_meth, n_unmeth);
+    parse_cpg_line(buffer, context, n_meth, n_unmeth);
   }
   return true;
 }
@@ -141,8 +144,9 @@ main(int argc, const char **argv) {
     string buffer;
 
     size_t n_meth = 0, n_unmeth = 0;
+    string context;
     while (get_meth_unmeth(IS_METHPIPE_FILE,
-			   in, n_meth, n_unmeth)) {
+			   in, context, n_meth, n_unmeth)) {
       
       if (n_meth + n_unmeth > 0) {
 	// get info for weighted mean methylation
