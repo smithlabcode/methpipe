@@ -6,12 +6,11 @@ bin/
 *.[oa]
 *.so
 
-# no temparary file
+# no temporary file
 *~
 *.out
 *.aux
 *.log
-*.pdf
 *.eps
 *.tif
 *.dvi
