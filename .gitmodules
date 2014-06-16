@@ -1,0 +1,3 @@
+[submodule "src/smithlab_cpp"]
+	path = src/smithlab_cpp
+	url = git@github.com:smithlabcode/smithlab_cpp.git
