@@ -19,7 +19,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all_subdirs=common analysis amrfinder mlml samtools
+all_subdirs=common utils analysis amrfinder mlml samtools
 lib_subdirs=common
 app_subdirs=analysis utils experimental amrfinder mlml
 
