@@ -252,7 +252,7 @@ main(int argc, const char **argv) {
 
     if (VERBOSE || !out_stat.empty()) {
       std::ofstream stat_of;
-      if (!out_stat.empty()) of.open(out_stat.c_str());
+      if (!out_stat.empty()) stat_of.open(out_stat.c_str());
       std::ostream stat_out(out_stat.empty() ? cout.rdbuf() : stat_of.rdbuf());
       stat_out << meth_stat_collector << endl;
     }
