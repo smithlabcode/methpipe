@@ -71,6 +71,21 @@ namespace methpipe
                    const size_t &pos, const std::string &strand,
                    const std::string &seq, const double &meth,
                    const size_t &coverage);
+
+    // 	functions for methdiff results I/O
+	bool	
+	write_methdiff_site(std::ostream &out, const std::string &chrom,
+						const size_t pos, const std::string &strand,
+						const std::string &seq, const double diffscore,
+						const size_t meth_a, const size_t unmeth_a,
+						const size_t meth_b, const size_t unmeth_b);
+		
+	bool	
+	read_methdiff_site(std::istream &in, std::string &chrom,
+					   size_t &pos, std::string &strand,
+					   std::string &seq, double &diffscore,
+					   size_t &meth_a, size_t &unmeth_a,
+					   size_t &meth_b, size_t &unmeth_b);
 }
 #endif
 

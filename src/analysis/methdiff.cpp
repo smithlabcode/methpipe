@@ -205,23 +205,23 @@ main(int argc, const char **argv) {
           unmeth_b(static_cast<size_t>(meth_unmeth_b[j].second));
 	
         if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
-          cpgs_a[i].set_name("CpG:" + 
-                             toa(meth_a) + ":" + toa(unmeth_a) + ":" +
-                             toa(meth_b) + ":" + toa(unmeth_b));
-          cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
-                                                      unmeth_b + pseudocount, 
-                                                      meth_a + pseudocount, 
-                                                      unmeth_a + pseudocount));
-          out << cpgs_a[i] << endl;
+		  const double diffscore = test_greater_population(meth_b + pseudocount,
+														   unmeth_b + pseudocount, 
+														   meth_a + pseudocount, 
+														   unmeth_a + pseudocount);
+		  methpipe::write_methdiff_site(out, cpgs_a[i].get_chrom(), cpgs_a[i].get_start(),
+										string(1, cpgs_a[i].get_strand()),
+										cpgs_a[i].get_name().substr(0, cpgs_a[i].get_name().find_first_of(':')),
+										diffscore, meth_a, unmeth_a, meth_b, unmeth_b);
         } else if (!ONLY_HIGH_COVERAGE_LOCI) {
-          cpgs_a[i].set_name("CpG:" + 
-                             toa(meth_a) + ":" + toa(unmeth_a) + ":" +
-                             toa(meth_b) + ":" + toa(unmeth_b));
-          cpgs_a[i].set_score(test_greater_population(meth_b + pseudocount,
-                                                      unmeth_b + pseudocount, 
-                                                      meth_a + pseudocount, 
-                                                      unmeth_a + pseudocount));
-          out << cpgs_a[i] << endl;
+		  const double diffscore = test_greater_population(meth_b + pseudocount,
+														   unmeth_b + pseudocount, 
+														   meth_a + pseudocount, 
+														   unmeth_a + pseudocount);
+		  methpipe::write_methdiff_site(out, cpgs_a[i].get_chrom(), cpgs_a[i].get_start(),
+										string(1, cpgs_a[i].get_strand()),
+										cpgs_a[i].get_name().substr(0, cpgs_a[i].get_name().find_first_of(':')),
+										diffscore, meth_a, unmeth_a, meth_b, unmeth_b);
         }
       }
     }
