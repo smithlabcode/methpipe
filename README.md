@@ -43,7 +43,7 @@ It has been tested on MacOS X Snow Leopard and Linux.
 For advanced users who are interested in the newest features, you may obtain the 
 latest source code by cloning the MethPipe repository:
 
-    > git clone https://github.com/smithlabcode/methpipe.git
+    > git clone --recursive https://github.com/smithlabcode/methpipe.git
 
 After you clone the latest source code, follow the above steps for installation.
 
