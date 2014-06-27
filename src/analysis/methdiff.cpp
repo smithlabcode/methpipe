@@ -116,7 +116,7 @@ main(int argc, const char **argv) {
     size_t pseudocount = 1;
     
     // run mode flags
-    bool OUTPUT_ALL_LOCI = true;
+    bool ONLY_HIGH_COVERAGE_LOCI = false;
     bool VERBOSE = false;
     
     /****************** COMMAND LINE OPTIONS ********************/
@@ -127,9 +127,9 @@ main(int argc, const char **argv) {
 			   "<cpgs-BED-file-A> <cpgs-BED-file-B>");
     opt_parse.add_opt("pseudo", 'p', "pseudocount (default: 1)", 
 		      false, pseudocount);
-    // opt_parse.add_opt("all-loci", 'A',
-    //                   "output all loci ()including low coverage ones)", 
-    //                   false, OUTPUT_ALL_LOCI);
+    opt_parse.add_opt("nonzero-only", 'A',
+					  "output only sites with high coveage in both samples)", 
+					  false, ONLY_HIGH_COVERAGE_LOCI);
     opt_parse.add_opt("out", 'o', "output file (BED format)", 
 		      false, outfile);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -213,7 +213,7 @@ main(int argc, const char **argv) {
                                                       meth_a + pseudocount, 
                                                       unmeth_a + pseudocount));
           out << cpgs_a[i] << endl;
-        } else if (OUTPUT_ALL_LOCI) {
+        } else if (!ONLY_HIGH_COVERAGE_LOCI) {
           cpgs_a[i].set_name("CpG:" + 
                              toa(meth_a) + ":" + toa(unmeth_a) + ":" +
                              toa(meth_b) + ":" + toa(unmeth_b));
