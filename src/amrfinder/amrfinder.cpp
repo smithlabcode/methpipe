@@ -29,6 +29,7 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "EpireadStats.hpp"
+#include "GenomicRegion.hpp"
 
 using std::string;
 using std::vector;
