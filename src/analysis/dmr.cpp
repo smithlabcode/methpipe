@@ -30,6 +30,7 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
+#include "MethpipeFiles.hpp"
 
 using std::string;
 using std::vector;
@@ -40,6 +41,27 @@ using std::pair;
 using std::max;
 using std::ifstream;
 
+static void 
+read_diffs_file(const string &diffs_file, vector<GenomicRegion> &cpgs, const bool VERBOSE)
+{
+  std::ifstream in(diffs_file.c_str());
+  string chrom, strand, seq;
+  double diffscore;
+  size_t pos, meth_a, unmeth_a, meth_b, unmeth_b;
+  int n = 0;
+  while (methpipe::read_methdiff_site(in, chrom, pos, strand, seq,
+									  diffscore, meth_a, unmeth_a, meth_b, unmeth_b))
+  {
+	++n;
+	cpgs.push_back(GenomicRegion(chrom, pos, pos + 1, seq, diffscore, strand[0]));
+  }
+
+  if (!in.eof() && !in.good())
+	throw SMITHLABException("Immature termination when reading " + diffs_file +
+							" around line " + smithlab::toa(n));
+  if (VERBOSE)
+	cerr << "Read " << n << " sites from " + diffs_file << endl;
+}
 
 static void
 complement_regions(const size_t max_end, const vector<GenomicRegion> &a, 
@@ -227,7 +249,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING CPG METH DIFFS]" << endl;
     vector<GenomicRegion> cpgs;
-    ReadBEDFile(diffs_file, cpgs);
+	read_diffs_file(diffs_file, cpgs, VERBOSE);
     if (!check_sorted(cpgs))
       throw SMITHLABException("CpGs not sorted in: " + diffs_file);
     if (VERBOSE)
