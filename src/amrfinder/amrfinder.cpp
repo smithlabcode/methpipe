@@ -24,7 +24,7 @@
 #include <vector>
 #include <iostream>
 #include <numeric>
-
+#include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
