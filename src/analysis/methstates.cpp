@@ -61,21 +61,6 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
     }
 }
 
-
-static void
-identify_chromosomes(const string chrom_file, const string fasta_suffix, 
-                     unordered_map<string, string> &chrom_files) {
-  vector<string> the_files;
-  if (isdir(chrom_file.c_str())) {
-    read_dir(chrom_file, fasta_suffix, the_files);
-    for (size_t i = 0; i < the_files.size(); ++i)
-      chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
-  }
-  else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
-}
-
-
-
 static bool
 convert_meth_states_pos(const string &chrom, 
                         const unordered_map<size_t, size_t> &cpgs, 

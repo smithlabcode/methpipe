@@ -210,45 +210,12 @@ get_chrom(const bool VERBOSE, const GenomicRegion &r,
   }
 }
 
-
-static void
-identify_chromosomes(const string chrom_file, const string fasta_suffix, 
-		     unordered_map<string, string> &chrom_files) {
-  vector<string> the_files;
-  if (isdir(chrom_file.c_str())) {
-    read_dir(chrom_file, fasta_suffix, the_files);
-  }
-  else
-    the_files.push_back(chrom_file);
-
-  for (size_t i = 0; i < the_files.size(); ++i) {
-    vector<string> names, seqs;
-    read_fasta_file(the_files[i], names, seqs);
-    for (size_t j = 0; j < names.size(); ++j)
-      chrom_files[names[j]] = the_files[i];
-  }
-}
-
-
-// static void
-// identify_chromosomes(const string chrom_file, const string fasta_suffix, 
-//                      unordered_map<string, string> &chrom_files) {
-//   vector<string> the_files;
-//   if (isdir(chrom_file.c_str())) {
-//     read_dir(chrom_file, fasta_suffix, the_files);
-//     for (size_t i = 0; i < the_files.size(); ++i)
-//       chrom_files[strip_path_and_suffix(the_files[i])] = the_files[i];
-//   }
-//   else chrom_files[strip_path_and_suffix(chrom_file)] = chrom_file;
-// }
-
-
 static void
 convert_coordinates(const bool VERBOSE, const string chroms_dir,
                     const string fasta_suffix, vector<GenomicRegion> &amrs) {
   
   unordered_map<string, string> chrom_files;
-  identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
+  identify_and_read_chromosomes(chroms_dir, fasta_suffix, chrom_files);
   if (VERBOSE)
     cerr << "CHROMS:\t" << chrom_files.size() << endl;
   
