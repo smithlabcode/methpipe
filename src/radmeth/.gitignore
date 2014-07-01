@@ -1,0 +1,21 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+src/wand/tests/test_design
+src/wand/tests/test_loglikratio_test
+src/wand/tests/test_pipeline
+src/wand/tests/test_regression
+src/wand/tests/test_table_row
+src/adjust/stoufferliptak
+src/adjust/tests/test_adjust.sublime-workspace
