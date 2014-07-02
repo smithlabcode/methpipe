@@ -318,24 +318,22 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
     cerr << "PROCESSING: " << chrom_name << " "
 	 << "[reads: " << epireads.size() << "] "
 	 << "[cpgs: " << chrom_cpgs << "]" << endl;
-  
   const size_t PROGRESS_TIMING_MODULUS = std::max(1ul, epireads.size()/1000);
-  
   size_t windows_tested = 0;
   size_t start_idx = 0;
   const size_t lim = chrom_cpgs - window_size + 1;
   for (size_t i = 0; i < lim && start_idx < epireads.size(); ++i) {
-    
     if (PROGRESS && i % PROGRESS_TIMING_MODULUS == 0) 
       cerr << '\r' << chrom_name << ' ' << percent(i, chrom_cpgs) << "%\r";
-    
     vector<epiread> current_epireads;
     get_current_epireads(epireads, max_epiread_len,
 			 window_size, i, start_idx, current_epireads);
+
     if (total_states(current_epireads) >= min_obs_per_window) {
       bool is_significant = false;
       const double score = epistat.test_asm(current_epireads, is_significant);
       if (is_significant)
+
 	add_amr(chrom_name, i, window_size, current_epireads, score, amrs);
       ++windows_tested;
     }
@@ -348,7 +346,6 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 
 int 
 main(int argc, const char **argv) {
-  
   try {
 
     static const string fasta_suffix = "fa";
@@ -435,14 +432,15 @@ main(int argc, const char **argv) {
     size_t tmp_pos;
     while (in >> curr_chrom >> tmp_pos >> tmp_states) {
       if (!epireads.empty() && curr_chrom != prev_chrom) {
-	windows_tested += 
-	  process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
-			epistat, prev_chrom, epireads, amrs);
-	epireads.clear();
+        windows_tested += 
+        process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
+		    epistat, prev_chrom, epireads, amrs);
+        epireads.clear();
       }
       epireads.push_back(epiread(tmp_pos, tmp_states));
       prev_chrom = curr_chrom;
     }
+
     if (!epireads.empty())
       windows_tested += 
 	process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
@@ -454,7 +452,6 @@ main(int argc, const char **argv) {
       cerr << "========= POST PROCESSING =========" << endl;
     
     const size_t windows_accepted = amrs.size();
-
     if (!amrs.empty()) {
       // Could potentially only get the first n p-vals, but would
       // have to sort here and assume sorted for smithlab_utils, or
