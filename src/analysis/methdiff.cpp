@@ -57,7 +57,7 @@ load_cpgs(const bool VERBOSE, const string& cpgs_file,
     throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
   
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
+    cpgs.push_back(cpgs_in[i]);
     meth.push_back(std::make_pair(cpgs_in[i].get_score(), 0.0));
     const string r(cpgs_in[i].get_name());
     reads.push_back(atoi(r.substr(r.find_first_of(":") + 1).c_str()));
@@ -209,6 +209,7 @@ main(int argc, const char **argv) {
 														   unmeth_b + pseudocount, 
 														   meth_a + pseudocount, 
 														   unmeth_a + pseudocount);
+		  
 		  methpipe::write_methdiff_site(out, cpgs_a[i].get_chrom(), cpgs_a[i].get_start(),
 										string(1, cpgs_a[i].get_strand()),
 										cpgs_a[i].get_name().substr(0, cpgs_a[i].get_name().find_first_of(':')),
