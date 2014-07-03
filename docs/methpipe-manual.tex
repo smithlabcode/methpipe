@@ -1191,7 +1191,7 @@ $ chmod +x fetchChromSizes
 
 \noindent
 You might also want to create \fn{bigBed} browser tracks for HMRs,
-AMRs or DMRs. To do so, follow these steps:
+AMRs, PMDs, or DMRs. To do so, follow these steps:
 \begin{enumerate}
 \item Download the \prog{bedToBigBed} program from the UCSC Genome
   Browser directory of binary utilities
@@ -1204,9 +1204,14 @@ AMRs or DMRs. To do so, follow these steps:
   with non-integer score in their 5th column, one needs to round the
   score to integer value, for example:
 \begin{verbatim}
-$ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC.hmr | \
-         bedToBigBed /dev/stdin hg19.chrom.sizes Human_ESC.hmr.bb
+$ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC.hmr \
+          > Human_ESC.hmr.rounded
 \end{verbatim}
+
+\begin{verbatim}
+ bedToBigBed Human_ESC.hmr.rounded hg19.chrom.sizes Human_ESC.hmr.bb
+\end{verbatim}
+
   In the above command, since the HMRs are not stranded, we do not
   print the 6th column. Keeping the 6th column would make all the HMRs
   appear as though they have a direction -- but it would all be the
