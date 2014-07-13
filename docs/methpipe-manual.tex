@@ -1123,7 +1123,7 @@ recommend 10x for reliable results. Our method for identifying
 HyperMRs is similar to HMR-finding method, and the above statement
 holds. The required coverage therefore is even lower since the
 PMD-finding method internally works by accumulating CpGs in
-fixed-length bins. We feel $\sim$$3$x is sufficient. The AMR method
+fixed-length bins. We feel $\sim$3x is sufficient. The AMR method
 depends on both coverage and read length. Datasets with read length
 around 100bp and mean coverage above 10x are recommended for the AMR
 method. Another important measure of data quality is the bisulfite
@@ -1142,17 +1142,20 @@ To view the methylation level or read coverage at individual CpG sites
 in a genome browser, one needs to create a \lit{bigWig} format file
 from a \fn{*\_.meth} file, which is the output of the \prog{methcounts}
 program. A methcounts file would look like this:
+
 \begin{verbatim}
 chr1	468	469	CpG:30	0.7	+
 chr1	470	471	CpG:29	0.931034	+
 chr1	483	484	CpG:36	0.916667	+
 chr1	488	489	CpG:36	1	+
 \end{verbatim}
+
 The first 3 columns shows the physical location of each CpG sites in
 the reference genome. The number in the 4th column indicates the
 coverage at each CpG site. The methylation level at individual CpG
 sites can be found in the 5th column. To create methylation level
 tracks or read coverage tracks, one can follow these steps:
+
 \begin{enumerate}
 \item Download the \prog{wigToBigWig} program from UCSC genome
   browser's directory of binary utilities
@@ -1162,9 +1165,14 @@ tracks or read coverage tracks, one can follow these steps:
   working with (e.g. hg19). Note that this is the file that is
   referred to as \fn{hg19.chrom.sizes} in step 3.
 \item To create a \fn{bw} track for methylation level at single CpG
-  sites, modify and use the following command:
+  sites, convert the methcounts file to bed format using:
 \begin{verbatim}
-$ cut -f 1-3,5 Human_ESC_Meth.bed | \
+$ awk '{print $1 "\t" $2 "\t" $2+1 "\t" $4":"$6 "\t" $5 "\t" $3}' \
+      Human_ESC.meth > Human_ESC.meth.bed
+\end{verbatim}
+\item To create a \fn{bw} track from the bed format methcounts output, modify and use the following command:
+\begin{verbatim}
+$ cut -f 1-3,5 Human_ESC.meth.bed | \
      wigToBigWig /dev/stdin hg19.chrom.sizes Human_ESC.meth.bw
 \end{verbatim}
   To create a \fn{bw} track for coverage at single CpG sites, modify
@@ -1183,7 +1191,7 @@ $ chmod +x fetchChromSizes
 
 \noindent
 You might also want to create \fn{bigBed} browser tracks for HMRs,
-AMRs or DMRs. To do so, follow these steps:
+AMRs, PMDs, or DMRs. To do so, follow these steps:
 \begin{enumerate}
 \item Download the \prog{bedToBigBed} program from the UCSC Genome
   Browser directory of binary utilities
@@ -1196,9 +1204,14 @@ AMRs or DMRs. To do so, follow these steps:
   with non-integer score in their 5th column, one needs to round the
   score to integer value, for example:
 \begin{verbatim}
-$ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC.hmr | \
-         bedToBigBed /dev/stdin hg19.chrom.sizes Human_ESC.hmr.bb
+$ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC.hmr \
+          > Human_ESC.hmr.rounded
 \end{verbatim}
+
+\begin{verbatim}
+ bedToBigBed Human_ESC.hmr.rounded hg19.chrom.sizes Human_ESC.hmr.bb
+\end{verbatim}
+
   In the above command, since the HMRs are not stranded, we do not
   print the 6th column. Keeping the 6th column would make all the HMRs
   appear as though they have a direction -- but it would all be the
