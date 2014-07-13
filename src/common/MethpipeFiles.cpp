@@ -33,6 +33,7 @@ using std::vector;
 using std::string;
 using std::pair;
 using std::ios_base;
+using std::tr1::round;
 
 void
 methpipe::load_cpgs(const string &cpgs_file,

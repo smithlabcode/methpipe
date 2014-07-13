@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <tr1/cmath>
 #include <numeric>
 #include <cmath>
 #include <fstream>
@@ -41,7 +42,7 @@ using std::max;
 using std::min;
 using std::pair;
 using std::make_pair;
-
+using std::tr1::round;
 
 
 static void
@@ -56,7 +57,7 @@ parse_cpg_line_old(const string &buffer, string &chrom, size_t &position,
   
   const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
   
-  n_meth = roundf(meth_freq*total);
+  n_meth = round(meth_freq*total);
   n_unmeth = total - n_meth;
 }
 
@@ -73,8 +74,8 @@ parse_cpg_line(const string &buffer, string &chrom, size_t &position,
   size_t total = 0ul;
   is >> chrom >> position >> dummy >> dummy >> meth_freq >> total;
 
-  n_meth = roundf(meth_freq*total);
-  n_unmeth = roundf((1.0 - meth_freq)*total);
+  n_meth = round(meth_freq*total);
+  n_unmeth = round((1.0 - meth_freq)*total);
   
   assert(n_meth + n_unmeth == total);
 }

@@ -28,6 +28,7 @@
 #include <numeric>
 #include <list>
 #include <utility>
+#include <tr1/cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -44,7 +45,7 @@ using std::cerr;
 using std::endl;
 using std::pair;
 using std::make_pair;
-
+using std::tr1::round;
 
 
 static pair<bool, bool>
@@ -125,8 +126,8 @@ not_methpipe_load_cpgs(const string &cpgs_file,
     const string name(cpgs_in[i].get_name());
     const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
     const double meth_freq = cpgs_in[i].get_score();
-    const size_t n_meth = roundf(meth_freq*total);
-    const size_t n_unmeth = roundf((1.0 - meth_freq)*total);
+    const size_t n_meth = round(meth_freq*total);
+    const size_t n_unmeth = round((1.0 - meth_freq)*total);
     assert(n_meth + n_unmeth == total);
     reads.push_back(total);
     meths.push_back(std::make_pair(n_meth, n_unmeth));

@@ -29,6 +29,7 @@
 #include <numeric>
 #include <utility>
 
+#include <tr1/cmath>
 #include <tr1/unordered_map>
 
 #include "OptionParser.hpp"
@@ -42,6 +43,7 @@
 #include "MappedRead.hpp"
 
 using std::tr1::unordered_map;
+using std::tr1::round;
 
 using std::string;
 using std::vector;
@@ -590,7 +592,7 @@ identify_chromosomes(const bool VERBOSE, const string chrom_file,
 	 << "chromosome files found (approx size):" << endl;
     for (vector<string>::const_iterator i = chrom_files.begin();
 	 i != chrom_files.end(); ++i)
-      cerr << *i << " (" << roundf(get_filesize(*i)/1e06) << "Mbp)" << endl;
+      cerr << *i << " (" << round(get_filesize(*i)/1e06) << "Mbp)" << endl;
     cerr << endl;
   }
 }
