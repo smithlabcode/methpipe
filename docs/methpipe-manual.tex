@@ -386,9 +386,9 @@ one to be the representative of the original DNA sequence.
 strand). If the reads in the input file are not sorted, run the
 following sort command:
 \begin{verbatim}
-$ LC_ALL=C; sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_ESC.mr.sorted_start Human_ESC.mr
-$ LC_ALL=C; sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
 Next, execute the following command to remove duplicate reads:
@@ -514,7 +514,7 @@ The input is in MappedRead format, and the reads should be sorted
 according to (chrom, end, start, strand). If your reads are not
 sorted, run:
 \begin{verbatim}
-$ LC_ALL=C; sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
 Since \prog{methcounts} can only take one input file, if you have
