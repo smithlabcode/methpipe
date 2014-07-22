@@ -368,6 +368,7 @@ main(int argc, const char **argv) {
     // bool RANDOMIZE_READS = false;
     bool USE_BIC = false;
     bool CORRECTION = false;
+    bool NOFDR=false;
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), 
@@ -386,6 +387,8 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("crit", 'C', "critical p-value cutoff (default: 0.01)", 
 		      false, critical_value);
     // BOOLEAN FLAGS
+    opt_parse.add_opt("nofdr", 'f', "omits FDR multiple testing correction",
+                      false, NOFDR);
     opt_parse.add_opt("pvals", 'h', "adjusts p-values using Hochberg step-up",
 		      false, CORRECTION);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
@@ -479,22 +482,25 @@ main(int argc, const char **argv) {
       const size_t merged_amrs = amrs.size();
     
       if (!USE_BIC)
-        (CORRECTION) ? eliminate_amrs_by_cutoff(critical_value, amrs) :
+        (CORRECTION || NOFDR)
+                ? eliminate_amrs_by_cutoff(critical_value, amrs) :
 	               eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
     
       const size_t amrs_passing_fdr = amrs.size();
     
       eliminate_amrs_by_size(gap_limit/2, amrs);
     
-      if (VERBOSE)
+      if (VERBOSE) {
         cerr << "WINDOWS TESTED: " << windows_tested << endl
 	     << "WINDOWS ACCEPTED: " << windows_accepted << endl
-         << "COLLAPSED WINDOWS: " << collapsed_amrs << endl
-         << "MERGED WINDOWS: " << merged_amrs << endl
-  	     << "FDR CUTOFF: " << fdr_cutoff << endl
-       	 << "WINDOWS PASSING FDR: " << amrs_passing_fdr << endl
-         << "AMRS (WINDOWS PASSING FDR: " << amrs.size() << endl;
-    
+             << "COLLAPSED WINDOWS: " << collapsed_amrs << endl
+             << "MERGED WINDOWS: " << merged_amrs << endl;
+        if (!NOFDR) {
+ 	  cerr  << "FDR CUTOFF: " << fdr_cutoff << endl
+       	        << "WINDOWS PASSING FDR: " << amrs_passing_fdr << endl;
+        }
+        cerr << "AMRS (WINDOWS PASSING MINIMUM SIZE): " << amrs.size() << endl;
+      }
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
       std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());

@@ -957,6 +957,9 @@ will be significantly below the critical value. The \op{-h} option
 produces FDR-adjusted p-values according to a step-up procedure
 and then compares them directly to the given critical value, which 
 allows further use of the p-values without multiple testing correction.
+The \op{-f} omits multiple testing correction entirely by not applying
+a correction to the p-values or using a false discovery rate cutoff
+to select AMRs.
 
 In addition to \prog{amrfinder}, which uses a sliding window, there is
 also the \prog{amrtester} program, which tests for allele-specific
