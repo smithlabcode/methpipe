@@ -207,7 +207,7 @@ reads files from a paired-end sequencing experiment:
 $ ./rmapbs-pe -c hg18 -o Human_ESC.mr Human_ESC_1.fastq Human_ESC_2.fastq
 \end{verbatim}
 
-In brief, what happends internally in \prog{rmapbs-pe} is as follows.
+In brief, what happens internally in \prog{rmapbs-pe} is as follows.
 \prog{rmapbs-pe} finds candidate mapping locations for a T-rich mate
 with CG-wildcard mapping, and candidate mapping locations for the
 corresponding A-rich mate with AG-wildcard mapping. If two candidate
@@ -509,7 +509,16 @@ can be merged using the program \prog{merge-bsrate}.
 \label{sec:estim-methyl-freq}
 
 The \prog{methcounts} program takes the mapped reads and produces the
-methylation level for each genomic CpG or for all Cs if specified.
+methylation level at each genomic cytosine, with the option to produce
+only levels for CpG-context cytosines.
+While most DNA methylation exists in the CpG context, cytosines in
+other sequence contexts, such as CXG or CHH (where H denotes adenines,
+thymines, or cytosines and X denotes adenines or thymines) may also be
+methylated. Non-CpG methylation occurs most frequently in plant genomes 
+and pluripotent mammalian cells such as embryonic stem cells. This type
+of methylation is asymmetric since the cytosines on the complementary 
+strand do not necessarily have the same methylation status.
+
 The input is in MappedRead format, and the reads should be sorted
 according to (chrom, end, start, strand). If your reads are not
 sorted, run:
@@ -517,28 +526,31 @@ sorted, run:
 $ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr
 \end{verbatim}
+
 Since \prog{methcounts} can only take one input file, if you have
 multiple you can merge them using the \op{-m} option to the
 \prog{sort} program:
+
 \begin{verbatim}
 $ LC_ALL=C sort -m -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
 \end{verbatim}
 
+\paragraph{Running \prog{methcounts}:}
+The methylation level for every cytosine site at single base resolution
+is estimated as a probability based on the ratio of methylated to total
+reads mapped to that loci. Because not all DNA methylation contexts are
+symmetric, methylation levels are produced for both strands and can be
+analyzed separately. To compute methylation levels at each
+cytosine site along the genome you can use the following command:
 
-\paragraph{Counting only CpG sites:}
-The methylation level for every CpG site at single base resolution is
-estimated as a probability based on the ratio of methylated to total
-reads mapped to that loci. Since CpG methylation is symmetric, reads
-mapped to both strands are used to produce a single estimate for the
-CpG site. To compute methylation levels at each CpG site you can use
-commands as following:
 \begin{verbatim}
-$ ./methcounts -c hg18 -o Human_ESC.meth \
+$ ./methcounts -c hg38 -o Human_ESC.meth \
                -S Human_ESC.methstats Human_ESC.mr
 $ ./methcounts -c hg18 -o Human_NHFF.meth \
                -S Human_NHFF.methstats Human_NHFF.mr
 \end{verbatim}
+
 The argument \op{-c} gives the filename of the genome sequence or the
 directory that contains one FASTA format file for each chromosome. By
 default \prog{methcounts} identifies these chromosome files by the
@@ -547,70 +559,32 @@ file must be the character \lit{>} followed by the same name that
 identifies that chromosome in the mapped read output (the \fn{.mr}
 files).
 
-The output file contains one line per CpG site. The first column is
-the chromosome. The second is the location of the CpG site in the
-positive strand. The 3rd column indicates the strand, always being
-\lit{+} when only CpG sites are considered. The 4th column is the
-sequence context of that site. The 5th column is the estimated
-methylation level, equal to the number of Cs in reads at position
-corresponding to the site, divided by the sum of the Cs and Ts mapping
-to that position. The final column is number of reads overlapping with
-that site.
+The output file contains one line per cytosine site. The first column is
+the chromosome. The second is the location of the cytosine. The 3rd column indicates the strand, which can be either \lit{+} or \lit{-}. The 4th
+column is the sequence context of that site, followed by an x if the
+site has mutated in the sample away from the reference genome. The 5th 
+column is the estimated methylation level, equal to the number of Cs in 
+reads at position corresponding to the site, divided by the sum of the Cs 
+and Ts mapping to that position. The final column is number of reads
+overlapping with that site.
 
-\paragraph{Counting all cytosines:}
-While most DNA methylation exists in the CpG context, cytosines in
-other sequence contexts, such as CHG or CHH (where H denotes adenines,
-thymines, or cytosines) may also be methylated. Non-CpG methylation
-occurs most frequently in plant genomes and pluripotent mammalian
-cells such as embryonic stem cells. This type of methylation is
-asymmetric since the cytosines on the complementary strand do not
-necessarily have the same methylation status. The methylation level
-for each cytosine loci is estimated individually with only reads
-mapped to the strand where that cytosine is located. The estimate of
-the methylation level is given by the number of methylated reads
-mapped to that cytosine divided by the total number of reads. Since
-most mammalian methylation occurs in the context of CpG dinucleotides,
-\prog{methcounts} calculates methylation levels for only CpG sites by
-default. To calculate methylation levels for all cytosines in an
-asymmetric way, add the \op{-N} option like the following,
-\begin{verbatim}
-$ ./methcounts -N -c hg18 -o Human_ESC_All.meth \
-               -S Human_ESC_Meth_All.methstats Human_ESC.mr
-\end{verbatim}
-
-The output file contains one line per cytosine site (see below for an
-excerpt from one \prog{methcounts} output file in an Arabidopsis
-project). The first two columns give the chromosome and position of
-that cytosine. The 3rd columns gives the strand. The 4th column
-indicates the sequence context, which can be either CG, CHG or CHH.
-The first C corresponds to the cytosine of interest and the
-remaining letters are bases following that cytosine in the same
-strand from 5' to 3'. The 5th and 6th columns gives the estimated
-methylation level and the total number of reads respectively.
-%%%
-{\small{%%
-\begin{verbatim}
-chr1    839537  -       CG      0.8     5
-chr1    839541  -       CHH     0.142857        7
-chr1    839544  +       CHH     0       10
-chr1    839548  -       CHH     0       7
-chr1    839550  -       CHH     0       8
-chr1    839551  +       CG      0.75    8
-chr1    839552  -       CG      0.75    8
-chr1    839554  +       CHH     0       8
-chr1    839557  -       CHH     0       7
-chr1    839566  +       CG      0.857143        7
-chr1    839567  -       CG      0.714286        7
-\end{verbatim}%%
-}}
+Note that because \prog{methcounts} produces a file containing one line
+for every cytosine in the genome, the file can get quite large. For
+reference assembly mm10, the output is approximately 25GB. The \op{-n}
+option produces methylation data for CpG context sites only, and for
+mm10 this produces an output file that is approximately 1GB. It is
+recommended that users allocate at least 8GB of memory when running
+\prog{methcounts}.
 
 To examine the methylation status of cytosines a particular sequence
 context, one may use the \prog{grep} command to filter those lines
 based on the fourth column. For example, in order to pull out all
 cytosines within the CHG context, run the following:
+
 \begin{verbatim}
 $ grep CHG Human_ESC_All.meth > Human_ESC_CHG.meth
 \end{verbatim}
+
 Our convention is to name \prog{methcounts} output with all cytosines
 like \fn{*\_All.meth}, with CHG like \fn{*\_CHG.meth} and
 with CHH like \fn{*\_CHH.meth}.
@@ -618,11 +592,11 @@ with CHH like \fn{*\_CHH.meth}.
 \paragraph{Merging methcounts files from multiple replicates:}
 \label{sec:merg-methc-file} 
 When working with a BS-seq project with multiple replicates, you may
-first produce a methcount output file for each replicate individually
+first produce a methcounts output file for each replicate individually
 and assess the reproducibility of the methylation result by comparing
 different replicates. The \prog{merge-methcounts} program is used to
 merge the those individual methcounts file to produce a single
-estimate that have higher coverage. Suppose you have the three
+estimate that has higher coverage. Suppose you have the three
 methcounts files from three different biological replicates,
 \fn{ASDF\_R1/R1.meth}, \fn{ASDF\_R2/R2.meth} and
 \fn{ASDF\_R3/R3.meth}. To merge those individual methcounts files,
@@ -632,13 +606,52 @@ $ merge-methcounts ASDF_R1/R1.meth  ASDF_R2/R2.meth \
   ASDF_R3/R3.meth -o ASDF.meth
 \end{verbatim}
 
-\paragraph{Computation of average methylation level}
-The \prog{levels} program computes average methylation in a methcounts
-file in three different ways, described in Schultz et al. (2012). This
-program should provide flexibility to compare methylation data with
-publications that calculate averages different ways and illustrate the
-variability of the statistic depending on how it is calculated.  To
-run the \prog{levels} program, execute
+\paragraph{Computation of methylation level statistics}
+The \prog{levels} program computes statistics for the output of
+\prog{methcounts}. Sample output is below. It computes the total
+fraction of cytosines covered, the fraction of cytosines that have
+mutated away from the reference, and coverage statistics for both
+CpGs and all cytosines. For CpG sites, coverage number reflects taking
+advantage of their symmetric nature and merging the coverage on both
+strands. For CpG coverage minus mutations, we remove the reads from
+CpG sites deemed to be mutated away from the reference. It also computes
+average methylation in three different ways, described in Schultz et al.
+(2012). This program should provide flexibility to compare methylation data
+with publications that calculate averages different ways and illustrate the
+variability of the statistic depending on how it is calculated.
+
+\begin{verbatim}
+SITES:	1000000
+SITES COVERED:	566157
+FRACTION MUTATED:	0.001257
+FRACTION COVERED:	0.566157
+MAX COVERAGE:	439
+SYMMETRICAL CpG COVERAGE:	11.3228
+SYMMETRICAL CpG COVERAGE (WHEN > 0):	15.3289
+SYMMETRICAL CpG COVERAGE (minus mutations):	11.2842
+SYMMETRICAL CpG COVERAGE (WHEN > 0) (minus mutations):	15.2768
+MEAN COVERAGE:	3.31458
+MEAN COVERAGE (WHEN > 0):	5.85452
+METHYLATION LEVELS (CpG CONTEXT):
+	mean_meth	0.700166
+	w_mean_meth	0.667227
+	frac_meth	0.766211	
+METHYLATION LEVELS (CHH CONTEXT):
+	mean_meth	0.0275823
+	w_mean_meth	0.0184198
+	frac_meth	0.0146346	
+METHYLATION LEVELS (CXG CONTEXT):
+	mean_meth	0.0217537
+	w_mean_meth	0.0170535
+	frac_meth	0.00843068	
+METHYLATION LEVELS (CCG CONTEXT):
+	mean_meth	0.0211243
+	w_mean_meth	0.0187259
+	frac_meth	0.00630109
+\end{verbatim}
+
+To run the \prog{levels} program, execute
+
 \begin{verbatim}
 $ levels -o ASDF.levels ASDF.meth
 \end{verbatim}
