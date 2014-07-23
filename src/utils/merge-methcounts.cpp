@@ -45,65 +45,7 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::accumulate;
-
 using std::tr1::round;
-
-struct MethStat {
-
-  MethStat() :
-    total_sites(0), total_covered(0),
-    max_cov(0), sum_cov(0), sum_cov_Cs(0) {}
-
-  string tostring() const;
-
-  void collect(const size_t meth_count, const size_t total) {
-    total_sites++;
-    if (total > 0) {
-      total_covered++;
-      max_cov = max(max_cov, total);
-      sum_cov += total;
-      sum_cov_Cs += meth_count;
-    }
-  }
-
-  size_t total_sites;
-  size_t total_covered;
-  size_t max_cov;
-  size_t sum_cov;
-  size_t sum_cov_Cs;
-};
-
-
-string
-MethStat::tostring() const {
-  std::ostringstream out;
-
-  out << "SITES:\t" << total_sites << endl
-      << "SITES COVERED:\t" << total_covered << endl
-      << "FRACTION:\t" << static_cast<double>(total_covered)/total_sites << endl;
-
-  const double overall_cov =
-    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_sites);
-  const double covered_cov =
-    static_cast<double>(sum_cov)/max(static_cast<size_t>(1), total_covered);
-  out << "MAX COVERAGE:\t" << max_cov << endl
-      << "MEAN COVERAGE:\t" << overall_cov << endl
-      << "MEAN (WHEN > 0):\t" << covered_cov << endl;
-
-  const double meth_level =
-    static_cast<double>(sum_cov_Cs)/max(static_cast<size_t>(1), sum_cov);
-  out << "MEAN METHYLATION:\t" << meth_level;
-  return out.str();
-}
-
-
-
-std::ostream&
-operator<<(std::ostream& the_stream, const MethStat& ms) {
-  return the_stream << ms.tostring();
-}
-
-
 
 static bool
 read_site(const bool is_new_fmt, std::istream &in, string &chrom,
@@ -207,12 +149,10 @@ main(int argc, const char **argv) {
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-
+   
     string chrom, strand, seq;
     size_t pos, coverage;
     double meth;
-
-    MethStat meth_stat_collector;
 
     size_t line_count = 0;
 
@@ -238,8 +178,6 @@ main(int argc, const char **argv) {
 	total_meth += static_cast<size_t>(round(coverage*meth));
       }
 
-      meth_stat_collector.collect(total_meth, total_coverage);
-
       const double methout = total_meth/std::max(total_coverage, 1ul);
       write_site(new_methcount_fmt, out, chrom, pos, strand,
 		 seq, methout, total_coverage);
@@ -248,13 +186,6 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < infiles.size(); ++i) {
       infiles[i]->close();
       delete infiles[i];
-    }
-
-    if (VERBOSE || !out_stat.empty()) {
-      std::ofstream stat_of;
-      if (!out_stat.empty()) stat_of.open(out_stat.c_str());
-      std::ostream stat_out(out_stat.empty() ? cout.rdbuf() : stat_of.rdbuf());
-      stat_out << meth_stat_collector << endl;
     }
   }
   catch (const SMITHLABException &e)  {
