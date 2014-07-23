@@ -14,7 +14,7 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  */
- 
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -36,14 +36,14 @@ int main(int argc, const char **argv) {
     string outfile;
     string bin_spec = "1:200:25";
     double cutoff = 0.01;
-    
+
     /****************** GET COMMAND LINE ARGUMENTS ***************************/
     OptionParser opt_parse("dmrs", "a program to merge significantly "
                            "differentially methylated CpGs into DMRs",
                            "<bed-file-in-wand-format>");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
+    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
 		      false , outfile);
-    opt_parse.add_opt("cutoff", 'p', "P-value cutoff (default: 0.01)", 
+    opt_parse.add_opt("cutoff", 'p', "P-value cutoff (default: 0.01)",
 		      false , cutoff);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -65,18 +65,18 @@ int main(int argc, const char **argv) {
     }
     const string bed_filename = leftover_args.front();
     /*************************************************************************/
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-    
+
     std::ifstream bed_file(bed_filename.c_str());
-    
+
     if (!bed_file)
       throw "could not open file: " + bed_filename;
-    
+
     merge(bed_file, out, cutoff);
-        
+
   } catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;

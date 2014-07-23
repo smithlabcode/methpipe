@@ -12,10 +12,17 @@
 *.la
 *.a
 
-src/wand/tests/test_design
-src/wand/tests/test_loglikratio_test
-src/wand/tests/test_pipeline
-src/wand/tests/test_regression
-src/wand/tests/test_table_row
-src/adjust/stoufferliptak
-src/adjust/tests/test_adjust.sublime-workspace
+adjust/adjust
+adjust/dmrs
+utils/make_table
+utils/split_table
+wand/wand
+
+wand/tests/test_design
+wand/tests/test_loglikratio_test
+wand/tests/test_pipeline
+wand/tests/test_regression
+wand/tests/test_table_row
+adjust/stoufferliptak
+adjust/tests/test_adjust.sublime-workspace
+
