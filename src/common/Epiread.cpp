@@ -17,9 +17,13 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Epiread.hpp"
 #include<limits>
+#include<string>
+
+#include "Epiread.hpp"
+
 using std::vector;
+using std::string;
 
 size_t
 adjust_read_offsets(vector<epiread> &reads) {
@@ -39,3 +43,22 @@ get_n_cpgs(const vector<epiread> &reads) {
     n_cpgs = std::max(n_cpgs, reads[i].end());
   return n_cpgs;
 }
+
+std::istream&
+operator>>(std::istream &in, epiread &er) {
+  string buffer;
+  if (getline(in, buffer)) {
+    std::istringstream is(buffer);
+    if (!(is >> er.chr >> er.pos >> er.seq))
+      throw SMITHLABException("malformed epiread line:\n" + buffer);
+  }
+  return in;
+}
+
+
+std::ostream&
+operator<<(std::ostream &out, const epiread &er) {
+  return out << er.chr << '\t' << er.pos << '\t' << er.seq;
+}
+
+

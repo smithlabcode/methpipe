@@ -67,14 +67,14 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-allelicmeth: $(addprefix $(SMITHLAB_CPP)/, \
-	FileIterator.o MappedRead.o) 
-
 amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 	$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
+
+allelicmeth:   $(addprefix $(COMMON_DIR)/, Epiread.o) \
+    $(addprefix $(SMITHLAB_CPP)/, FileIterator.o MappedRead.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

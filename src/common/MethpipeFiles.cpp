@@ -17,6 +17,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <tr1/cmath>
 #include <cmath>
 #include <vector>
 #include <string>
@@ -33,6 +34,7 @@ using std::vector;
 using std::string;
 using std::pair;
 using std::ios_base;
+using std::tr1::round;
 
 void
 methpipe::load_cpgs(const string &cpgs_file,
