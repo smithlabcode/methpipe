@@ -701,9 +701,14 @@ windows.
 \paragraph{Typical mammalian methylomes:}
 Running \prog{hmr} requires a file of methylation levels formatted
 like the output of the \prog{methcounts} program (as described
-above). The following command will work well for identifying mammalian
-HMRs if there is sufficient coverage in the underlying methylomes:
+above). For calling HMRs in mammalian methylomes, we suggest only
+considering the methylation level at CpG sites, as the level of non-CpG
+methylation is not usually more than a few percent. You can do this by
+filtering the \prog{methcounts} output with \prog{grep} (as below) and
+running \prog{hmr} with the CpG-only file:
+
 \begin{verbatim}
+$ grep CpG Human_ESC_All.meth > Human_ESC.meth
 $ ./hmr -o Human_ESC.hmr Human_ESC.meth
 \end{verbatim}
 The output will be in BED format, and the indicated strand (always
@@ -780,6 +785,13 @@ HyperMR. The fourth column starts with the ``hyper:'', followed by the
 number of CpGs within this HyperMR. The fifth column is the
 accumulative methylation level of all CpGs. The last column indicates
 the strand, which is always \lit{+}.
+
+Lastly, it is worth noting that plants exhibit significantly more
+methylation in the non-CpG context, and therefore inclusion of non-CpG
+methylation in the calling of hyper-methylated regions could possibly
+be informative. We suggest separating each cytosine context from the
+\prog{methcounts} output file as illustrated in the previous section
+(via \prog{grep}) and calling HyperMRs seperately for each context.
 
 \paragraph{Partially methylated regions (PMRs):}
 The \prog{hmr} program also has the option of directly identifying
