@@ -20,6 +20,12 @@ all:
 	make -C utils/
 	make -C methdiff_dmr/
 
+install:
+	make -C adjust/ install
+	make -C wand/ install
+	make -C utils/ install
+	make -C methdiff_dmr/ install
+
 clean:
 	make -C adjust/ clean
 	make -C wand/ clean

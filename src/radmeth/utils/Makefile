@@ -34,6 +34,10 @@ SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 
 all: make_table split_table
 
+install: make_table split_table
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 make_table split_table $(SRC_ROOT)/bin
+
 make_table : make_table.cpp merge.o cpg.o $(SMITH_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 

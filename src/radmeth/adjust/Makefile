@@ -30,12 +30,16 @@ INCLUDEDIRS = $(SMITHLAB_CPP)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
-							smithlab_utils.o OptionParser.o)
+            smithlab_utils.o OptionParser.o)
 
 OBJ = locus.o bin_for_distance.o distance_correlation.o proximal_loci.o \
-			stoufferliptak.o combine_pvals.o fdr.o pvallocus.o $(SMITH_OBJ)
+      stoufferliptak.o combine_pvals.o fdr.o pvallocus.o $(SMITH_OBJ)
 
 all: adjust dmrs
+
+install: adjust dmrs
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 adjust dmrs $(SRC_ROOT)/bin
 
 adjust : adjust.cpp $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)

@@ -35,8 +35,12 @@ SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 OBJ = design.o regression.o loglikratio_test.o table_row.o pipeline.o \
       gsl_fitter.o $(SMITH_OBJ)
 
-wand : wand.cpp $(OBJ)
+wand: wand.cpp $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_ARGS) $(LIBS)
+
+install: wand
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 wand $(SRC_ROOT)/bin
 
 %.o : %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDE_ARGS)
