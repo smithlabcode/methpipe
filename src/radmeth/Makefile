@@ -18,8 +18,10 @@ all:
 	make -C adjust/
 	make -C wand/
 	make -C utils/
+	make -C methdiff_dmr/
 
 clean:
 	make -C adjust/ clean
 	make -C wand/ clean
 	make -C utils/ clean
+	make -C methdiff_dmr/ clean
