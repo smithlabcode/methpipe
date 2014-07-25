@@ -1,5 +1,5 @@
 The MethPipe software package is a computational pipeline for
-analyzing bisulfite sequencing data (BS-seq, WGBS and RRBS). MethPipe
+analyzing bisulfite sequencing data (WGBS and RRBS). MethPipe
 provides tools for mapping bisulfite sequencing read and estimating
 methylation levels at individual cytosine sites. Additionally,
 MethPipe also includes tools for identifying higher-level methylation
