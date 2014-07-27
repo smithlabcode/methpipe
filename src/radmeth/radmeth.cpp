@@ -34,7 +34,6 @@
 
 // Local headers.
 #include "design.hpp"
-#include "pipeline.hpp"
 #include "table_row.hpp"
 #include "loglikratio_test.hpp"
 #include "gsl_fitter.hpp"
@@ -46,6 +45,8 @@ using std::vector;
 using std::istringstream;
 using std::cerr;
 using std::endl;
+using std::istream;
+using std::ostream;
 
 static vector<string> 
 split(string input) {
