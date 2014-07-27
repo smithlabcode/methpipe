@@ -59,7 +59,7 @@ operator>>(std::istream &in, cpg_site &s) {
     double meth_level;
     std::istringstream enc_stream(line);
     if (!(enc_stream >> s.chrom >> s.position >> sign
-	  >> name >> meth_level >> s.total))
+          >> name >> meth_level >> s.total))
       throw (SMITHLABException("bad line: \"" + line + "\""));
     
     if (meth_level < 0.0 || meth_level > 1.0)
@@ -75,8 +75,8 @@ operator>>(std::istream &in, cpg_site &s) {
 
 static bool
 get_cpg_info_all_files(const vector<istream*> &methylomes,
-		       string &chrom, size_t &position, 
-		       vector<double> &totals, vector<double> &meths) {
+                       string &chrom, size_t &position, 
+                       vector<double> &totals, vector<double> &meths) {
   
   // these need to be empty for the logic outside this function 
   chrom.clear();
@@ -121,15 +121,15 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), 
-			   "make proportion table from methcounts format files",
-			   "<methpipe-methlomes>");
+                           "make proportion table from methcounts format files",
+                           "<methpipe-methlomes>");
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -153,8 +153,8 @@ main(int argc, const char **argv) {
 
     // output the header line of the table 
     transform(names.begin(), names.end(), 
-	      std::ostream_iterator<string>(cout, "\t"),
-	      std::ptr_fun(&strip_path));
+              std::ostream_iterator<string>(cout, "\t"),
+              std::ptr_fun(&strip_path));
     cout << endl;
     
     // open the files for each methylome
@@ -171,7 +171,7 @@ main(int argc, const char **argv) {
       cout << chrom << '\t' << position << '\t' << position + 1;
       
       for (size_t i = 0; i < totals.size(); ++i)
-	cout << '\t' << totals[i] << '\t' << meths[i];
+        cout << '\t' << totals[i] << '\t' << meths[i];
       cout << '\n';
       
       // make sure these are ready for next row
