@@ -14,20 +14,41 @@
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
 
-all:
-	make -C adjust/
-	make -C wand/
-	make -C utils/
-	make -C methdiff_dmr/
+CXXFLAGS += -g -Wall -Wextra -pthread
 
-install:
-	make -C adjust/ install
-	make -C wand/ install
-	make -C utils/ install
-	make -C methdiff_dmr/ install
+ifeq "$(shell uname)" "Darwin"
+CXXFLAGS += -arch x86_64
+ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
+              then echo 'true'; fi)" "true"
+CXXFLAGS += -stdlib=libstdc++
+endif
+endif
+
+LIBS += -lgsl -lgslcblas
+
+INCLUDEDIRS = $(SMITHLAB_CPP)
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+
+SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
+            smithlab_utils.o OptionParser.o)
+
+OBJ = locus.o bin_for_distance.o distance_correlation.o proximal_loci.o \
+      stoufferliptak.o combine_pvals.o fdr.o pvallocus.o $(SMITH_OBJ)
+
+all: adjust dmrs
+
+install: adjust dmrs
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 adjust dmrs $(SRC_ROOT)/bin
+
+adjust : adjust.cpp $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+
+dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+
+%.o : %.cpp %.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 clean:
-	make -C adjust/ clean
-	make -C wand/ clean
-	make -C utils/ clean
-	make -C methdiff_dmr/ clean
+	rm -f adjust dmrs *.o
