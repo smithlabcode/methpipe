@@ -16,6 +16,8 @@
 
 CXXFLAGS += -g -Wall -Wextra -pthread
 
+PROGS = wand make_table
+
 ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
@@ -36,6 +38,9 @@ OBJ = design.o regression.o loglikratio_test.o table_row.o pipeline.o \
       gsl_fitter.o $(SMITH_OBJ)
 
 wand: wand.cpp $(OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_ARGS) $(LIBS)
+
+make_table: make_table.cpp $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_ARGS) $(LIBS)
 
 install: wand
