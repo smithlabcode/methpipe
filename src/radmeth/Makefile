@@ -14,34 +14,58 @@
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
 
-CXXFLAGS += -g -Wall -Wextra -pthread
+ifndef SMITHLAB_CPP
+$(error SMITHLAB_CPP variable undefined)
+endif
 
+PROGS = radmeth
+
+CXX = g++
+CFLAGS = -Wall -fmessage-length=50
+CXXFLAGS = -Wall -fmessage-length=50
+OPTFLAGS = -O2
+DEBUGFLAGS = -g
+
+ifdef DEBUG
+CXXFLAGS += $(DEBUGFLAGS)
+endif
+
+ifdef OPT
+CXXFLAGS += $(OPTFLAGS)
+endif
+
+COMMON_DIR = ../common
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+
+INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+
+LIBS = -lgsl -lgslcblas
+
+# Flags for Mavericks
 ifeq "$(shell uname)" "Darwin"
 CXXFLAGS += -arch x86_64
+INCLUDEARGS += -I/usr/local/include
+LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
               then echo 'true'; fi)" "true"
 CXXFLAGS += -stdlib=libstdc++
 endif
 endif
 
-LIBS += -lgsl -lgslcblas
+all: $(PROGS)
 
-INCLUDEDIRS = $(SMITHLAB_CPP)
-INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
-
-SMITH_OBJ = $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
-            smithlab_utils.o OptionParser.o)
-
-OBJ = locus.o bin_for_distance.o distance_correlation.o proximal_loci.o \
-      stoufferliptak.o combine_pvals.o fdr.o pvallocus.o $(SMITH_OBJ)
-
-all: adjust dmrs
-
-install: adjust dmrs
+install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
-	@install -m 755 adjust dmrs $(SRC_ROOT)/bin
+	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-adjust : adjust.cpp $(OBJ)
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
+	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+
+OBJS=table_row.o stoufferliptak.o regression.o pvallocus.o proximal_loci.o \
+	loglikratio_test.o gsl_fitter.o design.o
+
+radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
