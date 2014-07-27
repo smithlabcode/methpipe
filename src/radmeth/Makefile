@@ -68,11 +68,11 @@ OBJS=table_row.o stoufferliptak.o regression.o pvallocus.o proximal_loci.o \
 radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
-dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+# dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
+# 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 %.o : %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
 clean:
-	rm -f adjust dmrs *.o
+	@-rm -f $(PROGS) *.o *.so *.a *~
