@@ -119,7 +119,7 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     bool IS_METHPIPE_FILE = true;
     string outfile;
-    double alpha = 0.90;
+    double alpha = 0.95;
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "compute methylation levels",
