@@ -54,12 +54,12 @@ using std::endl;
 static void
 parse_cpg_line(const string &buffer,
 	       string &context, size_t &n_meth, size_t &n_unmeth,
-               size_t &pos, string &strand) {
+               string &chr, size_t &pos, string &strand) {
 
   std::istringstream is(buffer);
   string name, dummy;
   double meth_freq = 0.0;
-  is >> dummy >> pos >> dummy >> name >> meth_freq >> strand;
+  is >> chr >> pos >> dummy >> name >> meth_freq >> strand;
   const size_t sep_pos = name.find_first_of(":");
   const size_t total = atoi(name.substr(sep_pos + 1).c_str());
   context = name.substr(0, sep_pos);
@@ -71,19 +71,16 @@ parse_cpg_line(const string &buffer,
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
         std::ifstream &in, string &context, size_t &n_meth, size_t &n_unmeth,
-        string &prev_chr, size_t &coverage, size_t &pos, string &strand) {
+        string &prev_chr, int &chr_count, size_t &coverage,
+        size_t &pos, string &strand) {
 
+  string chr;
   if (IS_METHPIPE_FILE) {
-    string chr;
     double meth = 0.0;
     if (!methpipe::read_site(in, chr, pos, strand,
 			     context, meth, coverage))
       return false;
     else {
-      if (chr != prev_chr && VERBOSE) {
-          cerr << "PROCESSING:\t" << chr << "\n";
-          prev_chr = chr;
-      }
       n_meth = std::tr1::round(meth*coverage);
       n_unmeth = std::tr1::round((1.0 - meth)*coverage);
       assert(n_meth + n_unmeth == coverage);
@@ -93,8 +90,15 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
     string buffer;
     if (!getline(in, buffer))
       return false;
-    parse_cpg_line(buffer, context, n_meth, n_unmeth, pos, strand);
+    parse_cpg_line(buffer, context, n_meth, n_unmeth, chr, pos, strand);
   }
+  if (chr != prev_chr) {
+    ++chr_count;
+    if (VERBOSE) {
+      cerr << "PROCESSING:\t" << chr << "\n";
+    }
+  }
+  prev_chr = chr;
   return true;
 }
 
@@ -166,6 +170,7 @@ main(int argc, const char **argv) {
     double mean_agg_cpg= 0, mean_agg_chh= 0, mean_agg_cxg= 0, mean_agg_ccg= 0;
 
     string prev_chr = "";
+    int chr_count = 0;
     size_t n_meth = 0, n_unmeth = 0, coverage = 0, pos = 0;
     size_t n_meth_prev = 0, n_unmeth_prev = 0, coverage_prev = 0, pos_prev = 0;
     string context, strand;
@@ -175,7 +180,7 @@ main(int argc, const char **argv) {
     double lower_prev = 0.0, upper_prev = 0.0;
     bool prev_mutated = false, last_is_complementary = true;
     while (get_meth_unmeth(IS_METHPIPE_FILE, VERBOSE,
-          in, context, n_meth, n_unmeth, prev_chr, coverage, pos, strand)) {
+          in, context, n_meth, n_unmeth, prev_chr, chr_count, coverage, pos, strand)) {
       // CpG is treated separately
       if (context.substr(0,3) == "CpG") {
         if (is_complementary_sites(pos, strand, pos_prev, strand_prev)) {
@@ -425,7 +430,8 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-    out << "SITES:" << '\t' << total_sites << endl
+    out << "NUMBER OF CHROMOSOMES:" << '\t' << chr_count << endl
+        << "SITES:" << '\t' << total_sites << endl
         << "SITES COVERED:" << '\t' << mapped_sites << endl
         << "FRACTION COVERED:"
             << '\t' << static_cast<double>(mapped_sites)/total_sites << endl
