@@ -6,6 +6,12 @@
  *         resolution DNA methylomes
  *         Schultz, Schmitz & Ecker (TIG 2012)
  *
+ *    Note: the fractional methylation level calculated in this program
+ *    is inspired but different from the paper. What we are doing here is
+ *    using binomial test to determine significantly hyper/hypomethylated
+ *    sites, and only use these subset of sites to calculate methylation
+ *    level.
+ *
  *
  *    Copyright (C) 2014 University of Southern California and
  *                       Andrew D. Smith
@@ -154,6 +160,8 @@ main(int argc, const char **argv) {
     size_t total_t_cpg = 0, total_t_chh = 0, total_t_cxg = 0, total_t_ccg = 0;
     size_t called_meth_cpg = 0, called_meth_chh = 0;
     size_t called_meth_cxg = 0, called_meth_ccg = 0;
+    size_t called_unmeth_cpg = 0, called_unmeth_chh = 0;
+    size_t called_unmeth_cxg = 0, called_unmeth_ccg = 0;
     size_t count_chh = 0, count_cxg = 0, count_ccg = 0;
     double mean_agg_cpg= 0, mean_agg_chh= 0, mean_agg_cxg= 0, mean_agg_ccg= 0;
 
@@ -205,6 +213,7 @@ main(int argc, const char **argv) {
               wilson_ci_for_binomial(alpha,
                   coverage, level, lower, upper);
               called_meth_cpg += (lower > 0.5);
+              called_unmeth_cpg += (upper < 0.5);
               total_cov += coverage;
             }
           }
@@ -232,6 +241,7 @@ main(int argc, const char **argv) {
                 wilson_ci_for_binomial(alpha,
                     coverage_prev, level_prev, lower_prev, upper_prev);
                 called_meth_cpg += (lower_prev > 0.5);
+                called_unmeth_cpg += (upper_prev < 0.5);
                 total_cov += coverage_prev;
                 if (coverage_prev > max_cov)
                     max_cov = coverage_prev;
@@ -279,6 +289,7 @@ main(int argc, const char **argv) {
               wilson_ci_for_binomial(alpha,
                   coverage_prev, level_prev, lower_prev, upper_prev);
               called_meth_cpg += (lower_prev > 0.5);
+              called_unmeth_cpg += (upper_prev < 0.5);
               total_cov += coverage_prev;
               if (coverage_prev > max_cov)
                   max_cov = coverage_prev;
@@ -296,6 +307,7 @@ main(int argc, const char **argv) {
             mean_agg_cxg += level;
             ++count_cxg;
             called_meth_cxg += (lower > 0.5);
+            called_unmeth_cxg += (upper < 0.5);
           }
           else if (context.substr(0,3) == "CHH") {
             total_c_chh += n_meth;
@@ -303,6 +315,7 @@ main(int argc, const char **argv) {
             mean_agg_chh += level;
             ++count_chh;
             called_meth_chh += (lower > 0.5);
+            called_unmeth_chh += (upper < 0.5);
           }
           else if (context.substr(0,3) == "CCG") {
             total_c_ccg += n_meth;
@@ -310,6 +323,7 @@ main(int argc, const char **argv) {
             mean_agg_ccg += level;
             ++count_ccg;
             called_meth_ccg += (lower > 0.5);
+            called_unmeth_ccg += (upper < 0.5);
           }
           else {
             throw SMITHLABException("bad context in input file: " + context);
@@ -368,7 +382,8 @@ main(int argc, const char **argv) {
       static_cast<double>(total_c_cpg)/(total_c_cpg + total_t_cpg);
 
     const double fractional_meth_cpg =
-      static_cast<double>(called_meth_cpg)/total_cpg_mapped;
+      static_cast<double>(called_meth_cpg)/(called_meth_cpg
+          + called_unmeth_cpg);
 
     const double mean_meth_cpg = mean_agg_cpg/total_cpg_mapped;
 
@@ -376,7 +391,8 @@ main(int argc, const char **argv) {
       static_cast<double>(total_c_chh)/(total_c_chh + total_t_chh);
 
     const double fractional_meth_chh =
-      static_cast<double>(called_meth_chh)/count_chh;
+      static_cast<double>(called_meth_chh)/(called_meth_chh
+          + called_unmeth_chh);
 
     const double mean_meth_chh = mean_agg_chh/count_chh;
 
@@ -384,7 +400,8 @@ main(int argc, const char **argv) {
       static_cast<double>(total_c_cxg)/(total_c_cxg + total_t_cxg);
 
     const double fractional_meth_cxg =
-      static_cast<double>(called_meth_cxg)/count_cxg;
+      static_cast<double>(called_meth_cxg)/(called_meth_cxg
+          + called_unmeth_cxg);
 
     const double mean_meth_cxg = mean_agg_cxg/count_cxg;
 
@@ -392,7 +409,8 @@ main(int argc, const char **argv) {
       static_cast<double>(total_c_ccg)/(total_c_ccg + total_t_ccg);
 
     const double fractional_meth_ccg =
-      static_cast<double>(called_meth_ccg)/count_ccg;
+      static_cast<double>(called_meth_ccg)/(called_meth_ccg
+          + called_unmeth_ccg);
 
     const double mean_meth_ccg = mean_agg_ccg/count_ccg; 
     const double mean_coverage_cpg_all = total_cpg_sites > 0 ?
