@@ -385,39 +385,47 @@ main(int argc, const char **argv) {
 
     const double weighted_mean_meth_cpg =
       static_cast<double>(total_c_cpg)/(total_c_cpg + total_t_cpg);
-
     const double fractional_meth_cpg =
       static_cast<double>(called_meth_cpg)/(called_meth_cpg
           + called_unmeth_cpg);
-
     const double mean_meth_cpg = mean_agg_cpg/total_cpg_mapped;
 
     const double weighted_mean_meth_chh =
       static_cast<double>(total_c_chh)/(total_c_chh + total_t_chh);
-
     const double fractional_meth_chh =
       static_cast<double>(called_meth_chh)/(called_meth_chh
           + called_unmeth_chh);
-
     const double mean_meth_chh = mean_agg_chh/count_chh;
 
     const double weighted_mean_meth_cxg =
       static_cast<double>(total_c_cxg)/(total_c_cxg + total_t_cxg);
-
     const double fractional_meth_cxg =
       static_cast<double>(called_meth_cxg)/(called_meth_cxg
           + called_unmeth_cxg);
-
     const double mean_meth_cxg = mean_agg_cxg/count_cxg;
 
     const double weighted_mean_meth_ccg =
       static_cast<double>(total_c_ccg)/(total_c_ccg + total_t_ccg);
-
     const double fractional_meth_ccg =
       static_cast<double>(called_meth_ccg)/(called_meth_ccg
           + called_unmeth_ccg);
-
     const double mean_meth_ccg = mean_agg_ccg/count_ccg; 
+
+    const double weighted_mean_meth_all_c =
+      static_cast<double>(total_c_cpg + total_c_chh
+          + total_c_cxg + total_c_ccg)/
+          (total_c_cpg + total_c_chh + total_c_cxg + total_c_ccg
+          + total_t_cpg + total_t_chh + total_t_cxg + total_t_ccg);
+    const double fractional_meth_all_c =
+      static_cast<double>(called_meth_cpg + called_meth_chh
+          + called_meth_cxg + called_meth_ccg)
+          /(called_meth_cpg + called_meth_chh + called_meth_cxg + called_meth_ccg
+          + called_unmeth_cpg + called_unmeth_chh
+          + called_unmeth_cxg + called_unmeth_ccg);
+    const double mean_meth_all_c = (mean_agg_cpg + mean_agg_chh
+      + mean_agg_cxg + mean_agg_ccg)
+      /(total_cpg_mapped + count_chh + count_cxg + count_ccg); 
+
     const double mean_coverage_cpg_all = total_cpg_sites > 0 ?
       static_cast<double>(cpg_cov)/total_cpg_sites : 0;
     const double mean_coverage_cpg_mapped = total_cpg_mapped > 0 ?
@@ -502,6 +510,17 @@ main(int argc, const char **argv) {
           << '\t' << "frac_meth" << '\t' << fractional_meth_ccg << endl;
     } else {
       out << "METHYLATION LEVELS (CCG CONTEXT):" << endl
+          << '\t' <<  "mean_meth\tN/A" << endl
+          << '\t' << "w_mean_meth\tN/A" << endl
+          << '\t' << "frac_meth\tN/A" << endl;
+    }
+    if (total_cpg_mapped + count_chh + count_cxg + count_ccg > 0) {
+      out << "METHYLATION LEVELS (ALL CONTEXT):" << endl
+          << '\t' <<  "mean_meth\t" << mean_meth_all_c << endl
+          << '\t' << "w_mean_meth\t" << weighted_mean_meth_all_c << endl
+          << '\t' << "frac_meth\t" << fractional_meth_all_c <<endl;
+    } else {
+      out << "METHYLATION LEVELS (ALL CONTEXT):" << endl
           << '\t' <<  "mean_meth\tN/A" << endl
           << '\t' << "w_mean_meth\tN/A" << endl
           << '\t' << "frac_meth\tN/A" << endl;
