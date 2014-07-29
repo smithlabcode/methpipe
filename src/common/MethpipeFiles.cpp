@@ -202,17 +202,13 @@ methpipe::seek_site(std::istream &in, const std::string &chr,
     }
 }
 
-bool
+std::istream&
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
                     double &meth, size_t &coverage) {
-    in >> chrom >> pos >> strand >> seq >> meth >> coverage;
-    return in.good();
     
-   // string line;
-   // getline(in, line);
-
-   // std::istringstream is(line);
+  in >> chrom >> pos >> strand >> seq >> meth >> coverage;
+  return in;
 
    // string pos_str, meth_str, cov_str;
    // if (!(is >> chrom >> pos_str >> strand >>
