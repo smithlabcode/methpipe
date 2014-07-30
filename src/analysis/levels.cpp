@@ -6,6 +6,12 @@
  *         resolution DNA methylomes
  *         Schultz, Schmitz & Ecker (TIG 2012)
  *
+ *    Note: the fractional methylation level calculated in this program
+ *    is inspired but different from the paper. What we are doing here is
+ *    using binomial test to determine significantly hyper/hypomethylated
+ *    sites, and only use these subset of sites to calculate methylation
+ *    level.
+ *
  *
  *    Copyright (C) 2014 University of Southern California and
  *                       Andrew D. Smith
@@ -48,12 +54,12 @@ using std::endl;
 static void
 parse_cpg_line(const string &buffer,
 	       string &context, size_t &n_meth, size_t &n_unmeth,
-               size_t &pos, string &strand) {
+               string &chr, size_t &pos, string &strand) {
 
   std::istringstream is(buffer);
   string name, dummy;
   double meth_freq = 0.0;
-  is >> dummy >> pos >> dummy >> name >> meth_freq >> strand;
+  is >> chr >> pos >> dummy >> name >> meth_freq >> strand;
   const size_t sep_pos = name.find_first_of(":");
   const size_t total = atoi(name.substr(sep_pos + 1).c_str());
   context = name.substr(0, sep_pos);
@@ -65,19 +71,16 @@ parse_cpg_line(const string &buffer,
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
         std::ifstream &in, string &context, size_t &n_meth, size_t &n_unmeth,
-        string &prev_chr, size_t &coverage, size_t &pos, string &strand) {
+        string &prev_chr, int &chr_count, size_t &coverage,
+        size_t &pos, string &strand) {
 
+  string chr;
   if (IS_METHPIPE_FILE) {
-    string chr;
     double meth = 0.0;
     if (!methpipe::read_site(in, chr, pos, strand,
 			     context, meth, coverage))
       return false;
     else {
-      if (chr != prev_chr && VERBOSE) {
-          cerr << "PROCESSING:\t" << chr << "\n";
-          prev_chr = chr;
-      }
       n_meth = std::tr1::round(meth*coverage);
       n_unmeth = std::tr1::round((1.0 - meth)*coverage);
       assert(n_meth + n_unmeth == coverage);
@@ -87,8 +90,15 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
     string buffer;
     if (!getline(in, buffer))
       return false;
-    parse_cpg_line(buffer, context, n_meth, n_unmeth, pos, strand);
+    parse_cpg_line(buffer, context, n_meth, n_unmeth, chr, pos, strand);
   }
+  if (chr != prev_chr) {
+    ++chr_count;
+    if (VERBOSE) {
+      cerr << "PROCESSING:\t" << chr << "\n";
+    }
+  }
+  prev_chr = chr;
   return true;
 }
 
@@ -109,7 +119,7 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     bool IS_METHPIPE_FILE = true;
     string outfile;
-    double alpha = 0.90;
+    double alpha = 0.95;
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "compute methylation levels",
@@ -154,10 +164,13 @@ main(int argc, const char **argv) {
     size_t total_t_cpg = 0, total_t_chh = 0, total_t_cxg = 0, total_t_ccg = 0;
     size_t called_meth_cpg = 0, called_meth_chh = 0;
     size_t called_meth_cxg = 0, called_meth_ccg = 0;
+    size_t called_unmeth_cpg = 0, called_unmeth_chh = 0;
+    size_t called_unmeth_cxg = 0, called_unmeth_ccg = 0;
     size_t count_chh = 0, count_cxg = 0, count_ccg = 0;
     double mean_agg_cpg= 0, mean_agg_chh= 0, mean_agg_cxg= 0, mean_agg_ccg= 0;
 
     string prev_chr = "";
+    int chr_count = 0;
     size_t n_meth = 0, n_unmeth = 0, coverage = 0, pos = 0;
     size_t n_meth_prev = 0, n_unmeth_prev = 0, coverage_prev = 0, pos_prev = 0;
     string context, strand;
@@ -167,7 +180,7 @@ main(int argc, const char **argv) {
     double lower_prev = 0.0, upper_prev = 0.0;
     bool prev_mutated = false, last_is_complementary = true;
     while (get_meth_unmeth(IS_METHPIPE_FILE, VERBOSE,
-          in, context, n_meth, n_unmeth, prev_chr, coverage, pos, strand)) {
+          in, context, n_meth, n_unmeth, prev_chr, chr_count, coverage, pos, strand)) {
       // CpG is treated separately
       if (context.substr(0,3) == "CpG") {
         if (is_complementary_sites(pos, strand, pos_prev, strand_prev)) {
@@ -205,6 +218,7 @@ main(int argc, const char **argv) {
               wilson_ci_for_binomial(alpha,
                   coverage, level, lower, upper);
               called_meth_cpg += (lower > 0.5);
+              called_unmeth_cpg += (upper < 0.5);
               total_cov += coverage;
             }
           }
@@ -232,6 +246,7 @@ main(int argc, const char **argv) {
                 wilson_ci_for_binomial(alpha,
                     coverage_prev, level_prev, lower_prev, upper_prev);
                 called_meth_cpg += (lower_prev > 0.5);
+                called_unmeth_cpg += (upper_prev < 0.5);
                 total_cov += coverage_prev;
                 if (coverage_prev > max_cov)
                     max_cov = coverage_prev;
@@ -279,6 +294,7 @@ main(int argc, const char **argv) {
               wilson_ci_for_binomial(alpha,
                   coverage_prev, level_prev, lower_prev, upper_prev);
               called_meth_cpg += (lower_prev > 0.5);
+              called_unmeth_cpg += (upper_prev < 0.5);
               total_cov += coverage_prev;
               if (coverage_prev > max_cov)
                   max_cov = coverage_prev;
@@ -296,6 +312,7 @@ main(int argc, const char **argv) {
             mean_agg_cxg += level;
             ++count_cxg;
             called_meth_cxg += (lower > 0.5);
+            called_unmeth_cxg += (upper < 0.5);
           }
           else if (context.substr(0,3) == "CHH") {
             total_c_chh += n_meth;
@@ -303,6 +320,7 @@ main(int argc, const char **argv) {
             mean_agg_chh += level;
             ++count_chh;
             called_meth_chh += (lower > 0.5);
+            called_unmeth_chh += (upper < 0.5);
           }
           else if (context.substr(0,3) == "CCG") {
             total_c_ccg += n_meth;
@@ -310,6 +328,7 @@ main(int argc, const char **argv) {
             mean_agg_ccg += level;
             ++count_ccg;
             called_meth_ccg += (lower > 0.5);
+            called_unmeth_ccg += (upper < 0.5);
           }
           else {
             throw SMITHLABException("bad context in input file: " + context);
@@ -366,35 +385,47 @@ main(int argc, const char **argv) {
 
     const double weighted_mean_meth_cpg =
       static_cast<double>(total_c_cpg)/(total_c_cpg + total_t_cpg);
-
     const double fractional_meth_cpg =
-      static_cast<double>(called_meth_cpg)/total_cpg_mapped;
-
+      static_cast<double>(called_meth_cpg)/(called_meth_cpg
+          + called_unmeth_cpg);
     const double mean_meth_cpg = mean_agg_cpg/total_cpg_mapped;
 
     const double weighted_mean_meth_chh =
       static_cast<double>(total_c_chh)/(total_c_chh + total_t_chh);
-
     const double fractional_meth_chh =
-      static_cast<double>(called_meth_chh)/count_chh;
-
+      static_cast<double>(called_meth_chh)/(called_meth_chh
+          + called_unmeth_chh);
     const double mean_meth_chh = mean_agg_chh/count_chh;
 
     const double weighted_mean_meth_cxg =
       static_cast<double>(total_c_cxg)/(total_c_cxg + total_t_cxg);
-
     const double fractional_meth_cxg =
-      static_cast<double>(called_meth_cxg)/count_cxg;
-
+      static_cast<double>(called_meth_cxg)/(called_meth_cxg
+          + called_unmeth_cxg);
     const double mean_meth_cxg = mean_agg_cxg/count_cxg;
 
     const double weighted_mean_meth_ccg =
       static_cast<double>(total_c_ccg)/(total_c_ccg + total_t_ccg);
-
     const double fractional_meth_ccg =
-      static_cast<double>(called_meth_ccg)/count_ccg;
-
+      static_cast<double>(called_meth_ccg)/(called_meth_ccg
+          + called_unmeth_ccg);
     const double mean_meth_ccg = mean_agg_ccg/count_ccg; 
+
+    const double weighted_mean_meth_all_c =
+      static_cast<double>(total_c_cpg + total_c_chh
+          + total_c_cxg + total_c_ccg)/
+          (total_c_cpg + total_c_chh + total_c_cxg + total_c_ccg
+          + total_t_cpg + total_t_chh + total_t_cxg + total_t_ccg);
+    const double fractional_meth_all_c =
+      static_cast<double>(called_meth_cpg + called_meth_chh
+          + called_meth_cxg + called_meth_ccg)
+          /(called_meth_cpg + called_meth_chh + called_meth_cxg + called_meth_ccg
+          + called_unmeth_cpg + called_unmeth_chh
+          + called_unmeth_cxg + called_unmeth_ccg);
+    const double mean_meth_all_c = (mean_agg_cpg + mean_agg_chh
+      + mean_agg_cxg + mean_agg_ccg)
+      /(total_cpg_mapped + count_chh + count_cxg + count_ccg); 
+
     const double mean_coverage_cpg_all = total_cpg_sites > 0 ?
       static_cast<double>(cpg_cov)/total_cpg_sites : 0;
     const double mean_coverage_cpg_mapped = total_cpg_mapped > 0 ?
@@ -407,7 +438,8 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-    out << "SITES:" << '\t' << total_sites << endl
+    out << "NUMBER OF CHROMOSOMES:" << '\t' << chr_count << endl
+        << "SITES:" << '\t' << total_sites << endl
         << "SITES COVERED:" << '\t' << mapped_sites << endl
         << "FRACTION COVERED:"
             << '\t' << static_cast<double>(mapped_sites)/total_sites << endl
@@ -478,6 +510,17 @@ main(int argc, const char **argv) {
           << '\t' << "frac_meth" << '\t' << fractional_meth_ccg << endl;
     } else {
       out << "METHYLATION LEVELS (CCG CONTEXT):" << endl
+          << '\t' <<  "mean_meth\tN/A" << endl
+          << '\t' << "w_mean_meth\tN/A" << endl
+          << '\t' << "frac_meth\tN/A" << endl;
+    }
+    if (total_cpg_mapped + count_chh + count_cxg + count_ccg > 0) {
+      out << "METHYLATION LEVELS (ALL CONTEXT):" << endl
+          << '\t' <<  "mean_meth\t" << mean_meth_all_c << endl
+          << '\t' << "w_mean_meth\t" << weighted_mean_meth_all_c << endl
+          << '\t' << "frac_meth\t" << fractional_meth_all_c <<endl;
+    } else {
+      out << "METHYLATION LEVELS (ALL CONTEXT):" << endl
           << '\t' <<  "mean_meth\tN/A" << endl
           << '\t' << "w_mean_meth\tN/A" << endl
           << '\t' << "frac_meth\tN/A" << endl;
