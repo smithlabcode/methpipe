@@ -421,18 +421,17 @@ main(int argc, const char **argv) {
     
     vector<GenomicRegion> amrs;
     size_t windows_tested = 0;
-    
+    epiread er;
     vector<epiread> epireads;
     string prev_chrom, curr_chrom, tmp_states;
-    size_t tmp_pos;
-    while (in >> curr_chrom >> tmp_pos >> tmp_states) {
+    while (in >> er) {
       if (!epireads.empty() && curr_chrom != prev_chrom) {
         windows_tested += 
         process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
 		    epistat, prev_chrom, epireads, amrs);
         epireads.clear();
       }
-      epireads.push_back(epiread(tmp_pos, tmp_states));
+      epireads.push_back(er);
       prev_chrom = curr_chrom;
     }
 
