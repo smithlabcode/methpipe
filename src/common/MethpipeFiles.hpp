@@ -41,7 +41,7 @@ namespace methpipe
               std::vector<std::pair<double, double> > &meths,
               std::vector<size_t> &reads);
 
-    bool
+    std::istream&
     read_site(std::istream &in, std::string &chrom, size_t &pos,
               std::string &strand, std::string &seq,
               double &meth, size_t &coverage);
