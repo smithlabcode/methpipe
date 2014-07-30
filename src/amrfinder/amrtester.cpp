@@ -260,15 +260,15 @@ main(int argc, const char **argv) {
 
     for (size_t i = 0; i < regions.size(); ++i) {
       if (PROGRESS)
-	cerr << '\r' << percent(i, n_regions) << "%\r";
+        cerr << '\r' << percent(i, n_regions) << "%\r";
       
       if (regions[i].get_chrom() != curr_chrom) {
-	curr_chrom = regions[i].get_chrom();
-	const unordered_map<string, string>::const_iterator 
-	  chrom_file(chrom_files.find(curr_chrom));
-	if (chrom_file == chrom_files.end())
-	  throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
-	get_cpg_positions(chrom_file->second, cpg_positions);
+        curr_chrom = regions[i].get_chrom();
+        const unordered_map<string, string>::const_iterator 
+        chrom_file(chrom_files.find(curr_chrom));
+      if (chrom_file == chrom_files.end())
+        throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
+        get_cpg_positions(chrom_file->second, cpg_positions);
       }
       
       GenomicRegion converted_region(regions[i]);
@@ -278,12 +278,12 @@ main(int argc, const char **argv) {
       load_reads(reads_file_name, converted_region, reads);
       
       clip_reads(converted_region.get_start(), 
-		 converted_region.get_end(), reads);
+      converted_region.get_end(), reads);
       
       if (!reads.empty()) {
-	regions[i].set_score((USE_BIC) ?
-			     test_asm_bic(max_itr, low_prob, high_prob, reads):
-			     test_asm_lrt(max_itr, low_prob, high_prob, reads));
+        regions[i].set_score((USE_BIC) ?
+                 test_asm_bic(max_itr, low_prob, high_prob, reads):
+                 test_asm_lrt(max_itr, low_prob, high_prob, reads));
       }
       else regions[i].set_score(1.0);
       
