@@ -1,4 +1,4 @@
-/*    allelicmeth2:
+/*    allelicmeth:
  *
  *    Copyright (C) 2014 University of Southern California,
  *                       Andrew D. Smith, and Benjamin E. Decato
@@ -220,27 +220,21 @@ get_chrom(const bool VERBOSE, const GenomicRegion &r,
 static void
 convert_coordinates(const bool VERBOSE, const string chroms_dir,
                     const string fasta_suffix, vector<GenomicRegion> &amrs) {
-  cerr << "CONVERTING COORDINATES\n";
+  
   unordered_map<string, string> chrom_files;
   identify_and_read_chromosomes(chroms_dir, fasta_suffix, chrom_files);
+  if (VERBOSE)
+    cerr << "CHROMS:\t" << chrom_files.size() << endl;
   
   unordered_map<size_t, size_t> cpgs;
   string chrom;
   GenomicRegion chrom_region("chr0", 0, 0);
-  for (size_t i = 0; i < amrs.size()-1; ++i) {
-    //cout << amrs[i] << endl;
-    // get the correct chrom if it has changed
+  for (size_t i = 0; i < amrs.size(); ++i) {
     if (!amrs[i].same_chrom(chrom_region)) {
-      try {
-        get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
-      } catch (const SMITHLABException &e) {
-        if (e.what().find("could not find chrom") != string::npos)
-          continue;
-        throw;
-      }
+      get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
+      collect_cpgs(chrom, cpgs);
       if (VERBOSE)
         cerr << "CONVERTING: " << chrom_region.get_chrom() << endl;
-      collect_cpgs(chrom, cpgs);
     }
     convert_coordinates(cpgs, amrs[i]);
   }

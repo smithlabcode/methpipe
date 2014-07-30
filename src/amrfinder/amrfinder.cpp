@@ -224,21 +224,12 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
   string chrom;
   GenomicRegion chrom_region("chr0", 0, 0);
   for (size_t i = 0; i < amrs.size(); ++i) {
-    
-    // get the correct chrom if it has changed
     if (!amrs[i].same_chrom(chrom_region)) {
-      try {
-        get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
-      } catch (const SMITHLABException &e) {
-        if (e.what().find("could not find chrom") != string::npos)
-          continue;
-        throw;
-      }
+      get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
+      collect_cpgs(chrom, cpgs);
       if (VERBOSE)
         cerr << "CONVERTING: " << chrom_region.get_chrom() << endl;
-      collect_cpgs(chrom, cpgs);
     }
-    
     convert_coordinates(cpgs, amrs[i]);
   }
 }
