@@ -812,18 +812,21 @@ $ ./hmr -partial -o Human_ESC.pmr Human_ESC.meth
 \paragraph{Giant HMRs observed in cancer samples (AKA PMDs):}
 
 Huge genomic blocks with abnormal hypomethylation have been
-extensively observed in human cancer methylomes and more recently
-in extraembryonic tissues like the placenta. These domains are 
-characterized by enrichment in intergenic regions or Lamina 
-associated domains (LAD), which are usually hypermethylated in 
-normal tissues. Partially methylated domains (PMDs) are not
-homogeneously hypomethylated as in the case of HMRs, and contain
-focal hypermethylation at specific sites. Hidden Markov Models
-can also identify these larger domains. The program \prog{pmd}
-is provided for their identification, and can be run as follows:
+extensively observed in human cancer methylomes and more recently in
+extraembryonic tissues like the placenta. These domains are
+characterized by enrichment in intergenic regions or Lamina associated
+domains (LAD), which are usually hypermethylated in normal
+tissues. Partially methylated domains (PMDs) are not homogeneously
+hypomethylated as in the case of HMRs, and contain focal
+hypermethylation at specific sites. PMDs are large domains with sizes
+ranging from $10$kb to over $1$Mb.  Hidden Markov Models can also
+identify these larger domains. The program \prog{pmd} is provided for
+their identification, and can be run as follows:
+
 \begin{verbatim}
 $ ./pmd -o Human_ESC.pmd Human_ESC.meth
 \end{verbatim}
+
 The program calculates in nonoverlapping bins the total methylated and
 unmethylated read counts. The default bin size is $1000$bp, and users
 can customize the value by specifying the option \op{-b}. The bin-level read
@@ -835,8 +838,18 @@ PMDs includes trimming the two ends of a domain to the first and last
 CpG positions, and merging candidates that are ``close'' to each
 other. Currently, we are using $2\times bin\_size$ as the merging
 distance. Development in later versions of the \prog{pmd} program will
-include randomization procedures for choosing merging distance.
+include randomization procedures for choosing merging distance. 
 
+In general, the presence of a single HMR wouldn't cause the program to
+report a PMD in that region. However, in cases where a number of HMRs
+are close to each other, such as the promoter HMRs in a gene cluster,
+the \prog{pmd} program might report a PMD covering those HMRs. Users
+should be cautious with using such PMD calls in their further
+studies. In addition, not all methylomes have PMDs, some initial
+visualization or summary statistics can be of help in deciding whether
+to use \prog{pmd} program on the methylome of interest.
+
+ 
 \subsection{Differential methylation between two methylomes}
 \label{sec:differential_methylation}
 
