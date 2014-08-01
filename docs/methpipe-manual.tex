@@ -667,7 +667,7 @@ methylated regions (PMRs), differentially methylated regions between
 two methylomes (DMRs), regions with allele-specific methylation (AMRs),
 and hydroxymethylation.
 
-\subsection{Hypomethylated and hypermethylated regions (HMRs)}
+\subsection{Hypomethylated and hypermethylated regions}
 \label{sec:indent-hypo-methyl}
 
 The distribution of methylation levels at individual sites in a
@@ -813,7 +813,7 @@ $ ./hmr -partial -o Human_ESC.pmr Human_ESC.meth
 
 Huge genomic blocks with abnormal hypomethylation have been
 extensively observed in human cancer methylomes and more recently
-in extraembryonic tissues like the placenta. These domains are
+in extraembryonic tissues like the placenta. These domains are 
 characterized by enrichment in intergenic regions or Lamina 
 associated domains (LAD), which are usually hypermethylated in 
 normal tissues. Partially methylated domains (PMDs) are not
@@ -821,10 +821,21 @@ homogeneously hypomethylated as in the case of HMRs, and contain
 focal hypermethylation at specific sites. Hidden Markov Models
 can also identify these larger domains. The program \prog{pmd}
 is provided for their identification, and can be run as follows:
-
 \begin{verbatim}
 $ ./pmd -o Human_ESC.pmd Human_ESC.meth
 \end{verbatim}
+The program calculates in nonoverlapping bins the total methylated and
+unmethylated read counts. The default bin size is $1000$bp, and users
+can customize the value by specifying the option \op{-b}. The bin-level read
+counts are modeled with a 2-state HMM in the same form
+as the model used for HMR detection. The sequence of genomic bins is
+segmented into hypermethylation and partial-methylation domains, where
+the latter are the candidate PMDs. Further processing of candidate
+PMDs includes trimming the two ends of a domain to the first and last
+CpG positions, and merging candidates that are ``close'' to each
+other. Currently, we are using $2\times bin\_size$ as the merging
+distance. Development in later versions of the \prog{pmd} program will
+include randomization procedures for choosing merging distance.
 
 \subsection{Differential methylation between two methylomes}
 \label{sec:differential_methylation}
