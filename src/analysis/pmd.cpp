@@ -14,6 +14,15 @@
  * GNU General Public License for more details.
  */
 
+/*****************************************
+ *This program adopts the same TwoStateHMM functions as the hmr
+ *program does.  First, the read counts at single CpGs are pooled in
+ *non-overlapping bins.  The pooled counts for each bin is treated as
+ *a single observation from a beta-binomial distribution.  Then the
+ *two state HMM is built on these pooled counts.  If the bin size is
+ *set to 1, this program would be the same as the hmr program.
+ ****************************************/
+
 #include <tr1/cmath>
 #include <numeric>
 #include <cmath>
@@ -29,8 +38,6 @@
 #include "OptionParser.hpp"
 #include "TwoStateHMM.hpp"
 #include "MethpipeFiles.hpp"
-
-
 
 using std::string;
 using std::vector;
