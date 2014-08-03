@@ -40,14 +40,15 @@ using std::endl;
 using std::tr1::round;
 
 struct SiteInfo {
-  bool is_cpg() const {return context == "CpG";}
+  bool is_cpg() const {return context.compare(0, 3, "CpG") == 0;}
   void add_meth_info(const SiteInfo &other) {
     const size_t other_meth_count =
       static_cast<size_t>(std::tr1::round(other.meth*other.total));
     const size_t meth_count =
       static_cast<size_t>(std::tr1::round(meth*total));
     total += other.total;
-    meth = static_cast<double>(meth_count + other_meth_count)/total;
+    meth = (total == 0) ? 0.0 :
+      static_cast<double>(meth_count + other_meth_count)/total;
   }
   string chrom;
   string context;
