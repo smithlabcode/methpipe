@@ -28,7 +28,7 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = lc_approx fastLiftOver to-mr merge-bsrate merge-methcounts \
-        duplicate-remover
+        duplicate-remover symmetric-cpgs
 
 # if SAMTOOLS location not set, try to set it
 ifndef SAMTOOLS_DIR
