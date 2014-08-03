@@ -1,10 +1,11 @@
-/*    symmetric-cpgs: extract the CpG sites from a methcounts output
+/*
+ *    symmetric-cpgs: extract the CpG sites from a methcounts output
  *    file and produce a new one with the CpGs treated unstranded.
  *
  *    Copyright (C) 2014 University of Southern California and
  *                       Andrew D. Smith
  *
- *    Authors: Song Qiang
+ *    Authors: Andrew D. Smith
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
