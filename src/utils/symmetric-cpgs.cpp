@@ -84,7 +84,9 @@ operator<<(std::ostream &out, const SiteInfo &si) {
 static bool
 not_mutated(const SiteInfo &si) {
   const size_t len = si.context.length();
-  assert(len > 0);
+  //assert(len > 0);
+  // when dealing with the first site, the previous one is empty
+  if (si.context.empty()) return true;
   return si.context[len-1] != 'x';
 }
 
@@ -149,10 +151,15 @@ main(int argc, const char **argv) {
     
     SiteInfo prev, si;
     while (in >> si) {
-      if ((include_mutated || not_mutated(si)) && 
-          found_symmetric(prev, si)) {
+      if (found_symmetric(prev, si)) {
         prev.add_meth_info(si);
-        out << prev << '\n';
+        if (not_mutated(si) && not_mutated(prev)) {
+          out << prev << '\n';
+        }
+        else if (include_mutated) {
+          prev.context = "CpGx";
+          out << prev << '\n';
+        }
       }
       prev = si;
     }
