@@ -2,7 +2,7 @@
  *                  to create composite bsrate statistics for biological
  *                  replicates or reference methylomes
  *
- *    Copyright (C) 2009-2013 University of Southern California and
+ *    Copyright (C) 2011-2014 University of Southern California and
  *                            Andrew D Smith
  *
  *    Authors: Benjamin E Decato

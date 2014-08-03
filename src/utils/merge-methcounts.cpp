@@ -1,10 +1,9 @@
-/*
- *    conversion in a bisulfite sequencing experiment
+/*    merge-methcounts: a program for merging methcounts files
  *
- *    Copyright (C) 2009-2012 University of Southern California and
+ *    Copyright (C) 2011-2014 University of Southern California and
  *                            Andrew D. Smith
  *
- *    Authors: Song Qiang
+ *    Authors: Benjamin E Decato and Meng Zhou
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -106,7 +105,6 @@ main(int argc, const char **argv) {
   try {
 
     string outfile;
-    string out_stat;
     bool VERBOSE;
 
     /****************** COMMAND LINE OPTIONS ********************/
@@ -115,8 +113,6 @@ main(int argc, const char **argv) {
                            "<methcounts-files>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
-    opt_parse.add_opt("stat", 'S', "file to write statistics",
-                      false , out_stat);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
