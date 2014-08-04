@@ -64,6 +64,8 @@ src/amrfinder/amrfinder
 src/amrfinder/amrtester
 src/analysis/hypermr
 src/mlml/mlml
-
+src/utils/duplicate-remover
+src/utils/merge-bsrate
+src/utils/merge-methcounts
 
 
