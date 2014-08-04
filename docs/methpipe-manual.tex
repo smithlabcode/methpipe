@@ -1485,9 +1485,9 @@ Two bash scripts have been provided to perform quick and consistent analysis
 on the individual library level and aggregated biological replicate level.
 For each library in a project, \prog{library} sorts, removes duplicate
 reads, calculates the bisulfite conversion rate, runs \prog{methcounts}, and
-runs \prog{levels}. There is also an option to perform \prog{methcounts}
-analysis on all cytosines, which can be toggled by uncommenting the command
-in the script. For RRBS data, the \prog{duplicate-remover} command should
+runs \prog{levels}. Keep in mind that this will produce \prog{methcounts}
+output for all cytosine contexts, which corresponds to a 25GB file for the
+human genome. For RRBS data, the \prog{duplicate-remover} command should
 be commented.
 
 To run \prog{library}, navigate to the library's results directory --
@@ -1504,31 +1504,31 @@ library /home/user/Desktop/methpipe/trunk/bin \
         /home/user/Desktop/mm9_chroms Human_ESC_R1_L1
 \end{verbatim}
 
-%When \prog{library} has been run on all individual libraries, the
-%results can be merged to produce results for the biological replicate using
-%\prog{merge-methylomes}. This merges bisulfite conversion rate and methcounts
-%statistics, and then uses them to generate HMRs, PMRs, and AMRs. To run
-%\prog{merge-methylomes}, navigate to the biological replicate's results
-%directory -- the structure should look something like
-%\begin{verbatim}
-%./Human_ESC/Human_ESC_R1/results_mm9/
-%\end{verbatim}
-%and should be empty when the program starts. To run, specify the same command
-%line arguments as above, with the biological replicate as the base name:
-%\begin{verbatim}
-%biorep /home/user/Desktop/methpipe/trunk/bin \
-%       /home/user/Desktop/mm9_chroms Human_ESC_R1 L
-%\end{verbatim}
-%
-%In some cases, it is useful to merge biological replicates rather than
-%libraries. In this case, the fourth parameter of
-%\prog{merge-methylomes} should be \op{R}.
+When \prog{library} has been run on all individual libraries, the
+results can be merged to produce results for the biological replicate using
+\prog{merge-methylomes}. This merges bisulfite conversion rate and methcounts
+statistics, and then uses them to generate HMRs, PMRs, and AMRs. To run
+\prog{merge-methylomes}, navigate to the biological replicate's results
+directory -- the structure should look something like
+\begin{verbatim}
+./Human_ESC/Human_ESC_R1/results_mm9/
+\end{verbatim}
+and should be empty when the program starts. To run, specify the same command
+line arguments as above, with the biological replicate as the base name:
+\begin{verbatim}
+merge-methylomes /home/user/Desktop/methpipe/trunk/bin \
+       /home/user/Desktop/mm9_chroms Human_ESC_R1 L
+\end{verbatim}
+
+In some cases, it is useful to merge biological replicates rather than
+libraries. In this case, the fourth parameter of
+\prog{merge-methylomes} should be \op{R}.
 
 All run configurations for the programs in these scripts are
 consistent with data in methbase, and therefore direct comparison is
 appropriate. These tools should provide a convenient, consistent
 workflow for researchers to quickly analyze and compare their
-methylomes with those made publically available in methbase.
+methylomes with those made publicly available in methbase.
 
 \subsection{Mapping methylomes between species}
 \label{sec:mapp-methyl-betw}
