@@ -153,7 +153,7 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
   
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Egor's program",
+    OptionParser opt_parse(strip_path(argv[0]), "Produces multi-factor differential methylation scores",
                            "<design-matrix> <data-matrix>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
                       false, outfile);
