@@ -1,6 +1,6 @@
 /*    to-mr: a program for converting SAM and BAM format to MappedRead
  *    format.
- *    Currently supported mappers: bsmap, bismark.
+ *    Currently supported mappers: bs_seeker, bismark.
  *
  *    Copyright (C) 2009-2012 University of Southern California and
  *                            Andrew D. Smith
@@ -147,13 +147,13 @@ main(int argc, const char **argv) {
     
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
-                           "Convert the SAM/BAM output from bsmap, "
+                           "Convert the SAM/BAM output from "
                            "bismark or bs_seeker to MethPipe mapped read format",
                            "sam/bam_file");
     opt_parse.add_opt("output", 'o', "Name of output file", 
                       false, outfile);
     opt_parse.add_opt("mapper", 'm',
-                      "Original mapper: bsmap, bismark or bs_seeker", 
+                      "Original mapper: bismark, bs_seeker or general",
                       true, mapper);
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
                       false, suffix_len); 
