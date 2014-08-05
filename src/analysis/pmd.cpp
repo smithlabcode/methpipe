@@ -561,6 +561,8 @@ load_intervals(const size_t bin_size,
     // no range, or no chrom
     if (curr_chrom != chrom) {
       if (!curr_chrom.empty()) {
+	if(chrom < curr_chrom)
+	  throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
 	intervals.push_back(SimpleGenomicRegion(chrom, curr_pos, prev_pos + 1));
 	reads.push_back(n_meth_bin + n_unmeth_bin);
 	meth.push_back(make_pair(n_meth_bin, n_unmeth_bin));
@@ -569,6 +571,9 @@ load_intervals(const size_t bin_size,
       curr_pos = position;
       n_meth_bin = 0ul;
       n_unmeth_bin = 0ul;
+    }
+    else if (curr_pos > position){
+	  throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     else if (position > curr_pos + bin_size) {
       intervals.push_back(SimpleGenomicRegion(curr_chrom, curr_pos, 
