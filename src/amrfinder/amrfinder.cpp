@@ -424,7 +424,9 @@ main(int argc, const char **argv) {
     epiread er;
     vector<epiread> epireads;
     string prev_chrom, curr_chrom, tmp_states;
+    
     while (in >> er) {
+      curr_chrom = er.chr;
       if (!epireads.empty() && curr_chrom != prev_chrom) {
         windows_tested += 
         process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
