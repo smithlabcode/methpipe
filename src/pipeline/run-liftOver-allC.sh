@@ -10,6 +10,6 @@ IndexFile="$4"
 Unlift="$5" 
 
 tmpfile=$(mktemp)
-awk '{OFS="\t"; print $1,$2,$2+1,$1":"$2":"$2+1":"$4":"$3, 0,$3}' < ${Source} > ${tmpfile} 
+awk '{OFS="\t"; print $1,$2,$2+1,$1":"$2":"$2+1":"$3, 0,$3}' < ${Source} > ${tmpfile} 
 ${LiftOver_DIR}/liftOver ${tmpfile} ${Chain} ${IndexFile} ${Unlift} && rm ${tmpfile} 
 
