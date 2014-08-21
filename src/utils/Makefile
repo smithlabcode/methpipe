@@ -27,7 +27,8 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fastLiftOver to-mr merge-bsrate merge-methcounts \
+PROGS = lc_approx fastLiftOver fastLiftOver2 \
+	to-mr merge-bsrate merge-methcounts \
         duplicate-remover symmetric-cpgs
 
 # if SAMTOOLS location not set, try to set it
@@ -80,6 +81,10 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
     $(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
+	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+
+fastLiftOver2: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 

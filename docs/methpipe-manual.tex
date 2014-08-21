@@ -1172,12 +1172,28 @@ will have a corresponding line in the output).
 
 \subsection{Computing methylation entropy}
 \label{sec:methentropy}
-
-The concept of Entropy was introduced into epigenetics study to characterize the randomness of methylation patterns over several consecutive CpG sites \cite{xie2011}. The\prog{methentropy} program processes epireads and calculates the methylation entropy value in sliding windows of specified number of CpGs. Two input files are required, including the directory containing the chromosome fasta files, and an epiread file as produced by \prog{methstates} program. Use the \op{-w} option to specify the desired number of CpGs in the sliding window; if unspecified, the default value is $4$. In cases where symmetric patterns are considered the same, specify option \op{-F}, this will cause the majority state in each epiread to be forced into ``methylated'', and the minority to ``unmethylated''. The processed epireads will then be used for entropy calculation. To run the program, type command:
+The concept of Entropy was introduced into epigenetics study to
+characterize the randomness of methylation patterns over several
+consecutive CpG sites \cite{xie2011}. The\prog{methentropy} program
+processes epireads and calculates the methylation entropy value in
+sliding windows of specified number of CpGs. Two input files are
+required, including the directory containing the chromosome fasta
+files, and an epiread file as produced by \prog{methstates}
+program. Use the \op{-w} option to specify the desired number of CpGs
+in the sliding window; if unspecified, the default value is $4$. In
+cases where symmetric patterns are considered the same, specify option
+\op{-F}, this will cause the majority state in each epiread to be
+forced into ``methylated'', and the minority to ``unmethylated''. The
+processed epireads will then be used for entropy calculation. To run
+the program, type command:
 \begin{verbatim}
 $ methentropy -w 5 -v -o Human_ESC.entropy hg18 Human_ESC.epiread
 \end{verbatim} 
-The output format is the same as \prog{methcount} output. The first 3 columns indicate the genomic location of the center CpG in each sliding window, the 5th column contains the entropy values, and the 6th column shows the number of reads used for each sliding window. Below is an output example.
+The output format is the same as \prog{methcount} output. The first 3
+columns indicate the genomic location of the center CpG in each
+sliding window, the 5th column contains the entropy values, and the
+6th column shows the number of reads used for each sliding
+window. Below is an output example.
 \begin{verbatim}
 chr1	483	+	CpG	2.33914	27
 chr1	488	+	CpG	2.05298	23
@@ -1532,56 +1548,145 @@ methylomes with those made publicly available in methbase.
 
 \subsection{Mapping methylomes between species}
 \label{sec:mapp-methyl-betw}
-Mapping methylomes between species builds on the the \prog{liftOver}
-tool provided by UCSC Genome Browser
+Mapping methylomes between species builds on the \prog{liftOver} tool
+provided by UCSC Genome Browser
 \url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
-consuming to directly convert large \prog{methcounts} output files
-containing millions of CpG sites. We therefore provide the
-\prog{fastLiftOver} tool.
+consuming to convert each \prog{methcounts} output file from one
+assembly to another using the UCSC \prog{liftOver} tool, given that
+they all should have the same locations but different read counts. 
+Therefore, we use \prog{liftOver} to generate an index file between 
+two assemblies, and provide the \prog{fastLiftOver2} tool.
 
-\prog{fastLiftOver} requires its own chain files which are generated
-with the UCSC \prog{liftOver} program. To generate \prog{fastLiftOver}
-chain file from the mouse mm9 genome to the human hg19 genome, you
-need a BED file (CpGs-mm9.bed) with all CpG sites in the mouse genome
-and the \prog{liftOver} chain file (mm9ToHg19.over.chain) from the
-UCSC Genome Browser website. The BED file of mm9 CpG sites follows the
-format below, with the fourth column composed of the chromosome name
-and the starting location.
+Suppose we have downloaded the \prog{liftOver} tool in to directory
+\fn{/home/user/Desktop/}, and the chain file
+\fn{mm9ToHg19.over.chain.gz} from the UCSC Genome Browser website.  If
+we have a \prog{methcounts} output file \fn{Mouse\_BCell\_mm9.meth}
+of all cytosine positions in mm9. Entries in
+\fn{Mouse\_BCell\_mm9.meth} look like
 \begin{verbatim}
-chr1 3000573 3000574 chr1:3000573
-chr1 3000725 3000726 chr1:3000725
-chr1 3000900 3000901 chr1:3000900
-...
-\end{verbatim}
-First, we will use the UCSC \prog{liftOver} program to map the mouse
-CpG sites to the human reference genome:
-\begin{verbatim}
-liftOver CpGs-mm9.bed mm9ToHg19.over.chain CpGs-mm9Tohg19.bed CpGs-mm9Tohg19-left.bed 
-\end{verbatim}
-Next, we need to sort the file \prog{CpGs-mm9Tohg19.bed}, that
-contains CpG sites mapped to the human reference genome
-\begin{verbatim}
-export LC_ALL=C;
-sort -k1,1 -k2,2n  CpGs-mm9Tohg19.bed -o tmpfile 
-mv tmpfile CpGs-mm9Tohg19.bed
-\end{verbatim}
-The file CpGs-mm9Tohg19.bed will be the \prog{fastLiftOver} chain file
-for mapping mouse methcounts output files to the human reference
-genome. For example, if we want to map the mouse methcounts file
-(Mouse\_ESC.meth) to the human reference genome, we may run the
-following command:
-\begin{verbatim}
-fastLiftOver -f Mouse_ESC.meth -i CpGs-mm9Tohg19.bed -t Mouse_ESC-hg19.meth -v
+chr1    3007427 +       CHH     0       5
+chr1    3007428 +       CCG     0       6
+chr1    3007429 +       CpG     0.166667        6
+chr1    3007430 -       CpG     0.5     10
+chr1    3007431 -       CCG     0       9
 \end{verbatim}
 
+We would like to lift it over to the human genome hg19, and generate
+an index file \fn{mm9-hg19.index} to facilitate later lift-over
+operations from mm9 to hg19, and keep a record of unlifted mm9
+cytosine positions in the file \fn{mm9-hg19.unlifted}. Run the bash
+script \fn{run-liftOver-allC.sh} as follows:
+\begin{verbatim}
+run-liftOver-allC.sh  /home/user/Desktop/  mm9ToHg19.over.chain.gz  Mouse_BCell_mm9.meth  mm9-hg19.index  mm9-hg19.unlifted
+\end{verbatim}
+
+The generated index file \fn{mm9-hg19.index} will be a BED format
+file in hg19 coordinates, with entries like
+\begin{verbatim}
+chr8	56562557	56562558	chr1:3007427:3007428:+	0	-
+chr8	56562556	56562557	chr1:3007428:3007429:+	0	-
+chr8	56562555	56562556	chr1:3007430:3007431:-	0	+
+chr8	56562554	56562555	chr1:3007431:3007432:-	0	+
+\end{verbatim}
+where the fourth column contains the genomic position of the Cytosine
+site in mm9 coordinates.
+
+
+After the index file is generated, we can use the script
+\prog{run-fastLiftOver2.sh} to run fastLiftOver on any mm9
+\prog{methcount} file to lift it over to hg19.  The script has the
+following options:
+\begin{verbatim}
+usage: ./run-fastLiftOver2.sh options
+OPTIONS:
+   -h    Show this message
+   -i    Index file
+   -f    File to lift
+   -t    Lifed file
+   -M    Path to the methpipe root directory
+   -s    Report sites on single strand (+ strand)
+   -u    Report uniquely mapped sites (Default: multiple-to-1 mapping are collapsed)
+\end{verbatim}
+Here are some explanation for the usage of \op{-s} and \op{-u} flag.
 It is possible that multiple CpG sites in the mouse reference genome
-are mapped to the same location in the human reference genome,
-therefore the many-to-one conversion problem. In this situation, we
-may use the average methylation level weighted by coverage. Please
-checkout
-\url{https://github.com/songqiang/MethPipe/blob/master/run-fastLiftOver.sh}
-for example scripts that go over the whole procedure.
+are mapped to the same location in the human reference genome, for example 
+\begin{verbatim}
+chr1	77595107	77595108	chr1:16053645:16053646:+	0	+
+chr1	77595107	77595108	chr1:20444502:20444503:+	0	-
+\end{verbatim}
+In this situation, we may either collapse read counts at the multiple
+mm9 sites that are mapped to the same location in hg19, or only report
+the 1-1 mapping sites. The following two commands would achieve these
+two options repectively, assuming \prog{/home/user/Desktop/methpipe/bin}
+is the directory of \prog{methpipe} binaries.
+\begin{verbatim}
+./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
+  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin
+./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
+  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -u
+\end{verbatim}
+If \fn{Mouse\_BCell\_mm9.meth} contains only CpG sites, sometimes we
+might want to collapse reverse-complementary CpG pairs, and instead of
+reporting statistics for both strands, we only keep sites on ``+''
+strand. To flip mm9 CpGs lifted to the ``-'' strand of hg19, and
+collapse the methylation information with their complementary CpG
+lifted to hg19 ``+'' strand, we run the script
+\prog{run-fastLiftOver2.sh} script with option \op{-s}.
+\begin{verbatim}
+./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
+  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin -s 
+./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
+  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -s -u
+\end{verbatim}
 
+
+%Mapping methylomes between species builds on the the \prog{liftOver}
+%tool provided by UCSC Genome Browser
+%\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
+%consuming to directly convert large \prog{methcounts} output files
+%containing millions of CpG sites. We therefore provide the
+%\prog{fastLiftOver} tool.
+%\prog{fastLiftOver} requires its own chain files which are generated
+%with the UCSC \prog{liftOver} program. To generate \prog{fastLiftOver}
+%chain file from the mouse mm9 genome to the human hg19 genome, you
+%need a BED file (CpGs-mm9.bed) with all CpG sites in the mouse genome
+%and the \prog{liftOver} chain file (mm9ToHg19.over.chain) from the
+%UCSC Genome Browser website. The BED file of mm9 CpG sites follows the
+%format below, with the fourth column composed of the chromosome name
+%and the starting location.
+%\begin{verbatim}
+%chr1 3000573 3000574 chr1:3000573
+%chr1 3000725 3000726 chr1:3000725
+%chr1 3000900 3000901 chr1:3000900
+%...
+%\end{verbatim}
+%First, we will use the UCSC \prog{liftOver} program to map the mouse
+%CpG sites to the human reference genome:
+%\begin{verbatim}
+%liftOver CpGs-mm9.bed mm9ToHg19.over.chain CpGs-mm9Tohg19.bed CpGs-mm9Tohg19-left.bed
+%\end{verbatim}
+%Next, we need to sort the file \prog{CpGs-mm9Tohg19.bed}, that
+%contains CpG sites mapped to the human reference genome
+%\begin{verbatim}
+%export LC_ALL=C;
+%sort -k1,1 -k2,2n CpGs-mm9Tohg19.bed -o tmpfile
+%mv tmpfile CpGs-mm9Tohg19.bed
+%\end{verbatim}
+%The file CpGs-mm9Tohg19.bed will be the \prog{fastLiftOver} chain file
+%for mapping mouse methcounts output files to the human reference
+%genome. For example, if we want to map the mouse methcounts file
+%(Mouse\_ESC.meth) to the human reference genome, we may run the
+%following command:
+%\begin{verbatim}
+%fastLiftOver -f Mouse_ESC.meth -i CpGs-mm9Tohg19.bed -t Mouse_ESC-hg19.meth -v
+%\end{verbatim}
+%It is possible that multiple CpG sites in the mouse reference genome
+%are mapped to the same location in the human reference genome,
+%therefore the many-to-one conversion problem. In this situation, we
+%may use the average methylation level weighted by coverage. Please
+%checkout
+%\url{https://github.com/songqiang/MethPipe/blob/master/run-fastLiftOver.sh}
+%for example scripts that go over the whole procedure.
 
 \newpage
 

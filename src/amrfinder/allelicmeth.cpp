@@ -338,7 +338,7 @@ main(int argc, const char **argv) {
     vector<PairStateCounter<unsigned short> > counts;
     while (in >> er) {
       if (er.chr != chrom && !chrom.empty()) {
-          counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
+          counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom] -1 );
           process_chrom(VERBOSE, chrom, epireads, cytosines,counts);
           // convert coordinates
           convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
