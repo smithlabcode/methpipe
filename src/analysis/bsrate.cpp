@@ -1,7 +1,7 @@
 /*    bsrate: a program for determining the rate of bisulfite
  *    conversion in a bisulfite sequencing experiment
  *
- *    Copyright (C) 2009-2014 University of Southern California and
+ *    Copyright (C) 2014-2017 University of Southern California and
  *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
@@ -59,15 +59,17 @@ static void
 count_states_pos(const bool INCLUDE_CPGS, const string &chrom, 
 		 const MappedRead &r, 
 		 vector<size_t> &unconv, vector<size_t> &conv, 
-		 vector<size_t> &err) {
+		 vector<size_t> &err, size_t &hanging) {
   
   const size_t width = r.r.get_width();
   const size_t offset = r.r.get_start();
   
   size_t position = offset;
+  assert(offset < chrom.length()); // at least one bp of read on chr
   for (size_t i = 0; i < width; ++i, ++position) {
-    assert(position < chrom.length());
-    
+    if (position >= chrom.length()) // some overhang
+      ++hanging;
+
     if (is_cytosine(chrom[position]) &&
 	(!is_guanine(chrom[position+1]) ||
 	 position == chrom.length() || 
@@ -76,8 +78,7 @@ count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
       else if (toupper(r.seq[i]) != 'N')
-	++err[i];
-      
+	++err[i];      
     }
   }
 }
@@ -87,15 +88,16 @@ static void
 count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
 		 const MappedRead &r,
 		 vector<size_t> &unconv, vector<size_t> &conv,
-		 vector<size_t> &err) {
+		 vector<size_t> &err, size_t &hanging) {
   
   const size_t width = r.r.get_width();
   const size_t offset = r.r.get_start();
   
   size_t position = offset + width - 1;
+  assert(position < chrom.length()); // at least one bp of read on chr
   for (size_t i = 0; i < width; ++i, --position) {
-    assert(position < chrom.length());
-    
+    if (position >= chrom.length())
+      ++hanging; 
     if (is_guanine(chrom[position]) &&
 	(position == 0 ||
 	 !is_cytosine(chrom[position-1]) ||
@@ -104,8 +106,7 @@ count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
       if (is_cytosine(r.seq[i])) ++unconv[i];
       else if (is_thymine(r.seq[i])) ++conv[i];
       else if (toupper(r.seq[i]) != 'N')
-	++err[i];
-      
+	++err[i];    
     }
   }
 }
@@ -120,8 +121,10 @@ write_output(const string &outfile,
 	     const vector<size_t> &err_p, const vector<size_t> &err_n) {
   
   // Get some totals first
-  const size_t pos_cvt = accumulate(cvt_count_p.begin(), cvt_count_p.end(), 0ul);
-  const size_t neg_cvt = accumulate(cvt_count_n.begin(), cvt_count_n.end(), 0ul);
+  const size_t pos_cvt = accumulate(cvt_count_p.begin(),
+                                    cvt_count_p.end(), 0ul);
+  const size_t neg_cvt = accumulate(cvt_count_n.begin(),
+                                    cvt_count_n.end(), 0ul);
   const size_t total_cvt = pos_cvt + neg_cvt;
   
   const size_t pos_ucvt = 
@@ -177,11 +180,13 @@ write_output(const string &outfile,
     
     out.precision(precision_val);
     out << total_p << '\t' << cvt_count_p[i] << '\t' 
-	<< static_cast<double>(cvt_count_p[i])/max(size_t(1ul), total_p) << '\t';
+	<< static_cast<double>(cvt_count_p[i])/max(size_t(1ul), total_p)
+        << '\t';
     
     out.precision(precision_val);
     out << total_n << '\t' << cvt_count_n[i] << '\t' 
-	<< static_cast<double>(cvt_count_n[i])/max(size_t(1ul), total_n) << '\t';
+	<< static_cast<double>(cvt_count_n[i])/max(size_t(1ul), total_n)
+        << '\t';
     
     const double total_cvt = cvt_count_p[i] + cvt_count_n[i];
     out.precision(precision_val);
@@ -298,7 +303,8 @@ main(int argc, const char **argv) {
     string chrom;
     MappedRead mr;
     GenomicRegion chrom_region; // exists only for faster comparison
-    
+    size_t hanging = 0;
+
     while (in >> mr) {
       
       if (A_RICH_READS)
@@ -311,15 +317,19 @@ main(int argc, const char **argv) {
       // do the work for this mapped read
       if (mr.r.pos_strand())
 	count_states_pos(INCLUDE_CPGS, chrom, mr,
-			 unconv_count_pos, conv_count_pos, err_pos);
+			 unconv_count_pos, conv_count_pos, err_pos, hanging);
       else
 	count_states_neg(INCLUDE_CPGS, chrom, mr, 
-			 unconv_count_neg, conv_count_neg, err_neg);
+			 unconv_count_neg, conv_count_neg, err_neg, hanging);
     }
     write_output(outfile, unconv_count_pos, 
 		 conv_count_pos, unconv_count_neg,
 		 conv_count_neg, err_pos, err_neg);
-    
+    if (hanging > 0) // some overhanging reads
+      cerr << "Warning: a nonzero number (" << hanging << ") of reads mapped"
+           << " to the very end of a chromosome. For high numbers, make"
+           << " sure you are using the same assembly you mapped with."
+           << endl; 
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
