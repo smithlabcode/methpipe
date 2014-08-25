@@ -156,8 +156,17 @@ main(int argc, const char **argv) {
 		     strand, seq, meth, coverage)) {
       ++line_count;
 
-      size_t total_coverage = coverage;
-      double total_meth = static_cast<size_t>(round(coverage*meth));
+      size_t total_coverage = 0;
+      double total_meth = 0;
+      // TODO: upgrade to seq.back() when we go to C++11
+      if (*seq.rbegin() != 'x') {
+        total_coverage = coverage;
+        total_meth = static_cast<size_t>(round(coverage*meth));
+      }
+      else { // don't count the mutated site
+        seq = seq.substr(0,seq.size()-1); // make sure we write
+        // the site without the mutation even if its there in file 1
+      }
 
       string other_chrom, other_strand, other_seq;
       size_t other_pos = 0ul;
@@ -165,15 +174,15 @@ main(int argc, const char **argv) {
       for (size_t i = 1; i < infiles.size(); ++i) {
         read_site(new_methcount_fmt, *infiles[i], other_chrom,
 		  other_pos, other_strand, other_seq, meth, coverage);
-
-	check_consistent_sites(line_count, methcounts_files[i],
-			       chrom, pos, strand, seq,
-			       other_chrom, other_pos, other_strand, other_seq);
-
-	total_coverage += coverage;
-	total_meth += static_cast<size_t>(round(coverage*meth));
+        // TODO: upgrade to other_seq.back() when we go to C++11
+        if (*other_seq.rbegin() != 'x') {
+	      check_consistent_sites(line_count, methcounts_files[i],
+		  	       chrom, pos, strand, seq,
+		  	       other_chrom, other_pos, other_strand, other_seq);
+          total_coverage += coverage;
+	      total_meth += static_cast<size_t>(round(coverage*meth));
+        }
       }
-
       const double methout = total_meth/std::max(total_coverage, 1ul);
       write_site(new_methcount_fmt, out, chrom, pos, strand,
 		 seq, methout, total_coverage);
