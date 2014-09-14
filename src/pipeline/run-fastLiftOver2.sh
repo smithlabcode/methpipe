@@ -25,7 +25,7 @@ METHPIPE_DIR=
 SINGLESTRAND= 
 UNIQUE= 
 
-while getopts “hi:f:t:M:su” OPTION
+while getopts "hi:f:t:M:su" OPTION
 do
      case $OPTION in
          h)
