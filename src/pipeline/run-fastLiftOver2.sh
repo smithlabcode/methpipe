@@ -12,7 +12,7 @@ OPTIONS:
    -i      Index file
    -f      File to lift
    -t      Lifed file
-   -M      Path to the methpipe root directory
+   -M      Path to the methpipe bin directory
    -s      Report sites on single strand (+ strand)
    -u      Report uniquely mapped sites (If not specified, multiple-to-1 mapping are collapsed)
 EOF
