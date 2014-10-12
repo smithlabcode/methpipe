@@ -18,7 +18,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = radmeth
+PROGS = radmeth dmrs adjust
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -47,7 +47,7 @@ CXXFLAGS += -arch x86_64
 INCLUDEARGS += -I/usr/local/include
 LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
-              then echo 'true'; fi)" "true"
+							then echo 'true'; fi)" "true"
 CXXFLAGS += -stdlib=libstdc++
 endif
 endif
@@ -63,13 +63,17 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 OBJS=table_row.o stoufferliptak.o regression.o pvallocus.o proximal_loci.o \
-	loglikratio_test.o gsl_fitter.o design.o
+	loglikratio_test.o gsl_fitter.o fdr.o bin_for_distance.o combine_pvals.o \
+	distance_correlation.o
 
 radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
-# dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
-# 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+adjust : adjust.cpp $(OBJS) $(SMITH_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+
+dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 %.o : %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

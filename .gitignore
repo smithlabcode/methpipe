@@ -67,5 +67,11 @@ src/mlml/mlml
 src/utils/duplicate-remover
 src/utils/merge-bsrate
 src/utils/merge-methcounts
+src/radmeth/adjust
+src/radmeth/dmrs
+src/radmeth/make_table
+src/radmeth/radmeth
+src/utils/fastLiftOver2
+src/utils/symmetric-cpgs
 
 

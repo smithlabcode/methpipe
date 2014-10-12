@@ -22,21 +22,53 @@
 
 // Std headers.
 #include <vector>
+#include <sstream>
+#include <string>
 
 // GSL headers.
 #include <gsl/gsl_matrix_double.h>
 
-// Local headers.
-#include "design.hpp"
+// Objects of this class represent design matrices.
+//
+// A Design object can be created like this:
+//
+//  string encoding = "f1\tf2\ns1\t1\t1\ns2\t1\t0";
+//  istringstream iss(encoding);
+//  Design design(iss);
+//
+// To drop the second factor from the desin:
+//
+//  design.remove_factor(1);
+
+class Design {
+public:
+  Design() {}
+  Design(std::istream &is);
+  size_t num_factors() const { return factor_names_.size(); }
+  size_t num_samples() const { return sample_names_.size(); }
+  std::vector<std::string> factor_names() const { return factor_names_; }
+  std::vector<std::string> sample_names() const { return sample_names_; }
+  std::vector<std::vector<double> > matrix() const { return matrix_; }
+  double operator() (size_t sample, size_t factor) const;
+  void remove_factor_name(std::string name);
+  void remove_factor(size_t factor);
+  bool operator== (const Design &other_design) const;
+  bool operator!= (const Design &other_design) const;
+  friend std::ostream& operator<<(std::ostream& os, const Design &design);
+private:
+  std::vector<std::string> factor_names_;
+  std::vector<std::string> sample_names_;
+  std::vector<std::vector<double> > matrix_;
+};
 
 class Regression {
 public:
   Regression() : num_parameters_(0), maximum_likelihood_(0) {}
-  Regression(const Design &design) 
-    : design_(design), num_parameters_(design_.num_factors() + 1), 
+  Regression(const Design &design)
+    : design_(design), num_parameters_(design_.num_factors() + 1),
       maximum_likelihood_(0) {}
   Design design() const { return design_; }
-  void set_response(const std::vector<size_t> &response_total, 
+  void set_response(const std::vector<size_t> &response_total,
                     const std::vector<size_t> &response_meth);
   std::vector<size_t> response_total() const { return response_total_; }
   std::vector<size_t> response_meth() const {return response_meth_; }
