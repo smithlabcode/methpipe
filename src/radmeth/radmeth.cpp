@@ -25,13 +25,15 @@
 #include <cmath>
 #include <algorithm>
 
+// GSL headers
+#include <gsl/gsl_cdf.h>
+
 // smithlab headers
 #include "OptionParser.hpp"
 #include "smithlab_os.hpp"
 #include "smithlab_utils.hpp"
 
 // Local headers.
-#include "loglikratio_test.hpp"
 #include "gsl_fitter.hpp"
 #include "regression.hpp"
 
@@ -43,6 +45,22 @@ using std::cerr;
 using std::endl;
 using std::istream;
 using std::ostream;
+
+double loglikratio_test(double null_loglik, double full_loglik) {
+
+  // The log-likelihood ratio statistic.
+  const double log_lik_stat = -2*(null_loglik - full_loglik);
+
+  // It is assumed that null model has one fewer factor than the full model.
+  // Hence the number of degrees of freedom is 1.
+  const size_t degrees_of_freedom = 1;
+
+  // Log-likelihood ratio statistic has a chi-sqare distribution.
+  double chisq_p = gsl_cdf_chisq_P(log_lik_stat, degrees_of_freedom);
+  const double pval = 1.0 - chisq_p;
+
+  return pval;
+}
 
 static vector<string>
 split(string input) {

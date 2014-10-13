@@ -20,8 +20,41 @@
 
 #include <vector>
 
-#include "pvallocus.hpp"
-#include "bin_for_distance.hpp"
+struct PvalLocus {
+  PvalLocus(std::size_t new_chrom_ind, std::size_t new_pos, double new_raw_pval)
+    : chrom_ind(new_chrom_ind), pos(new_pos), raw_pval(new_raw_pval),
+      combined_pval(0), corrected_pval(0) {}
+  std::size_t chrom_ind;
+  std::size_t pos;
+  double raw_pval;
+  double combined_pval;
+  double corrected_pval;
+};
+
+void initialize_pval_loci(std::istream &encoding,
+                           std::vector<PvalLocus> &pval_loci);
+
+void update_pval_loci(std::istream &input_encoding,
+                       const std::vector<PvalLocus> &pval_loci,
+                       std::ostream &output_loci_encoding);
+
+class BinForDistance {
+public:
+  BinForDistance(std::string spec_string);
+
+  size_t which_bin(size_t value) const;
+
+  size_t num_bins() const {return num_bins_;}
+  size_t invalid_bin() const {return invalid_bin_;}
+  size_t max_dist() const {return max_dist_;}
+
+private:
+  size_t min_dist_;
+  size_t max_dist_;
+  size_t bin_size_;
+  size_t num_bins_;
+  size_t invalid_bin_;
+};
 
 class ProximalLoci {
 public:

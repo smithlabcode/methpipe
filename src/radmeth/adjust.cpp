@@ -25,8 +25,6 @@
 
 #include "OptionParser.hpp"
 
-#include "pvallocus.hpp"
-#include "bin_for_distance.hpp"
 #include "combine_pvals.hpp"
 
 using std::cout;  using std::endl;

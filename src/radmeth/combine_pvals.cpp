@@ -19,6 +19,8 @@
 #include <iterator>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include <iostream>
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_statistics.h>
@@ -32,7 +34,116 @@
 using std::vector; using std::cerr;
 using std::endl; using std::copy;
 using std::vector; using std::back_inserter;
-using std::cout;
+using std::cout; using std::istream;
+using std::string; using std::ostream;
+
+void
+initialize_pval_loci(istream &encoding, vector<PvalLocus> &pval_loci) {
+  string record;
+  string chrom;
+  size_t begin;
+  size_t end;
+  string name;
+  double pval;
+
+  string prev_chrom;
+  size_t chrom_index = 0;
+
+  while(getline(encoding, record)) {
+
+    try {
+        std::istringstream iss(record);
+        iss.exceptions(std::ios::failbit);
+        iss >> chrom >> begin >> end >> name >> pval;
+      } catch (std::exception const & err) {
+        std::cerr << err.what() << std::endl << "Couldn't parse the line \""
+              << record << "\"." << std::endl;
+        std::terminate();
+      }
+
+      // All loci not associated with valide p-values are skipped;
+      if (0 <= pval && pval <= 1) {
+
+        if (prev_chrom.empty())
+          prev_chrom = chrom;
+
+        if (chrom != prev_chrom) {
+          prev_chrom = chrom;
+          ++chrom_index;
+        }
+
+      PvalLocus plocus(chrom_index, begin, pval);
+        pval_loci.push_back(plocus);
+      }
+  }
+}
+
+void
+update_pval_loci(istream &input_encoding,
+                 const vector<PvalLocus> &pval_loci,
+                 ostream &output_encoding) {
+  string record;
+  string chrom;
+  size_t begin;
+  size_t end;
+  string name;
+  double pval;
+
+  string prev_chrom;
+  //size_t chrom_index = 0;
+
+  vector<PvalLocus>::const_iterator cur_locus_iter = pval_loci.begin();
+
+  while(getline(input_encoding, record)) {
+
+    try {
+      std::istringstream iss(record);
+      iss.exceptions(std::ios::failbit);
+      iss >> chrom >> begin >> end >> name >> pval;
+    } catch (std::exception const & err) {
+      std::cerr << err.what() << std::endl << "Couldn't parse the line \""
+                << record << "\"." << std::endl;
+      std::terminate();
+    }
+
+    output_encoding << chrom << "\t" << begin << "\t" << end << "\t" << name;
+
+    if (0 <= pval && pval <= 1) {
+      output_encoding << ":" << cur_locus_iter->raw_pval << ":"
+                      << cur_locus_iter->combined_pval << "\t"
+                      << cur_locus_iter->corrected_pval;
+      cur_locus_iter++;
+    } else {
+      output_encoding << "\t" << pval;
+    }
+
+    output_encoding << std::endl;
+
+    }
+}
+
+BinForDistance::BinForDistance(std::string spec_string) {
+  std::replace(spec_string.begin(), spec_string.end(), ':', ' ');
+
+  std::stringstream ss(spec_string);
+  ss >> min_dist_ >> max_dist_ >> bin_size_;
+
+  num_bins_ = (max_dist_ - min_dist_) / bin_size_;
+  invalid_bin_ = num_bins_ + 1;
+}
+
+size_t BinForDistance::which_bin(size_t value) const {
+  if (value < min_dist_)
+    return invalid_bin_;
+
+  const size_t bin = (value - min_dist_) / bin_size_;
+
+  //Bin numbering is 0 based.
+  if (bin >= num_bins_)
+    return invalid_bin_;
+
+  return bin;
+}
 
 bool
 ProximalLoci::get(vector<PvalLocus> &neighbors) {
