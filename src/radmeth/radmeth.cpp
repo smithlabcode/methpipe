@@ -47,9 +47,6 @@ using std::endl;
 using std::istream;
 using std::ostream;
 
-
-
-
 static vector<string>
 split(string input) {
   istringstream iss(input);
@@ -116,18 +113,7 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-
-
-    ///////wand(design_file, table_file, test_factor_name, out);
-    istream &design_encoding = design_file;
-    istream &table_encoding = table_file;
-//static void
-//wand(,
-//     ,
-//     ,
-//     ) {
-
-  Design full_design(design_encoding);
+  Design full_design(design_file);
 
   vector<string> factor_names = full_design.factor_names();
 
@@ -150,7 +136,7 @@ main(int argc, const char **argv) {
   // Read the first line of the count table which must contain names of the
   // samples.
   string sample_names_encoding;
-  getline(table_encoding, sample_names_encoding);
+  getline(table_file, sample_names_encoding);
 
   if (full_design.sample_names() != split(sample_names_encoding))
     throw SMITHLABException(sample_names_encoding + " does not match factor "
@@ -160,7 +146,7 @@ main(int argc, const char **argv) {
 
   // Perform the log-likelihood ratio on proportions from every row of the
   // proportion table.
-  while (getline(table_encoding, row_encoding)) {
+  while (getline(table_file, row_encoding)) {
 
     TableRow row;
     read_row(row_encoding, row);
@@ -202,9 +188,6 @@ main(int argc, const char **argv) {
     }
     out << endl;
   }
-//}
-
-
 
   }
   catch (const SMITHLABException &e) {
