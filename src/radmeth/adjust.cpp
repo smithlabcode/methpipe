@@ -57,11 +57,6 @@ fdr(vector<PvalLocus> &loci) {
       for (size_t ind = 0; ind < loci.size(); ++ind) {
         const double current_score = loci[ind].combined_pval;
 
-        //Save current score.
-        //std::stringstream ss;
-        //ss << loci_iterators[ind]->name() << ":" << current_score;
-        //loci_iterators[ind]->set_name(ss.str());
-
         //Assign a new one.
         const double corrected_pval = loci.size()*current_score/(ind + 1);
         loci[ind].corrected_pval = corrected_pval;
