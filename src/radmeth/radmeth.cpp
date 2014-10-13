@@ -15,10 +15,6 @@
  *    GNU General Public License for more details.
  */
 
-// This file contains the main function and is responsible for
-// processing the command line arguments and calling the RADMeth
-// pipeline.
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
