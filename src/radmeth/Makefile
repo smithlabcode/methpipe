@@ -62,7 +62,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-OBJS=table_row.o stoufferliptak.o regression.o pvallocus.o proximal_loci.o \
+OBJS=stoufferliptak.o regression.o pvallocus.o proximal_loci.o \
 	loglikratio_test.o gsl_fitter.o fdr.o bin_for_distance.o combine_pvals.o \
 	distance_correlation.o
 
