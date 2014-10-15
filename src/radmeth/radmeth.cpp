@@ -37,7 +37,6 @@
 #include "gsl_fitter.hpp"
 #include "regression.hpp"
 
-// using block
 using std::string;
 using std::vector;
 using std::istringstream;
@@ -46,7 +45,36 @@ using std::endl;
 using std::istream;
 using std::ostream;
 
-double loglikratio_test(double null_loglik, double full_loglik) {
+// Splits a string using white-space characters as delimeters.
+static vector<string>
+split(string input) {
+  istringstream iss(input);
+  string token;
+  vector<string> tokens;
+
+  while (iss >> token)
+    tokens.push_back(token);
+
+  return tokens;
+}
+
+// Parses a natural number from its string representation. Throws exception if
+// the string does not encode one.
+static size_t
+parse_natural_number(string encoding) {
+  istringstream iss(encoding);
+  size_t number;
+  iss >> number;
+  if (!iss)
+    throw SMITHLABException(encoding + " does not encode a natural number");
+  return number;
+}
+
+// Given the maximum likelihood estimates of the full and reduced models, the
+// function outputs the p-value of the log-likelihood ratio. *Note* that it is
+// assumed that the reduced model has one fewer factor than the reduced model.
+double
+loglikratio_test(double null_loglik, double full_loglik) {
 
   // The log-likelihood ratio statistic.
   const double log_lik_stat = -2*(null_loglik - full_loglik);
@@ -62,28 +90,7 @@ double loglikratio_test(double null_loglik, double full_loglik) {
   return pval;
 }
 
-static vector<string>
-split(string input) {
-  istringstream iss(input);
-  string token;
-  vector<string> tokens;
-
-  while (iss >> token)
-    tokens.push_back(token);
-
-  return tokens;
-}
-
-static size_t
-parse_natural_number(string encoding) {
-  istringstream iss(encoding);
-  size_t number;
-  iss >> number;
-  if (!iss)
-    throw SMITHLABException(encoding + " does not encode a natural number");
-  return number;
-}
-
+// Stores a row of a proportion table.
 struct TableRow {
   std::string chrom;
   size_t begin;
@@ -254,19 +261,20 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-  Design full_design(design_file);
+  Design full_design(design_file); // Initialize the full design matrix from
+                                   // file.
 
   vector<string> factor_names = full_design.factor_names();
 
+  // Check that the provided test factor name exists and find it's index. Here
+  // we identify with their indexes to simplify naming.
   vector<string>::const_iterator test_factor_it =
     std::find(factor_names.begin(), factor_names.end(), test_factor_name);
 
-  // Checking that the provided test factor names exists.
   if (test_factor_it == factor_names.end())
     throw SMITHLABException(test_factor_name + " is not a part of the design"
                             " specification.");
 
-  // Factors are identified with their indexes to simplify naming.
   size_t test_factor = test_factor_it - factor_names.begin();
 
   Regression full_regression(full_design);
@@ -274,14 +282,17 @@ main(int argc, const char **argv) {
   null_design.remove_factor(test_factor);
   Regression null_regression(null_design);
 
-  // Read the first line of the count table which must contain names of the
-  // samples.
+  // Make sure that the first line of the proportion table file contains names
+  // of the samples. Throw an exception if the names or their order in
+  // the proportion table does not match those in the full design matrix.
   string sample_names_encoding;
   getline(table_file, sample_names_encoding);
 
   if (full_design.sample_names() != split(sample_names_encoding))
     throw SMITHLABException(sample_names_encoding + " does not match factor "
-                            "names (or their order) in the design matrix.");
+                            "names or their order in the design matrix. "
+                            "Please verify that the design matrix and the "
+                            "proportion table are correctly formatted.");
 
   string row_encoding;
 
