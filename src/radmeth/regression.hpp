@@ -90,4 +90,7 @@ private:
   double maximum_likelihood_;
 };
 
+bool gsl_fitter(Regression &r,
+              std::vector<double> initial_parameters = std::vector<double> ());
+
 #endif //REGRESSION_HPP_
