@@ -66,7 +66,8 @@ parse_natural_number(string encoding) {
   size_t number;
   iss >> number;
   if (!iss)
-    throw SMITHLABException(encoding + " does not encode a natural number");
+    throw SMITHLABException("The token \"" +encoding + "\" "
+                            "does not encode a natural number");
   return number;
 }
 
@@ -109,65 +110,57 @@ struct TableRow {
   }
 };
 
+// Populates a TableRow object from a string represetnation.
 static void
-parse_row_name(string row_name_encoding, TableRow &row) {
+parse_row(const string &row_encoding, TableRow &row) {
+  // Get the row name (which must be specified like this: "chr:start:end") and
+  // parse it.
+  istringstream row_stream(row_encoding);
+  string row_name_encoding;
+  row_stream >> row_name_encoding;
+
+  // Every row must start an identifier consisiting of genomic loci of the
+  // corresponding site. Here we check this identifier has the correct number
+  // of colons.
   const size_t num_colon =
             std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
 
   if (num_colon != 2)
     throw SMITHLABException("Each row in the count table must start with "
                             "a line chromosome:start:end. Got \"" +
-                            row_name_encoding + "\" instead" );
+                            row_name_encoding + "\" instead." );
 
-  istringstream iss(row_name_encoding);
-
-  getline(iss, row.chrom, ':');
+  // First parse the row identifier.
+  istringstream name_stream(row_name_encoding);
+  getline(name_stream, row.chrom, ':');
 
   if (row.chrom.empty())
     throw SMITHLABException("Error parsing " + row_name_encoding +
                             ": chromosome name is missing.");
 
-  string token;
+  string coordinate_encoding;
 
-  getline(iss, token, ':');
-  row.begin = parse_natural_number(token);
+  getline(name_stream, coordinate_encoding, ':');
+  row.begin = parse_natural_number(coordinate_encoding);
 
-  iss >> token;
-  row.end = parse_natural_number(token);
-}
+  name_stream >> coordinate_encoding;
+  row.end = parse_natural_number(coordinate_encoding);
 
-static void
-parse_row_read_counts(istringstream &row_name_encoding, TableRow &row) {
+  // After parsing the row identifier, parse count proportions.
   size_t total_count, meth_count;
 
-  while (row_name_encoding >> total_count >> meth_count) {
+  while (row_stream >> total_count >> meth_count) {
     row.total_counts.push_back(total_count);
     row.meth_counts.push_back(meth_count);
   }
 
-  if (!row_name_encoding.eof())
-    throw SMITHLABException("some row entries are not natural numbers: " +
-                            row_name_encoding.str());
-}
+  if (!row_stream.eof())
+    throw SMITHLABException("Some row entries are not natural numbers: " +
+                            row_stream.str());
 
-void
-read_row(std::string row_encoding, TableRow &row) {
-  istringstream iss(row_encoding);
-
-  string row_name_encoding;
-
-  iss >> row_name_encoding;
-
-  parse_row_name(row_name_encoding, row);
-  parse_row_read_counts(iss, row);
-}
-
-void
-assert_compatibility(Design design, TableRow &row) {
-  const size_t num_samples = design.num_samples();
-  if (num_samples != row.total_counts.size() ||
-      num_samples != row.meth_counts.size())
-    throw SMITHLABException("There is a row with incorrect number of samples.");
+  if (row.total_counts.size() != row.meth_counts.size())
+    throw SMITHLABException("This row does not encode proportions"
+                            "correctly:\n" + row_encoding);
 }
 
 bool
@@ -216,8 +209,8 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Produces multi-factor differential methylation scores",
-                           "<design-matrix> <data-matrix>");
+    OptionParser opt_parse(strip_path(argv[0]), "Produces multi-factor "
+          "differential methylation scores", "<design-matrix> <data-matrix>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
                       false, outfile);
 
@@ -296,26 +289,28 @@ main(int argc, const char **argv) {
 
   string row_encoding;
 
-  // Perform the log-likelihood ratio on proportions from every row of the
-  // proportion table.
+  // Performing the log-likelihood ratio test on proportions from each row of
+  // the proportion table.
   while (getline(table_file, row_encoding)) {
 
     TableRow row;
-    read_row(row_encoding, row);
+    parse_row(row_encoding, row);
 
-    assert_compatibility(full_design, row);
+    if (full_design.num_samples() != row.total_counts.size())
+      throw SMITHLABException("This row has incorrect number of proportions:\n"
+                              + row_encoding);
 
     out << row.chrom << "\t"
         << row.begin << "\t"
         << row.end   << "\t";
 
+    // Do not perform the test if there's no coverage in either all case or all
+    // control samples. Also do not test if the site is completely methylated
+    // or completely unmethylated across all samples.
     if (has_low_coverage(full_design, test_factor, row)) {
-      // Don't test if there's no coverage in either case or control samples.
       out << "c:0:0\t" << -1;
     }
     else if (has_extreme_counts(full_design, row)) {
-      // Don't test if the site is completely methylated or completely
-      // unmethylated across all samples.
       out << "c:0:0\t" << -1;
     }
     else {
@@ -325,7 +320,7 @@ main(int argc, const char **argv) {
       null_regression.set_response(row.total_counts, row.meth_counts);
       gsl_fitter(null_regression);
 
-      double pval = loglikratio_test(null_regression.maximum_likelihood(),
+      const double pval = loglikratio_test(null_regression.maximum_likelihood(),
                                      full_regression.maximum_likelihood());
 
       // If error occured in the fitting algorithm (i.e. p-val is nan or -nan).
