@@ -178,8 +178,6 @@ Regression::log_fold_change(size_t factor) {
   return fitted_parameters_[factor];
 }
 
-
-
 Design::Design(istream &is) {
   string header_encoding;
   getline(is, header_encoding);

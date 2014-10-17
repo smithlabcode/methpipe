@@ -21,6 +21,7 @@
 #include <iostream>
 #include <sstream>
 #include <iostream>
+#include <cmath>
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_statistics.h>
@@ -29,13 +30,44 @@
 #include "smithlab_utils.hpp"
 
 #include "combine_pvals.hpp"
-#include "stoufferliptak.hpp"
 
 using std::vector; using std::cerr;
 using std::endl; using std::copy;
 using std::vector; using std::back_inserter;
 using std::cout; using std::istream;
 using std::string; using std::ostream;
+
+static double
+pval_to_zscores(double x) {
+  if (x == 1)
+    x = 0.9999;
+  if (x == 0)
+    x = 1 - 0.9999;
+  return gsl_cdf_ugaussian_Pinv(1 - x);
+}
+
+double
+stouffer_liptak(std::vector<double> &pvals,
+                const std::vector< std::vector<double> > &cor_matrix) {
+  double correction = 0;
+  size_t num_pvals = pvals.size();
+  for (size_t row_ind = 0; row_ind < cor_matrix.size(); ++row_ind)
+    for (size_t col_ind = row_ind + 1; col_ind < cor_matrix.size(); ++col_ind)
+      correction += cor_matrix[row_ind][col_ind];
+
+  vector<double> zscores;
+
+  transform(pvals.begin(), pvals.end(), back_inserter(zscores),
+            pval_to_zscores);
+
+  double sum = 0;
+  for (size_t ind = 0; ind < num_pvals; ++ind)
+    sum += zscores[ind];
+
+  double test_statistic = sum/sqrt(double(num_pvals) + 2*correction);
+
+  return 1 - gsl_cdf_gaussian_P(test_statistic, 1);
+}
 
 void
 initialize_pval_loci(istream &encoding, vector<PvalLocus> &pval_loci) {

@@ -34,7 +34,6 @@
 #include "smithlab_utils.hpp"
 
 // Local headers.
-#include "gsl_fitter.hpp"
 #include "regression.hpp"
 
 using std::string;

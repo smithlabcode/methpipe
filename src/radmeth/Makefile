@@ -62,7 +62,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-OBJS=stoufferliptak.o regression.o gsl_fitter.o combine_pvals.o
+OBJS= regression.o combine_pvals.o
 
 radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
