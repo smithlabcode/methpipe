@@ -50,10 +50,7 @@ public:
   std::vector<std::string> sample_names() const { return sample_names_; }
   std::vector<std::vector<double> > matrix() const { return matrix_; }
   double operator() (size_t sample, size_t factor) const;
-  void remove_factor_name(std::string name);
   void remove_factor(size_t factor);
-  bool operator== (const Design &other_design) const;
-  bool operator!= (const Design &other_design) const;
   friend std::ostream& operator<<(std::ostream& os, const Design &design);
 private:
   std::vector<std::string> factor_names_;
@@ -67,20 +64,19 @@ public:
   Regression(const Design &design)
     : design_(design), num_parameters_(design_.num_factors() + 1),
       maximum_likelihood_(0) {}
-  Design design() const { return design_; }
   void set_response(const std::vector<size_t> &response_total,
                     const std::vector<size_t> &response_meth);
-  std::vector<size_t> response_total() const { return response_total_; }
-  std::vector<size_t> response_meth() const {return response_meth_; }
-  double p(size_t sample, const gsl_vector *v) const;
   double loglik(const gsl_vector *parameters) const;
-  void gradient(const gsl_vector *parameters, gsl_vector *output) const;
+  std::vector<size_t> response_total() const { return response_total_; }
+  std::vector<size_t> response_meth() const { return response_meth_; }
+  double p(size_t sample, const gsl_vector *v) const;
   std::vector<double> fitted_parameters() { return fitted_parameters_; }
   std::vector<double> fitted_distribution_parameters();
   double maximum_likelihood() { return maximum_likelihood_; }
   double min_methdiff(size_t factor);
   double log_fold_change(size_t factor);
   friend bool gsl_fitter(Regression &r, std::vector<double> initial_parameters);
+  void gradient(const gsl_vector *parameters, gsl_vector *output) const;
 private:
   Design design_;
   std::vector<size_t> response_total_;

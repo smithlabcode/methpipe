@@ -127,7 +127,7 @@ Regression::gradient(const gsl_vector *parameters, gsl_vector *output) const {
   }
 }
 
-std::vector<double>
+vector<double>
 Regression::fitted_distribution_parameters() {
   vector<double> distribution_parameters;
 
@@ -177,6 +177,7 @@ double
 Regression::log_fold_change(size_t factor) {
   return fitted_parameters_[factor];
 }
+
 
 Design::Design(istream &is) {
   string header_encoding;
@@ -249,31 +250,6 @@ Design::remove_factor(size_t factor) {
 
   for (size_t sample = 0; sample < num_samples(); ++sample)
     matrix_[sample].erase(matrix_[sample].begin() + factor);
-}
-
-void
-Design::remove_factor_name(std::string name) {
-  vector<string>::const_iterator name_it =
-                std::find(factor_names_.begin(), factor_names_.end(), name);
-
-  if (name_it == factor_names_.end())
-    throw SMITHLABException(name + " is not one of the factor names");
-
-  size_t factor =  name_it - factor_names_.begin();
-
-  remove_factor(factor);
-}
-
-bool
-Design::operator== (const Design &other_design) const {
-  return (factor_names_ == other_design.factor_names_) &&
-          (sample_names_ == other_design.sample_names_) &&
-          (matrix_ == other_design.matrix_);
-}
-
-bool
-Design::operator!= (const Design &other_design) const {
-  return !(*this == other_design);
 }
 
 static double
