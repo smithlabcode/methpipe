@@ -38,13 +38,7 @@ lt_locus_pval(const PvalLocus &r1, const PvalLocus &r2) {
 
 static bool
 ls_locus_position(const PvalLocus &r1, const PvalLocus &r2) {
-  if (r1.chrom_ind < r2.chrom_ind)
-    return true;
-
-  if (r1.chrom_ind == r2.chrom_ind && r1.pos < r2.pos)
-    return true;
-
-  return false;
+  return r1.pos < r2.pos;
 }
 
 void
@@ -86,7 +80,7 @@ main(int argc, const char **argv) {
   try {
     /* FILES */
     string outfile;
-    string bin_spec = "1:200:25";
+    string bin_spec = "1:200:1";
 
     /****************** GET COMMAND LINE ARGUMENTS ***************************/
     OptionParser opt_parse("adjust_pval", "a program for computing "
@@ -116,24 +110,47 @@ main(int argc, const char **argv) {
     }
     const string bed_filename = leftover_args.front();
     /*************************************************************************/
+    BinForDistance bin_for_dist(bin_spec);
 
     std::ifstream bed_file(bed_filename.c_str());
 
     if (!bed_file)
       throw "could not open file: " + bed_filename;
 
-    vector<PvalLocus> loci;
     cerr << "Loading input file." << endl;
-    initialize_pval_loci(bed_file, loci);
+
+    // Read in all p-value loci. The loci that are not correspond to the valid
+    // p-values (i.e. in [0, 1] are skipped).
+    vector<PvalLocus> pvals;
+    Locus locus, prev_locus;
+
+    size_t chrom_offset = 0;
+
+    while(bed_file >> locus) {
+      // Skip loci that do not correspond to valid p-values.
+      if (0 <= locus.pval && locus.pval <= 1) {
+
+        // locus is on new chrom.
+        if (!prev_locus.chrom.empty() && prev_locus.chrom != locus.chrom)
+          chrom_offset += pvals.back().pos;
+
+        PvalLocus pval;
+        pval.raw_pval = locus.pval;
+        pval.pos = chrom_offset + bin_for_dist.max_dist() + 1 + locus.begin;
+
+        pvals.push_back(pval);
+        prev_locus = locus;
+      }
+    }
+
     cerr << "[done]" << endl;
 
     cerr << "Combining p-values." << endl;
-    BinForDistance bin_for_dist(bin_spec);
-    combine_pvals(loci, bin_for_dist);
+    combine_pvals(pvals, bin_for_dist);
     cerr << "[done]" << endl;
 
     cerr << "Running multiple test adjustment." << endl;
-    fdr(loci);
+    fdr(pvals);
     cerr << "[done]" << endl;
 
     std::ofstream of;
@@ -142,7 +159,7 @@ main(int argc, const char **argv) {
 
     std::ifstream original_bed_file(bed_filename.c_str());
 
-    update_pval_loci(original_bed_file, loci, out);
+    update_pval_loci(original_bed_file, pvals, out);
 
     //TODO: Check that the regions do not overlap & sorted
 

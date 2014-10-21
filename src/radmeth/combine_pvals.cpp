@@ -37,13 +37,39 @@ using std::vector; using std::back_inserter;
 using std::cout; using std::istream;
 using std::string; using std::ostream;
 
+istream&
+operator>>(istream &encoding, Locus &locus) {
+  string line;
+
+  getline(encoding, line);
+
+  if (line.empty())
+    return encoding;
+
+  // Can this try-catch block be simplified?
+  try {
+      std::istringstream iss(line);
+      iss.exceptions(std::ios::failbit);
+      iss >> locus.chrom >> locus.begin
+          >> locus.end >> locus.name
+          >> locus.pval;
+    } catch (std::exception const & err) {
+      std::cerr << err.what() << std::endl << "Couldn't parse the line \""
+            << line << "\"." << std::endl;
+      std::terminate();
+    }
+  return encoding;
+}
+
 static double
-pval_to_zscores(double x) {
-  if (x == 1)
-    x = 0.9999;
-  if (x == 0)
-    x = 1 - 0.9999;
-  return gsl_cdf_ugaussian_Pinv(1 - x);
+to_zscore(double pval) {
+  if (pval == 1)
+    pval = 0.9999;
+
+  if (pval == 0)
+    pval = 1 - 0.9999;
+
+  return gsl_cdf_ugaussian_Pinv(1 - pval);
 }
 
 double
@@ -58,7 +84,7 @@ stouffer_liptak(std::vector<double> &pvals,
   vector<double> zscores;
 
   transform(pvals.begin(), pvals.end(), back_inserter(zscores),
-            pval_to_zscores);
+            to_zscore);
 
   double sum = 0;
   for (size_t ind = 0; ind < num_pvals; ++ind)
@@ -70,59 +96,12 @@ stouffer_liptak(std::vector<double> &pvals,
 }
 
 void
-initialize_pval_loci(istream &encoding, vector<PvalLocus> &pval_loci) {
-  string record;
-  string chrom;
-  size_t begin;
-  size_t end;
-  string name;
-  double pval;
-
-  string prev_chrom;
-  size_t chrom_index = 0;
-
-  while(getline(encoding, record)) {
-
-    try {
-        std::istringstream iss(record);
-        iss.exceptions(std::ios::failbit);
-        iss >> chrom >> begin >> end >> name >> pval;
-      } catch (std::exception const & err) {
-        std::cerr << err.what() << std::endl << "Couldn't parse the line \""
-              << record << "\"." << std::endl;
-        std::terminate();
-      }
-
-      // All loci not associated with valide p-values are skipped;
-      if (0 <= pval && pval <= 1) {
-
-        if (prev_chrom.empty())
-          prev_chrom = chrom;
-
-        if (chrom != prev_chrom) {
-          prev_chrom = chrom;
-          ++chrom_index;
-        }
-
-      PvalLocus plocus(chrom_index, begin, pval);
-        pval_loci.push_back(plocus);
-      }
-  }
-}
-
-void
 update_pval_loci(istream &input_encoding,
                  const vector<PvalLocus> &pval_loci,
                  ostream &output_encoding) {
-  string record;
-  string chrom;
-  size_t begin;
-  size_t end;
-  string name;
+  string record, chrom, name;
+  size_t begin, end;
   double pval;
-
-  string prev_chrom;
-  //size_t chrom_index = 0;
 
   vector<PvalLocus>::const_iterator cur_locus_iter = pval_loci.begin();
 
@@ -199,7 +178,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
       --up_pos;
 
       size_t up_dist = cur_pos->pos - (up_pos->pos + 1);
-      if(up_dist <= max_distance_ && cur_pos->chrom_ind == up_pos->chrom_ind) {
+      if(up_dist <= max_distance_) {
           neighbors.push_back(*up_pos);
       } else
         too_far = true;
@@ -221,8 +200,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
 
       size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
 
-      if( down_dist <= max_distance_
-          && down_pos->chrom_ind == cur_pos->chrom_ind) {
+      if( down_dist <= max_distance_ ) {
           neighbors.push_back(*down_pos);
       } else
         too_far = true;
@@ -232,18 +210,6 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
 
   ++next_pos_;
   return true;
-}
-
-
-static double
-to_zscore(double pval) {
-  if (pval == 1)
-    pval = 0.9999;
-
-  if (pval == 0)
-    pval = 1 - 0.9999;
-
-  return gsl_cdf_ugaussian_Pinv(1 - pval);
 }
 
 void
@@ -298,6 +264,7 @@ DistanceCorrelation::correlation(const vector<double> &x,
   return corr;
 }
 
+
 vector<double>
 DistanceCorrelation::correlation_table(const vector<PvalLocus> &loci) {
 
@@ -319,7 +286,6 @@ DistanceCorrelation::correlation_table(const vector<PvalLocus> &loci) {
 
     return correlation_table;
 }
-
 
 void
 distance_corr_matrix(BinForDistance bin_for_dist,
@@ -362,20 +328,12 @@ combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
   vector<double> correlation_for_bin =
                                   distance_correlation.correlation_table(loci);
 
-  //output correlation in each bin
-  //for (vector<double>::const_iterator it = correlation_for_bin.begin();
-  //        it != correlation_for_bin.end(); ++it)
-  //std::cerr << *it << std::endl;
-
-
   ProximalLoci proximal_loci(loci, bin_for_distance.max_dist());
 
   vector<double> combined_pvalues;
-
   vector<PvalLocus> neighbors;
 
   size_t i = 0;
-
 
   while (proximal_loci.get(neighbors)) {
    vector< vector<double> > correlation_matrix;
@@ -393,22 +351,7 @@ combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
     double combined_pval = stouffer_liptak(p_vals, correlation_matrix);
 
     loci[i].combined_pval = combined_pval;
-    //PvalLocus &cur_region = loci[i];
 
-    //combined_pvalues.push_back(combined_pval);
     i++;
   }
-
-  //gsl_rng_free(r);
-
-  //assert(loci_iterators.size() == combined_pvalues.size());
-
-  /*
-  for (size_t ind = 0; ind < loci_iterators.size(); ++ind) {
-    std::stringstream ss;
-    PvalLocus &cur_region = loci_iterators[ind];
-    ss << cur_region.combined_pval = cur_region.score();
-    cur_region.set_name(ss.str());
-    cur_region.set_score(combined_pvalues[ind]);
-  }*/
 }

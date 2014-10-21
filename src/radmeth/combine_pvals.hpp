@@ -20,23 +20,27 @@
 
 #include <vector>
 
+struct Locus {
+  std::string chrom;
+  std::size_t begin;
+  std::size_t end;
+  std::string name;
+  double pval;
+};
+
+std::istream& operator>>(std::istream &encoding, Locus &locus);
+
 struct PvalLocus {
-  PvalLocus(std::size_t new_chrom_ind, std::size_t new_pos, double new_raw_pval)
-    : chrom_ind(new_chrom_ind), pos(new_pos), raw_pval(new_raw_pval),
-      combined_pval(0), corrected_pval(0) {}
-  std::size_t chrom_ind;
   std::size_t pos;
   double raw_pval;
   double combined_pval;
   double corrected_pval;
 };
 
-void initialize_pval_loci(std::istream &encoding,
-                           std::vector<PvalLocus> &pval_loci);
-
 void update_pval_loci(std::istream &input_encoding,
                        const std::vector<PvalLocus> &pval_loci,
                        std::ostream &output_loci_encoding);
+
 
 class BinForDistance {
 public:
