@@ -22,71 +22,33 @@
 
 // Std headers.
 #include <vector>
-#include <sstream>
 #include <string>
 
-// GSL headers.
-#include <gsl/gsl_matrix_double.h>
-
-// Objects of this class represent design matrices.
-//
-// A Design object can be created like this:
-//
-//  string encoding = "f1\tf2\ns1\t1\t1\ns2\t1\t0";
-//  istringstream iss(encoding);
-//  Design design(iss);
-//
-// To drop the second factor from the desin:
-//
-//  design.remove_factor(1);
-
-class Design {
-public:
-  Design() {}
-  Design(std::istream &is);
-  size_t num_factors() const { return factor_names_.size(); }
-  size_t num_samples() const { return sample_names_.size(); }
-  std::vector<std::string> factor_names() const { return factor_names_; }
-  std::vector<std::string> sample_names() const { return sample_names_; }
-  std::vector<std::vector<double> > matrix() const { return matrix_; }
-  double operator() (size_t sample, size_t factor) const;
-  void remove_factor(size_t factor);
-  friend std::ostream& operator<<(std::ostream& os, const Design &design);
-private:
-  std::vector<std::string> factor_names_;
-  std::vector<std::string> sample_names_;
-  std::vector<std::vector<double> > matrix_;
+struct Design {
+  std::vector<std::string> factor_names;
+  std::vector<std::string> sample_names;
+  std::vector<std::vector<double> > matrix;
 };
 
-class Regression {
-public:
-  Regression() : num_parameters_(0), maximum_likelihood_(0) {}
-  Regression(const Design &design)
-    : design_(design), num_parameters_(design_.num_factors() + 1),
-      maximum_likelihood_(0) {}
-  void set_response(const std::vector<size_t> &response_total,
-                    const std::vector<size_t> &response_meth);
-  double loglik(const gsl_vector *parameters) const;
-  std::vector<size_t> response_total() const { return response_total_; }
-  std::vector<size_t> response_meth() const { return response_meth_; }
-  double p(size_t sample, const gsl_vector *v) const;
-  std::vector<double> fitted_parameters() { return fitted_parameters_; }
-  std::vector<double> fitted_distribution_parameters();
-  double maximum_likelihood() { return maximum_likelihood_; }
-  double min_methdiff(size_t factor);
-  double log_fold_change(size_t factor);
-  friend bool gsl_fitter(Regression &r, std::vector<double> initial_parameters);
-  void gradient(const gsl_vector *parameters, gsl_vector *output) const;
-private:
-  Design design_;
-  std::vector<size_t> response_total_;
-  std::vector<size_t> response_meth_;
-  const size_t num_parameters_;
-  std::vector<double> fitted_parameters_;
-  double maximum_likelihood_;
+std::istream& operator>> (std::istream &is, Design &design);
+std::ostream& operator<< (std::ostream &os, const Design &design);
+void remove_factor(Design &design, size_t factor);
+
+struct Proportions {
+  std::vector<size_t> total;
+  std::vector<size_t> meth;
 };
 
-bool gsl_fitter(Regression &r,
-              std::vector<double> initial_parameters = std::vector<double> ());
+struct Regression {
+  Design design;
+  Proportions props;
+  std::vector<double> fitted_parameters;
+  double max_loglik;
+};
 
-#endif //REGRESSION_HPP_
+bool fit(Regression &r,
+          std::vector<double> initial_parameters = std::vector<double>());
+
+double min_methdiff(const Regression &full_reg, const size_t test_factor);
+
+#endif // REGRESSION_HPP_

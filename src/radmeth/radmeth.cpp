@@ -97,21 +97,38 @@ struct TableRow {
   size_t end;
   std::vector<size_t> meth_counts;
   std::vector<size_t> total_counts;
-
-  friend std::ostream& operator<<(std::ostream& os, const TableRow& row) {
-    os << row.chrom << ":" << row.begin << ":" << row.end;
-
-    for (size_t sample = 0; sample < row.total_counts.size(); ++sample)
-      os << " " << row.total_counts[sample]
-         << " " << row.meth_counts[sample];
-
-    return os;
-  }
 };
 
+/*
+std::ostream&
+operator<<(std::ostream& os, const TableRow& row) {
+  os << row.chrom << ":" << row.begin << ":" << row.end;
+
+  for (size_t sample = 0; sample < row.total_counts.size(); ++sample)
+    os << " " << row.total_counts[sample]
+       << " " << row.meth_counts[sample];
+
+  return os;
+}*/
+
+
 // Populates a TableRow object from a string represetnation.
-static void
-parse_row(const string &row_encoding, TableRow &row) {
+std::istream&
+operator>>(std::istream &table_encoding, TableRow &row) {
+  row.chrom.clear();
+  row.begin = 0;
+  row.end = 0;
+  row.meth_counts.clear();
+  row.total_counts.clear();
+
+  string row_encoding;
+  getline(table_encoding, row_encoding);
+
+  // Skip lines contining only the newline character (e.g. the last line of the
+  // proportion table).
+  if(row_encoding.empty())
+    return table_encoding;
+
   // Get the row name (which must be specified like this: "chr:start:end") and
   // parse it.
   istringstream row_stream(row_encoding);
@@ -160,6 +177,7 @@ parse_row(const string &row_encoding, TableRow &row) {
   if (row.total_counts.size() != row.meth_counts.size())
     throw SMITHLABException("This row does not encode proportions"
                             "correctly:\n" + row_encoding);
+  return table_encoding;
 }
 
 bool
@@ -169,8 +187,8 @@ has_low_coverage(const Design &design, size_t test_factor,
   bool is_covered_in_test_factor_samples = false;
   bool is_covered_in_other_samples = false;
 
-  for (size_t sample = 0; sample < design.num_samples(); ++sample) {
-    if (design(sample, test_factor) == 1) {
+  for (size_t sample = 0; sample < design.sample_names.size(); ++sample) {
+    if (design.matrix[sample][test_factor] == 1) {
       if (row.total_counts[sample] != 0)
         is_covered_in_test_factor_samples = true;
     } else {
@@ -188,7 +206,7 @@ has_extreme_counts(const Design &design, const TableRow &row) {
   bool is_maximally_methylated = true;
   bool is_unmethylated = true;
 
-  for (size_t sample = 0; sample < design.num_samples(); ++sample) {
+  for (size_t sample = 0; sample < design.sample_names.size(); ++sample) {
     if (row.total_counts[sample] != row.meth_counts[sample])
       is_maximally_methylated = false;
 
@@ -253,26 +271,29 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-  Design full_design(design_file); // Initialize the full design matrix from
-                                   // file.
+  Regression full_regression;         // Initialize the full design matrix from
+  design_file >> full_regression.design; // file.
 
-  vector<string> factor_names = full_design.factor_names();
+  //cerr << full_regression.design << endl;
 
   // Check that the provided test factor name exists and find it's index. Here
   // we identify with their indexes to simplify naming.
   vector<string>::const_iterator test_factor_it =
-    std::find(factor_names.begin(), factor_names.end(), test_factor_name);
+    std::find(full_regression.design.factor_names.begin(),
+              full_regression.design.factor_names.end(), test_factor_name);
 
-  if (test_factor_it == factor_names.end())
-    throw SMITHLABException(test_factor_name + " is not a part of the design"
-                            " specification.");
+  if (test_factor_it == full_regression.design.factor_names.end())
+    throw SMITHLABException("Error: " + test_factor_name +
+                            " is not a part of the design specification.");
 
-  size_t test_factor = test_factor_it - factor_names.begin();
+  size_t test_factor = test_factor_it -
+                              full_regression.design.factor_names.begin();
 
-  Regression full_regression(full_design);
-  Design null_design = full_design;
-  null_design.remove_factor(test_factor);
-  Regression null_regression(null_design);
+  Regression null_regression;
+  null_regression.design = full_regression.design;
+  remove_factor(null_regression.design, test_factor);
+
+  //cerr << null_regression.design << endl;
 
   // Make sure that the first line of the proportion table file contains names
   // of the samples. Throw an exception if the names or their order in
@@ -280,24 +301,20 @@ main(int argc, const char **argv) {
   string sample_names_encoding;
   getline(table_file, sample_names_encoding);
 
-  if (full_design.sample_names() != split(sample_names_encoding))
+  if (full_regression.design.sample_names != split(sample_names_encoding))
     throw SMITHLABException(sample_names_encoding + " does not match factor "
                             "names or their order in the design matrix. "
                             "Please verify that the design matrix and the "
                             "proportion table are correctly formatted.");
 
-  string row_encoding;
-
   // Performing the log-likelihood ratio test on proportions from each row of
   // the proportion table.
-  while (getline(table_file, row_encoding)) {
+  TableRow row;
+  while (table_file >> row) {
 
-    TableRow row;
-    parse_row(row_encoding, row);
-
-    if (full_design.num_samples() != row.total_counts.size())
-      throw SMITHLABException("This row has incorrect number of proportions:\n"
-                              + row_encoding);
+    if (full_regression.design.sample_names.size() != row.total_counts.size())
+      throw SMITHLABException("There is a row with"
+                              "incorrect number of proportions.");
 
     out << row.chrom << "\t"
         << row.begin << "\t"
@@ -306,34 +323,39 @@ main(int argc, const char **argv) {
     // Do not perform the test if there's no coverage in either all case or all
     // control samples. Also do not test if the site is completely methylated
     // or completely unmethylated across all samples.
-    if (has_low_coverage(full_design, test_factor, row)) {
+    if (has_low_coverage(full_regression.design, test_factor, row)) {
       out << "c:0:0\t" << -1;
     }
-    else if (has_extreme_counts(full_design, row)) {
+    else if (has_extreme_counts(full_regression.design, row)) {
       out << "c:0:0\t" << -1;
     }
     else {
-      full_regression.set_response(row.total_counts, row.meth_counts);
-      gsl_fitter(full_regression);
+      full_regression.props.total = row.total_counts;
+      full_regression.props.meth  = row.meth_counts;
+      fit(full_regression);
 
-      null_regression.set_response(row.total_counts, row.meth_counts);
-      gsl_fitter(null_regression);
+      null_regression.props.total = row.total_counts;
+      null_regression.props.meth = row.meth_counts;
+      fit(null_regression);
 
-      const double pval = loglikratio_test(null_regression.maximum_likelihood(),
-                                     full_regression.maximum_likelihood());
+      const double pval = loglikratio_test(null_regression.max_loglik,
+                                     full_regression.max_loglik);
 
       // If error occured in the fitting algorithm (i.e. p-val is nan or -nan).
       if (pval != pval) {
         out << "c:0:0" << "\t" << "-1";
       }
       else {
-        out << "c:" << full_regression.log_fold_change(test_factor)
-            << ":"  << full_regression.min_methdiff(test_factor)
+        const double
+              log_fold_change = full_regression.fitted_parameters[test_factor];
+        out << "c:" << log_fold_change
+            << ":"  << min_methdiff(full_regression, test_factor)
             << "\t" << pval;
       }
     }
     out << endl;
   }
+
 
   }
   catch (const SMITHLABException &e) {

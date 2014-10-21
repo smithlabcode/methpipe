@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+// GSL headers.
+#include <gsl/gsl_matrix_double.h>
 #include <gsl/gsl_multimin.h>
 
 #include "smithlab_utils.hpp"
@@ -28,38 +30,103 @@
 using std::istream; using std::string;
 using std::vector; using std::istringstream;
 
-void
-Regression::set_response(const vector<size_t> &response_total,
-                          const vector<size_t> &response_meth) {
-  response_total_ = response_total;
-  response_meth_ = response_meth;
+std::istream&
+operator>> (std::istream &is, Design &design) {
+  string header_encoding;
+  getline(is, header_encoding);
+
+  istringstream header_is(header_encoding);
+  string header_name;
+  while (header_is >> header_name)
+    design.factor_names.push_back(header_name);
+
+  string row;
+  while (getline(is, row)) {
+
+    if (row.empty())
+      continue;
+
+    istringstream row_is(row);
+    string token;
+    row_is >> token;
+    design.sample_names.push_back(token);
+
+    vector<double> matrix_row;
+    while (row_is >> token) {
+      if (token.length() == 1 && (token == "0" || token == "1"))
+        matrix_row.push_back(token == "1");
+      else
+        throw SMITHLABException("only binary factor levels are allowed:\n"
+                                + row);
+    }
+
+    if (matrix_row.size() != design.factor_names.size())
+      throw SMITHLABException("each row must have as many columns as "
+            "factors:\n" + row);
+
+    design.matrix.push_back(vector<double>());
+    swap(design.matrix.back(), matrix_row);
+  }
+  return is;
 }
 
-double
-Regression::p(size_t sample, const gsl_vector *parameters) const {
+std::ostream&
+operator<< (std::ostream &os, const Design &design) {
+  for(size_t factor = 0; factor < design.factor_names.size(); ++factor) {
+    os << design.factor_names[factor];
+    if (factor + 1 != design.factor_names.size())
+      os << "\t";
+  }
+  os << std::endl;
+
+  for(size_t sample = 0; sample < design.sample_names.size(); ++sample) {
+    os << design.sample_names[sample] << "\t";
+    for(size_t factor = 0; factor < design.factor_names.size(); ++factor) {
+      os << design.matrix[sample][factor];
+      if (factor + 1 != design.factor_names.size())
+        os << "\t";
+    }
+      os << "\n";
+  }
+  return os;
+}
+
+void
+remove_factor(Design &design, size_t factor) {
+  design.factor_names.erase(design.factor_names.begin() + factor);
+  for (size_t sample = 0; sample < design.sample_names.size(); ++sample)
+    design.matrix[sample].erase(design.matrix[sample].begin() + factor);
+}
+
+static double
+pi(Regression *reg, size_t sample, const gsl_vector *parameters) {
   double dot_prod = 0;
 
-  for(size_t factor = 0; factor < design_.num_factors(); ++factor)
-    dot_prod += design_(sample, factor)*gsl_vector_get(parameters, factor);
+  for(size_t factor = 0; factor < reg->design.factor_names.size(); ++factor)
+    dot_prod +=
+          reg->design.matrix[sample][factor]*gsl_vector_get(parameters, factor);
 
   double p = exp(dot_prod)/(1 + exp(dot_prod));
 
   return p;
 }
 
-double
-Regression::loglik(const gsl_vector *parameters) const {
+static double
+neg_loglik(const gsl_vector *parameters, void *object) {
+  Regression *reg = (Regression *)(object);
+  const size_t num_parameters = reg->design.factor_names.size() + 1;
+
   double log_lik = 0;
 
   //dispersion parameter phi is the last element of parameter vector
   const double dispersion_param = gsl_vector_get(parameters,
-                                                  num_parameters_ - 1);
+                                                  num_parameters - 1);
   const double phi = exp(dispersion_param)/(1 + exp(dispersion_param));
 
-  for(size_t s = 0; s < design_.num_samples(); ++s) {
-    const double n_s = response_total_[s];
-    const double y_s = response_meth_[s];
-    const double p_s = p(s, parameters);
+  for(size_t s = 0; s < reg->design.sample_names.size(); ++s) {
+    const double n_s = reg->props.total[s];
+    const double y_s = reg->props.meth[s];
+    const double p_s = pi(reg, s, parameters);
 
     for(int k = 0; k < y_s; ++k) {
       log_lik += log((1 - phi)*p_s + phi*k);
@@ -74,31 +141,35 @@ Regression::loglik(const gsl_vector *parameters) const {
     }
   }
 
-  return log_lik;
+  return (-1)*log_lik;
 }
 
-void
-Regression::gradient(const gsl_vector *parameters, gsl_vector *output) const {
+static void
+neg_gradient(const gsl_vector *parameters, void *object,
+                      gsl_vector *output) {
+
+  Regression *reg = (Regression *)(object);
+  const size_t num_parameters = reg->design.factor_names.size() + 1;
 
   const double dispersion_param = gsl_vector_get(parameters,
-                                                  num_parameters_ - 1);
+                                                  num_parameters - 1);
 
   const double phi = exp(dispersion_param)/(1 + exp(dispersion_param));
 
-  for(size_t f = 0; f < num_parameters_; ++f) {
+  for(size_t f = 0; f < num_parameters; ++f) {
 
     double deriv = 0;
 
-    for(size_t s = 0; s < design_.num_samples(); ++s) {
-      int n_s = response_total_[s];
-      int y_s = response_meth_[s];
-      double p_s = p(s, parameters);
+    for(size_t s = 0; s < reg->design.sample_names.size(); ++s) {
+      int n_s = reg->props.total[s];
+      int y_s = reg->props.meth[s];
+      double p_s = pi(reg, s, parameters);
 
       double term = 0;
 
       //a parameter linked to p
-      if(f < design_.num_factors()) {
-        double factor = (1 - phi)*p_s*(1 - p_s)*design_(s, f);
+      if(f < reg->design.factor_names.size()) {
+        double factor = (1 - phi)*p_s*(1 - p_s)*reg->design.matrix[s][f];
         if (factor == 0) continue;
 
         for(int k = 0; k < y_s; ++k)
@@ -125,43 +196,36 @@ Regression::gradient(const gsl_vector *parameters, gsl_vector *output) const {
 
     gsl_vector_set(output, f, deriv);
   }
+
+  gsl_vector_scale(output, -1.0);
 }
 
-vector<double>
-Regression::fitted_distribution_parameters() {
-  vector<double> distribution_parameters;
+static void
+neg_loglik_and_grad(const gsl_vector *parameters,
+                                void *object,
+                                double *loglik_val,
+                                gsl_vector *d_loglik_val) {
 
-	for (size_t sample = 0; sample < design_.num_samples(); ++sample) {
-    double sample_parameter = 0;
-    for (size_t factor = 0; factor < design_.num_factors(); ++factor) {
-      sample_parameter += fitted_parameters_[factor]*design_(sample, factor);
-    }
-    distribution_parameters.push_back(
-            exp(sample_parameter)/(1 + exp(sample_parameter)) );
-	}
-
-	double phi_param = fitted_parameters_.back();
-	double phi = exp(phi_param)/(1 + exp(phi_param));
-	distribution_parameters.push_back(phi);
-
-  return distribution_parameters;
+  *loglik_val = neg_loglik(parameters, object);
+  neg_gradient(parameters, object, d_loglik_val);
 }
 
 double
-Regression::min_methdiff(size_t test_factor) {
+min_methdiff(const Regression &full_reg, const size_t test_factor) {
 
   vector<double> methdiffs;
 
-  for (size_t sample = 0; sample < design_.num_samples(); ++sample) {
-    if (design_(sample, test_factor) == 1) {
+  for (size_t sample = 0;
+          sample < full_reg.design.sample_names.size(); ++sample) {
+    if (full_reg.design.matrix[sample][test_factor] == 1) {
       double full_parameter_sum = 0;
       double reduced_parameter_sum = 0;
-      for (size_t factor = 0; factor < design_.num_factors(); ++factor) {
-        full_parameter_sum +=
-                          fitted_parameters_[factor]*design_(sample, factor);
+      for (size_t factor = 0; factor < full_reg.design.factor_names.size(); ++factor) {
+        full_parameter_sum += full_reg.fitted_parameters[factor]*
+                                  full_reg.design.matrix[sample][factor];
       }
       reduced_parameter_sum = full_parameter_sum -
-                              fitted_parameters_[test_factor];
+                              full_reg.fitted_parameters[test_factor];
       const double full_pi =
                           exp(full_parameter_sum)/(1 + exp(full_parameter_sum));
       const double reduced_pi =
@@ -173,119 +237,17 @@ Regression::min_methdiff(size_t test_factor) {
   return *std::min_element(methdiffs.begin(), methdiffs.end());
 }
 
-double
-Regression::log_fold_change(size_t factor) {
-  return fitted_parameters_[factor];
-}
-
-
-Design::Design(istream &is) {
-  string header_encoding;
-  getline(is, header_encoding);
-
-  istringstream header_is(header_encoding);
-  string header_name;
-  while (header_is >> header_name)
-    factor_names_.push_back(header_name);
-
-  string row;
-  while (getline(is, row)) {
-
-    if (row.empty())
-      continue;
-
-    istringstream row_is(row);
-    string token;
-    row_is >> token;
-    sample_names_.push_back(token);
-
-    vector<double> matrix_row;
-    while (row_is >> token) {
-      if (token.length() == 1 && (token == "0" || token == "1"))
-        matrix_row.push_back(token == "1");
-      else
-        throw SMITHLABException("only binary factor levels are allowed:\n"
-                                + row);
-    }
-
-    if (matrix_row.size() != num_factors())
-      throw SMITHLABException("each row must have as many columns as "
-            "factors:\n" + row);
-
-    matrix_.push_back(vector<double>());
-    swap(matrix_.back(), matrix_row);
-  }
-}
-
-double
-Design::operator() (size_t sample, size_t factor) const {
-  return matrix_[sample][factor];
-}
-
-std::ostream&
-operator<<(std::ostream& os, const Design &design) {
-
-  for(size_t factor = 0; factor < design.num_factors(); ++factor) {
-    os << design.factor_names_[factor];
-    if (factor + 1 != design.num_factors())
-      os << "\t";
-  }
-  os << std::endl;
-
-  for(size_t sample = 0; sample < design.num_samples(); ++sample) {
-    os << design.sample_names_[sample] << "\t";
-    for(size_t factor = 0; factor < design.num_factors(); ++factor) {
-      os << design.matrix_[sample][factor];
-      if (factor + 1 != design.num_factors())
-        os << "\t";
-    }
-      os << "\n";
-  }
-  return os;
-}
-
-void
-Design::remove_factor(size_t factor) {
-  factor_names_.erase(factor_names_.begin() + factor);
-
-  for (size_t sample = 0; sample < num_samples(); ++sample)
-    matrix_[sample].erase(matrix_[sample].begin() + factor);
-}
-
-static double
-neg_loglik_proxy (const gsl_vector *parameters, void *object) {
-  Regression *regression = (Regression *)(object);
-
-  return (-1)*regression->loglik(parameters);
-}
-
-static void
-neg_gradient_proxy (const gsl_vector *parameters, void *object,
-                    gsl_vector *d_loglik_val) {
-  Regression *regression = (Regression *)(object);
-  regression->gradient(parameters, d_loglik_val);
-  gsl_vector_scale(d_loglik_val, -1.0);
-}
-
-static void
-neg_loglik_and_gradient_proxy (const gsl_vector *parameters,
-                                void *object,
-                                double *loglik_val,
-                                gsl_vector *d_loglik_val) {
-
-  *loglik_val = neg_loglik_proxy(parameters, object);
-  neg_gradient_proxy(parameters, object, d_loglik_val);
-}
-
 bool
-gsl_fitter(Regression &r, vector<double> initial_parameters) {
+fit(Regression &r, vector<double> initial_parameters) {
+  const size_t num_parameters = r.design.factor_names.size() + 1;
+
   if (initial_parameters.empty()) {
-    for(size_t ind = 0; ind < r.num_parameters_ - 1; ++ind)
+    for(size_t ind = 0; ind < num_parameters - 1; ++ind)
       initial_parameters.push_back(0.0);
     initial_parameters.push_back(-2.5);
   }
 
-  if (initial_parameters.size() != r.num_parameters_)
+  if (initial_parameters.size() != num_parameters)
     throw std::runtime_error("Wrong number of initial parameters.");
 
   int status = 0;
@@ -294,13 +256,13 @@ gsl_fitter(Regression &r, vector<double> initial_parameters) {
 
   gsl_multimin_function_fdf loglik_bundle;
 
-  loglik_bundle.f = &neg_loglik_proxy;
-  loglik_bundle.df = &neg_gradient_proxy;
-  loglik_bundle.fdf = &neg_loglik_and_gradient_proxy;
-  loglik_bundle.n = r.num_parameters_;
+  loglik_bundle.f = &neg_loglik;
+  loglik_bundle.df = &neg_gradient;
+  loglik_bundle.fdf = &neg_loglik_and_grad;
+  loglik_bundle.n = num_parameters;
   loglik_bundle.params = (void *)&r;
 
-  gsl_vector *parameters = gsl_vector_alloc(r.num_parameters_);
+  gsl_vector *parameters = gsl_vector_alloc(num_parameters);
 
   for (size_t parameter = 0; parameter < initial_parameters.size();
         ++parameter) {
@@ -313,7 +275,7 @@ gsl_fitter(Regression &r, vector<double> initial_parameters) {
   T = gsl_multimin_fdfminimizer_conjugate_fr;
 
   gsl_multimin_fdfminimizer *s;
-  s = gsl_multimin_fdfminimizer_alloc (T, r.num_parameters_);
+  s = gsl_multimin_fdfminimizer_alloc (T, num_parameters);
 
   gsl_multimin_fdfminimizer_set (s, &loglik_bundle, parameters, 0.001, 1e-4);
 
@@ -329,11 +291,11 @@ gsl_fitter(Regression &r, vector<double> initial_parameters) {
   while (status == GSL_CONTINUE && iter < 700);
   //It it reasonable to reduce the number of iterations to 500?
 
-  r.fitted_parameters_.clear();
+  r.fitted_parameters.clear();
   for(size_t ind = 0; ind < (s->x)->size; ++ind)
-    r.fitted_parameters_.push_back(gsl_vector_get(s->x, ind));
+    r.fitted_parameters.push_back(gsl_vector_get(s->x, ind));
 
-  r.maximum_likelihood_ = r.loglik(s->x);
+  r.max_loglik = (-1)*neg_loglik(s->x, &r);
 
   gsl_multimin_fdfminimizer_free(s);
   gsl_vector_free(parameters);
