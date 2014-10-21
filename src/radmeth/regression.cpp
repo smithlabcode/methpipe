@@ -98,6 +98,86 @@ remove_factor(Design &design, size_t factor) {
     design.matrix[sample].erase(design.matrix[sample].begin() + factor);
 }
 
+// Parses a natural number from its string representation. Throws exception if
+// the string does not encode one.
+static size_t
+parse_natural_number(string encoding) {
+  istringstream iss(encoding);
+  size_t number;
+  iss >> number;
+  if (!iss)
+    throw SMITHLABException("The token \"" +encoding + "\" "
+                            "does not encode a natural number");
+  return number;
+}
+
+std::istream&
+operator>>(std::istream &table_encoding, SiteProportions &props) {
+  props.chrom.clear();
+  props.begin = 0;
+  props.end = 0;
+  props.meth.clear();
+  props.total.clear();
+
+  string row_encoding;
+  getline(table_encoding, row_encoding);
+
+  // Skip lines contining only the newline character (e.g. the last line of the
+  // proportion table).
+  if(row_encoding.empty())
+    return table_encoding;
+
+  // Get the row name (which must be specified like this: "chr:start:end") and
+  // parse it.
+  istringstream row_stream(row_encoding);
+  string row_name_encoding;
+  row_stream >> row_name_encoding;
+
+  // Every row must start an identifier consisiting of genomic loci of the
+  // corresponding site. Here we check this identifier has the correct number
+  // of colons.
+  const size_t num_colon =
+            std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
+
+  if (num_colon != 2)
+    throw SMITHLABException("Each row in the count table must start with "
+                            "a line chromosome:start:end. Got \"" +
+                            row_name_encoding + "\" instead." );
+
+  // First parse the row identifier.
+  istringstream name_stream(row_name_encoding);
+  getline(name_stream, props.chrom, ':');
+
+  if (props.chrom.empty())
+    throw SMITHLABException("Error parsing " + row_name_encoding +
+                            ": chromosome name is missing.");
+
+  string coordinate_encoding;
+
+  getline(name_stream, coordinate_encoding, ':');
+  props.begin = parse_natural_number(coordinate_encoding);
+
+  name_stream >> coordinate_encoding;
+  props.end = parse_natural_number(coordinate_encoding);
+
+  // After parsing the row identifier, parse count proportions.
+  size_t total_count, meth_count;
+
+  while (row_stream >> total_count >> meth_count) {
+    props.total.push_back(total_count);
+    props.meth.push_back(meth_count);
+  }
+
+  if (!row_stream.eof())
+    throw SMITHLABException("Some row entries are not natural numbers: " +
+                            row_stream.str());
+
+  if (props.total.size() != props.meth.size())
+    throw SMITHLABException("This row does not encode proportions"
+                            "correctly:\n" + row_encoding);
+  return table_encoding;
+}
+
 static double
 pi(Regression *reg, size_t sample, const gsl_vector *parameters) {
   double dot_prod = 0;

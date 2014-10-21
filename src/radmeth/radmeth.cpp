@@ -57,19 +57,6 @@ split(string input) {
   return tokens;
 }
 
-// Parses a natural number from its string representation. Throws exception if
-// the string does not encode one.
-static size_t
-parse_natural_number(string encoding) {
-  istringstream iss(encoding);
-  size_t number;
-  iss >> number;
-  if (!iss)
-    throw SMITHLABException("The token \"" +encoding + "\" "
-                            "does not encode a natural number");
-  return number;
-}
-
 // Given the maximum likelihood estimates of the full and reduced models, the
 // function outputs the p-value of the log-likelihood ratio. *Note* that it is
 // assumed that the reduced model has one fewer factor than the reduced model.
@@ -90,109 +77,18 @@ loglikratio_test(double null_loglik, double full_loglik) {
   return pval;
 }
 
-// Stores a row of a proportion table.
-struct TableRow {
-  std::string chrom;
-  size_t begin;
-  size_t end;
-  std::vector<size_t> meth_counts;
-  std::vector<size_t> total_counts;
-};
-
-/*
-std::ostream&
-operator<<(std::ostream& os, const TableRow& row) {
-  os << row.chrom << ":" << row.begin << ":" << row.end;
-
-  for (size_t sample = 0; sample < row.total_counts.size(); ++sample)
-    os << " " << row.total_counts[sample]
-       << " " << row.meth_counts[sample];
-
-  return os;
-}*/
-
-
-// Populates a TableRow object from a string represetnation.
-std::istream&
-operator>>(std::istream &table_encoding, TableRow &row) {
-  row.chrom.clear();
-  row.begin = 0;
-  row.end = 0;
-  row.meth_counts.clear();
-  row.total_counts.clear();
-
-  string row_encoding;
-  getline(table_encoding, row_encoding);
-
-  // Skip lines contining only the newline character (e.g. the last line of the
-  // proportion table).
-  if(row_encoding.empty())
-    return table_encoding;
-
-  // Get the row name (which must be specified like this: "chr:start:end") and
-  // parse it.
-  istringstream row_stream(row_encoding);
-  string row_name_encoding;
-  row_stream >> row_name_encoding;
-
-  // Every row must start an identifier consisiting of genomic loci of the
-  // corresponding site. Here we check this identifier has the correct number
-  // of colons.
-  const size_t num_colon =
-            std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
-
-  if (num_colon != 2)
-    throw SMITHLABException("Each row in the count table must start with "
-                            "a line chromosome:start:end. Got \"" +
-                            row_name_encoding + "\" instead." );
-
-  // First parse the row identifier.
-  istringstream name_stream(row_name_encoding);
-  getline(name_stream, row.chrom, ':');
-
-  if (row.chrom.empty())
-    throw SMITHLABException("Error parsing " + row_name_encoding +
-                            ": chromosome name is missing.");
-
-  string coordinate_encoding;
-
-  getline(name_stream, coordinate_encoding, ':');
-  row.begin = parse_natural_number(coordinate_encoding);
-
-  name_stream >> coordinate_encoding;
-  row.end = parse_natural_number(coordinate_encoding);
-
-  // After parsing the row identifier, parse count proportions.
-  size_t total_count, meth_count;
-
-  while (row_stream >> total_count >> meth_count) {
-    row.total_counts.push_back(total_count);
-    row.meth_counts.push_back(meth_count);
-  }
-
-  if (!row_stream.eof())
-    throw SMITHLABException("Some row entries are not natural numbers: " +
-                            row_stream.str());
-
-  if (row.total_counts.size() != row.meth_counts.size())
-    throw SMITHLABException("This row does not encode proportions"
-                            "correctly:\n" + row_encoding);
-  return table_encoding;
-}
-
 bool
-has_low_coverage(const Design &design, size_t test_factor,
-              const TableRow &row) {
+has_low_coverage(const Regression &reg, size_t test_factor) {
 
   bool is_covered_in_test_factor_samples = false;
   bool is_covered_in_other_samples = false;
 
-  for (size_t sample = 0; sample < design.sample_names.size(); ++sample) {
-    if (design.matrix[sample][test_factor] == 1) {
-      if (row.total_counts[sample] != 0)
+  for (size_t sample = 0; sample < reg.design.sample_names.size(); ++sample) {
+    if (reg.design.matrix[sample][test_factor] == 1) {
+      if (reg.props.total[sample] != 0)
         is_covered_in_test_factor_samples = true;
     } else {
-      if (row.total_counts[sample] != 0)
+      if (reg.props.total[sample] != 0)
         is_covered_in_other_samples = true;
     }
   }
@@ -201,16 +97,16 @@ has_low_coverage(const Design &design, size_t test_factor,
 }
 
 bool
-has_extreme_counts(const Design &design, const TableRow &row) {
+has_extreme_counts(const Regression &reg) {
 
   bool is_maximally_methylated = true;
   bool is_unmethylated = true;
 
-  for (size_t sample = 0; sample < design.sample_names.size(); ++sample) {
-    if (row.total_counts[sample] != row.meth_counts[sample])
+  for (size_t sample = 0; sample < reg.design.sample_names.size(); ++sample) {
+    if (reg.props.total[sample] != reg.props.meth[sample])
       is_maximally_methylated = false;
 
-    if (row.meth_counts[sample] != 0)
+    if (reg.props.meth[sample] != 0)
       is_unmethylated = false;
   }
 
@@ -309,33 +205,34 @@ main(int argc, const char **argv) {
 
   // Performing the log-likelihood ratio test on proportions from each row of
   // the proportion table.
-  TableRow row;
-  while (table_file >> row) {
+  //TableRow row;
+  while (table_file >> full_regression.props) {
 
-    if (full_regression.design.sample_names.size() != row.total_counts.size())
-      throw SMITHLABException("There is a row with"
-                              "incorrect number of proportions.");
+    if (full_regression.design.sample_names.size() !=
+        full_regression.props.total.size())
+          throw SMITHLABException("There is a row with"
+                                   "incorrect number of proportions.");
 
-    out << row.chrom << "\t"
-        << row.begin << "\t"
-        << row.end   << "\t";
+    out << full_regression.props.chrom << "\t"
+        << full_regression.props.begin << "\t"
+        << full_regression.props.end   << "\t";
 
     // Do not perform the test if there's no coverage in either all case or all
     // control samples. Also do not test if the site is completely methylated
     // or completely unmethylated across all samples.
-    if (has_low_coverage(full_regression.design, test_factor, row)) {
+    if (has_low_coverage(full_regression, test_factor)) {
       out << "c:0:0\t" << -1;
     }
-    else if (has_extreme_counts(full_regression.design, row)) {
+    else if (has_extreme_counts(full_regression)) {
       out << "c:0:0\t" << -1;
     }
     else {
-      full_regression.props.total = row.total_counts;
-      full_regression.props.meth  = row.meth_counts;
+      //full_regression.props.total = row.total_counts;
+      //full_regression.props.meth  = row.meth_counts;
       fit(full_regression);
 
-      null_regression.props.total = row.total_counts;
-      null_regression.props.meth = row.meth_counts;
+      null_regression.props = full_regression.props;
+      //null_regression.props.meth = row.meth_counts;
       fit(null_regression);
 
       const double pval = loglikratio_test(null_regression.max_loglik,

@@ -34,14 +34,20 @@ std::istream& operator>> (std::istream &is, Design &design);
 std::ostream& operator<< (std::ostream &os, const Design &design);
 void remove_factor(Design &design, size_t factor);
 
-struct Proportions {
+struct SiteProportions {
+  std::string chrom;
+  size_t begin;
+  size_t end;
   std::vector<size_t> total;
   std::vector<size_t> meth;
 };
 
+std::istream&
+operator>>(std::istream &table_encoding, SiteProportions &props);
+
 struct Regression {
   Design design;
-  Proportions props;
+  SiteProportions props;
   std::vector<double> fitted_parameters;
   double max_loglik;
 };
