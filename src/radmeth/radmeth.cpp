@@ -35,6 +35,7 @@
 
 // Local headers.
 #include "regression.hpp"
+#include "combine_pvals.hpp"
 
 using std::string;
 using std::vector;
@@ -43,6 +44,50 @@ using std::cerr;
 using std::endl;
 using std::istream;
 using std::ostream;
+
+static bool
+lt_locus_pval(const PvalLocus &r1, const PvalLocus &r2) {
+  return r1.combined_pval < r2.combined_pval;
+}
+
+static bool
+ls_locus_position(const PvalLocus &r1, const PvalLocus &r2) {
+  return r1.pos < r2.pos;
+}
+
+void
+fdr(vector<PvalLocus> &loci) {
+
+      std::sort(loci.begin(), loci.end(), lt_locus_pval);
+
+      for (size_t ind = 0; ind < loci.size(); ++ind) {
+        const double current_score = loci[ind].combined_pval;
+
+        //Assign a new one.
+        const double corrected_pval = loci.size()*current_score/(ind + 1);
+        loci[ind].corrected_pval = corrected_pval;
+      }
+
+      for (vector<PvalLocus>::reverse_iterator
+            it = loci.rbegin() + 1; it != loci.rend(); ++it) {
+
+        const PvalLocus &prev_locus = *(it - 1);
+        PvalLocus &cur_locus = *(it);
+
+        cur_locus.corrected_pval =
+              std::min(prev_locus.corrected_pval, cur_locus.corrected_pval);
+      }
+
+      for (vector<PvalLocus>::iterator it = loci.begin();
+            it != loci.end(); ++it) {
+        PvalLocus &cur_locus = *(it);
+        if (cur_locus.corrected_pval > 1.0)
+          cur_locus.corrected_pval = 1.0;
+      }
+
+      // Restore original order
+      std::sort(loci.begin(), loci.end(), ls_locus_position);
+}
 
 // Splits a string using white-space characters as delimeters.
 static vector<string>
@@ -117,142 +162,238 @@ int
 main(int argc, const char **argv) {
 
   try {
-    string outfile;
-    string test_factor_name;
-    bool VERBOSE = false;
-
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Produces multi-factor "
-          "differential methylation scores", "<design-matrix> <data-matrix>");
-    opt_parse.add_opt("out", 'o', "output file (default: stdout)",
-                      false, outfile);
+    const string prog_name = strip_path(argv[0]);
 
-    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    if (argc == 1) {
+      cerr << "Uage: " << prog_name << " [COMMAND] [PARAMETERS]" << endl;
+      cerr << endl << "PROGRAM: " << prog_name
+           << endl << "Analysis of differential methylation in multi-factor "
+                      "bisulfite sequencing experiments." << endl;
+      return EXIT_SUCCESS;
+    }
 
-    opt_parse.add_opt("factor", 'f', "a factor to test",
-                      true, test_factor_name);
+    const string command_name = argv[1];
 
-    vector<string> leftover_args;
-    opt_parse.parse(argc, argv, leftover_args);
-    if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl
-           << opt_parse.about_message() << endl;
-      return EXIT_SUCCESS;
+    if (command_name == "regression") {
+      string outfile;
+      string test_factor_name;
+      bool VERBOSE = false;
+
+      OptionParser opt_parse(prog_name + "\t" + command_name, "Produces "
+                             "multi-factor differential methylation scores.",
+                             "<design-matrix> <data-matrix>");
+
+      opt_parse.add_opt("out", 'o', "output file (default: stdout)",
+                        false, outfile);
+
+      opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+
+      opt_parse.add_opt("factor", 'f', "a factor to test",
+                        true, test_factor_name);
+
+      vector<string> leftover_args;
+      opt_parse.parse(argc - 1, argv + 1, leftover_args);
+      if (argc == 2 || opt_parse.help_requested()) {
+        cerr << opt_parse.help_message() << endl
+             << opt_parse.about_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (opt_parse.about_requested()) {
+        cerr << opt_parse.about_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (opt_parse.option_missing()) {
+        cerr << opt_parse.option_missing_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (leftover_args.size() != 2) {
+        cerr << opt_parse.help_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      const string design_filename(leftover_args.front());
+      const string table_filename(leftover_args.back());
+
+      std::ifstream design_file(design_filename.c_str());
+      if (!design_file)
+        throw SMITHLABException("could not open file: " + design_filename);
+
+      std::ifstream table_file(table_filename.c_str());
+      if (!table_file)
+        throw SMITHLABException("could not open file: " + table_filename);
+
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+      std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+
+      Regression full_regression;            // Initialize the full design
+      design_file >> full_regression.design; // matrix from file.
+
+      // Check that the provided test factor name exists and find it's index.
+      // Here we identify with their indexes to simplify naming.
+      vector<string>::const_iterator test_factor_it =
+        std::find(full_regression.design.factor_names.begin(),
+                  full_regression.design.factor_names.end(), test_factor_name);
+
+      if (test_factor_it == full_regression.design.factor_names.end())
+        throw SMITHLABException("Error: " + test_factor_name +
+                                " is not a part of the design specification.");
+
+      size_t test_factor = test_factor_it -
+                                  full_regression.design.factor_names.begin();
+
+      Regression null_regression;
+      null_regression.design = full_regression.design;
+      remove_factor(null_regression.design, test_factor);
+
+      // Make sure that the first line of the proportion table file contains
+      // names of the samples. Throw an exception if the names or their order
+      // in the proportion table does not match those in the full design matrix.
+      string sample_names_encoding;
+      getline(table_file, sample_names_encoding);
+
+      if (full_regression.design.sample_names != split(sample_names_encoding))
+        throw SMITHLABException(sample_names_encoding + " does not match factor "
+                                "names or their order in the design matrix. "
+                                "Please verify that the design matrix and the "
+                                "proportion table are correctly formatted.");
+
+      // Performing the log-likelihood ratio test on proportions from each row of
+      // the proportion table.
+      while (table_file >> full_regression.props) {
+
+        if (full_regression.design.sample_names.size() !=
+            full_regression.props.total.size())
+              throw SMITHLABException("There is a row with"
+                                       "incorrect number of proportions.");
+
+        out << full_regression.props.chrom << "\t"
+            << full_regression.props.begin << "\t"
+            << full_regression.props.end   << "\t";
+
+        // Do not perform the test if there's no coverage in either all case or all
+        // control samples. Also do not test if the site is completely methylated
+        // or completely unmethylated across all samples.
+        if (has_low_coverage(full_regression, test_factor)) {
+          out << "c:0:0\t" << -1;
+        }
+        else if (has_extreme_counts(full_regression)) {
+          out << "c:0:0\t" << -1;
+        }
+        else {
+          fit(full_regression);
+
+          null_regression.props = full_regression.props;
+          fit(null_regression);
+
+          const double pval = loglikratio_test(null_regression.max_loglik,
+                                         full_regression.max_loglik);
+
+          // If error occured in the fitting algorithm (i.e. p-val is nan or -nan).
+          if (pval != pval) {
+            out << "c:0:0" << "\t" << "-1";
+          }
+          else {
+            const double
+                  log_fold_change = full_regression.fitted_parameters[test_factor];
+            out << "c:" << log_fold_change
+                << ":"  << min_methdiff(full_regression, test_factor)
+                << "\t" << pval;
+          }
+        }
+        out << endl;
+      }
+
+    } else if (command_name == "adjust") {
+      /* FILES */
+      string outfile;
+      string bin_spec = "1:200:1";
+
+      /****************** GET COMMAND LINE ARGUMENTS ***************************/
+      OptionParser opt_parse(prog_name + "\t" + command_name, "a program for computing "
+                             "adjust p values using autocorrelation",
+                             "<bed-p-values>");
+      opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
+            false , outfile);
+      opt_parse.add_opt("bins", 'b', "corrlation bin specification",
+            false , bin_spec);
+      vector<string> leftover_args;
+      opt_parse.parse(argc - 1, argv + 1, leftover_args);
+      if (argc == 2 || opt_parse.help_requested()) {
+        cerr << opt_parse.help_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (opt_parse.about_requested()) {
+        cerr << opt_parse.about_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (opt_parse.option_missing()) {
+        cerr << opt_parse.option_missing_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      if (leftover_args.size() != 1) {
+        cerr << opt_parse.help_message() << endl;
+        return EXIT_SUCCESS;
+      }
+      const string bed_filename = leftover_args.front();
+      /*************************************************************************/
+
+      BinForDistance bin_for_dist(bin_spec);
+
+      std::ifstream bed_file(bed_filename.c_str());
+
+      if (!bed_file)
+        throw "could not open file: " + bed_filename;
+
+      cerr << "Loading input file." << endl;
+
+      // Read in all p-value loci. The loci that are not correspond to the valid
+      // p-values (i.e. in [0, 1] are skipped).
+      vector<PvalLocus> pvals;
+      Locus locus, prev_locus;
+
+      size_t chrom_offset = 0;
+
+      while(bed_file >> locus) {
+        // Skip loci that do not correspond to valid p-values.
+        if (0 <= locus.pval && locus.pval <= 1) {
+
+          // locus is on new chrom.
+          if (!prev_locus.chrom.empty() && prev_locus.chrom != locus.chrom)
+            chrom_offset += pvals.back().pos;
+
+          PvalLocus pval;
+          pval.raw_pval = locus.pval;
+          pval.pos = chrom_offset + bin_for_dist.max_dist() + 1 + locus.begin;
+
+          pvals.push_back(pval);
+          prev_locus = locus;
+        }
+      }
+
+      cerr << "[done]" << endl;
+
+      cerr << "Combining p-values." << endl;
+      combine_pvals(pvals, bin_for_dist);
+      cerr << "[done]" << endl;
+
+      cerr << "Running multiple test adjustment." << endl;
+      fdr(pvals);
+      cerr << "[done]" << endl;
+
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+        std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+
+      std::ifstream original_bed_file(bed_filename.c_str());
+
+      update_pval_loci(original_bed_file, pvals, out);
+
+      //TODO: Check that the regions do not overlap & sorted
+
+
     }
-    if (opt_parse.about_requested()) {
-      cerr << opt_parse.about_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    if (opt_parse.option_missing()) {
-      cerr << opt_parse.option_missing_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    if (leftover_args.size() != 2) {
-      cerr << opt_parse.help_message() << endl;
-      return EXIT_SUCCESS;
-    }
-    const string design_filename(leftover_args.front());
-    const string table_filename(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
-
-    std::ifstream design_file(design_filename.c_str());
-    if (!design_file)
-      throw SMITHLABException("could not open file: " + design_filename);
-
-    std::ifstream table_file(table_filename.c_str());
-    if (!table_file)
-      throw SMITHLABException("could not open file: " + table_filename);
-
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-
-  Regression full_regression;         // Initialize the full design matrix from
-  design_file >> full_regression.design; // file.
-
-  //cerr << full_regression.design << endl;
-
-  // Check that the provided test factor name exists and find it's index. Here
-  // we identify with their indexes to simplify naming.
-  vector<string>::const_iterator test_factor_it =
-    std::find(full_regression.design.factor_names.begin(),
-              full_regression.design.factor_names.end(), test_factor_name);
-
-  if (test_factor_it == full_regression.design.factor_names.end())
-    throw SMITHLABException("Error: " + test_factor_name +
-                            " is not a part of the design specification.");
-
-  size_t test_factor = test_factor_it -
-                              full_regression.design.factor_names.begin();
-
-  Regression null_regression;
-  null_regression.design = full_regression.design;
-  remove_factor(null_regression.design, test_factor);
-
-  //cerr << null_regression.design << endl;
-
-  // Make sure that the first line of the proportion table file contains names
-  // of the samples. Throw an exception if the names or their order in
-  // the proportion table does not match those in the full design matrix.
-  string sample_names_encoding;
-  getline(table_file, sample_names_encoding);
-
-  if (full_regression.design.sample_names != split(sample_names_encoding))
-    throw SMITHLABException(sample_names_encoding + " does not match factor "
-                            "names or their order in the design matrix. "
-                            "Please verify that the design matrix and the "
-                            "proportion table are correctly formatted.");
-
-  // Performing the log-likelihood ratio test on proportions from each row of
-  // the proportion table.
-  //TableRow row;
-  while (table_file >> full_regression.props) {
-
-    if (full_regression.design.sample_names.size() !=
-        full_regression.props.total.size())
-          throw SMITHLABException("There is a row with"
-                                   "incorrect number of proportions.");
-
-    out << full_regression.props.chrom << "\t"
-        << full_regression.props.begin << "\t"
-        << full_regression.props.end   << "\t";
-
-    // Do not perform the test if there's no coverage in either all case or all
-    // control samples. Also do not test if the site is completely methylated
-    // or completely unmethylated across all samples.
-    if (has_low_coverage(full_regression, test_factor)) {
-      out << "c:0:0\t" << -1;
-    }
-    else if (has_extreme_counts(full_regression)) {
-      out << "c:0:0\t" << -1;
-    }
-    else {
-      //full_regression.props.total = row.total_counts;
-      //full_regression.props.meth  = row.meth_counts;
-      fit(full_regression);
-
-      null_regression.props = full_regression.props;
-      //null_regression.props.meth = row.meth_counts;
-      fit(null_regression);
-
-      const double pval = loglikratio_test(null_regression.max_loglik,
-                                     full_regression.max_loglik);
-
-      // If error occured in the fitting algorithm (i.e. p-val is nan or -nan).
-      if (pval != pval) {
-        out << "c:0:0" << "\t" << "-1";
-      }
-      else {
-        const double
-              log_fold_change = full_regression.fitted_parameters[test_factor];
-        out << "c:" << log_fold_change
-            << ":"  << min_methdiff(full_regression, test_factor)
-            << "\t" << pval;
-      }
-    }
-    out << endl;
-  }
-
 
   }
   catch (const SMITHLABException &e) {

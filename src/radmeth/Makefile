@@ -18,7 +18,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = radmeth dmrs adjust
+PROGS = radmeth dmrs
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
