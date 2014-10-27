@@ -34,7 +34,7 @@ def parse_line(line):
   start = field[1]
   value = field[3]
 
-  return (chr, start, value)
+  return ([chr, start], value)
 
 def write_line(fh, chr, start, meth_level, coverage):
   outline = "\t".join((chr, start, "+", "CpG", \
@@ -112,20 +112,27 @@ def main():
 
   # combine converted files
   outputfh = open(opt.output, 'w')
-
-  for read_line in readtmp:
-    meth_line = methtmp.readline()
-    (meth_chr, meth_start, meth_value) = parse_line(meth_line)
-    (read_chr, read_start, read_value) = parse_line(read_line)
-    if not (read_chr == meth_chr and read_start == meth_start):
-      sys.stderr.write("CpG not matching:\n")
-      sys.stderr.write("Methylation track line\n")
-      sys.stderr.write(meth_line)
-      sys.stderr.write("Coverage track line\n")
-      sys.stderr.write(read_line)
-      sys.exit(1)
-
-    write_line(outputfh, read_chr, read_start, meth_value, read_value)
+  meth_line = methtmp.readline()
+  read_line = readtmp.readline()
+  while read_line and meth_line:
+    (meth_coordinate, meth_value) = parse_line(meth_line)
+    (read_coordinate, read_value) = parse_line(read_line)
+    order = cmp(meth_coordinate, read_coordinate)
+    if order == 0:
+      write_line(outputfh, read_coordinate[0], read_coordinate[1], \
+        meth_value, read_value)
+      meth_line = methtmp.readline()
+      read_line = readtmp.readline()
+    elif order == 1:
+      # site missing in methylation track
+      write_line(outputfh, read_coordinate[0], read_coordinate[1], \
+        0, 0)
+      read_line = readtmp.readline()
+    else:
+      # site missing in read track
+      write_line(outputfh, meth_coordinate[0], meth_coordinate[1], \
+        0, 0)
+      meth_line = methtmp.readline()
 
   methtmp.close()
   readtmp.close()
