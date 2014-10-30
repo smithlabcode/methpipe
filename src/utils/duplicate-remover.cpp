@@ -209,6 +209,7 @@ int main(int argc, const char **argv) {
 	  copy(buffer.begin(), buffer.end(), 
 	       std::ostream_iterator<MappedRead>(out, "\n"));
 	  reads_out += buffer.size();
+      good_bases_out += buffer.size();
 	  reads_with_duplicates += (buffer.size() < orig_buffer_size);
 	}
 	else {
