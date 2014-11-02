@@ -190,12 +190,10 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
                     GenomicRegion &region)  {
   const unordered_map<size_t, size_t>::const_iterator 
     start_itr(cpgs.find(region.get_start()));
-  const unordered_map<size_t, size_t>::const_iterator
-    end_itr(cpgs.find(region.get_end()));
-  if (start_itr == cpgs.end() || end_itr == cpgs.end())
+  if (start_itr == cpgs.end())
     throw SMITHLABException("could not convert:\n" + region.tostring());
   region.set_start(start_itr->second);
-  region.set_end(end_itr->second);
+  region.set_end(start_itr->second + 1);
 }
 
 
