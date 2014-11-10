@@ -1318,6 +1318,45 @@ $ bedToBigBed Human_ESC.hmr hg19.chrom.sizes Human_ESC.hmr.bb
 \end{verbatim}
 \end{enumerate}
 
+\subsection{Converting browser tracks to \texttt{methcounts} format}
+All tracks in MethBase are available to download through sample description
+page (See \url{http://smithlabresearch.org/software/methbase/} for details). 
+We provide a python script for converting browser tracks back to original
+\texttt{methcounts} file for downstream analyses of users' requirement. For
+each methylome on MethBase, there are two tracks that are necessary for
+the conversion: the track for methylation levels (\texttt{.meth.bw}) and
+the track for sequencing coverage (\texttt{.read.bw}). One needs to download
+these tracks following the links in the description page of each methylome.
+An external program is required for converting \texttt{bigWig} files to
+BEDGraph format, whose name is \texttt{bigWigToBedGraph} and can be found
+in \url{http://hgdownload.cse.ucsc.edu/admin/exe/} under corresponding
+OS environment. After these required files are ready, user may follow the
+following steps to create a \texttt{methcounts} file.
+
+\begin{enumerate}
+\item Find the script located in \texttt{METHPIPE\_ROOT/src/utils} with the
+name \texttt{bigWig\_to\_methcounts.py}. Here we use
+\texttt{METHPIPE\_ROOT} to represent the path to the installation location
+of \meth.
+\item Locate \texttt{bigWigToBedGraph}. Type the following command:
+\begin{verbatim}
+$ which bigWigToBedGraph
+\end{verbatim}
+If it returns nothing, then you need to find a absolute path to the 
+program such as
+\begin{verbatim}
+/home/user/programs/bigWigToBedGraph
+\end{verbatim}
+\item Run the script like below:
+\begin{verbatim}
+$ python ./bigWig_to_methcounts.py -m Human_ESC.meth.bw \
+          -r Human_ESC.read.bw -o Human_ESC.meth -p PATH_TO_PROGRAM
+\end{verbatim}
+Use the path found in Step 2 as \texttt{PATH\_TO\_PROGRAM} for parameter
+\texttt{-p}.
+
+\end{enumerate}
+
 % \subsection{Creating custom tracks for direct upload}
 
 % If you do not have access to a web server on which to provide BigBed

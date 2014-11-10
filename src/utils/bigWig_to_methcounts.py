@@ -56,7 +56,7 @@ def which(program):
   return None
 
 def opt_validation(parser, opt):
-  if not opt.meth or not opt.read or not opt.output:
+  if not opt.meth or not opt.read:
     parser.print_help()
     sys.exit(0)
   if not opt.bwtool:
@@ -69,7 +69,7 @@ def opt_validation(parser, opt):
     opt.bwtool = os.path.abspath(opt.bwtool)
   if not is_exe(opt.bwtool):
     sys.stderr.write(\
-      "%s is not a proper executable file. Please check your path!"%opt.bwtool)
+      "%s is not a proper executable file. Please check your path!\n"%opt.bwtool)
     sys.exit(1)
 
 def main():
@@ -84,7 +84,7 @@ def main():
     metavar="<TRACK.read.bw>")
   parser.add_option("-p", "--path", action="store", type="string", \
     dest="bwtool", \
-    help="Path to bigWigToBedGraph executable file." + \
+    help="Path to bigWigToBedGraph executable file. " + \
     "Leave blank if you already have it in environment path.", metavar="<PATH>")
   parser.add_option("-o", "--output", action="store", type="string", \
     dest="output", \
