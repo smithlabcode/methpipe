@@ -31,7 +31,7 @@ ifeq ("$(wildcard $(SMITHLAB_CPP))","")
 $(error SMITHLAB_CPP not set and smithlab_cpp not found)
 endif
 all_subdirs += $(SMITHLAB_CPP)
-lib_subdirs += ($SMITHLAB_CPP)
+lib_subdirs += $(SMITHLAB_CPP)
 endif
 
 all:
