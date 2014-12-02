@@ -18,7 +18,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = radmeth
+PROGS = radmeth methdiff dmr
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
@@ -67,14 +67,11 @@ OBJS= regression.o combine_pvals.o merge.o locus.o
 radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
-adjust : adjust.cpp $(OBJS) $(SMITH_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
-
-dmrs : dmrs.cpp merge.o locus.o $(SMITH_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
-
 %.o : %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+
+%: %.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
