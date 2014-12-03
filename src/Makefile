@@ -21,7 +21,7 @@
 
 all_subdirs=common utils analysis amrfinder mlml samtools radmeth
 lib_subdirs=common
-app_subdirs=analysis utils experimental amrfinder mlml radmeth
+app_subdirs=analysis utils amrfinder mlml radmeth
 
 # check if a global copy of smithlab_cpp cannot be found and try to
 # use a copy that is in the current directory
