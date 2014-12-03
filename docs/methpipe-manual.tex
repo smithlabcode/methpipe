@@ -557,7 +557,22 @@ default \prog{methcounts} identifies these chromosome files by the
 extension \fn{.fa}. Importantly, the ``name'' line in each chromosome
 file must be the character \lit{>} followed by the same name that
 identifies that chromosome in the mapped read output (the \fn{.mr}
-files).
+files). An example of the output and explanation of each column follows:
+
+{\small{%%
+\begin{verbatim}
+chr1		3000826	+	CpG	0.852941	34
+chr1		3001006	+	CHH	0.681818	44
+chr1		3001017	-	CpG	0.609756	41
+chr1		3001276	+	CpGx		0.454545	22
+chr1		3001628	-	CHH	0.419753	81
+chr1		3003225	+	CpG	0.357143	14
+chr1		3003338	+	CpG	0.673913	46
+chr1		3003378	+	CpG	0.555556	27
+chr1		3003581	-	CHG	0.641026	39
+chr1		3003639	+	CpG	0.285714	7
+\end{verbatim}%%
+}}
 
 The output file contains one line per cytosine site. The first column is
 the chromosome. The second is the location of the cytosine. The 3rd column indicates the strand, which can be either \lit{+} or \lit{-}. The 4th
@@ -567,6 +582,7 @@ column is the estimated methylation level, equal to the number of Cs in
 reads at position corresponding to the site, divided by the sum of the Cs 
 and Ts mapping to that position. The final column is number of reads
 overlapping with that site.
+
 
 Note that because \prog{methcounts} produces a file containing one line
 for every cytosine in the genome, the file can get quite large. For
@@ -905,16 +921,32 @@ two methylomes using the \prog{methdiff} component of Methpipe.
 $ methdiff -o Human_ESC_NHFF.methdiff \
              Human_ESC.meth Human_NHFF.meth
 \end{verbatim}
-So in the output file \fn{Human\_ESC\_NHFF.methdiff} the 5th
-column indicates the probability that the methylation level at each
-given site is lower in \fn{Human\_NHFF.meth} than in
-\fn{Human\_ESC.meth}. For the other direction, you can either
-swap the order of those two input files, or just subtract the
-probability from 1.0. The method used is due to Altham
-(1971)~\cite{altham1969exact}, and is like a one-directional version
-of Fisher's exact test. The fourth column of the output file contains
-the cytosine's context, and then the number of reads methylated and
-total coverage for each of the two samples being compared at that site.
+
+{\small{%%
+\begin{verbatim}
+chr1	3000826	+	CpG	0.609908	16	7	21	11
+chr1	3001006	+	CpG	0.874119	21	18	15	22
+chr1	3001017	+	CpG	0.888384	20	19	15	25
+chr1	3001276	+	CpG	0.010825	3	20	12	16
+chr1	3001628	+	CpG	0.153461	15	38	25	42
+chr1	3003225	+	CpG	0.554077	7	10	7	11
+chr1	3003338	+	CpG	0.70436	13	8	14	12
+chr1	3003378	+	CpG	0.495052	10	13	14	18
+chr1	3003581	+	CpG	0.477349	19	8	15	6
+chr1	3003639	+	CpG	0.25	1	5	0	0
+\end{verbatim}%%
+}}
+
+The output format is shown above. The first four columns are the same
+as the methcounts input. The fifth column indicates the probability that
+the methylation level at each given site is lower in \fn{Human\_NHFF.meth}
+than in \fn{Human\_ESC.meth}. For the other direction, you can either swap
+the order of the two input files or just subtract the probability from 1.0.
+The method used to calculate this probability is detailed in Altham (1971)
+\cite{altham1969exact}, and is like a one-directional version of Fisher's
+exact test.  The remaining columns in the output indicate (in order) the
+coverage in NHFF, number of methylated reads in NHFF, coverage in ESC,
+and number of methylated reads in ESC.
 
 \subsubsection{Differentially methylated regions (DMRs)}
 \label{sec:dmr}
