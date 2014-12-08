@@ -441,11 +441,12 @@ in this way. Assuming method (3) from the above paragraph of measuring
 conversion rate at non-CpG cytosines in a mammalian methylome, the
 following command will estimate the conversion rate.
 \begin{verbatim}
-$ bsrate -c hg18 -o Human_ESC.bsrate Human_ESC.mr
-$ bsrate -c hg18 -o Human_NHFF.bsrate Human_NHFF.mr
+$ bsrate -c hg18 -o Human_ESC.bsrate Human_ESC.mr.dremove
+$ bsrate -c hg18 -o Human_NHFF.bsrate Human_NHFF.mr.dremove
 \end{verbatim}
 The \prog{bsrate} program requires that the input be sorted so that
-reads mapping to the same chromosome are contiguous. The first several
+reads mapping to the same chromosome are contiguous and the input should
+have duplicate reads already removed to reduce bias. The first several
 lines of the output might look like the following:
 {\small{%%
 \begin{verbatim}
