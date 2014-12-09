@@ -127,7 +127,7 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   if(row_encoding.empty())
     return table_encoding;
 
-  // Get the row name (which must be specified like this: "chr:start:end") and
+  // Get the row name (which must be specified like this: "chr:position") and
   // parse it.
   istringstream row_stream(row_encoding);
   string row_name_encoding;
@@ -139,9 +139,9 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   const size_t num_colon =
             std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
 
-  if (num_colon != 2)
+  if (num_colon != 1)
     throw SMITHLABException("Each row in the count table must start with "
-                            "a line chromosome:start:end. Got \"" +
+                            "a line chromosome:position. Got \"" +
                             row_name_encoding + "\" instead." );
 
   // First parse the row identifier.
@@ -152,13 +152,10 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
     throw SMITHLABException("Error parsing " + row_name_encoding +
                             ": chromosome name is missing.");
 
-  string coordinate_encoding;
+  string position_encoding;
 
-  getline(name_stream, coordinate_encoding, ':');
-  props.begin = parse_natural_number(coordinate_encoding);
-
-  name_stream >> coordinate_encoding;
-  props.end = parse_natural_number(coordinate_encoding);
+  getline(name_stream, position_encoding, ':');
+  props.begin = parse_natural_number(position_encoding);
 
   // After parsing the row identifier, parse count proportions.
   size_t total_count, meth_count;

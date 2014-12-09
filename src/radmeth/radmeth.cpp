@@ -163,7 +163,6 @@ int
 main(int argc, const char **argv) {
 
   try {
-    /****************** COMMAND LINE OPTIONS ********************/
     const string prog_name = strip_path(argv[0]);
 
     if (argc == 1) {
@@ -174,8 +173,12 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
+    // The first command-line argument is the name of the command to run.
     const string command_name = argv[1];
 
+    // When the "regression" command is issued, RADMeth runs the
+    // beta-binoimial regression using the specified table with proportions and
+    // design matrix.
     if (command_name == "regression") {
       string outfile;
       string test_factor_name;
@@ -230,8 +233,8 @@ main(int argc, const char **argv) {
       Regression full_regression;            // Initialize the full design
       design_file >> full_regression.design; // matrix from file.
 
-      // Check that the provided test factor name exists and find it's index.
-      // Here we identify with their indexes to simplify naming.
+      // Check that the provided test factor name exists and find its index.
+      // Here we identify test factors with their indexes to simplify naming.
       vector<string>::const_iterator test_factor_it =
         std::find(full_regression.design.factor_names.begin(),
                   full_regression.design.factor_names.end(), test_factor_name);
@@ -259,8 +262,8 @@ main(int argc, const char **argv) {
                                 "Please verify that the design matrix and the "
                                 "proportion table are correctly formatted.");
 
-      // Performing the log-likelihood ratio test on proportions from each row of
-      // the proportion table.
+      // Performing the log-likelihood ratio test on proportions from each row
+      // of the proportion table.
       while (table_file >> full_regression.props) {
 
         if (full_regression.design.sample_names.size() !=
@@ -269,12 +272,11 @@ main(int argc, const char **argv) {
                                        "incorrect number of proportions.");
 
         out << full_regression.props.chrom << "\t"
-            << full_regression.props.begin << "\t"
-            << full_regression.props.end   << "\t";
+            << full_regression.props.begin << "\t";
 
-        // Do not perform the test if there's no coverage in either all case or all
-        // control samples. Also do not test if the site is completely methylated
-        // or completely unmethylated across all samples.
+        // Do not perform the test if there's no coverage in either all case or
+        // all control samples. Also do not test if the site is completely
+        // methylated or completely unmethylated across all samples.
         if (has_low_coverage(full_regression, test_factor)) {
           out << "c:0:0\t" << -1;
         }
