@@ -271,40 +271,45 @@ main(int argc, const char **argv) {
               throw SMITHLABException("There is a row with"
                                        "incorrect number of proportions.");
 
+        size_t coverage_factor = 0, coverage_rest = 0,
+               meth_factor = 0, meth_rest = 0;
+
+        for(size_t s = 0; s < full_regression.design.sample_names.size(); ++s) {
+          if(full_regression.design.matrix[s][test_factor] != 0) {
+            coverage_factor += full_regression.props.total[s];
+            meth_factor += full_regression.props.meth[s];
+          } else {
+            coverage_rest += full_regression.props.total[s];
+            meth_rest += full_regression.props.meth[s];
+          }
+        }
+
         out << full_regression.props.chrom << "\t"
-            << full_regression.props.begin << "\t";
+            << full_regression.props.position << "\t"
+            << "+\tCpG\t";
 
         // Do not perform the test if there's no coverage in either all case or
         // all control samples. Also do not test if the site is completely
         // methylated or completely unmethylated across all samples.
         if (has_low_coverage(full_regression, test_factor)) {
-          out << "c:0:0\t" << -1;
+          out << -1;
         }
         else if (has_extreme_counts(full_regression)) {
-          out << "c:0:0\t" << -1;
+          out << -1;
         }
         else {
           fit(full_regression);
-
           null_regression.props = full_regression.props;
           fit(null_regression);
-
           const double pval = loglikratio_test(null_regression.max_loglik,
                                          full_regression.max_loglik);
 
-          // If error occured in the fitting algorithm (i.e. p-val is nan or -nan).
-          if (pval != pval) {
-            out << "c:0:0" << "\t" << "-1";
-          }
-          else {
-            const double
-                  log_fold_change = full_regression.fitted_parameters[test_factor];
-            out << "c:" << log_fold_change
-                << ":"  << min_methdiff(full_regression, test_factor)
-                << "\t" << pval;
-          }
+          // If error occured in the fitting algorithm (i.e. p-val is nan or
+          // -nan).
+          out << ( (pval != pval) ? -1 : pval);
         }
-        out << endl;
+        out << "\t" << coverage_factor << "\t" << meth_factor
+            << "\t" << coverage_rest << "\t" << meth_rest << endl;
       }
 
     } else if (command_name == "adjust") {
@@ -313,9 +318,9 @@ main(int argc, const char **argv) {
       string bin_spec = "1:200:1";
 
       /****************** GET COMMAND LINE ARGUMENTS ***************************/
-      OptionParser opt_parse(prog_name + "\t" + command_name, "a program for computing "
-                             "adjust p values using autocorrelation",
-                             "<bed-p-values>");
+      OptionParser opt_parse(prog_name + "\t" + command_name, "computes "
+                             "adjusted p values using autocorrelation",
+                             "<regression-output>");
       opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
             false , outfile);
       opt_parse.add_opt("bins", 'b', "corrlation bin specification",
@@ -350,8 +355,8 @@ main(int argc, const char **argv) {
 
       cerr << "Loading input file." << endl;
 
-      // Read in all p-value loci. The loci that are not correspond to the valid
-      // p-values (i.e. in [0, 1] are skipped).
+      // Read in all p-value loci. The loci that are not correspond to valid
+      // p-values (i.e. values in [0, 1]) are skipped.
       vector<PvalLocus> pvals;
       Locus locus, prev_locus;
 

@@ -114,8 +114,7 @@ parse_natural_number(string encoding) {
 std::istream&
 operator>>(std::istream &table_encoding, SiteProportions &props) {
   props.chrom.clear();
-  props.begin = 0;
-  props.end = 0;
+  props.position = 0;
   props.meth.clear();
   props.total.clear();
 
@@ -155,7 +154,7 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   string position_encoding;
 
   getline(name_stream, position_encoding, ':');
-  props.begin = parse_natural_number(position_encoding);
+  props.position = parse_natural_number(position_encoding);
 
   // After parsing the row identifier, parse count proportions.
   size_t total_count, meth_count;
