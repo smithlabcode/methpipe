@@ -47,13 +47,10 @@ operator>>(std::istream &table_encoding, SiteProportions &props);
 struct Regression {
   Design design;
   SiteProportions props;
-  std::vector<double> fitted_parameters;
   double max_loglik;
 };
 
 bool fit(Regression &r,
           std::vector<double> initial_parameters = std::vector<double>());
-
-double min_methdiff(const Regression &full_reg, const size_t test_factor);
 
 #endif // REGRESSION_HPP_

@@ -286,33 +286,6 @@ neg_loglik_and_grad(const gsl_vector *parameters,
   neg_gradient(parameters, object, d_loglik_val);
 }
 
-double
-min_methdiff(const Regression &full_reg, const size_t test_factor) {
-
-  vector<double> methdiffs;
-
-  for (size_t sample = 0;
-          sample < full_reg.design.sample_names.size(); ++sample) {
-    if (full_reg.design.matrix[sample][test_factor] == 1) {
-      double full_parameter_sum = 0;
-      double reduced_parameter_sum = 0;
-      for (size_t factor = 0; factor < full_reg.design.factor_names.size(); ++factor) {
-        full_parameter_sum += full_reg.fitted_parameters[factor]*
-                                  full_reg.design.matrix[sample][factor];
-      }
-      reduced_parameter_sum = full_parameter_sum -
-                              full_reg.fitted_parameters[test_factor];
-      const double full_pi =
-                          exp(full_parameter_sum)/(1 + exp(full_parameter_sum));
-      const double reduced_pi =
-                    exp(reduced_parameter_sum)/(1 + exp(reduced_parameter_sum));
-      methdiffs.push_back(fabs(full_pi - reduced_pi));
-    }
-  }
-
-  return *std::min_element(methdiffs.begin(), methdiffs.end());
-}
-
 bool
 fit(Regression &r, vector<double> initial_parameters) {
   const size_t num_parameters = r.design.factor_names.size() + 1;
@@ -366,10 +339,6 @@ fit(Regression &r, vector<double> initial_parameters) {
   }
   while (status == GSL_CONTINUE && iter < 700);
   //It it reasonable to reduce the number of iterations to 500?
-
-  r.fitted_parameters.clear();
-  for(size_t ind = 0; ind < (s->x)->size; ++ind)
-    r.fitted_parameters.push_back(gsl_vector_get(s->x, ind));
 
   r.max_loglik = (-1)*neg_loglik(s->x, &r);
 
