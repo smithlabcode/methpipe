@@ -91,6 +91,7 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
     if (!getline(in, buffer))
       return false;
     parse_cpg_line(buffer, context, n_meth, n_unmeth, chr, pos, strand);
+    coverage = n_meth + n_unmeth; 
   }
   if (chr != prev_chr) {
     ++chr_count;
