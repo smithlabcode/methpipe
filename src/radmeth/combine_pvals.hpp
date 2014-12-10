@@ -20,16 +20,6 @@
 
 #include <vector>
 
-struct Locus {
-  std::string chrom;
-  std::size_t begin;
-  std::size_t end;
-  std::string name;
-  double pval;
-};
-
-std::istream& operator>>(std::istream &encoding, Locus &locus);
-
 struct PvalLocus {
   std::size_t pos;
   double raw_pval;

@@ -37,30 +37,6 @@ using std::vector; using std::back_inserter;
 using std::cout; using std::istream;
 using std::string; using std::ostream;
 
-istream&
-operator>>(istream &encoding, Locus &locus) {
-  string line;
-
-  getline(encoding, line);
-
-  if (line.empty())
-    return encoding;
-
-  // Can this try-catch block be simplified?
-  try {
-      std::istringstream iss(line);
-      iss.exceptions(std::ios::failbit);
-      iss >> locus.chrom >> locus.begin
-          >> locus.end >> locus.name
-          >> locus.pval;
-    } catch (std::exception const & err) {
-      std::cerr << err.what() << std::endl << "Couldn't parse the line \""
-            << line << "\"." << std::endl;
-      std::terminate();
-    }
-  return encoding;
-}
-
 static double
 to_zscore(double pval) {
   if (pval == 1)
@@ -99,8 +75,8 @@ void
 update_pval_loci(istream &input_encoding,
                  const vector<PvalLocus> &pval_loci,
                  ostream &output_encoding) {
-  string record, chrom, name;
-  size_t begin, end;
+  string record, chrom, name, sign;
+  size_t position, coverage_factor, meth_factor, coverage_rest, meth_rest;
   double pval;
 
   vector<PvalLocus>::const_iterator cur_locus_iter = pval_loci.begin();
@@ -110,27 +86,29 @@ update_pval_loci(istream &input_encoding,
     try {
       std::istringstream iss(record);
       iss.exceptions(std::ios::failbit);
-      iss >> chrom >> begin >> end >> name >> pval;
+      iss >> chrom >> position >> sign >> name >> pval
+          >> coverage_factor >> meth_factor >> coverage_rest >> meth_rest;
     } catch (std::exception const & err) {
       std::cerr << err.what() << std::endl << "Couldn't parse the line \""
                 << record << "\"." << std::endl;
       std::terminate();
     }
 
-    output_encoding << chrom << "\t" << begin << "\t" << end << "\t" << name;
+    output_encoding << chrom << "\t" << position << "\t" << sign << "\t"
+                    << name << "\t" << pval << "\t";
 
     if (0 <= pval && pval <= 1) {
-      output_encoding << ":" << cur_locus_iter->raw_pval << ":"
-                      << cur_locus_iter->combined_pval << "\t"
-                      << cur_locus_iter->corrected_pval;
+      output_encoding << cur_locus_iter->combined_pval << "\t"
+                      << cur_locus_iter->corrected_pval << "\t";
       cur_locus_iter++;
     } else {
-      output_encoding << "\t" << pval;
+      output_encoding << -1 << "\t" << -1 << pval << "\t";
     }
 
-    output_encoding << std::endl;
+    output_encoding << coverage_factor << "\t" << meth_factor << "\t"
+                    << coverage_rest << "\t" << meth_rest << std::endl;
 
-    }
+  }
 }
 
 BinForDistance::BinForDistance(std::string spec_string) {

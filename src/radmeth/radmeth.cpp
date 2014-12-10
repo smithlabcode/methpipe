@@ -176,15 +176,14 @@ main(int argc, const char **argv) {
     // The first command-line argument is the name of the command to run.
     const string command_name = argv[1];
 
-    // When the "regression" command is issued, RADMeth runs the
-    // beta-binoimial regression using the specified table with proportions and
-    // design matrix.
+    // Run beta-binoimial regression using the specified table with proportions
+    // and design matrix.
     if (command_name == "regression") {
       string outfile;
       string test_factor_name;
       bool VERBOSE = false;
 
-      OptionParser opt_parse(prog_name + "\t" + command_name, "Produces "
+      OptionParser opt_parse(prog_name + "\t" + command_name, "Calculates "
                              "multi-factor differential methylation scores.",
                              "<design-matrix> <data-matrix>");
 
@@ -269,7 +268,7 @@ main(int argc, const char **argv) {
         if (full_regression.design.sample_names.size() !=
             full_regression.props.total.size())
               throw SMITHLABException("There is a row with"
-                                       "incorrect number of proportions.");
+                                      "incorrect number of proportions.");
 
         size_t coverage_factor = 0, coverage_rest = 0,
                meth_factor = 0, meth_rest = 0;
@@ -312,14 +311,14 @@ main(int argc, const char **argv) {
             << "\t" << coverage_rest << "\t" << meth_rest << endl;
       }
 
+    // Combine p-values using the Z test.
     } else if (command_name == "adjust") {
-      /* FILES */
       string outfile;
       string bin_spec = "1:200:1";
 
       /****************** GET COMMAND LINE ARGUMENTS ***************************/
       OptionParser opt_parse(prog_name + "\t" + command_name, "computes "
-                             "adjusted p values using autocorrelation",
+                             "adjusted p-values using autocorrelation",
                              "<regression-output>");
       opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
             false , outfile);
@@ -358,27 +357,40 @@ main(int argc, const char **argv) {
       // Read in all p-value loci. The loci that are not correspond to valid
       // p-values (i.e. values in [0, 1]) are skipped.
       vector<PvalLocus> pvals;
-      Locus locus, prev_locus;
+      std::string input_line, prev_chrom;
 
       size_t chrom_offset = 0;
 
-      while(bed_file >> locus) {
-        // Skip loci that do not correspond to valid p-values.
-        if (0 <= locus.pval && locus.pval <= 1) {
+      while(getline(bed_file, input_line)) {
 
-          // locus is on new chrom.
-          if (!prev_locus.chrom.empty() && prev_locus.chrom != locus.chrom)
-            chrom_offset += pvals.back().pos;
+        try {
+          std::istringstream iss(input_line);
+          iss.exceptions(std::ios::failbit);
+          std::string chrom, sign, name;
+          size_t position;
+          double pval;
+          iss >> chrom >> position >> sign >> name >> pval;
 
-          PvalLocus pval;
-          pval.raw_pval = locus.pval;
-          pval.pos = chrom_offset + bin_for_dist.max_dist() + 1 + locus.begin;
+          // Skip loci that do not correspond to valid p-values.
+          if (0 <= pval && pval <= 1) {
+            // locus is on new chrom.
+            if (!prev_chrom.empty() && prev_chrom != chrom)
+              chrom_offset += pvals.back().pos;
 
-          pvals.push_back(pval);
-          prev_locus = locus;
+            PvalLocus plocus;
+            plocus.raw_pval = pval;
+            plocus.pos = chrom_offset +
+            bin_for_dist.max_dist() + 1 + position;
+
+            pvals.push_back(plocus);
+            prev_chrom = chrom;
+          }
+        } catch (std::exception const & err) {
+          std::cerr << err.what() << std::endl << "Couldn't parse the line \""
+                    << input_line << "\"." << std::endl;
+          std::terminate();
         }
       }
-
       cerr << "[done]" << endl;
 
       cerr << "Combining p-values." << endl;
@@ -398,7 +410,6 @@ main(int argc, const char **argv) {
       update_pval_loci(original_bed_file, pvals, out);
 
       //TODO: Check that the regions do not overlap & sorted
-
 
     } else if (command_name == "merge") {
       /* FILES */
@@ -433,7 +444,7 @@ main(int argc, const char **argv) {
         return EXIT_SUCCESS;
       }
       const string bed_filename = leftover_args.front();
-      /*************************************************************************/
+      /************************************************************************/
 
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
