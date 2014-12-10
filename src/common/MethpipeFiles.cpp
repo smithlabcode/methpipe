@@ -135,7 +135,7 @@ methpipe::is_methpipe_file_single(const string &file) {
   
   if (meth < 0.0 || meth > 1.0) return false;
   
-  if (name.find_first_not_of("ACGTacgtpHX") != string::npos)
+  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
     return false;
   
   return true;
