@@ -61,13 +61,12 @@ stouffer_liptak(std::vector<double> &pvals,
 
   transform(pvals.begin(), pvals.end(), back_inserter(zscores),
             to_zscore);
-
   double sum = 0;
+
   for (size_t ind = 0; ind < num_pvals; ++ind)
     sum += zscores[ind];
 
   double test_statistic = sum/sqrt(double(num_pvals) + 2*correction);
-
   return 1 - gsl_cdf_gaussian_P(test_statistic, 1);
 }
 
@@ -141,21 +140,17 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
     return false;
 
   vector<PvalLocus>::const_iterator cur_pos = next_pos_;
-
   neighbors.clear();
-
   neighbors.push_back(*cur_pos);
 
   if ( cur_pos != loci_.begin() ) {
-
     vector<PvalLocus>::const_iterator up_pos = cur_pos;
-
     bool too_far = false;
 
     do {
       --up_pos;
-
       size_t up_dist = cur_pos->pos - (up_pos->pos + 1);
+
       if(up_dist <= max_distance_) {
           neighbors.push_back(*up_pos);
       } else
@@ -167,15 +162,11 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
   std::reverse(neighbors.begin(), neighbors.end());
 
   if (cur_pos != loci_.end() - 1) {
-
     bool too_far = false;
-
     vector<PvalLocus>::const_iterator down_pos = cur_pos;
 
     do {
-
       ++down_pos;
-
       size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
 
       if( down_dist <= max_distance_ ) {
@@ -192,33 +183,29 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
 
 void
 DistanceCorrelation::bin(const vector<PvalLocus> &loci) {
-
   x_pvals_for_bin_.clear();
   y_pvals_for_bin_.clear();
-
   vector<PvalLocus>::const_iterator it = loci.begin();
 
   while (it != loci.end()) {
-
     vector<PvalLocus>::const_iterator forward_it = it + 1;
+    bool too_far = false;
 
-      bool too_far = false;
+    while (forward_it != loci.end() && !too_far) {
+      const size_t dist = forward_it->pos - (it->pos + 1);
+      const size_t bin = bin_for_dist_.which_bin(dist);
 
-      while (forward_it != loci.end() && !too_far) {
-        const size_t dist = forward_it->pos - (it->pos + 1);
-        const size_t bin = bin_for_dist_.which_bin(dist);
-
-        //check if the appropriate bin exists
-        if (bin != bin_for_dist_.invalid_bin()) {
-          x_pvals_for_bin_[bin].push_back(to_zscore(it->raw_pval));
-          y_pvals_for_bin_[bin].push_back(to_zscore(forward_it->raw_pval));
-        }
-
-        if (dist > bin_for_dist_.max_dist())
-          too_far = true;
-
-        ++forward_it;
+      //check if the appropriate bin exists
+      if (bin != bin_for_dist_.invalid_bin()) {
+        x_pvals_for_bin_[bin].push_back(to_zscore(it->raw_pval));
+        y_pvals_for_bin_[bin].push_back(to_zscore(forward_it->raw_pval));
       }
+
+      if (dist > bin_for_dist_.max_dist())
+        too_far = true;
+
+      ++forward_it;
+    }
 
     ++it;
   }
@@ -227,14 +214,12 @@ DistanceCorrelation::bin(const vector<PvalLocus> &loci) {
 double
 DistanceCorrelation::correlation(const vector<double> &x,
                                     const vector<double> &y) {
-
-  //correlation is 0 for all empty bins
+  //Correlation is 0 when all bins are empty.
   if (x.size() <= 1)
     return 0;
 
   gsl_vector_const_view gsl_x = gsl_vector_const_view_array(&x[0], x.size());
   gsl_vector_const_view gsl_y = gsl_vector_const_view_array(&y[0], y.size());
-
   const size_t stride = 1;
   double corr = gsl_stats_correlation( gsl_x.vector.data, stride,
                                          gsl_y.vector.data, stride,
@@ -245,24 +230,19 @@ DistanceCorrelation::correlation(const vector<double> &x,
 
 vector<double>
 DistanceCorrelation::correlation_table(const vector<PvalLocus> &loci) {
+  const size_t num_bins = bin_for_dist_.num_bins();
+  x_pvals_for_bin_.resize(num_bins);
+  y_pvals_for_bin_.resize(num_bins);
+  bin(loci);
+  vector<double> correlation_table;
 
-    const size_t num_bins = bin_for_dist_.num_bins();
-    x_pvals_for_bin_.resize(num_bins);
-    y_pvals_for_bin_.resize(num_bins);
-
-    bin(loci);
-
-    vector<double> correlation_table;
-
-    for (size_t bin = 0; bin < num_bins; ++bin) {
-
-      const double corr = correlation(x_pvals_for_bin_[bin],
+  for (size_t bin = 0; bin < num_bins; ++bin) {
+    const double corr = correlation(x_pvals_for_bin_[bin],
                                       y_pvals_for_bin_[bin]);
+    correlation_table.push_back(corr);
+  }
 
-      correlation_table.push_back(corr);
-    }
-
-    return correlation_table;
+  return correlation_table;
 }
 
 void
@@ -299,18 +279,12 @@ distance_corr_matrix(BinForDistance bin_for_dist,
 
 void
 combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
-
   DistanceCorrelation distance_correlation(bin_for_distance);
-
-
   vector<double> correlation_for_bin =
                                   distance_correlation.correlation_table(loci);
-
   ProximalLoci proximal_loci(loci, bin_for_distance.max_dist());
-
   vector<double> combined_pvalues;
   vector<PvalLocus> neighbors;
-
   size_t i = 0;
 
   while (proximal_loci.get(neighbors)) {
@@ -325,9 +299,7 @@ combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
 
     distance_corr_matrix(bin_for_distance, correlation_for_bin,
                          neighbors, correlation_matrix);
-
     double combined_pval = stouffer_liptak(p_vals, correlation_matrix);
-
     loci[i].combined_pval = combined_pval;
 
     i++;

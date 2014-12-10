@@ -14,119 +14,78 @@
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
  */
- 
+
 #include <vector>
 #include <string>
 #include <sstream>
 #include <cstdlib>
 
-#include "locus.hpp"
+#include "GenomicRegion.hpp"
+
 #include "merge.hpp"
 
 using std::vector; using std::string;
 using std::istringstream; using std::ostringstream;
-using std::stringstream; using std::ostream; 
+using std::stringstream; using std::ostream;
 using std::istream;
 
-static void
-extract_scores(const string &name, double &lod, double &mindiff, double &pval) {
-  istringstream name_stream(name);
-  string token;
-  getline(name_stream, token, ':');
-  
-  getline(name_stream, token, ':');
-  lod = atof(token.c_str());
-  
-  getline(name_stream, token, ':');
-  mindiff = atof(token.c_str());
-  
-  getline(name_stream, token, ':');
-  pval = atof(token.c_str());
-}
-
 static bool
-read_next_significant_cpg(istream &cpg_stream, Locus &cpg, double cutoff, 
+read_next_significant_cpg(istream &cpg_stream, GenomicRegion &cpg, double cutoff,
                           bool &skipped_any) {
-  
+
+  GenomicRegion region;
   skipped_any = false;
   string cpg_encoding;
-  
+
   while (getline(cpg_stream, cpg_encoding)) {
-    Locus cur_cpg(cpg_encoding);
-    if (0 <= cur_cpg.score() && cur_cpg.score() < cutoff) {
-      cpg = cur_cpg;
+    string record, chrom, name, sign;
+    size_t position;
+    double raw_pval, adjusted_pval, corrected_pval;
+
+    std::istringstream iss(cpg_encoding);
+    iss.exceptions(std::ios::failbit);
+    iss >> chrom >> position >> sign >> name >> raw_pval
+        >> adjusted_pval >> corrected_pval;
+
+    if (0 <= corrected_pval && corrected_pval < cutoff) {
+      cpg.set_chrom(chrom);
+      cpg.set_start(position);
+      cpg.set_end(position + 1);
       return true;
     }
     skipped_any = true;
   }
-  
-  return false;
-}
 
-static void
-update_dmr_name(Locus &dmr, double lod_sum, double mindiff_sum) {
-  ostringstream name_stream;
-  name_stream << "dmr:" 
-              << lod_sum / dmr.score() << ":" 
-              << mindiff_sum / dmr.score();
-  dmr.set_name(name_stream.str());
+  return false;
 }
 
 void
 merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
-  
+
   bool skipped_last_cpg;
-  Locus dmr;
-  
+  GenomicRegion dmr;
+  dmr.set_name("dmr");
+
   if (!read_next_significant_cpg(cpg_stream, dmr, cutoff, skipped_last_cpg))
     return;
-  
+
   dmr.set_score(1);
-  double lod_sum, mindiff_sum, unadjusted_pval;
-  extract_scores(dmr.name(), lod_sum, mindiff_sum, unadjusted_pval);
-  
-  if (unadjusted_pval >= cutoff) {
-    lod_sum = 0;
-    mindiff_sum = 0;
-  }
-  
-  Locus cpg;
+
+  GenomicRegion cpg;
+  cpg.set_name("dmr");
   while(read_next_significant_cpg(cpg_stream, cpg, cutoff, skipped_last_cpg)) {
-    double lod, mindiff;
-    
-    extract_scores(cpg.name(), lod, mindiff, unadjusted_pval);
-    
-    if (skipped_last_cpg || cpg.chrom() != dmr.chrom()) {
-      update_dmr_name(dmr, lod_sum, mindiff_sum);
-      
-      if (lod_sum != 0) {
+
+    if (skipped_last_cpg || cpg.get_chrom() != dmr.get_chrom()) {
         dmr_stream << dmr << std::endl;
-      }
-      
+
       dmr = cpg;
       dmr.set_score(1);
-      
-      if (unadjusted_pval >= cutoff) {
-        lod_sum = 0;
-        mindiff_sum = 0;
-      } else {
-        lod_sum = lod;
-        mindiff_sum = mindiff;
-      }
-      
+
     } else {
-      dmr.set_end(cpg.end());
-      dmr.set_score(dmr.score() + 1);
-      
-      if (unadjusted_pval < cutoff) {
-        lod_sum += lod;
-        mindiff_sum += mindiff;
-      }
+      dmr.set_end(cpg.get_end());
+      dmr.set_score(dmr.get_score() + 1);
     }
-    
   }
-  
-  update_dmr_name(dmr, lod_sum, mindiff_sum);
+
   dmr_stream << dmr << std::endl;
-  
 }

@@ -31,7 +31,6 @@ void update_pval_loci(std::istream &input_encoding,
                        const std::vector<PvalLocus> &pval_loci,
                        std::ostream &output_loci_encoding);
 
-
 class BinForDistance {
 public:
   BinForDistance(std::string spec_string);
