@@ -26,6 +26,7 @@
 #include <fstream>
 #include <numeric>
 #include <sstream>
+#include <iomanip>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -51,28 +52,28 @@ using std::tr1::unordered_map;
    then one needs this. Also, Qiang should be consulted on this
    because he spent much time thinking about it in the context of
    plants. */
-bool 
+bool
 is_chh(const std::string &s, size_t i) {
-  return (i < (s.length() - 2)) && 
-    is_cytosine(s[i]) && 
+  return (i < (s.length() - 2)) &&
+    is_cytosine(s[i]) &&
     !is_guanine(s[i + 1]) &&
     !is_guanine(s[i + 2]);
 }
 
 
-bool 
+bool
 is_ddg(const std::string &s, size_t i) {
-  return (i < (s.length() - 2)) && 
-    !is_cytosine(s[i]) && 
+  return (i < (s.length() - 2)) &&
+    !is_cytosine(s[i]) &&
     !is_cytosine(s[i + 1]) &&
     is_guanine(s[i + 2]);
 }
 
 
-bool 
+bool
 is_c_at_g(const std::string &s, size_t i) {
-  return (i < (s.length() - 2)) && 
-    is_cytosine(s[i]) && 
+  return (i < (s.length() - 2)) &&
+    is_cytosine(s[i]) &&
     !is_cytosine(s[i + 1]) &&
     !is_guanine(s[i + 1]) &&
     is_guanine(s[i + 2]);
@@ -87,11 +88,11 @@ is_c_at_g(const std::string &s, size_t i) {
 
 template <class count_type>
 struct CountSet {
-  
+
   string tostring() const {
     std::ostringstream oss;
     oss << pA << '\t' << pC << '\t' << pG << '\t' << pT << '\t'
-	<< nA << '\t' << nC << '\t' << nG << '\t' << nT << '\t' << N;
+        << nA << '\t' << nC << '\t' << nG << '\t' << nT << '\t' << N;
     return oss.str();
   }
   void add_count_pos(const char x) {
@@ -115,7 +116,7 @@ struct CountSet {
   count_type converted_cytosine() const {return pT;}
   count_type unconverted_guanine() const {return nC;}
   count_type converted_guanine() const {return nT;}
-  
+
   // using "int" here because it is smaller
   count_type pA, pC, pG, pT;
   count_type nA, nC, nG, nT;
@@ -149,10 +150,10 @@ get_methylation_context_tag(const string &s, const size_t pos) {
 
 template <class count_type>
 static void
-count_states_pos(const string &chrom, const MappedRead &r, 
-		 vector<CountSet<count_type> > &counts) {
+count_states_pos(const string &chrom, const MappedRead &r,
+                 vector<CountSet<count_type> > &counts) {
   const size_t width = r.r.get_width();
-  
+
   size_t position = r.r.get_start();
   assert(position + width <= chrom.length());
   for (size_t i = 0; i < width; ++i, ++position)
@@ -162,10 +163,10 @@ count_states_pos(const string &chrom, const MappedRead &r,
 
 template <class count_type>
 static void
-count_states_neg(const string &chrom, const MappedRead &r, 
-		 vector<CountSet<count_type> > &counts) {
+count_states_neg(const string &chrom, const MappedRead &r,
+                 vector<CountSet<count_type> > &counts) {
   const size_t width = r.r.get_width();
-  
+
   size_t position = r.r.get_start() + width - 1;
   assert(position < chrom.length());
   for (size_t i = 0; i < width; ++i, --position)
@@ -181,8 +182,8 @@ template <class count_type>
 static bool
 has_mutated(const char base, const CountSet<count_type> &cs) {
   static const double MUTATION_DEFINING_FRACTION = 0.5;
-  return is_cytosine(base) ? 
-    (cs.nG < MUTATION_DEFINING_FRACTION*(cs.neg_total())) : 
+  return is_cytosine(base) ?
+    (cs.nG < MUTATION_DEFINING_FRACTION*(cs.neg_total())) :
     (cs.pG < MUTATION_DEFINING_FRACTION*(cs.pos_total()));
 }
 
@@ -190,23 +191,23 @@ has_mutated(const char base, const CountSet<count_type> &cs) {
 template <class count_type>
 static void
 write_output(std::ostream &out,
-	     const string &chrom_name, const string &chrom, 
-	     const vector<CountSet<count_type> > &counts,
+             const string &chrom_name, const string &chrom,
+             const vector<CountSet<count_type> > &counts,
              bool CPG_ONLY) {
-  
+
   for (size_t i = 0; i < counts.size(); ++i) {
     const char base = chrom[i];
     if (is_cytosine(base) || is_guanine(base)) {
-      const double unconverted = is_cytosine(base) ? 
-	counts[i].unconverted_cytosine() : counts[i].unconverted_guanine();
-      const double converted = is_cytosine(base) ? 
-	counts[i].converted_cytosine() : counts[i].converted_guanine();
+      const double unconverted = is_cytosine(base) ?
+        counts[i].unconverted_cytosine() : counts[i].unconverted_guanine();
+      const double converted = is_cytosine(base) ?
+        counts[i].converted_cytosine() : counts[i].converted_guanine();
       const double meth = unconverted/(converted + unconverted);
-      const string tag = get_methylation_context_tag(chrom, i) + 
-	    (has_mutated(base, counts[i]) ? "x" : "");
+      const string tag = get_methylation_context_tag(chrom, i) +
+        (has_mutated(base, counts[i]) ? "x" : "");
       if (!CPG_ONLY || (!tag.compare("CpG")||!tag.compare("CpGx"))) {
         methpipe::write_site(out, chrom_name, i, (is_cytosine(base) ? "+" : "-"),
-			   tag, meth, converted + unconverted);
+                             tag, meth, converted + unconverted);
       }
     }
   }
@@ -215,43 +216,46 @@ write_output(std::ostream &out,
 
 typedef unordered_map<string, string> chrom_file_map;
 static void
-get_chrom(const MappedRead &mr, 
-	  const chrom_file_map &chrom_files, 
-	  GenomicRegion &chrom_region, string &chrom) {
-  
+get_chrom(const MappedRead &mr,
+          const chrom_file_map &chrom_files,
+          GenomicRegion &chrom_region, string &chrom) {
+
   const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
   if (fn == chrom_files.end())
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
-  
+
   chrom.clear();
   read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
-  if (chrom.empty()) 
+  if (chrom.empty())
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
-  
+
   chrom_region.set_chrom(mr.r.get_chrom());
 }
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
-    
+
+    static const double gigs_per_base =
+      (1.0 + sizeof(CountSet<unsigned short>))/(1073741824.0);
+
     bool VERBOSE = false;
     bool CPG_ONLY = false;
-    
+
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "get methylation levels from "
-			   "mapped WGBS reads", "-c <chroms> <mapped-reads>");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
-		      false, outfile);
+                           "mapped WGBS reads", "-c <chroms> <mapped-reads>");
+    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
+                      false, outfile);
     opt_parse.add_opt("chrom", 'c', "file or dir of chroms (FASTA format; "
-		      ".fa suffix)", true , chrom_file);
+                      ".fa suffix)", true , chrom_file);
     opt_parse.add_opt("suffix", 's', "suffix of FASTA files "
-		      "(assumes -c specifies dir)", false , fasta_suffix);
+                      "(assumes -c specifies dir)", false , fasta_suffix);
     opt_parse.add_opt("cpg-only", 'n', "print only CpG context cytosines",
                       false, CPG_ONLY);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -259,7 +263,7 @@ main(int argc, const char **argv) {
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.option_missing()) {
@@ -272,49 +276,54 @@ main(int argc, const char **argv) {
     }
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     chrom_file_map chrom_files;
     identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
     if (VERBOSE)
       cerr << "CHROMS_FOUND=" << chrom_files.size() << endl;
-    
+
     std::ifstream in(mapped_reads_file.c_str());
-    if (!in) 
+    if (!in)
       throw SMITHLABException("cannot open file: " + mapped_reads_file);
-    
+
     // this is where all the counts are accumulated
     vector<CountSet<unsigned short> > counts;
-    
+
     string chrom; // holds the current chromosome being processed
     GenomicRegion chrom_region; // holds chrom name for fast comparisons
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-    
+
     MappedRead mr;
     while (in >> mr) {
-      
+
       // if chrom changes, output previous results, get new one
       if (chrom.empty() || !mr.r.same_chrom(chrom_region)) {
-	
-	// make sure all reads from same chrom are contiguous in the file
-	if (mr.r.get_chrom() < chrom_region.get_chrom())
-	  throw SMITHLABException("chroms out of order: " + mapped_reads_file);
-	
-	if (!counts.empty()) // if we have results, output them
-	  write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
-	
-	// load the new chromosome and reset the counts
-	get_chrom(mr, chrom_files, chrom_region, chrom);
-	if (VERBOSE)
-	  cerr << "PROCESSING:\t" << chrom_region.get_chrom() << endl;
-	counts = vector<CountSet<unsigned short> >(chrom.size());
+
+        // make sure all reads from same chrom are contiguous in the file
+        if (mr.r.get_chrom() < chrom_region.get_chrom())
+          throw SMITHLABException("chroms out of order: " + mapped_reads_file);
+
+        if (!counts.empty()) // if we have results, output them
+          write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
+
+        // load the new chromosome and reset the counts
+        get_chrom(mr, chrom_files, chrom_region, chrom);
+        if (VERBOSE)
+          cerr << "PROCESSING:\t" << chrom_region.get_chrom() << '\t'
+               << "(REQD MEM = "
+               << std::setprecision(3)
+               << chrom.length()*gigs_per_base << "GB)" << endl;
+
+        counts.clear();
+        counts.resize(chrom.size());
       }
-      
+
       // do the work for this mapped read, depending on strand
       if (mr.r.pos_strand())
-	count_states_pos(chrom, mr, counts);
+        count_states_pos(chrom, mr, counts);
       else count_states_neg(chrom, mr, counts);
     }
     if (!counts.empty()) // if we have results, output them
