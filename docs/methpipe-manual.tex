@@ -831,7 +831,7 @@ methylation in the non-CpG context, and therefore inclusion of non-CpG
 methylation in the calling of hyper-methylated regions could possibly
 be informative. We suggest separating each cytosine context from the
 \prog{methcounts} output file as illustrated in the previous section
-(via \prog{grep}) and calling HyperMRs seperately for each context.
+(via \prog{grep}) and calling HyperMRs separately for each context.
 
 \paragraph{Partially methylated regions (PMRs):}
 The \prog{hmr} program also has the option of directly identifying
@@ -1633,90 +1633,74 @@ consuming to convert each \prog{methcounts} output file from one
 assembly to another using the UCSC \prog{liftOver} tool, given that
 they all should have the same locations but different read counts. 
 Therefore, we use \prog{liftOver} to generate an index file between 
-two assemblies, and provide the \prog{fastLiftOver2} tool.
+two assemblies, and provide the \prog{fast-liftover} tool.
 
-Suppose we have downloaded the \prog{liftOver} tool in to directory
-\fn{/home/user/Desktop/}, and the chain file
+Suppose we have downloaded the \prog{liftOver} tool and the chain file
 \fn{mm9ToHg19.over.chain.gz} from the UCSC Genome Browser website.  If
-we have a \prog{methcounts} output file \fn{Mouse\_BCell\_mm9.meth}
-of all cytosine positions in mm9. Entries in
+we have a \prog{methcounts} file \fn{Mouse\_BCell\_mm9.meth}
+of CpG sites or all cytosines in mm9. Entries in
 \fn{Mouse\_BCell\_mm9.meth} look like
 \begin{verbatim}
-chr1    3007427 +       CHH     0       5
-chr1    3007428 +       CCG     0       6
-chr1    3007429 +       CpG     0.166667        6
-chr1    3007430 -       CpG     0.5     10
-chr1    3007431 -       CCG     0       9
+chr1  3005765  +  CpG  0.166667  6
+chr1  3005846  +  CpG  0.5        10
+chr1  3005927  +  CpG  0         9
 \end{verbatim}
 
 We would like to lift it over to the human genome hg19, and generate
 an index file \fn{mm9-hg19.index} to facilitate later lift-over
 operations from mm9 to hg19, and keep a record of unlifted mm9
-cytosine positions in the file \fn{mm9-hg19.unlifted}. Run the bash
-script \fn{run-liftOver-allC.sh} as follows:
+cytosine positions in the file \fn{mm9-hg19.unlifted}. 
+First, prepare the input \fn{mm9\_cpg.bed} file for \prog{liftOver} into 
+the following BED format: 
 \begin{verbatim}
-run-liftOver-allC.sh  /home/user/Desktop/  mm9ToHg19.over.chain.gz  Mouse_BCell_mm9.meth  mm9-hg19.index  mm9-hg19.unlifted
+chr1  3005765 	3005766  chr1:3005765:3005766:+  0  +
+chr1  3005846  3005847  chr1:3005846:3005847:+  0  +
+chr1  3005927  3005928  chr1:3005927:3005928:+  0  +
+\end{verbatim}
+Note that the 4\textsuperscript{th} column is the genomic location data linked with colons. 
+
+Then, run UCSC Genome Browser tool \fn{liftOver} as follows:
+\begin{verbatim}
+./liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz  mm9-hg19.index mm9-hg19.unlifted
 \end{verbatim}
 
 The generated index file \fn{mm9-hg19.index} will be a BED format
 file in hg19 coordinates, with entries like
 \begin{verbatim}
-chr8	56562557	56562558	chr1:3007427:3007428:+	0	-
-chr8	56562556	56562557	chr1:3007428:3007429:+	0	-
-chr8	56562555	56562556	chr1:3007430:3007431:-	0	+
-chr8	56562554	56562555	chr1:3007431:3007432:-	0	+
+chr8	56539820	56539821  chr1:3005765:3005766:+	0	-
+chr8	56539547	56539548  chr1:3005846:3005847:+	0	-
+chr8	56539209	56539210  chr1:3005927:3005928:+	0	-
 \end{verbatim}
-where the fourth column contains the genomic position of the Cytosine
+where the 4\textsuperscript{th} column contains the genomic position of the cytosine
 site in mm9 coordinates.
 
+After the index file is generated, we can use the \prog{fast-liftover} 
+program on any mm9 \prog{methcount} file to lift it to hg19: 
+\begin{verbatim}
+./fast-liftover -i mm9-hg19.index -f SAMPLE_mm9.meth -t SAMPLE_hg19.meth.lift -v
+\end{verbatim}
+The \op{-p} option should be specified to report positions on the positive 
+strand of the target assembly.  
 
-After the index file is generated, we can use the script
-\prog{run-fastLiftOver2.sh} to run fastLiftOver on any mm9
-\prog{methcount} file to lift it over to hg19.  The script has the
-following options:
+Before using the lifted methcount file, make sure it is sorted properly.
 \begin{verbatim}
-usage: ./run-fastLiftOver2.sh options
-OPTIONS:
-   -h    Show this message
-   -i    Index file
-   -f    File to lift
-   -t    Lifed file
-   -M    Path to the methpipe root directory
-   -s    Report sites on single strand (+ strand)
-   -u    Report uniquely mapped sites (Default: multiple-to-1 mapping are collapsed)
+LC_ALL=C sort -k1,1 -k2,2g -k3,3 SAMPLE_hg19.meth.lift -o SAMPLE_hg19.meth.sorted
 \end{verbatim}
-Here are some explanation for the usage of \op{-s} and \op{-u} flag.
-It is possible that multiple CpG sites in the mouse reference genome
-are mapped to the same location in the human reference genome, for example 
+ 
+The \prog{liftOver} program may report multiple mm9 sites mapped to a same position in hg19. 
+%For example, the index file might have two following records:
+%\begin{verbatim}
+%chr1	77595107	77595108	chr1:16053645:16053646:CpG:+	0	+
+%chr1	77595107	77595108	chr1:20444502:20444503:CpG:+	0	-
+%\end{verbatim}
+In this situation, we may either collapse read counts at those mm9 sites, 
+or keep the data for only one mm9 site. We can use the \fn{lift-filter} program 
+to achieve these two options. Use
 \begin{verbatim}
-chr1	77595107	77595108	chr1:16053645:16053646:+	0	+
-chr1	77595107	77595108	chr1:20444502:20444503:+	0	-
-\end{verbatim}
-In this situation, we may either collapse read counts at the multiple
-mm9 sites that are mapped to the same location in hg19, or only report
-the 1-1 mapping sites. The following two commands would achieve these
-two options repectively, assuming \prog{/home/user/Desktop/methpipe/bin}
-is the directory of \prog{methpipe} binaries.
-\begin{verbatim}
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -u
-\end{verbatim}
-If \fn{Mouse\_BCell\_mm9.meth} contains only CpG sites, sometimes we
-might want to collapse reverse-complementary CpG pairs, and instead of
-reporting statistics for both strands, we only keep sites on ``+''
-strand. To flip mm9 CpGs lifted to the ``-'' strand of hg19, and
-collapse the methylation information with their complementary CpG
-lifted to hg19 ``+'' strand, we run the script
-\prog{run-fastLiftOver2.sh} script with option \op{-s}.
-\begin{verbatim}
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin -s 
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -s -u
-\end{verbatim}
-
+./lift-filter -o SAMPLE_hg19.meth  SAMPLE_hg19.meth.sorted -v
+ \end{verbatim}
+to merge data from mm9 sites lifted to the same hg19 position. Use  
+the option \op{-u} to keep the first record of duplicated sites. 
 
 %Mapping methylomes between species builds on the the \prog{liftOver}
 %tool provided by UCSC Genome Browser
