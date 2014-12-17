@@ -45,11 +45,11 @@ struct cpg_site {
 
 static std::istream &
 operator>>(std::istream &in, cpg_site &s) {
-  // taking whole line in case extra columns added
+  // Taking entire line in case extra columns added
   string line;
   getline(in, line);
   if (!line.empty()) {
-    // now parsing the line
+    // Now parsing the line.
     char sign;
     string name;
     double meth_level;
@@ -61,7 +61,7 @@ operator>>(std::istream &in, cpg_site &s) {
     if (meth_level < 0.0 || meth_level > 1.0)
       throw (SMITHLABException("methylation level outside [0, 1]: " + line));
 
-    // same rounding method as used in other methpipe programs
+    // Same rounding method as used in other methpipe programs.
     s.meth = static_cast<size_t>(std::tr1::round(meth_level*s.total));
   }
   return in;
@@ -112,18 +112,18 @@ main(int argc, const char **argv) {
     cout << endl;
 
     // Open the files for each methylome.
-    ifstream methylomes[names.size()];
+    vector<ifstream*> methylomes(names.size());
 
     for (size_t i = 0; i < names.size(); ++i)
-      methylomes[i].open(names[i].c_str());
+      methylomes[i] = new ifstream(names[i].c_str());
 
     bool all_streams_good = true;
     while (all_streams_good) {
       cpg_site first_s;
-      for (size_t i = 0; i < names.size(); ++i) {
+      for (size_t i = 0; i < methylomes.size(); ++i) {
         cpg_site s;
         // Pull the site information from the current file.
-        if (methylomes[i] >> s && !s.chrom.empty()) {
+        if (*(methylomes[i]) >> s && !s.chrom.empty()) {
 
           if (i == 0) {
             first_s = s;
@@ -133,15 +133,17 @@ main(int argc, const char **argv) {
             assert(first_s.chrom == s.chrom && first_s.position == s.position);
 
           cout << '\t' << s.total << '\t' << s.meth
-               << (i == names.size() - 1 ? "\n" : "");
+               << (i == methylomes.size() - 1 ? "\n" : "");
         } else
           all_streams_good = false;
       }
     }
 
-    // close all the open files
-    for (size_t i = 0; i < names.size(); ++i)
-      methylomes[i].close();
+    // Close all the open files.
+    for (size_t i = 0; i < methylomes.size(); ++i) {
+      methylomes[i]->close();
+      delete methylomes[i];
+    }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
