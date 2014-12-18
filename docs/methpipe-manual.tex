@@ -892,28 +892,28 @@ to use \prog{pmd} program on the methylome of interest.
 \subsection{Differential Methylation Analysis}
 \label{sec:differential_methylation}
 
-It is often useful to find regions that are differentially methylated  
-between a pair of methylomes or two groups of methylomes. Correspondingly, 
-MethPipe provides two methods for differential methylation (DM) analysis. 
-The first method is designed for computing DM regions between a pair or 
-two small groups of methylomes; it is implemented in the programs 
-\prog{methdiff} and \prog{dmr}. The second method is based on 
-beta-binomial regression and is appropriate for analysis of datasets 
-containing a larger number of methylomes; it is implemented in the program 
-\prog{radmeth}.
+It is often useful to find regions with differing methylation between a pair of 
+methylomes or two groups of methylomes. Correspondingly, MethPipe 
+provides two methods for differential methylation (DM) analysis. The first 
+method is designed for computing DM regions between a pair or two small 
+groups of methylomes; it is implemented in the programs \prog{methdiff} 
+and \prog{dmr}. The second method is based on the beta-binomial 
+regression and is appropriate for analysis of datasets containing a larger 
+number of methylomes; it is implemented in the program \prog{radmeth}.
 
-Here we assume that all methylomes correspond to the same genome assembly. 
-To compare methylomes based on different assemblies of the same specie or
-methylomes of different species, they must first be converted to one 
-common genome assembly (see section~\ref{sec:mapp-methyl-betw}).
+Here we assume that all methylomes correspond to the same genome 
+assembly. To compare methylomes based on different assemblies of the 
+same species or methylomes of different species, they must first be 
+converted to one common genome assembly (see 
+section~\ref{sec:mapp-methyl-betw}).
 
 \subsubsection{DM analysis of a pair of methylomes or two small groups of 
 			   methylomes}
 
-\paragraph{Comparing a pair of methylomes} 
+\paragraph{Comparing a pair of methylomes:} 
 Suppose that we want to compare two methylomes: {\tt Human\_ESC.meth} and 
-{\tt Human\_NHFF.meth}. First, we must calculate the differential 
-methylation score for each CpG site using the \prog{methdiff} program:
+{\tt Human\_NHFF.meth}. We start out by calculating the differential 
+methylation score of each CpG site using the \prog{methdiff} program:
 {\small{%%
 \begin{verbatim}
 $ methdiff -o Human_ESC_NHFF.methdiff Human_ESC.meth Human_NHFF.meth
@@ -922,7 +922,7 @@ $ methdiff -o Human_ESC_NHFF.methdiff Human_ESC.meth Human_NHFF.meth
 Here are the first few lines of the output:
 {\small{%%
 \begin{verbatim}
-$ head -n 5 Human_ESC_NHFF.methdiff
+$ head -n 4 Human_ESC_NHFF.methdiff
 chr1	3000826	+	CpG	0.609908	16	 7	21	11
 chr1	3001006	+	CpG	0.874119	21	18	15	22
 chr1	3001017	+	CpG	0.888384	20	19	15	25
@@ -945,7 +945,8 @@ respectively.
 With differential methylation scores and HMRs for both methylomes 
 available (see Section~\ref{sec:indent-hypo-methyl} for instructions 
 on computing HMRs), DM regions (DMRs) can be calculated with the 
-\prog{dmr} program. This program uses HMR fragments to compute DMRs.
+\prog{dmr} program. This program uses HMR fragments to compute 
+DMRs.
 
 {\small{%%
 \begin{verbatim}
@@ -955,9 +956,9 @@ $ dmr Human_ESC_NHFF.methdiff Human_ESC.hmr Human_NHFF.hmr \
 }}
 The DMRs are output to files {\tt DMR\_ESC\_lt\_NHFF} and 
 {\tt DMR\_NHFF\_lt\_ESC}. The former file contains regions with 
-lower methylation in {\tt Human\_ESC.meth} while the latter file 
-stores regions with lower methylation in {\tt Human\_NHFF.meth}. 
-Let's take a look at the first few lines of {\tt DMR\_ESC\_lt\_NHFF}:
+lower methylation in {\tt Human\_ESC.meth} while the latter  has 
+regions with lower methylation in {\tt Human\_NHFF.meth}. Let's take 
+a look at the first few lines of {\tt DMR\_ESC\_lt\_NHFF}:
 
 {\small{%%
 \begin{verbatim}
@@ -974,16 +975,16 @@ The first three columns are the genomic coordinates of DMRs. The fourth
 column contains the numer of CpG sites that the DMR spans, and the fifth 
 column contains the number of significantly differentially methylated 
 CpGs in the DMR. So, the first DMR spans 12 CpGs, but contains no 
-significantly differentially methylated CpGs, while the second DMR spans 
+significantly differentially methylated sites, while the second DMR spans 
 6 CpGs and contains just one significantly differentially methylated CpG 
 site.
 
-We recommend filtering DMRs, so that each one contains at least some CpGs 
-that are significantly differentially methylated. This can be easily done 
-with the {\tt awk} utility, available on virtually all Linux and Mac OS 
-systems. For example, the following command puts all DMRs spanning at least 
-10 CpGs and having at least 5 significantly differentially methylated CpGs 
-into a file {\tt DMR\_ESC\_lt\_NHFF.filtered}.
+We recommend filtering DMRs so that each one contains at least some 
+CpGs that are significantly differentially methylated. This can be easily 
+done with the {\tt awk} utility, available on virtually all Linux and Mac OS 
+systems. For example, the following command puts all DMRs spanning 
+at least 10 CpGs and having at least 5 significantly differentially 
+methylated CpGs into a file {\tt DMR\_ESC\_lt\_NHFF.filtered}.
 {\small{%%
 \begin{verbatim}
 $ awk -F "[:\t]" '$5 >= 10 && $6 >= 5 {print $0}' DMR_ESC_lt_NHFF \
@@ -999,53 +1000,56 @@ The methylomes can be combined using the program {\tt merge-methcounts}
 
 \subsubsection{DM analysis of two larger groups of methylomes}
 
-The DM detection method described in this section is based on beta-binomial
+The DM detection method described in this section is based on the beta-binomial
 regression. We recommend using this method when more than three replicates 
-are available for each condition. For rapid differential methylation analysis,
-the regression-based method should be run on a computing cluster with a few
+are available in each group. For rapid differential methylation analysis the 
+regression-based method should be run on a computing cluster with a few
 hundred available nodes, in which case it takes approximately a few hours to
 process a dataset consisting of 30-50 WGBS samples. The analysis can be also
 performed on a personal workstation, but it will take substantially longer. Note
 that the actual processing time depends on the coverage of each methylome, the
 number of sites analyzed, and the number of methylomes in the dataset.
 
-**Generating proportion tables** The first step in the differential methylation
-analysis is to assemble a proportion table containing read proportions
-for all target methylomes. MethPipe includes a program `make-table` to generate
-a proportion table from the given collection of methylomes. Suppose that we want
-to compare\ methylomes\ named `control\_a.meth`, `control\_b.meth`, `control\_c.meth`
-to the methylomes `case\_a.meth`, `case\_b.meth`, `case\_c.meth`. The proportion
-table can be created with the command
+\paragraph{Generating proportion tables} The first step in the differential 
+methylation analysis is to assemble a proportion table containing read 
+proportions for all target methylomes. MethPipe includes a program 
+\prog{make-table} to generate a proportion table from the given collection of 
+methylomes. Suppose that we want to compare methylomes named 
+{\tt control\_a.meth}, {\tt control\_b.meth}, {\tt control\_c.meth}
+to the methylomes {\tt case\_a.meth}, {\tt case\_b.meth}, 
+{\tt case\_c.meth}. The proportion table can be created with the following 
+command:
 
 {\small{%%
 \begin{verbatim}
-$ make_table control_a.meth control_b.meth control_c.meth case_a.meth case_b.meth case_c.meth > proportion_table.txt
+$ make_table control_a.meth control_b.meth control_c.meth \
+                         case_a.meth case_b.meth case_c.meth > proportion_table.txt
 \end{verbatim}%%
 }}
 
-This is what `proportion\_table.txt` looks like:
+This is what {\tt proportion\_table.txt} looks like:
 
 {\small{%%
 \begin{verbatim}
-$ head -n 5 proportion\_table.txt
-control\_a control\_b control\_c case\_a case\_b case\_c
-chr1:108:109 9 6 10 8 1 1 2 2 2 1 14 1
-chr1:114:115 17 7 10 0 14 3 5 1 9 1 7 1
-chr1:160:161 12 8 10 5 17 4 15 14 13 6 4 4
-chr1:309:310 1 1 1 0 17 12 12 8 2 1 19 8
+$ head -n 5 proportion_table.txt
+control_a control_b control_c case_a case_b case_c
+chr1:108  9 6 10 8  1  1  2  2  2 1 14 1
+chr1:114 17 7 10 0 14  3  5  1  9 1  7 1
+chr1:160 12 8 10 5 17  4 15 14 13 6  4 4
+chr1:309  1 1  1 0 17 12 12  8  2 1 19 8
 \end{verbatim}%%
 }}
 
 As indicated in the header, this proportion table contains information about 6
 methylomes: 3 controls and 3 cases. Each row of the table contains information
 about a CpG site and a proportion of reads mapping over this site in each
-methylome. For example, the ﬁrst row describes a cytosine within a CpG site
+methylome. For example, the first row describes a cytosine within a CpG site
 located on chromosome 1 at position 108. This site is present in 9 reads in the
-methylome `control\_a` and is methylated in 6 of them. Note that `make\_table`
-includes methylomes into the proportion table in the order in which they are
-listed on the command line.
+methylome {\tt control\_a} and is methylated in 6 of them. Note that 
+\prog{make\_table} includes methylomes into the proportion table in the order 
+in which they are listed on the command line.
 
-\paragraph{Design matrix} The next step is to specify the design\ matrix, which
+\paragraph{Design matrix:} The next step is to specify the design\ matrix, which
 describes the structure of the experiment. For our running example, the design
 matrix looks like this:
 
@@ -1062,14 +1066,14 @@ case_c 1 1
 \end{verbatim}%%
 }}
 
-The samples in this dataset are associated with two factors: base and case. The
-ﬁrst column corresponds to the base factor and will always be present in the
-design matrix. Think of it as stating that all samples have the same baseline
-mean methylation level. To distinguish cases from controls we add another factor
-case (second column). The 1’s in this column correspond to the samples which
-belong to the cases group. You can use this design matrix as a template to
-create design matrices for two-group comparisons involving arbitrary many
-methylomes.
+The design matrix shows that samples in this dataset are associated with two 
+factors: base and case. The first column corresponds to the base factor and 
+will always be present in the design matrix. Think of it as stating that all 
+samples have the same baseline mean methylation level. To distinguish 
+cases from controls we add another factor case (second column). The 1's in 
+this column correspond to the samples which belong to the cases group. You 
+can use this design matrix as a template to create design matrices for 
+two-group comparisons involving arbitrary many methylomes.
 
 After creating the proportion table and the design matrix, we are now ready to
 start the methylation analysis. It consists of (1) regression, (2) combining
@@ -1171,29 +1175,35 @@ $ awk '$5 < 0.01 "{ print $0; $}"' cpgs.adjusted.bed > dm\_cpgs.bed
 }}
 
 \paragraph{Differentially methylated regions} Alternatively, it is possible to join
-individually diﬀerentially methylated CpGs into diﬀerentially methylated
+individually diﬀerentially methylated CpGs into differentially methylated
 regions. This can be achieved with the command
-```
+{\small{%%
+\begin{verbatim}
 $ dm-regions -p 0.01 cpgs.adjusted.bed > dmrs.bed
-```
-The current algorithm is conservative: it joins neighboring diﬀerentially
+\end{verbatim}%%
+}}
+
+The current algorithm is conservative: it joins neighboring differentially
 methylated sites with p-value below 0.01 (set by the `-p` paramter). The output
 format is
-```
+
+{\small{%%
+\begin{verbatim}
 chrom start end c:log-odds-ratio:mean-meth-diff num-sites
-```
+\end{verbatim}%%
+}}
+
 where `log-odds-ratio` and `mean-meth-diff` are computed by averaging the
 corresponding parameters of individual diﬀerentially methylated sites in the
 region. The number of sites comprising each DMR is given by `num-sites`. For our
 example, the output looks like this:
-```
+{\small{%%
+\begin{verbatim}
 $ head -n 3 dmrs.bed
 chr1 57409 57689 dmr:-2.79935:0.355322 18
 chr1 58282 59009 dmr:-2.36703:0.309342 57
 chr1 138548 139044 dmr:-1.95574:0.373333 22
-```
-
-
+\end{verbatim}%%
 
 \subsection{Allele-specific methylation}
 
