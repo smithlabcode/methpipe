@@ -451,7 +451,7 @@ main(int argc, const char **argv) {
         << "MAX COVERAGE:" << '\t' << max_cov << endl
         << "SITES MUTATED:" << '\t' << total_mut << endl
         << "FRACTION MUTATED:" << '\t'
-            << static_cast<double>(total_mut)/total_sites << endl
+            << static_cast<double>(total_mut)/mapped_sites << endl
         << "SYMMETRICAL CpG SITES:" << '\t'
            << total_cpg_sites << endl
         << "SYMMETRICAL CpG SITES COVERED:" << '\t'
@@ -466,7 +466,7 @@ main(int argc, const char **argv) {
         << "SYMMETRICAL CpG MUTATED:" << '\t'
            << cpg_mutations << endl
         << "SYMMETRICAL CpG FRACTION MUTATED:" << '\t'
-            << static_cast<double>(cpg_mutations)/total_cpg_sites << endl;
+            << static_cast<double>(cpg_mutations)/total_cpg_mapped << endl;
         // CpG coverage statistics are already minus mutations
 
     if (total_cpg_mapped != 0) {
