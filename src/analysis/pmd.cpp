@@ -372,7 +372,8 @@ build_domains(const bool VERBOSE,
     }
     prev_end = cpgs[i].get_end();
   }
-  // Do we miss the final domain?????
+  domains.back().set_end(cpgs.back().get_end());
+  domains.back().set_score(n_cpgs);
 }
 
 
