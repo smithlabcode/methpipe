@@ -128,8 +128,10 @@ build_domains(const bool VERBOSE,
     }
     prev_end = cpgs[i].get_end();
   }
-  domains.back().set_end(cpgs.back().get_end());
-  domains.back().set_score(n_cpgs);
+  if(in_domain){
+    domains.back().set_end(prev_end);
+    domains.back().set_score(n_cpgs);
+  }
 }
 
 
