@@ -16,7 +16,6 @@
   along with This program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
 #include <tr1/cmath>
 #include <cmath>
 #include <vector>
@@ -36,6 +35,16 @@ using std::pair;
 using std::ios_base;
 using std::tr1::round;
 
+string
+methpipe::skip_header(std::istream &in){
+  string line;
+  getline(in, line);
+  while((line.substr(0,1)) == "#"){
+    getline(in, line);
+  }
+  return line;
+}
+
 void
 methpipe::load_cpgs(const string &cpgs_file,
                     vector<SimpleGenomicRegion> &cpgs,
@@ -49,7 +58,22 @@ methpipe::load_cpgs(const string &cpgs_file,
   size_t coverage;
 
   std::ifstream in(cpgs_file.c_str());
-  while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) {
+  string line = skip_header(in); // added 
+  std::istringstream iss(line); //added
+  
+  iss >> chrom >> pos >> strand >> seq >> meth >> coverage;
+  prev_chrom = chrom;
+  prev_pos = pos;
+
+  // append site
+  cpgs.push_back(SimpleGenomicRegion(chrom, pos, pos+1));
+  reads.push_back(coverage);
+  meths.push_back(std::make_pair(0.0, 0.0));
+  meths.back().first = static_cast<size_t>(round(meth * coverage));
+  meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+   
+  while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) { //changed
     // sanity check
     if (chrom.empty() || strand.empty() || seq.empty() || 
 	meth < 0.0 || meth > 1.0) {
@@ -88,7 +112,21 @@ methpipe::load_cpgs(const string &cpgs_file,
   size_t coverage;
 
   std::ifstream in(cpgs_file.c_str());
-  while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) {
+  string line = skip_header(in); //added
+  std::istringstream iss(line); //added
+  
+  iss >> chrom >> pos >> strand >> seq >> meth >> coverage;
+  prev_chrom = chrom;
+  prev_pos = pos;
+
+    // append site
+  cpgs.push_back(GenomicRegion(chrom, pos, pos+1, seq, 0, strand[0]));
+  reads.push_back(coverage);
+  meths.push_back(std::make_pair(0.0, 0.0));
+  meths.back().first = static_cast<size_t>(round(meth * coverage));
+  meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+  while (in >> chrom >> pos >> strand >> seq >> meth >> coverage) {//changed
     // sanity check
     if (chrom.empty() || strand.empty() || seq.empty()
         || meth < 0.0 || meth > 1.0) {
@@ -114,6 +152,100 @@ methpipe::load_cpgs(const string &cpgs_file,
   }
 }
 
+void
+methpipe::load_cpgs_old(const string &cpgs_file,
+                    vector<SimpleGenomicRegion> &cpgs,
+                    vector<pair<double, double> > &meths,
+                    vector<size_t> &reads)
+{
+  std::ifstream in(cpgs_file.c_str());
+  string line = skip_header(in); // added 
+  std::istringstream iss(line); //added
+  GenomicRegion r, prev_site;
+  
+  iss >> r;
+
+  // append site
+  const string site_name(r.get_name());
+  const size_t coverage = atoi(
+    site_name.substr(site_name.find_first_of(":") + 1).c_str());
+  const double meth = r.get_score();
+  cpgs.push_back(SimpleGenomicRegion(r));
+  reads.push_back(coverage);
+  meths.push_back(std::make_pair(meth, 0.0));
+  meths.back().first = static_cast<size_t>(round(meth * coverage));
+  meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+  prev_site = r;
+
+   
+  while (in >> r) {
+    // order check
+    if (r < prev_site) {
+      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+    }
+    // append site
+    const string site_name(r.get_name());
+    const size_t coverage = atoi(
+      site_name.substr(site_name.find_first_of(":") + 1).c_str());
+    const double meth = r.get_score();
+    cpgs.push_back(SimpleGenomicRegion(r));
+    reads.push_back(coverage);
+    meths.push_back(std::make_pair(meth, 0.0));
+    meths.back().first = static_cast<size_t>(round(meth * coverage));
+    meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+    prev_site = r;
+  }
+}
+
+void
+methpipe::load_cpgs_old(const string &cpgs_file,
+                    vector<GenomicRegion> &cpgs,
+                    vector<pair<double, double> > &meths,
+                    vector<size_t> &reads)
+{
+  std::ifstream in(cpgs_file.c_str());
+  string line = skip_header(in); // added 
+  std::istringstream iss(line); //added
+  GenomicRegion r, prev_site;
+  
+  iss >> r;
+
+  // append site
+  const string site_name(r.get_name());
+  const size_t coverage = atoi(
+    site_name.substr(site_name.find_first_of(":") + 1).c_str());
+  const double meth = r.get_score();
+  cpgs.push_back(r);
+  reads.push_back(coverage);
+  meths.push_back(std::make_pair(meth, 0.0));
+  meths.back().first = static_cast<size_t>(round(meth * coverage));
+  meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+  prev_site = r;
+
+   
+  while (in >> r) {
+    // order check
+    if (r < prev_site) {
+      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+    }
+    // append site
+    const string site_name(r.get_name());
+    const size_t coverage = atoi(
+      site_name.substr(site_name.find_first_of(":") + 1).c_str());
+    const double meth = r.get_score();
+    cpgs.push_back(r);
+    reads.push_back(coverage);
+    meths.push_back(std::make_pair(meth, 0.0));
+    meths.back().first = static_cast<size_t>(round(meth * coverage));
+    meths.back().second = static_cast<size_t>(coverage  - meths.back().first);
+
+    prev_site = r;
+  }
+}
+
 bool
 methpipe::is_methpipe_file_single(const string &file) {
 
@@ -124,6 +256,7 @@ methpipe::is_methpipe_file_single(const string &file) {
   string line;
   if (!std::getline(in, line))
     throw SMITHLABException("could not read file: " + file);
+  line = skip_header(in);
   std::istringstream iss(line);
 
   string chrom, strand, name;
@@ -205,36 +338,11 @@ methpipe::seek_site(std::istream &in, const std::string &chr,
 std::istream&
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
-                    double &meth, size_t &coverage) {
-    
-  in >> chrom >> pos >> strand >> seq >> meth >> coverage;
+                    double &meth, size_t &coverage) { 
+  string line = skip_header(in);
+  std::istringstream iss(line);
+  iss >> chrom >> pos >> strand >> seq >> meth >> coverage;
   return in;
-
-   // string pos_str, meth_str, cov_str;
-   // if (!(is >> chrom >> pos_str >> strand >>
-   //       seq >> meth_str >> cov_str)) {
-   //   return false;
-   // }
-   // is.clear();
-   // is.str(pos_str);
-   // if (!(is >> pos))
-   //   return false;
-
-   // is.clear();
-   // is.str(meth_str);
-   // meth= strtod(meth_str.c_str(), NULL);
-
-   // is.clear();
-   // is.str(cov_str);
-   // if (!(is >> coverage))
-   //   return false;
-
-   // if (std::isnan(meth) && coverage == 0)
-   //   meth = 0;
-   // else if (std::isnan(meth) )
-   //   return false;
-
-   // return in.good();
 }
 
 bool
@@ -247,23 +355,22 @@ methpipe::write_site(std::ostream &out,
           << coverage << '\n');
 }
 
-bool
+std::istream&
 methpipe::read_site_old(std::istream &in, string &chrom, size_t &pos,
               string &strand, std::string &seq,
               double &meth, size_t &coverage)
 {
-  GenomicRegion r;
-  if (in >> r) {
-    chrom = r.get_chrom();
-    pos = r.get_start();
-    strand = string(1, r.get_strand());
-
-    const string name = r.get_name();
+  string line = skip_header(in); //added
+  std::istringstream iss(line);//added
+  size_t dummy;
+  string name;
+  if (iss >> chrom >> pos >> dummy >> name >> meth >> strand) {
     seq = name.substr(0, name.find(":"));
-    meth = r.get_score();
     coverage = atoi(name.substr(name.find(":") + 1).c_str());
   }
-  return in.good();
+  else if (!line.empty())
+      throw SMITHLABException("Invalid input line:" + line);
+  return in;
 }
   
 bool 

@@ -49,25 +49,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-
-
-static void
-parse_cpg_line(const string &buffer,
-	       string &context, size_t &n_meth, size_t &n_unmeth,
-               string &chr, size_t &pos, string &strand) {
-
-  std::istringstream is(buffer);
-  string name, dummy;
-  double meth_freq = 0.0;
-  is >> chr >> pos >> dummy >> name >> meth_freq >> strand;
-  const size_t sep_pos = name.find_first_of(":");
-  const size_t total = atoi(name.substr(sep_pos + 1).c_str());
-  context = name.substr(0, sep_pos);
-  n_meth = std::tr1::round(meth_freq*total);
-  n_unmeth = std::tr1::round((1.0 - meth_freq)*total);
-  assert(n_meth + n_unmeth == total);
-}
-
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
         std::ifstream &in, string &context, size_t &n_meth, size_t &n_unmeth,
@@ -75,24 +56,20 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
         size_t &pos, string &strand) {
 
   string chr;
+  double meth = 0.0;
   if (IS_METHPIPE_FILE) {
-    double meth = 0.0;
     if (!methpipe::read_site(in, chr, pos, strand,
-			     context, meth, coverage))
+      context, meth, coverage))
       return false;
-    else {
-      n_meth = std::tr1::round(meth*coverage);
-      n_unmeth = std::tr1::round((1.0 - meth)*coverage);
-      assert(n_meth + n_unmeth == coverage);
-    }
   }
   else {
-    string buffer;
-    if (!getline(in, buffer))
+    if (!methpipe::read_site_old(in, chr, pos, strand,
+      context, meth, coverage))
       return false;
-    parse_cpg_line(buffer, context, n_meth, n_unmeth, chr, pos, strand);
-    coverage = n_meth + n_unmeth; 
   }
+  n_meth = std::tr1::round(meth*coverage);
+  n_unmeth = std::tr1::round((1.0 - meth)*coverage);
+  assert(n_meth + n_unmeth == coverage);
   if (chr != prev_chr) {
     ++chr_count;
     if (VERBOSE) {
@@ -118,7 +95,6 @@ main(int argc, const char **argv) {
   try {
 
     bool VERBOSE = false;
-    bool IS_METHPIPE_FILE = true;
     string outfile;
     double alpha = 0.95;
 
@@ -129,8 +105,6 @@ main(int argc, const char **argv) {
 		      false, outfile);
     opt_parse.add_opt("alpha", 'a', "alpha for confidence interval",
 		      false, alpha);
-    opt_parse.add_opt("bed", 'b', "file in bed format",
-		      false, IS_METHPIPE_FILE);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -157,6 +131,7 @@ main(int argc, const char **argv) {
     std::ifstream in(meth_file.c_str());
     if (!in)
       throw SMITHLABException("bad input file: " + meth_file);
+    const bool IS_METHPIPE_FILE = methpipe::is_methpipe_file_single(meth_file);
 
     size_t mapped_sites = 0, total_sites = 0, total_mut = 0;
     size_t total_cov = 0, max_cov = 0, cpg_cov = 0;

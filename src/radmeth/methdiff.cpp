@@ -45,29 +45,6 @@ using std::pair;
 using std::ostream_iterator;
 using std::ofstream;
 
-static void
-load_cpgs(const bool VERBOSE, const string& cpgs_file,
-          vector<GenomicRegion> &cpgs,
-          vector<pair<double, double> > &meth, vector<size_t> &reads) {
-  if (VERBOSE)
-    cerr << "[READING CPGS AND METH PROPS] " << cpgs_file << endl;
-  vector<GenomicRegion> cpgs_in;
-  ReadBEDFile(cpgs_file, cpgs_in);
-  if (!check_sorted(cpgs_in))
-    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
-  
-  for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(cpgs_in[i]);
-    meth.push_back(std::make_pair(cpgs_in[i].get_score(), 0.0));
-    const string r(cpgs_in[i].get_name());
-    reads.push_back(atoi(r.substr(r.find_first_of(":") + 1).c_str()));
-    meth.back().first = int(meth.back().first * reads.back());
-    meth.back().second = int(reads.back() - meth.back().first);
-  }
-  if (VERBOSE)
-    cerr << "TOTAL CPGS: " << cpgs.size() << endl;
-}
-
 static inline double
 log_sum_log(const double p, const double q) {
   if (p == 0) {return q;}
@@ -161,30 +138,28 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> cpgs_a;
     vector<pair<double, double> > meth_unmeth_a;
     vector<size_t> reads_a;
-    if (methpipe::is_methpipe_file_single(cpgs_file_a)) {
-      if (VERBOSE)
-        cerr << "[READING CPGS AND METH PROPS] " << cpgs_file_a << endl;
+    if (VERBOSE)
+      cerr << "[READING CPGS AND METH PROPS] " << cpgs_file_a << endl;
+    if (methpipe::is_methpipe_file_single(cpgs_file_a))
       methpipe::load_cpgs(cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
-      if (VERBOSE)
-        cerr << "TOTAL CPGS: " << cpgs_a.size() << endl;
-    }
     else
-      load_cpgs(VERBOSE, cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
+      methpipe::load_cpgs_old(cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
+    if (VERBOSE)
+      cerr << "TOTAL CPGS: " << cpgs_a.size() << endl;
 
     if (VERBOSE)
       cerr << "[READING CPGS]";
     vector<GenomicRegion> cpgs_b;
     vector<pair<double, double> > meth_unmeth_b;
     vector<size_t> reads_b;
-    if (methpipe::is_methpipe_file_single(cpgs_file_b)) {
-      if (VERBOSE)
-        cerr << "[READING CPGS AND METH PROPS] " << cpgs_file_b << endl;
+    if (VERBOSE)
+      cerr << "[READING CPGS AND METH PROPS] " << cpgs_file_b << endl;
+    if (methpipe::is_methpipe_file_single(cpgs_file_b))
       methpipe::load_cpgs(cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
-      if (VERBOSE)
-        cerr << "TOTAL CPGS: " << cpgs_b.size() << endl;
-    }
     else
-      load_cpgs(VERBOSE, cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
+      methpipe::load_cpgs_old(cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
+    if (VERBOSE)
+      cerr << "TOTAL CPGS: " << cpgs_b.size() << endl;
 
     std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
 

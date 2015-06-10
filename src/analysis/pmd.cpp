@@ -53,51 +53,12 @@ using std::tr1::round;
 
 
 static void
-parse_cpg_line_old(const string &buffer, string &chrom, size_t &position, 
-		   size_t &n_meth, size_t &n_unmeth) {
-  
-  std::istringstream is(buffer);
-  size_t dummy = 0ul;
-  string name;
-  double meth_freq = 0.0;
-  is >> chrom >> position >> dummy >> name >> meth_freq;
-  
-  const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
-  
-  n_meth = round(meth_freq*total);
-  n_unmeth = total - n_meth;
-}
-
-
-
-static void
-parse_cpg_line(const string &buffer, string &chrom, size_t &position, 
-	       size_t &n_meth, size_t &n_unmeth) {
-  
-  std::istringstream is(buffer);
-  string dummy;
-  string name;
-  double meth_freq = 0.0;
-  size_t total = 0ul;
-  is >> chrom >> position >> dummy >> dummy >> meth_freq >> total;
-
-  n_meth = round(meth_freq*total);
-  n_unmeth = round((1.0 - meth_freq)*total);
-  
-  assert(n_meth + n_unmeth == total);
-}
-
-
-
-static void
 get_adjacent_distances(const vector<GenomicRegion> &pmds,
 		       vector<size_t> &dists) {
   for (size_t i = 1; i < pmds.size(); ++i)
     if (pmds[i].same_chrom(pmds[i - 1]))
       dists.push_back(pmds[i].get_start() - pmds[i - 1].get_end());
 }
-
-
 
 static void
 merge_nearby_pmd(const size_t max_merge, vector<GenomicRegion> &pmds) {
@@ -111,8 +72,6 @@ merge_nearby_pmd(const size_t max_merge, vector<GenomicRegion> &pmds) {
   pmds.erase(pmds.begin() + j, pmds.end());
 }
 
-
-
 static bool
 precedes(const string &chrom, const size_t position, 
 	 const GenomicRegion &r) {
@@ -120,16 +79,12 @@ precedes(const string &chrom, const size_t position,
     (chrom == r.get_chrom() && position < r.get_start());
 }
 
-
-
 static bool
 succeeds(const string &chrom, const size_t position, 
 	 const GenomicRegion &r) {
   return r.get_chrom() < chrom ||
     (chrom == r.get_chrom() && r.get_end() <= position);
 }
-
-
 
 static size_t 
 find_best_bound(const bool IS_RIGHT_BOUNDARY, 
@@ -207,22 +162,23 @@ optimize_boundaries(const size_t bin_size,
   ///// FIND THE EXACT CPG BOUNDARY SITES
   /////
   std::ifstream in(cpgs_file.c_str());
-  if (!in)
-    throw SMITHLABException("bad input file: " + cpgs_file);
     
   vector<size_t> bound_site, positions;
   vector<pair<size_t, size_t> > meth_tot;
   string prevChrom;
   size_t bound_idx = 0;
+  string chrom, site_name, strand;
+  double meth_level;
+  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
     
-  string buffer;
-  while (getline(in, buffer) && bound_idx < bounds.size()) {
-    string chrom;
-    size_t position = 0ul, n_meth = 0ul, n_unmeth = 0ul;
+  while ( ((METHPIPE_FORMAT && methpipe::read_site(in, chrom, position,
+      strand, site_name, meth_level, coverage))
+    || (!METHPIPE_FORMAT && methpipe::read_site_old(in, chrom, position,
+      strand, site_name, meth_level, coverage)))
+    && bound_idx < bounds.size() ) {
     
-    if (METHPIPE_FORMAT)
-      parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
-    else parse_cpg_line_old(buffer, chrom, position, n_meth, n_unmeth); 
+    n_meth = round(meth_level * coverage);
+    n_unmeth = coverage - n_meth;
     
     if (succeeds(chrom, position, bounds[bound_idx])) {
       // find the boundary CpG position
@@ -545,21 +501,21 @@ load_intervals(const size_t bin_size,
   const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
   
   std::ifstream in(cpgs_file.c_str());
-  if (!in)
-    throw SMITHLABException("bad input file: " + cpgs_file);
   
   string curr_chrom;
   size_t prev_pos = 0ul, curr_pos = 0ul;
   size_t n_meth_bin = 0ul, n_unmeth_bin = 0ul;
+  string chrom, site_name, strand;
+  double meth_level;
+  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   
-  string buffer;
-  while (getline(in, buffer)) {
-    string chrom;
-    size_t position = 0ul, n_meth = 0ul, n_unmeth = 0ul;
-
-    if (METHPIPE_FORMAT)
-      parse_cpg_line(buffer, chrom, position, n_meth, n_unmeth);
-    else parse_cpg_line_old(buffer, chrom, position, n_meth, n_unmeth); 
+  while ( (METHPIPE_FORMAT && methpipe::read_site(in, chrom, position,
+      strand, site_name, meth_level, coverage))
+    || (!METHPIPE_FORMAT && methpipe::read_site_old(in, chrom, position,
+      strand, site_name, meth_level, coverage)) ) {
+    
+    n_meth = round(meth_level * coverage);
+    n_unmeth = coverage - n_meth;
 
     // no range, or no chrom
     if (curr_chrom != chrom) {
