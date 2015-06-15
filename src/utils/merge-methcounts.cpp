@@ -162,14 +162,14 @@ format_line_for_tabular(Site &min_site, vector<bool> &to_print,
     min_site. seq = min_site.seq.substr(0,min_site.seq.size()-1);
   }
 
-  oss<< min_site.chrom << '\t'<< min_site.pos << '\t'<< min_site.strand
-     << '\t'<< min_site.seq << '\t';
+  oss<< min_site.chrom << ':' << min_site.pos << ':' << min_site.strand
+     << ':' << min_site.seq << '\t';
   for (size_t i = 0; i < sites.size(); ++i){
     if (to_print[i]){ 
       size_t total_meth = round((sites[i].meth)*(sites[i].coverage));
-      oss<< total_meth << '\t' << sites[i].coverage << '\t';
+      oss<< sites[i].coverage << '\t' << total_meth  << '\t';
     }
-    else oss<< "NA" << '\t' << 0 << '\t';
+    else oss<< 0 << '\t' << 0 << '\t';
   } 
   return oss.str();
 }
@@ -201,6 +201,13 @@ format_line_for_merged_counts(Site &min_site, vector<bool> &to_print,
 
   oss << percent << '\t' << cov_sum;
   return oss.str();
+}
+
+static string 
+remove_extension(const std::string &filename){
+  size_t last_dot = filename.find_last_of(".");
+  if (last_dot == std::string::npos) return filename;
+  else return filename.substr(0, last_dot);
 }
 
 int
@@ -239,7 +246,7 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    const vector<string> methcounts_files(leftover_args);
+    vector<string> methcounts_files(leftover_args);
 
     
     /****************** END COMMAND LINE OPTIONS *****************/
@@ -253,6 +260,15 @@ main(int argc, const char **argv) {
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+
+    for (size_t i = 0; i < methcounts_files.size(); i++){
+      methcounts_files[i] = remove_extension(methcounts_files[i]);
+    }    
+
+    transform(methcounts_files.begin(), methcounts_files.end(),
+              std::ostream_iterator<string>(out, "\t"),
+              std::ptr_fun(&strip_path));
+    cout << endl;
     
     vector<Site> sites;
     vector<bool> outdated(infiles.size(), true);
