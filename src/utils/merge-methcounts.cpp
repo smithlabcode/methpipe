@@ -268,7 +268,7 @@ main(int argc, const char **argv) {
     transform(methcounts_files.begin(), methcounts_files.end(),
               std::ostream_iterator<string>(out, "\t"),
               std::ptr_fun(&strip_path));
-    cout << endl;
+    out << endl;
     
     vector<Site> sites;
     vector<bool> outdated(infiles.size(), true);
