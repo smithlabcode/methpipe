@@ -35,7 +35,6 @@
 #include "GenomicRegion.hpp"
 #include "MethpipeFiles.hpp"
 
-
 using std::string;
 using std::vector;
 using std::cout;
@@ -45,58 +44,164 @@ using std::max;
 using std::accumulate;
 using std::tr1::round;
 
+
+struct Site {
+  string chrom;
+  size_t pos;
+  string strand;
+  string seq;
+  double meth;
+  size_t coverage;
+
+  Site() {}
+  Site(const string &chr, const size_t &position,
+       const string &str, const string &sequ,
+       const double &met, const size_t &cov) :
+    chrom(chr), pos(position), strand(str), seq(sequ),
+    meth(met), coverage(cov) {}
+};
+
+
 static bool
 read_site(const bool is_new_fmt, std::istream &in, string &chrom,
-	  size_t &pos, string &strand, string &seq,
-	  double &meth, size_t &coverage) {
+          size_t &pos, string &strand, string &seq,
+          double &meth, size_t &coverage) {
   return (is_new_fmt ?
-	  methpipe::read_site(in, chrom, pos, strand,
-			      seq, meth, coverage) :
-	  methpipe::read_site_old(in, chrom, pos, strand,
-				  seq, meth, coverage));
+          methpipe::read_site(in, chrom, pos, strand,
+                              seq, meth, coverage) :
+          methpipe::read_site_old(in, chrom, pos, strand,
+                                  seq, meth, coverage));
 }
 
+struct SiteLocationLessThan {
+  bool operator()(const Site &a, const Site &b) {
+    return a.chrom < b.chrom ||
+      (a.chrom == b.chrom && a.pos < b.pos);
+  }
+};
 
+
+struct SiteLocationEqual {
+  bool operator()(const Site &a, const Site &b) {
+    return a.chrom == b.chrom && a.pos == b.pos;
+  }
+};
+
+//checks if any files still have data to read in
+static bool
+any_files_are_good(vector<std::ifstream*> infiles){
+  for(size_t i=0; i< infiles.size(); ++i)
+    if(!(*infiles[i]).eof())return true;
+  return false;
+}
+
+//updates outdated sites
+static bool
+load_sites(const bool new_methcount_fmt, 
+           vector<std::ifstream*> &infiles, 
+           vector<bool> &outdated, vector<Site> &sites) {
+  bool sites_loaded = false;
+  for (size_t i=0; i<sites.size(); ++i){
+    if (outdated[i]){    
+      if(read_site(new_methcount_fmt, *infiles[i],
+                   sites[i].chrom, sites[i].pos, sites[i].strand, 
+                   sites[i].seq, sites[i].meth, sites[i].coverage)){
+        outdated[i]=false;
+        sites_loaded = true;
+        if ((*infiles[i]).fail()) sites_loaded= false;
+      }
+    }
+  }     
+  return sites_loaded;
+}
+
+//finds first not outdated site
+static size_t
+find_first_site(vector<bool> &outdated) {
+  size_t first_site_pos = std::numeric_limits<size_t>::max();
+  for (size_t i = 0; i < outdated.size(); ++i) {
+    if (!outdated[i]) {
+      first_site_pos = i;  
+    }
+  }
+  return first_site_pos;
+}
 
 static void
-write_site(const bool is_new_fmt, std::ostream &outf,
-	   const string &chrom, const size_t pos, const string &strand,
-	   const string &seq, const double meth, const size_t coverage) {
-  if (is_new_fmt)
-    methpipe::write_site(outf, chrom, pos, strand, seq, meth, coverage);
-  else
-    methpipe::write_site_old(outf, chrom, pos, strand, seq, meth, coverage);
+find_minimum_site_location( vector<Site> &sites, 
+                           vector<bool> &outdated, Site &min_site){
+  SiteLocationLessThan comparator; // bad name
+  size_t index;
+  index = find_first_site(outdated);
+  min_site = sites[index];
+  
+  for (size_t i=0; i< sites.size(); ++i){
+    if(!outdated[i]){
+      if (comparator(sites[i], min_site))
+        min_site = sites[i];
+    }
+  }
 }
-
-
 
 static void
-check_consistent_sites(const size_t line_number, const string &file_name,
-		       const string &chrom, const size_t pos,
-		       const string &strand, const string &context,
-		       const string &other_chrom, const size_t other_pos,
-		       const string &other_strand, const string &other_context) {
-  if (chrom != other_chrom)
-    throw SMITHLABException("inconsistent chromosome name "
-			    "[line=" + toa(line_number) + ",file="
-			    + file_name + "]");
-  if (pos != other_pos)
-    throw SMITHLABException("inconsistent position "
-			    "[line=" + toa(line_number) + ",file="
-			    + file_name + "]");
-
-  if (strand != other_strand)
-    throw SMITHLABException("inconsistent strand "
-			    "[line=" + toa(line_number) + ",file="
-			    + file_name + "]");
-
-  if (context != other_context)
-    throw SMITHLABException("inconsistent context "
-			    "[line=" + toa(line_number) + ",file="
-			    + file_name + "]");
+collect_equivalent_locations(Site &min_site, 
+               vector<Site> &sites,vector<bool> &sites_to_print){
+  SiteLocationEqual comparator;
+  for(size_t i=0; i < sites.size(); ++i){
+    if (comparator(sites[i],min_site))
+       sites_to_print[i] = true;
+  }
 }
 
+static string
+format_line_for_tabular(Site &min_site, vector<bool> &to_print, 
+                        vector<Site> &sites){
+  std::ostringstream oss;
+  
+  if (*min_site.seq.rbegin() == 'x'){
+    min_site. seq = min_site.seq.substr(0,min_site.seq.size()-1);
+  }
 
+  oss<< min_site.chrom << '\t'<< min_site.pos << '\t'<< min_site.strand
+     << '\t'<< min_site.seq << '\t';
+  for (size_t i = 0; i < sites.size(); ++i){
+    if (to_print[i]){ 
+      size_t total_meth = round((sites[i].meth)*(sites[i].coverage));
+      oss<< total_meth << '\t' << sites[i].coverage << '\t';
+    }
+    else oss<< "NA" << '\t' << 0 << '\t';
+  } 
+  return oss.str();
+}
+
+static string
+format_line_for_merged_counts(Site &min_site, vector<bool> &to_print,
+                              vector<Site> &sites){
+  size_t meth_sum=0;
+  size_t cov_sum=0;
+  std::ostringstream oss;
+
+  if (*min_site.seq.rbegin() == 'x'){
+    min_site. seq = min_site.seq.substr(0,min_site.seq.size()-1);
+  }
+
+  oss<< min_site.chrom << '\t'<< min_site.pos << '\t'<< min_site.strand
+     << '\t'<< min_site.seq << '\t';
+
+  for(size_t i = 0; i < sites.size(); ++i){
+    if (to_print[i]){
+      meth_sum += round(sites[i].meth*sites[i].coverage);
+      cov_sum += sites[i].coverage;
+    }
+  }
+
+  double percent;
+  if(cov_sum != 0 ) percent =(double)meth_sum/(double)cov_sum;
+  else percent = 0;
+
+  oss << percent << '\t' << cov_sum;
+  return oss.str();
+}
 
 int
 main(int argc, const char **argv) {
@@ -105,14 +210,16 @@ main(int argc, const char **argv) {
 
     string outfile;
     bool VERBOSE;
-
+    bool TABULAR = false;
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "merge multiple methcounts files",
                            "<methcounts-files>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
-    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
+    opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
+    
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -133,6 +240,8 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     const vector<string> methcounts_files(leftover_args);
+
+    
     /****************** END COMMAND LINE OPTIONS *****************/
 
     vector<std::ifstream*> infiles(methcounts_files.size());
@@ -144,47 +253,50 @@ main(int argc, const char **argv) {
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-   
-    string chrom, strand, seq;
-    size_t pos, coverage;
-    double meth;
+    
+    vector<Site> sites;
+    vector<bool> outdated(infiles.size(), true);
+ 
+    for (size_t i = 0; i< infiles.size(); ++i){ // initialize site vector
+      Site new_site;
+      sites.push_back(new_site);
+    }
 
-    size_t line_count = 0;
+    while (any_files_are_good(infiles) &&
+           load_sites(new_methcount_fmt, infiles, outdated, sites)) {
+      Site min_site;
+      // find minimum site location
+      find_minimum_site_location(sites, outdated, min_site);
+      
+      // collect equivalent locations to minimum
+      vector<bool> sites_to_print(sites.size(), false);
+      collect_equivalent_locations(min_site, sites, sites_to_print);
 
-    while (read_site(new_methcount_fmt, *infiles.front(), chrom, pos,
-		     strand, seq, meth, coverage)) {
-      ++line_count;
+      // output the appropriate sites' data
+      out << ((TABULAR) ? 
+              format_line_for_tabular(min_site, sites_to_print, sites) :
+              format_line_for_merged_counts(min_site, sites_to_print, sites))
+          << endl;
 
-      size_t total_coverage = 0;
-      double total_meth = 0;
-      // TODO: upgrade to seq.back() when we go to C++11
-      if (*seq.rbegin() != 'x') {
-        total_coverage = coverage;
-        total_meth = static_cast<size_t>(round(coverage*meth));
-      }
-      else { // don't count the mutated site
-        seq = seq.substr(0,seq.size()-1); // make sure we write
-        // the site without the mutation even if its there in file 1
-      }
+      for (size_t i = 0; i < outdated.size(); ++i)
+        outdated[i] = (outdated[i] || sites_to_print[i]);
+    }
+    
+    while (any_files_are_good(infiles)) {
+      Site min_site;
+      find_minimum_site_location(sites, outdated, min_site);
 
-      string other_chrom, other_strand, other_seq;
-      size_t other_pos = 0ul;
-
-      for (size_t i = 1; i < infiles.size(); ++i) {
-        read_site(new_methcount_fmt, *infiles[i], other_chrom,
-		  other_pos, other_strand, other_seq, meth, coverage);
-        // TODO: upgrade to other_seq.back() when we go to C++11
-        if (*other_seq.rbegin() != 'x') {
-	      check_consistent_sites(line_count, methcounts_files[i],
-		  	       chrom, pos, strand, seq,
-		  	       other_chrom, other_pos, other_strand, other_seq);
-          total_coverage += coverage;
-	      total_meth += static_cast<size_t>(round(coverage*meth));
-        }
-      }
-      const double methout = total_meth/std::max(total_coverage, 1ul);
-      write_site(new_methcount_fmt, out, chrom, pos, strand,
-		 seq, methout, total_coverage);
+      vector<bool> sites_to_print(sites.size(), false);
+      collect_equivalent_locations(min_site, sites, sites_to_print);
+      
+      out << ((TABULAR) ? 
+              format_line_for_tabular(min_site, sites_to_print, sites) :
+              format_line_for_merged_counts(min_site, sites_to_print, sites))
+          << endl;
+       
+      for (size_t i = 0; i < outdated.size(); ++i)
+        outdated[i] = (outdated[i] || sites_to_print[i]);
+      load_sites(new_methcount_fmt, infiles, outdated, sites);
     }
 
     for (size_t i = 0; i < infiles.size(); ++i) {
@@ -202,3 +314,5 @@ main(int argc, const char **argv) {
   }
   return EXIT_SUCCESS;
 }
+
+
