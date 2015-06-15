@@ -37,6 +37,8 @@ void remove_factor(Design &design, size_t factor);
 struct SiteProportions {
   std::string chrom;
   size_t position;
+  std::string strand;
+  std::string context;
   std::vector<size_t> total;
   std::vector<size_t> meth;
 };

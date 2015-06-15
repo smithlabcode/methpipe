@@ -294,7 +294,8 @@ main(int argc, const char **argv) {
 
         out << full_regression.props.chrom << "\t"
             << full_regression.props.position << "\t"
-            << "+\tCpG\t";
+            << full_regression.props.strand << "\t"
+            << full_regression.props.context << "\t";
 
         // Do not perform the test if there's no coverage in either all case or
         // all control samples. Also do not test if the site is completely
