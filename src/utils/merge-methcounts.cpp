@@ -176,11 +176,11 @@ format_line_for_tabular(Site &min_site, vector<bool> &to_print,
 
 static string
 format_line_for_merged_counts(Site &min_site, vector<bool> &to_print,
-                              vector<Site> &sites){
+                         vector<Site> &sites){
   size_t meth_sum=0;
   size_t cov_sum=0;
   std::ostringstream oss;
-
+  
   if (*min_site.seq.rbegin() == 'x'){
     min_site. seq = min_site.seq.substr(0,min_site.seq.size()-1);
   }
@@ -264,12 +264,19 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < methcounts_files.size(); i++){
       methcounts_files[i] = remove_extension(methcounts_files[i]);
     }    
-
-    transform(methcounts_files.begin(), methcounts_files.end(),
-              std::ostream_iterator<string>(out, "\t"),
-              std::ptr_fun(&strip_path));
-    out << endl;
-    
+    if (!TABULAR){ 
+      out << "#";
+      transform(methcounts_files.begin(), methcounts_files.end(),
+                std::ostream_iterator<string>(out, ", "),
+                std::ptr_fun(&strip_path)); 
+      out<< endl;
+    }
+    else {
+      transform(methcounts_files.begin(), methcounts_files.end(),
+                std::ostream_iterator<string>(out, "\t"),
+                std::ptr_fun(&strip_path));
+      out << endl;
+    }
     vector<Site> sites;
     vector<bool> outdated(infiles.size(), true);
  
