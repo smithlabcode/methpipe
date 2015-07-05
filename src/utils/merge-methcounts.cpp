@@ -218,12 +218,17 @@ main(int argc, const char **argv) {
     string outfile;
     bool VERBOSE;
     bool TABULAR = false;
+    
+    string header_info;
+    
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "merge multiple methcounts files",
                            "<methcounts-files>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
+    opt_parse.add_opt("header", 'h',"header to print (ignored for tabular)", 
+		      false, header_info);
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
     
@@ -264,19 +269,20 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < methcounts_files.size(); i++){
       methcounts_files[i] = remove_extension(methcounts_files[i]);
     }    
-    if (!TABULAR){ 
-      out << "#";
-      transform(methcounts_files.begin(), methcounts_files.end(),
-                std::ostream_iterator<string>(out, ", "),
-                std::ptr_fun(&strip_path)); 
-      out<< endl;
-    }
-    else {
+
+    // Print the header if the user specifies or if the output is to
+    // be in tabular format
+    if (!TABULAR && !header_info.empty())
+      out << "#" << header_info << endl;
+    
+    if (TABULAR) {
+      // tabular format does not include the '#' character
       transform(methcounts_files.begin(), methcounts_files.end(),
                 std::ostream_iterator<string>(out, "\t"),
                 std::ptr_fun(&strip_path));
       out << endl;
     }
+    
     vector<Site> sites;
     vector<bool> outdated(infiles.size(), true);
  
