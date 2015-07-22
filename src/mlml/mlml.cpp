@@ -8,6 +8,7 @@
 
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_cdf.h>
+#include <tr1/cmath>
 
 using std::string;
 using std::vector;
@@ -16,6 +17,7 @@ using std::cout;
 using std::endl;
 using std::max;
 using std::min;
+using std::tr1::round;
 
 
 void
@@ -321,7 +323,7 @@ parse_line(const bool REV, const string &line,
   }
   if (count > 50) count = 50;
   
-  a = static_cast<size_t>(count*level + 0.5);
+  a = round(count*level);
   b = count - a;
   if (REV) std::swap(a, b);
 }
@@ -417,10 +419,10 @@ main(int argc, const char **argv) {
       string h_chr, b_chr, o_chr;
       size_t h_pos = 0, b_pos = 0, o_pos = 0;
    
-      while (getline(h_in, hydroxy_line) && 
-	     getline(b_in, bs_line) &&
-	     getline(o_in, oxbs_line)) { 
-	
+      hydroxy_line = methpipe::skip_header(h_in);
+      bs_line = methpipe::skip_header(b_in);
+      oxbs_line = methpipe::skip_header(o_in);
+      do {
 	parse_line(false, hydroxy_line, h, g, h_chr, h_pos, hydroxy_format);
 	parse_line(false, bs_line, t, u, b_chr, b_pos, bs_seq_format);
 	parse_line(false, oxbs_line, m, l, o_chr, o_pos, oxbs_seq_format);
@@ -479,7 +481,9 @@ main(int argc, const char **argv) {
 	  out << h_chr << '\t' << h_pos << '\t'
 	      << h_pos +1 << '\t' << "nan\tnan\tnan\tnan" << endl;
 	}
-      }
+      } while (getline(h_in, hydroxy_line) && 
+	     getline(b_in, bs_line) &&
+	     getline(o_in, oxbs_line));
     }
     else {
       std::ifstream f_in, s_in;
@@ -509,7 +513,9 @@ main(int argc, const char **argv) {
         s_format = methpipe::is_methpipe_file_single(hydroxy_file);
       }
 
-      while (getline(f_in, f_line) && getline(s_in, s_line)) { 
+      f_line = methpipe::skip_header(f_in);
+      s_line = methpipe::skip_header(s_in);
+      do { 
 	parse_line(f_rev, f_line, x, y, f_chr, f_pos, f_format);
 	parse_line(s_rev, s_line, z, w, s_chr, s_pos, s_format);
 
@@ -562,7 +568,7 @@ main(int argc, const char **argv) {
 	  out << f_chr << '\t' << f_pos << '\t'
 	      << f_pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
 	}
-      } 
+      } while (getline(f_in, f_line) && getline(s_in, s_line));  
     }
 
     if (VERBOSE)

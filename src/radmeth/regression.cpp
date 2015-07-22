@@ -115,6 +115,8 @@ std::istream&
 operator>>(std::istream &table_encoding, SiteProportions &props) {
   props.chrom.clear();
   props.position = 0;
+  props.strand.clear();
+  props.context.clear();
   props.meth.clear();
   props.total.clear();
 
@@ -138,10 +140,10 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   const size_t num_colon =
             std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
 
-  if (num_colon != 1)
+  if (num_colon != 3)
     throw SMITHLABException("Each row in the count table must start with "
-                            "a line chromosome:position. Got \"" +
-                            row_name_encoding + "\" instead." );
+                            "a line chromosome:position:strand:context."
+                            "Got \"" + row_name_encoding + "\" instead." );
 
   // First parse the row identifier.
   istringstream name_stream(row_name_encoding);
@@ -155,6 +157,8 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
 
   getline(name_stream, position_encoding, ':');
   props.position = parse_natural_number(position_encoding);
+  getline(name_stream, props.strand, ':');
+  getline(name_stream, props.context, ':');
 
   // After parsing the row identifier, parse count proportions.
   size_t total_count, meth_count;

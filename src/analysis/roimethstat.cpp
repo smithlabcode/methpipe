@@ -83,58 +83,10 @@ region_bounds(const vector<SimpleGenomicRegion> &sites,
   vector<SimpleGenomicRegion>::const_iterator b_insert =
     lower_bound(sites.begin(), sites.end(), b);
 
-  //cout << "here:\n";
-  //cout << a_insert - sites.begin() << "\t" << b_insert - sites.begin() << "\n";
-  //cout << a_insert << "\t" << b_insert << "\n";
   return std::make_pair(a_insert - sites.begin(),
                         b_insert - sites.begin());
 
 }
-
-
-
-// static void
-// get_cpg_stats(const vector<GenomicRegion> &cpgs, 
-// 	      const size_t start_idx, const size_t end_idx,
-// 	      size_t &meth, size_t &reads, size_t &cpgs_with_reads) {
-//   for (size_t i = start_idx; i < end_idx; ++i) {
-//     const size_t r = atoi(smithlab::split(cpgs[i].get_name(), 
-// 					  ":").back().c_str());
-//     meth += static_cast<size_t>(cpgs[i].get_score()*r+0.5);
-//     // plus 0.5 to make sure the value is rounded correctly
-//     reads += r;
-//     cpgs_with_reads += (r > 0);
-//   }
-// }
-
-
-
-static void
-not_methpipe_load_cpgs(const string &cpgs_file, 
-		       vector<SimpleGenomicRegion> &cpgs,
-		       vector<pair<double, double> > &meths,
-		       vector<size_t> &reads) {
-  
-  vector<GenomicRegion> cpgs_in;
-  ReadBEDFile(cpgs_file, cpgs_in);
-  assert(check_sorted(cpgs_in));
-  if (!check_sorted(cpgs_in))
-    throw SMITHLABException("regions not sorted in file: " + cpgs_file);
-  
-  for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
-    const string name(cpgs_in[i].get_name());
-    const size_t total = atoi(name.substr(name.find_first_of(":") + 1).c_str());
-    const double meth_freq = cpgs_in[i].get_score();
-    const size_t n_meth = round(meth_freq*total);
-    const size_t n_unmeth = round((1.0 - meth_freq)*total);
-    assert(n_meth + n_unmeth == total);
-    reads.push_back(total);
-    meths.push_back(std::make_pair(n_meth, n_unmeth));
-  }
-}
-
-
 
 int 
 main(int argc, const char **argv) {
@@ -196,7 +148,8 @@ main(int argc, const char **argv) {
     if (IS_METHPIPE)
       methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
     else 
-      not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
+      methpipe::load_cpgs_old(cpgs_file, cpgs, meths, reads);
+      //not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
 
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);

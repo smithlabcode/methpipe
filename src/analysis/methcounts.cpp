@@ -281,7 +281,7 @@ main(int argc, const char **argv) {
       throw SMITHLABException("bad output file: " + outfile);
 
     chrom_file_map chrom_files;
-    identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
+    identify_and_read_chromosomes(chrom_file, fasta_suffix, chrom_files);
     if (VERBOSE)
       cerr << "CHROMS_FOUND=" << chrom_files.size() << endl;
 

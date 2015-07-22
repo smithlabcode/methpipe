@@ -910,7 +910,6 @@ TwoStateHMMB::PosteriorDecoding(const vector<pair<double, double> > &values,
     const double fg_state = forward[i].first + backward[i].first;
     const double bg_state = forward[i].second + backward[i].second;
     
-    // const double bg_state = forward[i].second + backward[i].second;
     classes[i] = static_cast<bool>(fg_state > bg_state);
     
     // if (fg_class)

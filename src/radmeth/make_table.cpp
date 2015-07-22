@@ -21,22 +21,20 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <tr1/cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_os.hpp"
 
-using std::vector; 
+using std::vector;
 using std::string;
-using std::ifstream; 
+using std::ifstream;
 using std::istream;
-using std::ostream; 
+using std::ostream;
 using std::endl;
 using std::cout;
 using std::cerr;
-
-// for the rounding we do... Meng and Qiang both tested it
-#include <tr1/cmath>
-using std::tr1::round; 
+using std::tr1::round;
 
 struct cpg_site {
   std::string chrom;
@@ -45,15 +43,13 @@ struct cpg_site {
   size_t meth;
 };
 
-
 static std::istream &
 operator>>(std::istream &in, cpg_site &s) {
-  
-  // taking whole line in case extra columns added
+  // Taking entire line in case extra columns added
   string line;
   getline(in, line);
   if (!line.empty()) {
-    // now parsing the line
+    // Now parsing the line.
     char sign;
     string name;
     double meth_level;
@@ -61,70 +57,28 @@ operator>>(std::istream &in, cpg_site &s) {
     if (!(enc_stream >> s.chrom >> s.position >> sign
           >> name >> meth_level >> s.total))
       throw (SMITHLABException("bad line: \"" + line + "\""));
-    
+
     if (meth_level < 0.0 || meth_level > 1.0)
-      throw (SMITHLABException("methylation level outside [0, 1]" + line));
-    
-    // same rounding method as used in other methpipe programs
+      throw (SMITHLABException("methylation level outside [0, 1]: " + line));
+
+    // Same rounding method as used in other methpipe programs.
     s.meth = static_cast<size_t>(std::tr1::round(meth_level*s.total));
   }
   return in;
 }
 
-
-
-static bool
-get_cpg_info_all_files(const vector<istream*> &methylomes,
-                       string &chrom, size_t &position, 
-                       vector<double> &totals, vector<double> &meths) {
-  
-  // these need to be empty for the logic outside this function 
-  chrom.clear();
-  totals.clear();
-  meths.clear();
-  
-  bool all_streams_good_and_insync = true;
-  
-  for (vector<istream*>::const_iterator i(methylomes.begin());
-       i != methylomes.end(); ++i) {
-
-    // pull the site information from the current file
-    cpg_site s;
-    *(*i) >> s; // ADS: I hate "*" and double hate this...
-    
-    if (chrom.empty()) {
-      chrom = s.chrom;
-      position = s.position;
-    }
-    
-    // make sure the files are still good and the sites consistent 
-    all_streams_good_and_insync =
-      (all_streams_good_and_insync && (*i)->good() && 
-       (s.chrom == chrom && s.position == position));
-    
-    // add the actual methylation data to the current "row"
-    totals.push_back(s.total);
-    meths.push_back(s.meth);
-  }
-  
-  return all_streams_good_and_insync;
-}
-
-
-
-int 
+int
 main(int argc, const char **argv) {
 
   try {
-    
     bool VERBOSE = false;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), 
+    OptionParser opt_parse(strip_path(argv[0]),
                            "make proportion table from methcounts format files",
-                           "<methpipe-methlomes>");
+                           "<methcount-files>");
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -141,48 +95,55 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     if (leftover_args.size() <= 1) {
-      cerr << "must specify two or more methylomes" << endl 
+      cerr << "must specify two or more methylomes" << endl
            << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
     vector<string> names(leftover_args);
     /****************** END COMMAND LINE OPTIONS *****************/
-    
-    if (VERBOSE)
-      cerr << "FILES TO PROCESS: " << names.size() << endl;
 
-    // output the header line of the table 
-    transform(names.begin(), names.end(), 
+    if (VERBOSE)
+      cerr << "[COMBINING " << names.size() << " METHYLOMES]." << endl;
+
+    // Output the header line of the table.
+    transform(names.begin(), names.end(),
               std::ostream_iterator<string>(cout, "\t"),
               std::ptr_fun(&strip_path));
     cout << endl;
-    
-    // open the files for each methylome
-    vector<istream*> methylomes;
-    for (size_t i = 0; i < names.size(); ++i)
-      methylomes.push_back(new ifstream(names[i].c_str()));
-    
-    // now build the big table row-by-row
-    vector<double> totals, meths;
-    string chrom;
-    size_t position;
-    while (get_cpg_info_all_files(methylomes, chrom, position, totals, meths)) {
 
-      cout << chrom << '\t' << position << '\t' << position + 1;
-      
-      for (size_t i = 0; i < totals.size(); ++i)
-        cout << '\t' << totals[i] << '\t' << meths[i];
-      cout << '\n';
-      
-      // make sure these are ready for next row
-      chrom.clear();
-      totals.clear();
-      meths.clear();
+    // Open the files for each methylome.
+    vector<ifstream*> methylomes(names.size());
+
+    for (size_t i = 0; i < names.size(); ++i)
+      methylomes[i] = new ifstream(names[i].c_str());
+
+    bool all_streams_good = true;
+    while (all_streams_good) {
+      cpg_site first_s;
+      for (size_t i = 0; i < methylomes.size(); ++i) {
+        cpg_site s;
+        // Pull the site information from the current file.
+        if (*(methylomes[i]) >> s && !s.chrom.empty()) {
+
+          if (i == 0) {
+            first_s = s;
+            cout << s.chrom << ':' << s.position;
+          }
+          else
+            assert(first_s.chrom == s.chrom && first_s.position == s.position);
+
+          cout << '\t' << s.total << '\t' << s.meth
+               << (i == methylomes.size() - 1 ? "\n" : "");
+        } else
+          all_streams_good = false;
+      }
     }
-    
-    // close all the open files
-    for (size_t i = 0; i < methylomes.size(); ++i)
+
+    // Close all the open files.
+    for (size_t i = 0; i < methylomes.size(); ++i) {
+      methylomes[i]->close();
       delete methylomes[i];
+    }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;

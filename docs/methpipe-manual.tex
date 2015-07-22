@@ -831,7 +831,7 @@ methylation in the non-CpG context, and therefore inclusion of non-CpG
 methylation in the calling of hyper-methylated regions could possibly
 be informative. We suggest separating each cytosine context from the
 \prog{methcounts} output file as illustrated in the previous section
-(via \prog{grep}) and calling HyperMRs seperately for each context.
+(via \prog{grep}) and calling HyperMRs separately for each context.
 
 \paragraph{Partially methylated regions (PMRs):}
 The \prog{hmr} program also has the option of directly identifying
@@ -889,85 +889,290 @@ studies. In addition, not all methylomes have PMDs, some initial
 visualization or summary statistics can be of help in deciding whether
 to use \prog{pmd} program on the methylome of interest.
 
- 
-\subsection{Differential methylation between two methylomes}
+\subsection{Differential Methylation Analysis}
 \label{sec:differential_methylation}
 
-If you are working with more than one methylome, it may be of interest
-to you to identify regions between your methylomes that have
-significantly different levels of methylation. To do this, use the
-programs \prog{methdiff} and \prog{dmr}. Run \prog{methdiff} first
-since its output serves as the input for \prog{dmr}. Since methylation
-differences are assessed on a per CpG basis, the methylomes being
-compared must come from the same genomes. Otherwise, comparisons will
-not be between orthologous CpG's. If you would like to compare
-methylomes from different genomes (i.e. human and chimp methylomes),
-you must first convert the CpG coordinates for one species into their
-orthologous coordinates for the other species. Additionally,
-\prog{methdiff} and \prog{dmr} can only compare two methylomes at a
-time. Each of these programs is explained in more detail in the
-subsections below.
+It is often useful to find regions with differing methylation between a pair of 
+methylomes or two groups of methylomes. Correspondingly, MethPipe 
+provides two methods for differential methylation (DM) analysis. The first 
+method is designed for computing DM regions between a pair or two small 
+groups of methylomes; it is implemented in the programs \prog{methdiff} 
+and \prog{dmr}. The second method is based on the beta-binomial 
+regression and is appropriate for analysis of datasets containing a larger 
+number of methylomes; it is implemented in the program \prog{radmeth}.
 
-\subsubsection{Differential methylation scores}
-\label{sec:methdiff}
+Here we assume that all methylomes correspond to the same genome 
+assembly. To compare methylomes based on different assemblies of the 
+same species or methylomes of different species, they must first be 
+converted to one common genome assembly (see 
+section~\ref{sec:mapp-methyl-betw}).
 
-The program \prog{methdiff} produces a differential methylation score
-for each CpG in a methylome. This score indicates the probability that
-the CpG is significantly less methylated in one methylome than the
-other. The inputs for \prog{methdiff} are the output of
-\prog{methcounts} for each of the two methylomes being analyzed. The
-following command calculates differential methylation scores across
-two methylomes using the \prog{methdiff} component of Methpipe.
-\begin{verbatim}
-$ methdiff -o Human_ESC_NHFF.methdiff \
-             Human_ESC.meth Human_NHFF.meth
-\end{verbatim}
+\subsubsection{DM analysis of a pair of methylomes or two small groups of 
+			   methylomes}
 
+\paragraph{Comparing a pair of methylomes:} 
+Suppose that we want to compare two methylomes: {\tt Human\_ESC.meth} and 
+{\tt Human\_NHFF.meth}. We start out by calculating the differential 
+methylation score of each CpG site using the \prog{methdiff} program:
 {\small{%%
 \begin{verbatim}
-chr1	3000826	+	CpG	0.609908	16	7	21	11
+$ methdiff -o Human_ESC_NHFF.methdiff Human_ESC.meth Human_NHFF.meth
+\end{verbatim}%%
+}}
+Here are the first few lines of the output:
+{\small{%%
+\begin{verbatim}
+$ head -n 4 Human_ESC_NHFF.methdiff
+chr1	3000826	+	CpG	0.609908	16	 7	21	11
 chr1	3001006	+	CpG	0.874119	21	18	15	22
 chr1	3001017	+	CpG	0.888384	20	19	15	25
-chr1	3001276	+	CpG	0.010825	3	20	12	16
-chr1	3001628	+	CpG	0.153461	15	38	25	42
-chr1	3003225	+	CpG	0.554077	7	10	7	11
-chr1	3003338	+	CpG	0.70436	13	8	14	12
-chr1	3003378	+	CpG	0.495052	10	13	14	18
-chr1	3003581	+	CpG	0.477349	19	8	15	6
-chr1	3003639	+	CpG	0.25	1	5	0	0
+chr1	3001276	+	CpG	0.010825	 3	20	12	16
 \end{verbatim}%%
 }}
 
-The output format is shown above. The first four columns are the same
-as the methcounts input. The fifth column indicates the probability that
-the methylation level at each given site is lower in \fn{Human\_NHFF.meth}
-than in \fn{Human\_ESC.meth}. For the other direction, you can either swap
-the order of the two input files or just subtract the probability from 1.0.
-The method used to calculate this probability is detailed in Altham (1971)
-\cite{altham1969exact}, and is like a one-directional version of Fisher's
-exact test.  The remaining columns in the output indicate (in order) the
-coverage in NHFF, number of methylated reads in NHFF, coverage in ESC,
-and number of methylated reads in ESC.
+The first four columns are the same as the methcounts input. The fifth 
+column gives the probability that the methylation level at each given 
+site is lower in \fn{Human\_NHFF.meth} than in \fn{Human\_ESC.meth}. 
+(For the other direction, you can either swap the order of the two 
+input files or just subtract the probability from 1.0.) The method used 
+to calculate this probability is detailed in Altham (1971) 
+\cite{altham1969exact}, and can be thought of as a one-directional 
+version of Fisher's exact test.  The remaining columns in the output 
+give the coverage of each CpG in NHFF, number of methylated reads in 
+NHFF, coverage in ESC, and number of methylated reads in ESC 
+respectively.
 
-\subsubsection{Differentially methylated regions (DMRs)}
-\label{sec:dmr}
+With differential methylation scores and HMRs for both methylomes 
+available (see Section~\ref{sec:indent-hypo-methyl} for instructions 
+on computing HMRs), DM regions (DMRs) can be calculated with the 
+\prog{dmr} program. This program uses HMR fragments to compute 
+DMRs.
 
-Once differential methylation scores have been calculated, the program
-\prog{dmr} can be used to identify differentially methylated regions,
-or DMRs. DMRs are regions where differential methylation scores
-indicate there are many CpGs with a high probability of being
-differentially methylated between the two methylomes.
-\prog{dmr} uses HMR data from the two methylomes and identifies
-a DMR wherever an HMR exists in one methylome but not the other.
-It writes the DMRs into two files: one with the HMR in one methylome
-and another with the HMR in the other.  It also writes the total number
-of CpGs in the DMR and the number of significantly different CpG sites.
-The following command finds DMRs using the \prog{dmr} component
-of \meth{}:
+{\small{%%
 \begin{verbatim}
-$ dmr Human_ESC_NHFF.methdiff Human_ESC.hmr \
-      Human_NHFF.hmr DMR_ESC_lt_NHFF DMR_NHFF_lt_ESC
-\end{verbatim}
+$ dmr Human_ESC_NHFF.methdiff Human_ESC.hmr Human_NHFF.hmr \
+      DMR_ESC_lt_NHFF DMR_NHFF_lt_ESC
+\end{verbatim}%%
+}}
+The DMRs are output to files {\tt DMR\_ESC\_lt\_NHFF} and 
+{\tt DMR\_NHFF\_lt\_ESC}. The former file contains regions with 
+lower methylation in {\tt Human\_ESC.meth} while the latter  has 
+regions with lower methylation in {\tt Human\_NHFF.meth}. Let's take 
+a look at the first few lines of {\tt DMR\_ESC\_lt\_NHFF}:
+
+{\small{%%
+\begin{verbatim}
+$ head -n 5 DMR_ESC_lt_NHFF
+chr1	3539447	3540231	X:12  0	+
+chr1	4384880	4385117	X:6	  1	+
+chr1	4488269	4488541	X:3	  2	+
+chr1	4603985	4604344	X:10  2	+
+chr1	4760070	4760445	X:8   1	+
+\end{verbatim}%%
+}}
+
+The first three columns are the genomic coordinates of DMRs. The fourth
+column contains the numer of CpG sites that the DMR spans, and the fifth 
+column contains the number of significantly differentially methylated 
+CpGs in the DMR. So, the first DMR spans 12 CpGs, but contains no 
+significantly differentially methylated sites, while the second DMR spans 
+6 CpGs and contains just one significantly differentially methylated CpG 
+site.
+
+We recommend filtering DMRs so that each one contains at least some 
+CpGs that are significantly differentially methylated. This can be easily 
+done with the {\tt awk} utility, available on virtually all Linux and Mac OS 
+systems. For example, the following command puts all DMRs spanning 
+at least 10 CpGs and having at least 5 significantly differentially 
+methylated CpGs into a file {\tt DMR\_ESC\_lt\_NHFF.filtered}.
+{\small{%%
+\begin{verbatim}
+$ awk -F "[:\t]" '$5 >= 10 && $6 >= 5 {print $0}' DMR_ESC_lt_NHFF \
+       > DMR_ESC_lt_NHFF.filtered
+\end{verbatim}%%
+}}
+
+\paragraph{Comparing two small groups of methylomes} To compare two small 
+groups of methylomes, one should combine the methylomes in each group and 
+then compute DMRs for the resulting pair of methylomes as described above. 
+The methylomes can be combined using the program {\tt merge-methcounts} 
+(see section~\ref{sec:merg-methc-file}).
+
+\subsubsection{DM analysis of two larger groups of methylomes}
+
+The DM detection method described in this section is based on the beta-binomial
+regression. We recommend using this method when more than three replicates 
+are available in each group. For rapid differential methylation analysis the 
+regression-based method should be run on a computing cluster with a few
+hundred available nodes, in which case it takes approximately a few hours to
+process a dataset consisting of 30-50 WGBS samples. The analysis can be also
+performed on a personal workstation, but it will take substantially longer. Note
+that the actual processing time depends on the coverage of each methylome, the
+number of sites analyzed, and the number of methylomes in the dataset.
+
+\paragraph{Generating proportion tables:} The first step in the differential 
+methylation analysis is to assemble a proportion table containing read 
+proportions for all target methylomes. MethPipe includes a program 
+\prog{make\_table} to generate a proportion table from the given collection of 
+methylomes. Suppose that we want to compare methylomes named 
+{\tt control\_a.meth}, {\tt control\_b.meth}, {\tt control\_c.meth}
+to the methylomes {\tt case\_a.meth}, {\tt case\_b.meth}, 
+{\tt case\_c.meth}. The proportion table can be created with the following 
+command:
+
+{\small{%%
+\begin{verbatim}
+$ make_table control_a.meth control_b.meth control_c.meth \
+                         case_a.meth case_b.meth case_c.meth > proportion_table.txt
+\end{verbatim}%%
+}}
+
+This is what {\tt proportion\_table.txt} looks like:
+
+{\small{%%
+\begin{verbatim}
+$ head -n 5 proportion_table.txt
+control_a control_b control_c case_a case_b case_c
+chr1:108  9 6 10 8  1  1  2  2  2 1 14 1
+chr1:114 17 7 10 0 14  3  5  1  9 1  7 1
+chr1:160 12 8 10 5 17  4 15 14 13 6  4 4
+chr1:309  1 1  1 0 17 12 12  8  2 1 19 8
+\end{verbatim}%%
+}}
+
+As indicated in the header, this proportion table contains information about 6
+methylomes: 3 controls and 3 cases. Each row of the table contains information
+about a CpG site and a proportion of reads mapping over this site in each
+methylome. For example, the first row describes a cytosine within a CpG site
+located on chromosome 1 at position 108. This site is present in 9 reads in the
+methylome {\tt control\_a} and is methylated in 6 of them. Note that 
+\prog{make\_table} adds methylomes into the proportion table in the order 
+in which they are listed on the command line.
+
+\paragraph{Design matrix:} The next step is to specify the design\ matrix, which
+describes the structure of the experiment. For our running example, the design
+matrix looks like this:
+
+{\small{%%
+\begin{verbatim}
+$ cat design_matrix.txt
+base case
+control_a 1 0
+control_b 1 0
+control_c 1 0
+case_a 1 1
+case_b 1 1
+case_c 1 1
+\end{verbatim}%%
+}}
+
+The design matrix shows that samples in this dataset are associated with two 
+factors: base and case. The first column corresponds to the base factor and 
+will always be present in the design matrix. Think of it as stating that all 
+samples have the same baseline mean methylation level. To distinguish 
+cases from controls we add another factor case (second column). The 1's in 
+this column correspond to the samples which belong to the cases group. You 
+can use this design matrix as a template to create design matrices for 
+two-group comparisons involving arbitrary many methylomes.
+
+After creating the proportion table and the design matrix, we are now ready to
+start the methylation analysis. It consists of (1) regression, (2) combining
+significance, and (3) multiple testing adjustment steps.
+
+\paragraph{Regression:} Suppose that the {\tt proportion\_table.txt} and {\tt 
+design\_matrix.txt} are as described above. The regression step is run with 
+the command
+
+{\small{%%
+\begin{verbatim}
+$ radmeth regression -factor case design_matrix.txt proportion_table.txt > cpgs.bed
+\end{verbatim}%%
+}}
+
+The {\tt -factor} parameter specifies the factor with respect to which we want to
+test for differential methylation. The test factor is {\tt case}, meaning that we
+are testing for differential methylation between cases and controls. The output  
+file {\tt cpgs.bed} has the same format {\tt methdiff}. The p-value (5-th column) 
+is given by the log-likelihood ratio test. We do not recommend using p-values 
+generated by {\tt radmeth regression} directly, instead we adjust the p-value of 
+each CpG site based on the p-values of the neighboring CpGs.
+
+\paragraph{Combining significance and adjusting for multiple testing:} Both of 
+these steps are performed simultaneously. Given the cpgs.bed file from the previous 
+step, run
+
+{\small{%%
+\begin{verbatim}
+$ radmeth adjust -bins 1:200:1 cpgs.bed > cpgs.adjusted.bed
+\end{verbatim}%%
+}}
+
+Here, the only required parameter, besides the input file, is {\tt -bins} whose
+value is set to 1:200:1 (which is also the default value). This means that for 
+each $n = 1, 2, . . . 199$, {\tt radmeth adjust} computes the correlation between 
+p-values of CpGs located at distance $n$ from each other. These correlations are 
+used during significance combination step. In addition, bin sizes determine the 
+window for combining significance. In contrast, if {\tt -bins} is set to $1:15:5$, 
+then the correlation is computed separately for p-values corresponding to CpGs at 
+distances $[1, 5)$, $[5, 10)$, and $[10, 15)$ from one another.
+
+The first five columns and the last four columns of {\tt radmeth adjust} have the
+same meaning as those output by {\tt radmeth regression}. The 6-th column gives 
+the modified p-value based on the original p-value of the site and the p-values 
+of its neighbors. The 7-th column gives the FDR-corrected p-value.
+
+Here is what the `cpgs.adjusted.bed` ﬁle looks like for our example dataset:
+
+{\small{%%
+\begin{verbatim}
+$ head -n 5 cpgs.adjusted.bed
+chr1	108	+	CpG	0.157971	0.099290	0.353466	18	 4	20	15
+chr1	114	+	CpG	0.559191	0.099290	0.353466	21	 3	41	10
+chr1	160	+	CpG	0.095112	0.099290	0.353466	32	24	39	17
+chr1	309	+	CpG	0.239772	0.122248	0.368902	33	17	19	13
+chr1	499	+	CpG	0.770140	0.204467	0.419872	43	22	29	15
+\end{verbatim}%%
+}}
+
+\paragraph{Individual differentially methylated sites:} After completing the 
+previous steps, individual differentially methylated sites can be obtained with 
+`awk`. To get all CpGs with FDR-corrected p-value below 0.01, run
+
+{\small{%%
+\begin{verbatim}
+$ awk '$5 < 0.01 "{ print $0; $}"' cpgs.adjusted.bed > dm_cpgs.bed
+\end{verbatim}%%
+}}
+
+\paragraph{Differentially methylated regions:} It is possible to further join 
+individually differentially methylated CpGs into differentially methylated 
+regions. This can be achieved with the command
+{\small{%%
+\begin{verbatim}
+$ radmeth merge -p 0.01 cpgs.adjusted.bed > dmrs.bed
+\end{verbatim}%%
+}}
+
+The current algorithm is conservative: it joins neighboring differentially
+methylated sites with p-value below 0.01 (set by the {\tt -p} parameter). The 
+output format is
+{\small{%%
+\begin{verbatim}
+chrom start end dmr num-sites meth-diff
+\end{verbatim}%%
+}}
+\noindent where {\tt num-sites} and {\tt meth-diff} are the number of 
+significantly differentially methylated CpGs in the DMR and the estimated 
+methylation difference. For our example, the output looks like this:
+{\small{%%
+\begin{verbatim}
+$ head -n 5 dmrs.bed
+chr1	 57315	 57721	dmr	10	-0.498148
+chr1	 58263	 59009	dmr	27	-0.521182
+chr1	138522	139012	dmr	13	-0.443182
+chr1	149284	149444	dmr	 7	-0.430453
+chr1	274339	275254	dmr	18	-0.520114
+\end{verbatim}%%
 
 \subsection{Allele-specific methylation}
 
@@ -1633,90 +1838,74 @@ consuming to convert each \prog{methcounts} output file from one
 assembly to another using the UCSC \prog{liftOver} tool, given that
 they all should have the same locations but different read counts. 
 Therefore, we use \prog{liftOver} to generate an index file between 
-two assemblies, and provide the \prog{fastLiftOver2} tool.
+two assemblies, and provide the \prog{fast-liftover} tool.
 
-Suppose we have downloaded the \prog{liftOver} tool in to directory
-\fn{/home/user/Desktop/}, and the chain file
+Suppose we have downloaded the \prog{liftOver} tool and the chain file
 \fn{mm9ToHg19.over.chain.gz} from the UCSC Genome Browser website.  If
-we have a \prog{methcounts} output file \fn{Mouse\_BCell\_mm9.meth}
-of all cytosine positions in mm9. Entries in
+we have a \prog{methcounts} file \fn{Mouse\_BCell\_mm9.meth}
+of CpG sites or all cytosines in mm9. Entries in
 \fn{Mouse\_BCell\_mm9.meth} look like
 \begin{verbatim}
-chr1    3007427 +       CHH     0       5
-chr1    3007428 +       CCG     0       6
-chr1    3007429 +       CpG     0.166667        6
-chr1    3007430 -       CpG     0.5     10
-chr1    3007431 -       CCG     0       9
+chr1  3005765  +  CpG  0.166667  6
+chr1  3005846  +  CpG  0.5        10
+chr1  3005927  +  CpG  0         9
 \end{verbatim}
 
 We would like to lift it over to the human genome hg19, and generate
 an index file \fn{mm9-hg19.index} to facilitate later lift-over
 operations from mm9 to hg19, and keep a record of unlifted mm9
-cytosine positions in the file \fn{mm9-hg19.unlifted}. Run the bash
-script \fn{run-liftOver-allC.sh} as follows:
+cytosine positions in the file \fn{mm9-hg19.unlifted}. 
+First, prepare the input \fn{mm9\_cpg.bed} file for \prog{liftOver} into 
+the following BED format: 
 \begin{verbatim}
-run-liftOver-allC.sh  /home/user/Desktop/  mm9ToHg19.over.chain.gz  Mouse_BCell_mm9.meth  mm9-hg19.index  mm9-hg19.unlifted
+chr1  3005765 	3005766  chr1:3005765:3005766:+  0  +
+chr1  3005846  3005847  chr1:3005846:3005847:+  0  +
+chr1  3005927  3005928  chr1:3005927:3005928:+  0  +
+\end{verbatim}
+Note that the 4\textsuperscript{th} column is the genomic location data linked with colons. 
+
+Then, run UCSC Genome Browser tool \fn{liftOver} as follows:
+\begin{verbatim}
+./liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz  mm9-hg19.index mm9-hg19.unlifted
 \end{verbatim}
 
 The generated index file \fn{mm9-hg19.index} will be a BED format
 file in hg19 coordinates, with entries like
 \begin{verbatim}
-chr8	56562557	56562558	chr1:3007427:3007428:+	0	-
-chr8	56562556	56562557	chr1:3007428:3007429:+	0	-
-chr8	56562555	56562556	chr1:3007430:3007431:-	0	+
-chr8	56562554	56562555	chr1:3007431:3007432:-	0	+
+chr8	56539820	56539821  chr1:3005765:3005766:+	0	-
+chr8	56539547	56539548  chr1:3005846:3005847:+	0	-
+chr8	56539209	56539210  chr1:3005927:3005928:+	0	-
 \end{verbatim}
-where the fourth column contains the genomic position of the Cytosine
+where the 4\textsuperscript{th} column contains the genomic position of the cytosine
 site in mm9 coordinates.
 
+After the index file is generated, we can use the \prog{fast-liftover} 
+program on any mm9 \prog{methcount} file to lift it to hg19: 
+\begin{verbatim}
+./fast-liftover -i mm9-hg19.index -f SAMPLE_mm9.meth -t SAMPLE_hg19.meth.lift -v
+\end{verbatim}
+The \op{-p} option should be specified to report positions on the positive 
+strand of the target assembly.  
 
-After the index file is generated, we can use the script
-\prog{run-fastLiftOver2.sh} to run fastLiftOver on any mm9
-\prog{methcount} file to lift it over to hg19.  The script has the
-following options:
+Before using the lifted methcount file, make sure it is sorted properly.
 \begin{verbatim}
-usage: ./run-fastLiftOver2.sh options
-OPTIONS:
-   -h    Show this message
-   -i    Index file
-   -f    File to lift
-   -t    Lifed file
-   -M    Path to the methpipe root directory
-   -s    Report sites on single strand (+ strand)
-   -u    Report uniquely mapped sites (Default: multiple-to-1 mapping are collapsed)
+LC_ALL=C sort -k1,1 -k2,2g -k3,3 SAMPLE_hg19.meth.lift -o SAMPLE_hg19.meth.sorted
 \end{verbatim}
-Here are some explanation for the usage of \op{-s} and \op{-u} flag.
-It is possible that multiple CpG sites in the mouse reference genome
-are mapped to the same location in the human reference genome, for example 
+ 
+The \prog{liftOver} program may report multiple mm9 sites mapped to a same position in hg19. 
+%For example, the index file might have two following records:
+%\begin{verbatim}
+%chr1	77595107	77595108	chr1:16053645:16053646:CpG:+	0	+
+%chr1	77595107	77595108	chr1:20444502:20444503:CpG:+	0	-
+%\end{verbatim}
+In this situation, we may either collapse read counts at those mm9 sites, 
+or keep the data for only one mm9 site. We can use the \fn{lift-filter} program 
+to achieve these two options. Use
 \begin{verbatim}
-chr1	77595107	77595108	chr1:16053645:16053646:+	0	+
-chr1	77595107	77595108	chr1:20444502:20444503:+	0	-
-\end{verbatim}
-In this situation, we may either collapse read counts at the multiple
-mm9 sites that are mapped to the same location in hg19, or only report
-the 1-1 mapping sites. The following two commands would achieve these
-two options repectively, assuming \prog{/home/user/Desktop/methpipe/bin}
-is the directory of \prog{methpipe} binaries.
-\begin{verbatim}
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -u
-\end{verbatim}
-If \fn{Mouse\_BCell\_mm9.meth} contains only CpG sites, sometimes we
-might want to collapse reverse-complementary CpG pairs, and instead of
-reporting statistics for both strands, we only keep sites on ``+''
-strand. To flip mm9 CpGs lifted to the ``-'' strand of hg19, and
-collapse the methylation information with their complementary CpG
-lifted to hg19 ``+'' strand, we run the script
-\prog{run-fastLiftOver2.sh} script with option \op{-s}.
-\begin{verbatim}
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19 -M /home/user/Desktop/methpipe/bin -s 
-./run-fastLiftOver2.sh -i mm9-hg19.index -f Mouse_BCell_mm9.meth  \
-  -t Mouse_BCell_mm9.meth.hg19.unique -M  /home/user/Desktop/methpipe/bin -s -u
-\end{verbatim}
-
+./lift-filter -o SAMPLE_hg19.meth  SAMPLE_hg19.meth.sorted -v
+ \end{verbatim}
+to merge data from mm9 sites lifted to the same hg19 position. Use  
+the option \op{-u} to keep the first record of duplicated sites. 
 
 %Mapping methylomes between species builds on the the \prog{liftOver}
 %tool provided by UCSC Genome Browser

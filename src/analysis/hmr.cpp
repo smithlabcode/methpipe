@@ -128,7 +128,10 @@ build_domains(const bool VERBOSE,
     }
     prev_end = cpgs[i].get_end();
   }
-  // Do we miss the final domain?????
+  if(in_domain){
+    domains.back().set_end(prev_end);
+    domains.back().set_score(n_cpgs);
+  }
 }
 
 
@@ -174,16 +177,6 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
  * METHYLATION BECOME HIGH. THIS METHOD ACTUALLY SEEMS TO WORK.
  */
 static void
-make_partial_meth(vector<GenomicRegion> &cpgs) {
-  for (size_t i = 0; i < cpgs.size(); ++i) {
-    double cpg_meth = cpgs[i].get_score();
-    if (cpg_meth > 0.5)
-      cpg_meth = 1.0 - cpg_meth;
-    cpgs[i].set_score(1.0 - (2*cpg_meth));
-  }
-}
-
-static void
 make_partial_meth(const vector<size_t> &reads,
                   vector<pair<double, double> > &meths)
 {
@@ -193,35 +186,6 @@ make_partial_meth(const vector<size_t> &reads,
     meths[i].first = static_cast<size_t>(reads[i] * m);
     meths[i].second = static_cast<size_t>(reads[i] - meths[i].first);
   }
-}
-
-static void
-load_cpgs(const bool VERBOSE, const bool PARTIAL_METH,
-	  const string& cpgs_file, vector<SimpleGenomicRegion> &cpgs,
-	  vector<pair<double, double> > &meth, vector<size_t> &reads) {
-  if (VERBOSE)
-    cerr << "[READING CPGS AND METH PROPS]" << endl;
-  vector<GenomicRegion> cpgs_in;
-  ReadBEDFile(cpgs_file, cpgs_in);
-  if (!check_sorted(cpgs_in))
-    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
-
-  if (PARTIAL_METH)
-    make_partial_meth(cpgs_in);
-  
-  for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
-    meth.push_back(std::make_pair(cpgs_in[i].get_score(), 0.0));
-    const string r(cpgs_in[i].get_name());
-    reads.push_back(atoi(r.substr(r.find_first_of(":") + 1).c_str()));
-    meth.back().first = int(meth.back().first * reads.back());
-    meth.back().second = int(reads.back() - meth.back().first);
-  }
-  if (VERBOSE)
-    cerr << "TOTAL CPGS: " << cpgs.size() << endl
-	 << "MEAN COVERAGE: " 
-	 << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
-	 << endl << endl;
 }
 
 static void
@@ -395,19 +359,18 @@ main(int argc, const char **argv) {
     // vector<double> meth;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
-    if (methpipe::is_methpipe_file_single(cpgs_file)) {
-      if (VERBOSE)
-        cerr << "[READING CPGS AND METH PROPS]" << endl;
+    if (VERBOSE)
+      cerr << "[READING CPGS AND METH PROPS]" << endl;
+    if (methpipe::is_methpipe_file_single(cpgs_file))
       methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
-      if (PARTIAL_METH) make_partial_meth(reads, meth);
-      if (VERBOSE)
-        cerr << "TOTAL CPGS: " << cpgs.size() << endl
-             << "MEAN COVERAGE: " 
-             << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
-             << endl << endl;
-    }
     else
-      load_cpgs(VERBOSE, PARTIAL_METH, cpgs_file, cpgs, meth, reads);
+      methpipe::load_cpgs_old(cpgs_file, cpgs, meth, reads);
+    if (PARTIAL_METH) make_partial_meth(reads, meth);
+    if (VERBOSE)
+      cerr << "TOTAL CPGS: " << cpgs.size() << endl
+           << "MEAN COVERAGE: " 
+           << accumulate(reads.begin(), reads.end(), 0.0)/reads.size() 
+           << endl << endl;
     
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs

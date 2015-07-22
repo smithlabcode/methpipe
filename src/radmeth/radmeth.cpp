@@ -165,11 +165,19 @@ main(int argc, const char **argv) {
   try {
     const string prog_name = strip_path(argv[0]);
 
+    const string main_help_message =
+      "Uage: " + prog_name + " [COMMAND] [PARAMETERS]\n\n"
+      "Available commands: \n"
+      "  regression  Calculates multi-factor differential methylation scores.\n"
+      "  adjust      Adjusts the p-value of each site based on the p-value of "
+                     "its neighbors.\n"
+      "  merge       Combines significantly differentially methylated CpGs into"
+                     " DMRs.\n";
+
     if (argc == 1) {
-      cerr << "Uage: " << prog_name << " [COMMAND] [PARAMETERS]" << endl;
-      cerr << endl << "PROGRAM: " << prog_name
-           << endl << "Analysis of differential methylation in multi-factor "
-                      "bisulfite sequencing experiments." << endl;
+      cerr << "Analysis of differential methylation in multi-factor bisulfite "
+              "sequencing experiments.\n"
+           << main_help_message;
       return EXIT_SUCCESS;
     }
 
@@ -197,6 +205,7 @@ main(int argc, const char **argv) {
 
       vector<string> leftover_args;
       opt_parse.parse(argc - 1, argv + 1, leftover_args);
+
       if (argc == 2 || opt_parse.help_requested()) {
         cerr << opt_parse.help_message() << endl
              << opt_parse.about_message() << endl;
@@ -285,7 +294,8 @@ main(int argc, const char **argv) {
 
         out << full_regression.props.chrom << "\t"
             << full_regression.props.position << "\t"
-            << "+\tCpG\t";
+            << full_regression.props.strand << "\t"
+            << full_regression.props.context << "\t";
 
         // Do not perform the test if there's no coverage in either all case or
         // all control samples. Also do not test if the site is completely
@@ -456,6 +466,10 @@ main(int argc, const char **argv) {
         throw "could not open file: " + bed_filename;
 
       merge(bed_file, out, cutoff);
+    } else {
+      cerr << "ERROR: \"" << command_name << "\" is not a valid command.\n"
+           << main_help_message;
+      return EXIT_SUCCESS;
     }
     /****************** END COMMAND LINE OPTIONS *****************/
 
