@@ -229,6 +229,20 @@ main(int argc, const char **argv) {
     out << setw(precision_val) << neg_conv_rate/sum_neg << "\t";
     out << sum_neg << endl;
 
+    out << "BASE" << '\t'
+    << "PTOT" << '\t'
+    << "PCONV" << '\t'
+    << "PRATE" << '\t'
+    << "NTOT" << '\t'
+    << "NCONV" << '\t'
+    << "NRATE" << '\t'
+    << "BTHTOT" << '\t'
+    << "BTHCONV" << '\t'
+    << "BTHRATE" << '\t'
+    << "ERR" << '\t'
+    << "ALL" << '\t'
+    << "ERRRATE"  << endl;
+
     for(size_t i = 0; i < ostrings.size(); ++i) {
       out << ostrings[i];
     }
