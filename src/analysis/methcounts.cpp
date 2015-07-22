@@ -277,6 +277,9 @@ main(int argc, const char **argv) {
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
+    if (!outfile.empty() && !is_valid_output_file(outfile))
+      throw SMITHLABException("bad output file: " + outfile);
+
     chrom_file_map chrom_files;
     identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
     if (VERBOSE)
