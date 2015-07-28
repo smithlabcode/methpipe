@@ -329,8 +329,8 @@ main(int argc, const char **argv) {
         count_states_pos(chrom, mr, counts);
       else count_states_neg(chrom, mr, counts);
     }
-    if (!counts.empty()) // if we have results, output them
-      write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
+    // ALWAYS output the chromosome, even if all sites are uncovered.
+    write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
