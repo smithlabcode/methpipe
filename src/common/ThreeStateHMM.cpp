@@ -353,6 +353,12 @@ ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)
         HYPER_posteriors[i] = exp(HYPER_evidence[i - start] - denom);
         HYPO_posteriors[i] = exp(HYPO_evidence[i - start] - denom);
 
+        //renormalize the probabilities
+        double sum = hypo_posteriors[i] + HYPER_posteriors[i]
+                     + HYPO_posteriors[i];
+        hypo_posteriors[i] /= sum;
+        HYPER_posteriors[i] /= sum;
+        HYPO_posteriors[i] /= sum;
         // if (fabs(hypo_posteriors[i] + HYPER_posteriors[i]
         //          + HYPO_posteriors[i] - 1.0) > 1e-6) 
         //     cerr << fabs(hypo_posteriors[i] + HYPER_posteriors[i]
@@ -409,6 +415,19 @@ ThreeStateHMM::estimate_posterior_trans_prob(
             forward[i].HYPO + log(trans[HYPO][HYPO])
             + HYPO_segment_log_likelihood(i + 1, i + 2) 
             + backward[i + 1].HYPO - denom;
+
+        double sum = exp(hypo_hypo[i]) + exp(hypo_HYPER[i]) + 
+                     exp(HYPER_hypo[i]) + exp(HYPER_HYPER[i]) +
+                     exp(HYPER_HYPO[i]) + exp(HYPO_HYPER[i]) +
+                     exp(HYPO_HYPO[i]);
+
+        hypo_hypo[i] -= log(sum);
+        hypo_HYPER[i] -= log(sum) ;
+        HYPER_hypo[i] -= log(sum);
+        HYPER_HYPER[i] -= log(sum);
+        HYPER_HYPO[i] -= log(sum) ;
+        HYPO_HYPER[i] -= log(sum);
+        HYPO_HYPO[i] -= log(sum);
 
         assert(fabs(exp(hypo_hypo[i]) + exp(hypo_HYPER[i])
                     + exp(HYPER_hypo[i]) + exp(HYPER_HYPER[i])
