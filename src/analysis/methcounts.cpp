@@ -206,7 +206,8 @@ write_output(std::ostream &out,
       const string tag = get_methylation_context_tag(chrom, i) +
         (has_mutated(base, counts[i]) ? "x" : "");
       if (!CPG_ONLY || (!tag.compare("CpG")||!tag.compare("CpGx"))) {
-        methpipe::write_site(out, chrom_name, i, (is_cytosine(base) ? "+" : "-"),
+        methpipe::write_site(out, chrom_name, i,
+                             (is_cytosine(base) ? "+" : "-"),
                              tag, meth, converted + unconverted);
       }
     }

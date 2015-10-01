@@ -51,20 +51,20 @@ using std::endl;
 
 static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
-        std::ifstream &in, string &context, size_t &n_meth, size_t &n_unmeth,
-        string &prev_chr, int &chr_count, size_t &coverage,
-        size_t &pos, string &strand) {
+                std::ifstream &in, string &context, size_t &n_meth, size_t &n_unmeth,
+                string &prev_chr, int &chr_count, size_t &coverage,
+                size_t &pos, string &strand) {
 
   string chr;
   double meth = 0.0;
   if (IS_METHPIPE_FILE) {
     if (!methpipe::read_site(in, chr, pos, strand,
-      context, meth, coverage))
+                             context, meth, coverage))
       return false;
   }
   else {
     if (!methpipe::read_site_old(in, chr, pos, strand,
-      context, meth, coverage))
+                                 context, meth, coverage))
       return false;
   }
   n_meth = std::tr1::round(meth*coverage);
@@ -82,7 +82,7 @@ get_meth_unmeth(const bool IS_METHPIPE_FILE, const bool VERBOSE,
 
 static bool
 is_complementary_sites( size_t &position, string &strand,
-    size_t &position_prev, string &strand_prev) {
+                        size_t &position_prev, string &strand_prev) {
   // pos difference is maximum 2, b/c we are looking at 2-mers and 3-mers
   return position - position_prev <= 2 && strand != strand_prev
     && strand == "-";
@@ -100,17 +100,17 @@ main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "compute methylation levels",
-			   "<methcounts-file>");
+                           "<methcounts-file>");
     opt_parse.add_opt("output", 'o', "output file (default: stdout)",
-		      false, outfile);
+                      false, outfile);
     opt_parse.add_opt("alpha", 'a', "alpha for confidence interval",
-		      false, alpha);
+                      false, alpha);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -156,7 +156,7 @@ main(int argc, const char **argv) {
     double lower_prev = 0.0, upper_prev = 0.0;
     bool prev_mutated = false, last_is_complementary = true;
     while (get_meth_unmeth(IS_METHPIPE_FILE, VERBOSE,
-          in, context, n_meth, n_unmeth, prev_chr, chr_count, coverage, pos, strand)) {
+                           in, context, n_meth, n_unmeth, prev_chr, chr_count, coverage, pos, strand)) {
       // CpG is treated separately
       if (context.substr(0,3) == "CpG") {
         if (is_complementary_sites(pos, strand, pos_prev, strand_prev)) {
@@ -178,7 +178,7 @@ main(int argc, const char **argv) {
             // the complementary is not mutated, nor is the previous one
             // so the whole site is normal!
             if (coverage > max_cov)
-                max_cov = coverage;
+              max_cov = coverage;
             ++total_cpg_sites;
             mapped_sites += (coverage>0);
             coverage = coverage + coverage_prev;
@@ -192,7 +192,7 @@ main(int argc, const char **argv) {
               level = static_cast<double>(n_meth)/coverage;
               mean_agg_cpg += level;
               wilson_ci_for_binomial(alpha,
-                  coverage, level, lower, upper);
+                                     coverage, level, lower, upper);
               called_meth_cpg += (lower > 0.5);
               called_unmeth_cpg += (upper < 0.5);
               total_cov += coverage;
@@ -220,12 +220,12 @@ main(int argc, const char **argv) {
                   static_cast<double>(n_meth_prev)/coverage_prev;
                 mean_agg_cpg += level_prev;
                 wilson_ci_for_binomial(alpha,
-                    coverage_prev, level_prev, lower_prev, upper_prev);
+                                       coverage_prev, level_prev, lower_prev, upper_prev);
                 called_meth_cpg += (lower_prev > 0.5);
                 called_unmeth_cpg += (upper_prev < 0.5);
                 total_cov += coverage_prev;
                 if (coverage_prev > max_cov)
-                    max_cov = coverage_prev;
+                  max_cov = coverage_prev;
               }
             }
           }
@@ -239,7 +239,7 @@ main(int argc, const char **argv) {
             }
             else {
               if (coverage > max_cov)
-                  max_cov = coverage;
+                max_cov = coverage;
               prev_mutated = false;
             }
             mapped_sites += (coverage>0);
@@ -268,15 +268,15 @@ main(int argc, const char **argv) {
                 static_cast<double>(n_meth_prev)/coverage_prev;
               mean_agg_cpg += level_prev;
               wilson_ci_for_binomial(alpha,
-                  coverage_prev, level_prev, lower_prev, upper_prev);
+                                     coverage_prev, level_prev, lower_prev, upper_prev);
               called_meth_cpg += (lower_prev > 0.5);
               called_unmeth_cpg += (upper_prev < 0.5);
               total_cov += coverage_prev;
               if (coverage_prev > max_cov)
-                  max_cov = coverage_prev;
-              }
+                max_cov = coverage_prev;
             }
           }
+        }
         if (n_meth + n_unmeth > 0) {
           // get info for mean methylation
           level = static_cast<double>(n_meth)/coverage;
@@ -312,7 +312,7 @@ main(int argc, const char **argv) {
 
           total_cov += coverage;
           if (coverage > max_cov)
-              max_cov = coverage;
+            max_cov = coverage;
 
           ++mapped_sites;
         }
@@ -354,7 +354,7 @@ main(int argc, const char **argv) {
           called_meth_cpg += (lower_prev > 0.5);
           total_cov += coverage_prev;
           if (coverage_prev > max_cov)
-              max_cov = coverage_prev;
+            max_cov = coverage_prev;
         }
       }
     }
@@ -363,51 +363,51 @@ main(int argc, const char **argv) {
       static_cast<double>(total_c_cpg)/(total_c_cpg + total_t_cpg);
     const double fractional_meth_cpg =
       static_cast<double>(called_meth_cpg)/(called_meth_cpg
-          + called_unmeth_cpg);
+                                            + called_unmeth_cpg);
     const double mean_meth_cpg = mean_agg_cpg/total_cpg_mapped;
 
     const double weighted_mean_meth_chh =
       static_cast<double>(total_c_chh)/(total_c_chh + total_t_chh);
     const double fractional_meth_chh =
       static_cast<double>(called_meth_chh)/(called_meth_chh
-          + called_unmeth_chh);
+                                            + called_unmeth_chh);
     const double mean_meth_chh = mean_agg_chh/count_chh;
 
     const double weighted_mean_meth_cxg =
       static_cast<double>(total_c_cxg)/(total_c_cxg + total_t_cxg);
     const double fractional_meth_cxg =
       static_cast<double>(called_meth_cxg)/(called_meth_cxg
-          + called_unmeth_cxg);
+                                            + called_unmeth_cxg);
     const double mean_meth_cxg = mean_agg_cxg/count_cxg;
 
     const double weighted_mean_meth_ccg =
       static_cast<double>(total_c_ccg)/(total_c_ccg + total_t_ccg);
     const double fractional_meth_ccg =
       static_cast<double>(called_meth_ccg)/(called_meth_ccg
-          + called_unmeth_ccg);
-    const double mean_meth_ccg = mean_agg_ccg/count_ccg; 
+                                            + called_unmeth_ccg);
+    const double mean_meth_ccg = mean_agg_ccg/count_ccg;
 
     const double weighted_mean_meth_all_c =
       static_cast<double>(total_c_cpg + total_c_chh
-          + total_c_cxg + total_c_ccg)/
-          (total_c_cpg + total_c_chh + total_c_cxg + total_c_ccg
-          + total_t_cpg + total_t_chh + total_t_cxg + total_t_ccg);
+                          + total_c_cxg + total_c_ccg)/
+      (total_c_cpg + total_c_chh + total_c_cxg + total_c_ccg
+       + total_t_cpg + total_t_chh + total_t_cxg + total_t_ccg);
     const double fractional_meth_all_c =
       static_cast<double>(called_meth_cpg + called_meth_chh
-          + called_meth_cxg + called_meth_ccg)
-          /(called_meth_cpg + called_meth_chh + called_meth_cxg + called_meth_ccg
-          + called_unmeth_cpg + called_unmeth_chh
-          + called_unmeth_cxg + called_unmeth_ccg);
+                          + called_meth_cxg + called_meth_ccg)
+      /(called_meth_cpg + called_meth_chh + called_meth_cxg + called_meth_ccg
+        + called_unmeth_cpg + called_unmeth_chh
+        + called_unmeth_cxg + called_unmeth_ccg);
     const double mean_meth_all_c = (mean_agg_cpg + mean_agg_chh
-      + mean_agg_cxg + mean_agg_ccg)
-      /(total_cpg_mapped + count_chh + count_cxg + count_ccg); 
+                                    + mean_agg_cxg + mean_agg_ccg)
+      /(total_cpg_mapped + count_chh + count_cxg + count_ccg);
 
     const double mean_coverage_cpg_all = total_cpg_sites > 0 ?
       static_cast<double>(cpg_cov)/total_cpg_sites : 0;
     const double mean_coverage_cpg_mapped = total_cpg_mapped > 0 ?
       static_cast<double>(cpg_cov)/total_cpg_mapped : 0;
 
-    //const double cpg_mutation_rate = 
+    //const double cpg_mutation_rate =
     //  static_cast<double>(cpg_mutations)/total_cpg_mapped;
 
     std::ofstream of;
@@ -418,31 +418,31 @@ main(int argc, const char **argv) {
         << "SITES:" << '\t' << total_sites << endl
         << "SITES COVERED:" << '\t' << mapped_sites << endl
         << "FRACTION COVERED:"
-            << '\t' << static_cast<double>(mapped_sites)/total_sites << endl
+        << '\t' << static_cast<double>(mapped_sites)/total_sites << endl
         << "MEAN COVERAGE:"
-            << '\t' << static_cast<double>(total_cov)/total_sites << endl
-        << "MEAN COVERAGE (WHEN > 0):" << '\t' 
-            << static_cast<double>(total_cov)/mapped_sites << endl
+        << '\t' << static_cast<double>(total_cov)/total_sites << endl
+        << "MEAN COVERAGE (WHEN > 0):" << '\t'
+        << static_cast<double>(total_cov)/mapped_sites << endl
         << "MAX COVERAGE:" << '\t' << max_cov << endl
         << "SITES MUTATED:" << '\t' << total_mut << endl
         << "FRACTION MUTATED:" << '\t'
-            << static_cast<double>(total_mut)/mapped_sites << endl
+        << static_cast<double>(total_mut)/mapped_sites << endl
         << "SYMMETRICAL CpG SITES:" << '\t'
-           << total_cpg_sites << endl
+        << total_cpg_sites << endl
         << "SYMMETRICAL CpG SITES COVERED:" << '\t'
-           << total_cpg_mapped << endl
+        << total_cpg_mapped << endl
         << "SYMMETRICAL CpG FRACTION COVERED:"
-            << '\t' << static_cast<double>(total_cpg_mapped)
-                  /total_cpg_sites << endl
+        << '\t' << static_cast<double>(total_cpg_mapped)
+      /total_cpg_sites << endl
         << "SYMMETRICAL CpG MEAN COVERAGE:" << '\t'
-           << mean_coverage_cpg_all << endl
+        << mean_coverage_cpg_all << endl
         << "SYMMETRICAL CpG MEAN COVERAGE (WHEN > 0):" << '\t'
-           << mean_coverage_cpg_mapped << endl
+        << mean_coverage_cpg_mapped << endl
         << "SYMMETRICAL CpG MUTATED:" << '\t'
-           << cpg_mutations << endl
+        << cpg_mutations << endl
         << "SYMMETRICAL CpG FRACTION MUTATED:" << '\t'
-            << static_cast<double>(cpg_mutations)/total_cpg_mapped << endl;
-        // CpG coverage statistics are already minus mutations
+        << static_cast<double>(cpg_mutations)/total_cpg_mapped << endl;
+    // CpG coverage statistics are already minus mutations
 
     if (total_cpg_mapped != 0) {
       out << "METHYLATION LEVELS (CpG CONTEXT):" << endl

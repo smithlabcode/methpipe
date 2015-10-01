@@ -62,8 +62,8 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 }
 
 static bool
-convert_meth_states_pos(const string &chrom, 
-                        const unordered_map<size_t, size_t> &cpgs, 
+convert_meth_states_pos(const string &chrom,
+                        const unordered_map<size_t, size_t> &cpgs,
                         MappedRead &mr,
                         size_t &start_pos, string &seq) {
   const size_t width = mr.r.get_width();
@@ -99,16 +99,16 @@ convert_meth_states_pos(const string &chrom,
 
 
 static bool
-convert_meth_states_neg(const string &chrom, 
-                        const unordered_map<size_t, size_t> &cpgs, 
+convert_meth_states_neg(const string &chrom,
+                        const unordered_map<size_t, size_t> &cpgs,
                         MappedRead &mr,
                         size_t &start_pos, string &seq) {
   const size_t width = mr.r.get_width();
   const size_t offset = mr.r.get_start();
-  
+
   // NEED TO TAKE REVERSE COMPLEMENT FOR THE NEGATIVE STRAND ONES!
   revcomp_inplace(mr.seq);
-  
+
   size_t cpg_count = 0;
   string states;
   size_t first_cpg = std::numeric_limits<size_t>::max();
@@ -142,27 +142,27 @@ convert_meth_states_neg(const string &chrom,
 
 
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
-    
+
     bool VERBOSE = false;
-    
+
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "a program for converting read sequences "
-                           "in MappedRead format files into methylation states "
+    OptionParser opt_parse(argv[0], "convert read sequences "
+                           "in MappedRead format to methylation states "
                            "at CpGs covered by those reads",
                            "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file name", false, outfile);
-    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (.fa extn)", 
+    opt_parse.add_opt("chrom", 'c', "file or dir of chroms (.fa extn)",
                       true , chrom_file);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -184,21 +184,21 @@ main(int argc, const char **argv) {
     }
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     unordered_map<string, string> chrom_files;
     identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
     if (VERBOSE) {
       cerr << "CHROMS:\t" << chrom_files.size() << endl;
     }
-    
+
     std::ifstream in(mapped_reads_file.c_str());
-    if (!in) 
+    if (!in)
       throw SMITHLABException("cannot open input file " + mapped_reads_file);
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    
+
     unordered_map<size_t, size_t> cpgs;
     vector<string> chrom_names, chroms;
     string chrom_name;
@@ -207,7 +207,7 @@ main(int argc, const char **argv) {
     while (!in.eof() && in >> mr) {
       // get the correct chrom if it has changed
       if (chroms.empty() || !mr.r.same_chrom(chrom_region)) {
-        const unordered_map<string, string>::const_iterator 
+        const unordered_map<string, string>::const_iterator
           fn(chrom_files.find(mr.r.get_chrom()));
         if (fn == chrom_files.end())
           throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
@@ -222,7 +222,7 @@ main(int argc, const char **argv) {
       }
       size_t start_pos = std::numeric_limits<size_t>::max();
       string seq;
-      const bool has_cpgs = mr.r.pos_strand() ? 
+      const bool has_cpgs = mr.r.pos_strand() ?
         convert_meth_states_pos(chroms.front(), cpgs, mr, start_pos, seq) :
         convert_meth_states_neg(chroms.front(), cpgs, mr, start_pos, seq);
       if (has_cpgs)
