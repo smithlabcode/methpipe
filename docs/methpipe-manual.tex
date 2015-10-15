@@ -889,7 +889,7 @@ studies. In addition, not all methylomes have PMDs, some initial
 visualization or summary statistics can be of help in deciding whether
 to use \prog{pmd} program on the methylome of interest.
 
-\subsection{Differential Methylation Analysis}
+\subsection{Differential Methylation}
 \label{sec:differential_methylation}
 
 This section explains how to calculate regions of differential methylation 
@@ -1022,7 +1022,7 @@ command:
 
 {\small{%%
 \begin{verbatim}
-$ make_table control_a.meth control_b.meth control_c.meth \
+$ merge-methcounts -t control_a.meth control_b.meth control_c.meth \
                          case_a.meth case_b.meth case_c.meth > proportion_table.txt
 \end{verbatim}%%
 }}
@@ -1033,10 +1033,10 @@ This is what {\tt proportion\_table.txt} looks like:
 \begin{verbatim}
 $ head -n 5 proportion_table.txt
 control_a control_b control_c case_a case_b case_c
-chr1:108  9 6 10 8  1  1  2  2  2 1 14 1
-chr1:114 17 7 10 0 14  3  5  1  9 1  7 1
-chr1:160 12 8 10 5 17  4 15 14 13 6  4 4
-chr1:309  1 1  1 0 17 12 12  8  2 1 19 8
+chr1:108:+:CpG  9 6 10 8  1  1  2  2  2 1 14 1
+chr1:114:+:CpG 17 7 10 0 14  3  5  1  9 1  7 1
+chr1:160:+:CpG 12 8 10 5 17  4 15 14 13 6  4 4
+chr1:309:+:CpG  1 1  1 0 17 12 12  8  2 1 19 8
 \end{verbatim}%%
 }}
 
@@ -1046,7 +1046,7 @@ about a CpG site and a proportion of reads mapping over this site in each
 methylome. For example, the first row describes a cytosine within a CpG site
 located on chromosome 1 at position 108. This site is present in 9 reads in the
 methylome {\tt control\_a} and is methylated in 6 of them. Note that 
-\prog{make\_table} adds methylomes into the proportion table in the order 
+\prog{merge-methcounts} adds methylomes into the proportion table in the order 
 in which they are listed on the command line.
 
 \paragraph{Design matrix:} The next step is to specify the design\ matrix, which
