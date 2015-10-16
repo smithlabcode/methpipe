@@ -76,46 +76,53 @@ merge_mates(const size_t suffix_len, const size_t range,
   len = pos_str ? (two_right - one_left) : (one_right - two_left);
   
   // assert(len > 0);
+  // if the above assertion fails, it usually means the mair is discordant (end1
+  // downstream of end2). Also it means the SAM flag of this pair of reads is
+  // not properly set. To avoid termination, currently this assertion is ignored
+  // but no output will be generated for discordant pairs.
+
   // assert(one_left <= one_right && two_left <= two_right);
   // assert(overlap_start >= overlap_end || static_cast<size_t>(len) == 
   //    ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
   
-  string seq(len, 'N');
-  string scr(len, 'B');
-  if (len > 0 && len <= static_cast<int>(range)) {
-    // lim_one: offset in merged sequence where overlap starts
-    const size_t lim_one = one_right - one_left;
-    copy(one.seq.begin(), one.seq.begin() + lim_one, seq.begin());
-    copy(one.scr.begin(), one.scr.begin() + lim_one, scr.begin());
-    
-    const size_t lim_two = two_right - two_left;
-    copy(two.seq.end() - lim_two, two.seq.end(), seq.end() - lim_two);
-    copy(two.scr.end() - lim_two, two.scr.end(), scr.end() - lim_two);
-    
-    // deal with overlapping part
-    if (overlap_start < overlap_end) {
-      const size_t one_bads = count(one.seq.begin(), one.seq.end(), 'N');
-      const int info_one = one.seq.length() - (one_bads + one.r.get_score());
+  if (len > 0) {
+    string seq(len, 'N');
+    string scr(len, 'B');
+    if (len <= static_cast<int>(range)) {
+      // lim_one: offset in merged sequence where overlap starts
+      const size_t lim_one = one_right - one_left;
+      copy(one.seq.begin(), one.seq.begin() + lim_one, seq.begin());
+      copy(one.scr.begin(), one.scr.begin() + lim_one, scr.begin());
       
-      const size_t two_bads = count(two.seq.begin(), two.seq.end(), 'N');
-      const int info_two = two.seq.length() - (two_bads + two.r.get_score());
+      const size_t lim_two = two_right - two_left;
+      copy(two.seq.end() - lim_two, two.seq.end(), seq.end() - lim_two);
+      copy(two.scr.end() - lim_two, two.scr.end(), scr.end() - lim_two);
       
-      // use the mate with the most info to fill in the overlap
-      if (info_one >= info_two)
-	fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
-      else
-	fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
+      // deal with overlapping part
+      if (overlap_start < overlap_end) {
+        const size_t one_bads = count(one.seq.begin(), one.seq.end(), 'N');
+        const int info_one = one.seq.length() - (one_bads + one.r.get_score());
+        
+        const size_t two_bads = count(two.seq.begin(), two.seq.end(), 'N');
+        const int info_two = two.seq.length() - (two_bads + two.r.get_score());
+        
+        // use the mate with the most info to fill in the overlap
+        if (info_one >= info_two)
+          fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
+        else
+          fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
+      }
     }
+    
+    merged = one;
+    merged.r.set_start(pos_str ? one.r.get_start() : two.r.get_start());
+    merged.r.set_end(merged.r.get_start() + len);
+    merged.r.set_score(one.r.get_score() + two.r.get_score());
+    merged.seq = seq;
+    merged.scr = scr;  
+    const string name(one.r.get_name());
+    merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
   }
-  
-  merged = one;
-  merged.r.set_start(pos_str ? one.r.get_start() : two.r.get_start());
-  merged.r.set_end(merged.r.get_start() + len);
-  merged.r.set_score(one.r.get_score() + two.r.get_score());
-  merged.seq = seq;
-  merged.scr = scr;  
-  const string name(one.r.get_name());
-  merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
 }
 
 inline static bool
@@ -217,9 +224,9 @@ main(int argc, const char **argv) {
           int len = 0;
           merge_mates(suffix_len, MAX_SEGMENT_LENGTH,
                       dangling_mates[read_name].mr, samr.mr, merged, len);
-          if (len > 0 && len <= static_cast<int>(MAX_SEGMENT_LENGTH)) 
+          if (len <= static_cast<int>(MAX_SEGMENT_LENGTH)) 
             out << merged << endl;
-          else
+          else if (len > 0)
             out << dangling_mates[read_name].mr << endl << samr.mr << endl;
           dangling_mates.erase(read_name);
         }
