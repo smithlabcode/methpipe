@@ -20,6 +20,13 @@ It has been tested on MacOS X Snow Leopard and Linux.
   Scientific Library (GSL). If you don't already have this installed, you 
   will need to download and install it from http://www.gnu.org/software/gsl/
 
+  If gsl is not installed in the default path, 
+  ```
+  export CPATH=/path_to_my_gsl/include
+  export LIBRARY_PATH=/path_to_my_gsl/lib
+  ```
+  will add search paths for compiling and linking. 
+
 * Step 1
   
   To build the binaries, type the following, where '>' is your prompt and the
