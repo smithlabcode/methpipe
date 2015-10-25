@@ -18,7 +18,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = radmeth methdiff dmr make_table
+PROGS = radmeth methdiff dmr
 
 CXX = g++
 CFLAGS = -Wall -fmessage-length=50
