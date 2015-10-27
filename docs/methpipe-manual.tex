@@ -27,10 +27,9 @@
 
 \maketitle
 
-
 The \meth{} software package is a comprehensive pipeline and set of
 tools for analyzing whole genome bisulfite sequencing data
-(BS-seq). This manual explains the stages in our pipeline, how to use
+(WGBS). This manual explains the stages in our pipeline, how to use
 the analysis tools, and how to modify the pipeline for your specific
 context.
 
@@ -55,11 +54,12 @@ Users are assumed to be quite familiar with UNIX/Linux and related
 concepts ({\em e.g.} building software from source, using the command
 line, shell environment variables, etc.).
 
-It is also critical that users are familiar with BS-seq experiments,
-especially the bisulfite conversion reaction, and how this affects
-what we observe in the sequenced reads. This is especially important
- if paired-end sequencing is used. If you do not understand these
- concepts, you will likely run into major problems trying to customize our pipeline.
+It is also critical that users are familiar with bisulfite sequencing
+experiments, especially the bisulfite conversion reaction, and how this 
+affects what we observe in the sequenced reads. This is especially important
+if paired-end sequencing is used. If you do not understand these
+concepts, you will likely run into major problems trying to customize our 
+pipeline.
 
 \section{Methylome construction}
 
@@ -77,7 +77,7 @@ thymines (T) during PCR amplification. These PCR products are referred
 to as T-rich sequences as a result of their high thymine
 constitution. With paired-end sequencing experiments, the compliments
 of these T-rich sequences are also sequenced.  These complimentary
-sequences have high adenosine (A) constitution (A is the complimentary
+sequences have high adenine (A) constitution (A is the complimentary
 base pair of T), and are referred to as A-rich sequences. Mapping
 consists of finding sequence similarity, based on context specific
 criteria, between these short sequences, or reads, and an orthologous
@@ -86,13 +86,12 @@ reference genome, either a cytosine (C) or a thymine (T) in a read is
 considered a valid match for a cytosine in the reference genome. For
 A-rich reads, an adenine or a guanine is considered a valid match for
 a guanine in the reference genome. The mapping of reads to the
-reference genome by \prog{rmapbs} is described below. If you choose
+reference genome by \prog{WALT} is described below. If you choose
 to map reads with a different tool, make sure that your post-mapping
 files are appropriately formatted for the next components of the
 \meth{} pipeline (necessary file formats for each step are covered in
-the corresponding sections).  The default behavior of rmapbs is to
-assume that reads are T-rich and map accordingly. To change the
-mapping to suit A-rich reads, add the \op{-A} option.
+the corresponding sections).  The default behavior of \prog{WALT} is to
+assume that reads are T-rich and map accordingly.
 
 \paragraph{Input and output file formats:} We assume that the original
 data is a set of sequenced read files, typically as produced by
@@ -107,13 +106,24 @@ previous steps should consist of eight columns of data. The first six
 columns are the traditional components of a BED file (chromosome,
 start, end, read name, number of mismatches, strand), while the last
 two columns consist of sequence and quality scores respectively. These
-mapped reads files will be the input files for the following two
-\meth{} components, \prog{bsrate} and \prog{methcounts}.
+mapped reads files will be the input files for the postprocessing quality
+control and analysis programs to follow, including \prog{bsrate} and
+\prog{methcounts}.
+
+\prog{WALT} operates by preprocessing the reference genome into a large
+index, where k-mers of set length are used as keys to a list of potential
+mapping locations for reads that begin with their sequence. Keeping in
+mind that this file may be quite large (~40GB for mm10), to produce
+this index run the following command:
+
+\begin{verbatim}
+makedb -c <genome folder or file> -o <index file>
+\end{verbatim}
 
 \paragraph{Decompressing and isolating paired-end reads:}
 Sometimes paired-end reads are stored in the same FASTQ file.  Because
 we treat these paired ends differently, they must be separated into
-two files and run through \prog{rmapbs} with different parameters.
+two files and run through \prog{WALT} with different parameters.
 
 If your data is compressed as a Sequenced Read Archive, or SRA file, you can
 decompress and split paired-end reads into two files at the same time using
@@ -131,66 +141,36 @@ $ sed -ne '1~8{N;N;N;p}' *.fastq > *_1.fastq
 $ sed -ne '4~8{N;N;N;p}' *.fastq > *_2.fastq
 \end{verbatim}
 
-\paragraph{Sequencing adaptors:}
+\paragraph{Sequencing adapters:}
+
 These are a problem in any sequencing experiment with short fragments
-relative to the lengths of reads.  \prog{rmapbs} identifies sequences at the
-ends of reads greater than 10bp belonging to sequencing adaptors and
+relative to the lengths of reads.  \prog{WALT} identifies sequences at the
+ends of reads greater than 10bp belonging to sequencing adapters and
 converts them to Ns to avoid potential mapping problems.
 
-Adaptor sequences must be supplied to \prog{rmapbs} through the \op{-C}
-option.  Keep in mind that if the adaptor sequence provided to you for
+Adapter sequences must be supplied to \prog{WALT} through the \op{-C}
+option.  Keep in mind that if the adapter sequence provided to you for
 the second paired end is displayed from 5' to 3', you will need to
-provide the reverse complement of the sequence to \prog{rmapbs}.
+provide the reverse complement of the sequence to \prog{WALT}.
 
-% In the last versions of the manual there was a section regarding "Trim
-% adapters" which was very useful. But I think it needs more
-% explanation.  I think it will be very useful to provide two examples
-% for SE and PE reads
-
-% for instance, if we assume that Illumina adapters are
-
-% SE adapter
-% 5' ACACTCTTTCCCTACACGACGCTCTTCCGATCT
-% PE1 adapter
-% 5' ACACTCTTTCCCTACACGACGCTCTTCCGATCT
-% PE2 adapter
-% 5' CGGTCTCGGCATTCCTGCTGAACCGCTCTTCCGATCT
-
-% what would be the right direction for adapters in the following commands
-% for single-end:
-
-% rmapbs -C (which direction?) -c hg18 -o results.mr sequence.fastq
-
-% for PE mate 1:
-
-% rmapbs -C ??? -c hg18 -o results.mr s_1_1_sequence.fastq
-
-% for PE mate 2:
-
-% rmapbs -C ??? -c hg18 -o results.mr s_1_2_sequence.fastq
-
-% Because as I told you previously, when I wanted to cut adapters before
-% mapping (e.g. cutadapt) So, if we assume SE:
-
-% cutadapt -a AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT .fastq
-
-% Also, in this case I suppose BS-seq library (Schubeler's data
-% "SRR299056.fastq") is directional, I only ever expect to sequence into
-% the second adapter which is 5' ACACTCTTTCCCTACACGACGCTCTTCCGATCT. I
-% needed to reverse complement the sequence because that would be the
-% way it is read during the sequencing.
+A more robust method for removing adapters is available via the Babraham
+Institute's Bioinformatics group, called \prog{trimgalore}. This program
+takes into account adapter contamination of fewer than 10 nucleotides and
+can handle mismatches with the provided sequence.
 
 \paragraph{Single-end reads:}
+
 When working with data from a single-end sequencing experiment, you
-will have T-rich reads only. \prog{rmapbs} expects T-rich reads as a
-default and so you do not have use the \op{-A} option to change
-mapping parameters. Execute the following command to map all of your
-single-end reads with \prog{rmapbs}:
+will have T-rich reads only. \prog{WALT} expects T-rich reads as a
+default. Execute the following command to map all of your
+single-end reads with \prog{WALT}:
+
 \begin{verbatim}
-$ rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq
+$ walt -i <index> -r <reads> -o <output file> [options]
 \end{verbatim}
 
 \paragraph{Paired-end reads:}
+
 When working with data from a paired-end sequencing experiment, you
 will have T-rich and A-rich reads. T-rich reads are often kept in
 files labeled with an ``\_1'' and A-rich reads are often kept in files
@@ -200,15 +180,15 @@ to $3^{\prime}$ reads or mate 2. We assume that the T-rich file and
 the A-rich contain the same number of reads, and each pair of mates
 occupy the same lines in their respective files. We will follow this
 convention throughout the manual and strongly suggest that you do the
-same. The program \prog{rmapbs-pe} program is used to map T-rich reads
-and A-rich reads simultaneously. Run the following command to map two
+same. Run the following command to map two
 reads files from a paired-end sequencing experiment:
+
 \begin{verbatim}
-$ rmapbs-pe -c hg18 -o Human_ESC.mr Human_ESC_1.fastq Human_ESC_2.fastq
+$ walt -i <index> -1 <t-rich reads> -2 <a-rich reads> -o <output file> [options]
 \end{verbatim}
 
-In brief, what happens internally in \prog{rmapbs-pe} is as follows.
-\prog{rmapbs-pe} finds candidate mapping locations for a T-rich mate
+In brief, what happens internally in \prog{WALT} is as follows.
+\prog{WALT} finds candidate mapping locations for a T-rich mate
 with CG-wildcard mapping, and candidate mapping locations for the
 corresponding A-rich mate with AG-wildcard mapping. If two candidate
 mapping locations of the pair of mates are within certain distance in
@@ -217,11 +197,13 @@ mates are combined into a single read (after reverse complement of the
 A-rich mate), referred to as a fragment. The overlapping region
 between the two mates, if any, is included once, and the gap region
 between them, if any, is filled with Ns. The parameter \op{-L} to
-\prog{rmapbs-pe} indicates the maximum size of fragments to allow to
-be merged. Here the fragment size is the sum of the read lengths at
+\prog{WALT} indicates the maximum size of fragments to allow to
+be merged.
+
+Here the fragment size is the sum of the read lengths at
 both ends, plus whatever distance is between them. So this is the
 length of the original molecule that was sequenced, excluding the
-sequencing adaptors. It is possible for a given read pair that the
+sequencing adapters. It is possible for a given read pair that the
 molecule was shorter than twice the length of the reads, in which case
 the ends of the mates will overlap, and so in the merged fragment will
 only be included once. Also, it is possible that the entire molecule
@@ -229,115 +211,25 @@ was shorter than the length of even one of the mates, in which case
 the merged fragment will be shorter than either of the read ends. If
 the two mates cannot be merged because they are mapped to different
 chromosomes or different strand, or they are far away from each other,
-\prog{rmapbs-pe} will throw each mate individually if its mapping
-position is unambiguous.
+\prog{WALT} will output each mate individually if its mapping
+position is unambiguous.  
 
-%%%%%%% the following way are deprecated because of rmapbs-pe
+\prog{WALT} provides a statistical summary
+of its mapping job in the ``mapstats'' file, which includes the total
+number and proportion of reads mapped, how many paired end mates were
+mapped together, and the distribution of fragment lengths computed by
+the matched pairs.
 
-% \prog{rmapbs} expects T-rich reads as a default and so for
-% paired-end sequencing data, you must run \prog{rmapbs} twice; once
-% for T-rich reads and once for A-rich reads. Execute the following
-% commands to map of your paired-end reads with \prog{rmapbs}; one
-% command for T-rich reads, and one for A-rich reads.
-% \begin{verbatim}
-% $ rmapbs -c hg18 -o Human_ESC_1.mr Human_ESC_1.fastq
-% \end{verbatim}
-% An example command for the second end (previously named like
-% \fn{s\_1\_2\_sequence.txt} from Illumina), which will contain all
-% A-rich reads:
-% \begin{verbatim}
-% $ rmapbs -c hg18 -o Human_ESC_2.mr -A Human_ESC_2.fastq
-% \end{verbatim}
-
-% \paragraph{Merging paired-end reads:}
-% As previously noted, paired-end sequencing produces both T-rich reads
-% and A-rich reads. Since methylation is estimated from the counts of T's
-% and C's (that map to C's in the reference genome), and A-rich reads
-% contain methylation information in the form of A and G counts (that
-% map to G's in the reference genome), A-rich reads must be transformed
-% into T-rich reads by reverse complementation. This allows methylation
-% information to be derived from the T's and C's in the new T-rich reads
-% that correspond to the A's and G's from the A-rich reads that were
-% reverse complemented.
-
-% A double counting error could arise if overlapping regions exist
-% between any two mates. To avoid this bias and maintain all other
-% important information, we merge read ends that are mapped sufficiently
-% closely and in the proper relative orientations. Any overlapping portion
-% is eliminated. Reverse complementation of A-rich reads, switching
-% the strand to which they mapped, and eliminating overlapping regions is
-% done by the program \prog{clipmates}. This tool works on mapped reads
-% files that been sorted by read id (read name). The following command
-% is an example of how to sort your mapped reads files with the Unix
-% \prog{sort} command before inputting them into \prog{clipmates}.
-% \begin{verbatim}
-% $ LC_ALL=C sort -k 4 -o Human_ESC_1.mr.name_srtd Human_ESC_1.mr
-% $ LC_ALL=C sort -k 4 -o Human_ESC_2.mr.name_srtd Human_ESC_2.mr
-% \end{verbatim}
-% The names of corresponding mates must only differ by the last
-% character (which should be a 1 for T-rich reads and 2 for A-rich
-% reads). If mates exist and are mapped correctly (to the same
-% chromosome, to correct strands, with correct orientation) within a
-% certain distance from each other (as specified by the \op{-L} option),
-% then the mates are combined into a single read, referred to as a
-% fragment, with Ns filling any existing gaps between mates. If mates
-% could not be matched, then each mate is present in the output
-% file by default.  Unmatched reads can be thrown out using the \op{-t}
-% option.  \prog{clipmates} takes two input files in mapped reads format:
-% one with T-rich mapped reads (\op{-T} option) and the other with A-rich
-% mapped reads (\op{-A} option). Execute the following command to run the
-% \prog{clipmates} component of \meth{} on T-rich and A-rich reads
-% (mates 1 and 2).
-% \begin{verbatim}
-% $ clipmates -L 1000 -S Human_ESC.clipstats -o Human_ESC_clipped.mr \
-%               -T Human_ESC_1.mr.name_srtd -A Human_ESC_2.mr.name_srtd
-% \end{verbatim}
-% The parameter \op{-L} to \prog{clipmates} indicates the maximum size
-% of fragments to allow to be merged. Here the fragment size is the sum
-% of the read lengths at both ends, plus whatever distance is between
-% them. So this is the length of the original molecule that was
-% sequenced, excluding the sequencing adaptors. It is possible for a
-% given read pair that the molecule was shorter than twice the length of
-% the reads, in which case the ends of the mates will overlap, and so in
-% the merged fragment will only be included once. Also, it is possible
-% that the entire molecule was shorter than the length of even one of
-% the mates, in which case the merged fragment will be shorter than
-% either of the read ends.
-
-% Typically the Illumina software adds a suffix of \lit{\#0/1} to the
-% names of the first-end reads and \lit{\#0/2} to the names of the
-% second-end reads. The \prog{clipmates} program must match up the
-% identical reads based on these names, and so by default ignores the
-% final character of the read names. However, some reads have their
-% names changed, for example many downloaded from SRA have identical
-% names for both first-end and second-end reads. In that case, the
-% entire read name must be matched, and so \prog{clipmates} has an
-% option to accomplish this:
-% \begin{verbatim}
-% $ clipmates -s 0 -L 1000 -S SRA_reads.clipstats -o SRA_reads_clipped.mr \
-%               -T SRA_reads_1.mr.name_srtd -A SRA_reads_2.mr.name_srtd
-% \end{verbatim}
-% The argument \lit{-s} is used to indicate that the suffix of the read
-% names to be ignored when matching up mates has length 0, so compare
-% the entire read name.
 
 \paragraph{Mapping reads in a large file:} 
-Mapping reads often takes a while, and mapping reads from BS-seq takes
+Mapping reads often takes a while, and mapping reads from WGBS takes
 even longer. It usually take quite a long time to map reads from a
 single large file with tens of millions of reads. If you have access
 to a cluster, one strategy is to launch multiple jobs, each working on
-a subset of reads simultaneously, and finally combine their output. I
-will typically map 3M reads at a time, and this takes at most 1.5GB of
-memory for the human genome and with 100nt reads. If all computing
-nodes can read the large input file (for example, through NFS), you
-may use the option \op{-T s} and \op{-N n} to instruct \prog{rmapbs}
-or \prog{rmapbs-pe} to map \op{n} reads starting from the $s^{th}$
-reads in the input file. For example, with following command
-\begin{verbatim}
-$ rmapbs -c hg18 -o Human_NHFF.mr Human_NHFF.fastq -T 1 -N 1000000
-\end{verbatim}
-\prog{rmapbs} will map the first million reads in the input file.   
-  
+a subset of reads simultaneously, and finally combine their output. 
+\prog{WALT} takes advantage of OpenMP to parallelize the process of
+mapping reads using the shared index.
+
 If each node can only access its local storage, dividing the set of
 reads to into $k$ equal sized smaller reads files, and mapping these
 all simultaneously on multiple nodes, will make the mapping finish
@@ -345,27 +237,31 @@ about $k$ times faster.  The unix \prog{split} command is good for
 dividing the reads into smaller parts. The following BASH commands
 will take a directory named \fn{reads} containing Illumina sequenced
 reads files, and split them into files containing at most 3M reads:
+
 \begin{verbatim}
 $ mkdir reads_split
 $ for i in reads/*.txt; do \
     split -a 3 -d -l 12000000 ${i} reads_split/$(basename $i); done
 \end{verbatim}
+
 Notice that the number of lines per split file is 12M, since we want
 3M reads, and there are 4 lines per read. If you split the reads like
-this, you will need to ``unsplit'' them after the mapping is done. Not
-a problem, just use the \prog{cat} command.
+this, you will need to ``unsplit'' them after the mapping is done. This
+can be done using the \prog{cat} command.
 
 \paragraph{Alternative mappers:}
 \label{sec:alternative-mappers}
-In addition to \prog{rmapbs} described above, users may also wish
+In addition to \prog{WALT} described above, users may also wish
 to process raw reads using alternative mapping algorithms, including
 BSSeeker, which uses a three nucleotide alphabet strategy, and BSMAP,
 which allows for gaps during mapping. The program \prog{to-mr} is used
 to convert the output from those mappers to the \fn{*.mr} format used in
 our pipeline. To convert BSMAP mapped read file in .bam format, run
+
 \begin{verbatim}
 $ to-mr -o Human_NHFF.mr -m bsmap Human_NHFF.bam
 \end{verbatim}
+
 where the option \op{-m} specifies that the original mapper is
 BSMAP. To obtain a list of alternative mappers supported by our
 converter, run \prog{to-mr} without any options. 
@@ -385,26 +281,29 @@ one to be the representative of the original DNA sequence.
 \prog{duplicate-remover} can take reads sorted by (chrom, start, end,
 strand). If the reads in the input file are not sorted, run the
 following sort command:
+
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_ESC.mr.sorted_start Human_ESC.mr
 $ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
        -o Human_NHFF.mr.sorted_start Human_NHFF.mr
 \end{verbatim}
+
 Next, execute the following command to remove duplicate reads:
+
 \begin{verbatim}
 $ duplicate-remover -S Human_ESC_dremove_stat.txt \
                       -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
 $ duplicate-remover -S Human_NHFF_dremove_stat.txt \
                       -o Human_NHFF.mr.dremove Human_NHFF.mr.sorted_start
 \end{verbatim}
+
 The duplicate-removal correction should be done on a per-library
 basis, i.e, one should pool all reads from multiple runs or lanes
 sequenced from the same library and remove duplicates. The reads from
 distinct libraries can be simply pooled without any correction as the
 reads from each library are originated from distinct DNA
-fragments. Please refer to \ref{sec:organ-datas-with} for recommended
-practices to organize a project with multiple runs and/or libraries.
+fragments.
 
 
 \subsection{Estimating bisulfite conversion rate}
@@ -420,7 +319,7 @@ treatment, etc., and these factors may impact the success rate of the
 reaction. Therefore, the bisulfite conversion rate, defined as the
 rate at which unmethylated cytosines in the sample appear as Ts in the
 sequenced reads, should be measured and should be very high ({\em
-  e.g.} $>0.99$) for the experiment to be considered a success.
+e.g.} $>0.99$) for the experiment to be considered a success.
 
 Measuring the bisulfite conversion rate this way requires some kind of
 control set of genomic cytosines not believed to be methylated. Three
@@ -520,9 +419,10 @@ and pluripotent mammalian cells such as embryonic stem cells. This type
 of methylation is asymmetric since the cytosines on the complementary 
 strand do not necessarily have the same methylation status.
 
-The input is in MappedRead format, and the reads should be sorted
+The input is in mapped read format, and the reads should be sorted
 according to (chrom, end, start, strand). If your reads are not
 sorted, run:
+
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
        -o Human_ESC.mr.sorted_end_first Human_ESC.mr
@@ -610,9 +510,9 @@ with CHH like \fn{*\_CHH.meth}.
 \label{sec:symmetric-cpg}
 Since symmetric methylation level is the common case for CpG methylation,
 we have designed all of our analysis tools based on symmetric CpG sites, 
-which means each CpG pair generated by \texttt{methcounts} should be
-merged to one. The \texttt{symmetric-cpgs} program is used to merge those
-symmetric CpG pairs. It works for \texttt{methcounts} output with either
+which means each CpG pair generated by \prog{methcounts} should be
+merged to one. The \prog{symmetric-cpgs} program is used to merge those
+symmetric CpG pairs. It works for \prog{methcounts} output with either
 all cytosines or CpGs only (generated with \texttt{-n} option).
 
 \begin{verbatim}
@@ -698,7 +598,7 @@ $ levels -o Human_ESC.levels Human_ESC.meth
 \section{Methylome analysis}
 \label{sec:high-level-analys}
 
-The following tools will analyze much of the information about CpG's
+The following tools will analyze much of the information about CpGs
 generated in previous steps and produce methylome wide profiles of
 various methylation characteristics. In the context of Methpipe, these
 characteristics consist of hypomethylated regions (HMRs), partially
@@ -751,9 +651,11 @@ can be extracted and processed by using \texttt{symmetric-cpgs}
 $ symmetric-cpgs -o Human_ESC_CpG.meth Human_ESC_ALL.meth
 $ hmr -o Human_ESC.hmr Human_ESC.meth
 \end{verbatim}
+
 The output will be in BED format, and the indicated strand (always
 positive) is not informative. The name column in the output will just
-assign a unique name to each HMR. Each time the \prog{hmr} is run it
+assign a unique name to each HMR, and the score column indicates how
+many CpGs exist inside the HMR. Each time the \prog{hmr} is run it
 requires parameters for the HMM to use in identifying the HMRs. We
 usually train these HMM parameters on the data being analyzed, since
 the parameters depend on the average methylation level and variance of
@@ -763,10 +665,12 @@ parameters trained on one data set to find HMRs in another. The option
 \op{-p} indicates a file in which the trained parameters are written,
 and the argument \op{-P} indicates a file containing parameters (as
 produced with the \op{-p} option on a previous run) to use:
+
 \begin{verbatim}
 $ hmr -p Human_ESC.hmr.params -o Human_ESC.hmr Human_ESC.meth
 $ hmr -P Human_ESC.hmr.params -o Human_NHFF_ESC_params.hmr Human_NHFF.meth
 \end{verbatim}
+
 In the above example, the parameters were trained on the ESC
 methylome, stored in the file \fn{Human\_ESC.hmr.params} and then
 used to find HMRs in the NHFF methylome.
@@ -775,10 +679,6 @@ seems to have very strange methylation levels through much of the
 genome, and the HMRs would be more comparable with those from some
 other methylome if the model were not trained on that strange
 methylome.
-
-%% Meaning of scores
-
-%% Verbose output
 
 \paragraph{Plant (and similar) methylomes:} 
 The plant genomes, exemplified by \textit{A. thaliana}, are devoid of
@@ -796,12 +696,15 @@ of hyper-methylated CpGs with the \prog{hmr} program. Since \prog{hmr}
 is designed to find hypo-methylated regions, one needs first to invert
 the methylation levels in the \prog{methcounts} output file as
 follows:
+
 \begin{verbatim}
 $ awk '{$5=1-$5; print $0}' Col0.meth > Col0_inverted.meth
 \end{verbatim}
+
 Next one may use the \prog{hmr} program to find ``valleys'' in the
 inverted Arabidopsis methylome, which are the hyper-methylated regions
 in the original methylome. The command is invoked as below
+
 \begin{verbatim}
 $ hmr -o Col0.hmr Col0_inverted.meth
 \end{verbatim}
@@ -816,9 +719,11 @@ composite HyperMRs. The \prog{hypermr} program, which implements a
 three-state HMM, is used to identify such HyperMRs. Suppose the
 \prog{methcounts} output file is \fn{Col0\_Meth.bed}, to find HyperMRs
 from this dataset, run
+
 \begin{verbatim}
 $ hypermr -o Col0.hypermr Col0.meth
 \end{verbatim}
+
 The output file is a 6-column BED file. The first three columns give
 the chromosome, starting position and ending position of that
 HyperMR. The fourth column starts with the ``hyper:'', followed by the
@@ -848,8 +753,8 @@ PMRs:
 $ hmr -partial -o Human_ESC.pmr Human_ESC.meth
 \end{verbatim}
 
-%%%% Cancer
-\paragraph{Giant HMRs observed in cancer samples (AKA PMDs):}
+
+\paragraph{Partial methylation in cancer samples (AKA PMDs):}
 
 Huge genomic blocks with abnormal hypomethylation have been
 extensively observed in human cancer methylomes and more recently in
@@ -888,6 +793,14 @@ should be cautious with using such PMD calls in their further
 studies. In addition, not all methylomes have PMDs, some initial
 visualization or summary statistics can be of help in deciding whether
 to use \prog{pmd} program on the methylome of interest.
+
+In addition, calling HMRs in samples with PMDs can be difficult: PMDs
+can obscure the sites we are trying to identify by providing an alternative
+foreground methylation state to the focused, very low methylation typically
+at promoter regions. A good workaround for this is to call PMDs first, and
+then call HMRs separately inside and outside of PMDs. This ensures that
+the foreground methylation state learned by the HMM in both types of background
+is the focused hypomethylation at CpG islands and promoter regions.
 
 \subsection{Differential Methylation}
 \label{sec:differential_methylation}
@@ -1356,14 +1269,18 @@ file and a sorted BED format file of genomic ``regions of interest''
 (hence the ``roi'' in \prog{roimethstat}).  If either file is not
 sorted by (chrom,end,start,strand) it can be sorted using the
 following command:
+
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
          -o regions_ESC.meth.sorted regions_ESC.meth
 \end{verbatim}
+
 From there, \prog{roimethstat} can be run as follows:
+
 \begin{verbatim}
 $ roimethstat -o regions_ESC.meth regions.bed Human_ESC.meth.sorted
 \end{verbatim}
+
 The output format is also 6-column BED, and the score column now takes
 the average methylation level through the interval, weighted according
 to the number of reads informing about each CpG or C in the
@@ -1376,6 +1293,7 @@ once, (3) the number of observations in reads indicating in the region
 that indicate methylation, and (4) the total number of observations
 from reads in the region. The methylation level is then (3) divided by
 (4). Example output might look like:
+
 \begin{verbatim}
 chr1  3011124  3015902  REGION_A:18:18:105:166  0.63253  +
 chr1  3015904  3016852  REGION_B:5:5:14:31  0.451613  +
@@ -1383,6 +1301,7 @@ chr1  3017204  3017572  REGION_C:2:2:2:9  0.222222  -
 chr1  3021791  3025633  REGION_D:10:10:48:73  0.657534  -
 chr1  3026050  3027589  REGION_E:2:4:4:32:37  0.864865  -
 \end{verbatim}
+
 Clearly if there are no reads mapping in a region, then the
 methylation level will be undefined. By default \prog{roimethstat}
 does not output such regions, but sometimes they are helpful, and
@@ -1390,28 +1309,14 @@ using the \op{-P} flag will force \prog{roimethstat} to print these
 lines in the output (in which case every line in the input regions
 will have a corresponding line in the output).
 
-% Example1: roimethstat -v -P -o methStats.bed -r regionInterest.bed methFile.bed
-% Example2: roimethstat -r regionInterest.bed -v -o methStats.bed methFile.bed -P
-% Typical Run: roimethstat -v methFile.bed -r regionInterest.bed -o methStats.bed
-
-% The output file will also be bed-formatted.  It will be in the
-% following format:
-
-% chr#    GenoStart    GenoEnd        name:cpgs:cpgs_with_reads:meth:reads    frac_cpgs_meth    Strand
-
-% The fourth column contains the following information:
-
-% 1) The name of each region
-% 2) The number of CpGs in each region
-% 3) The number of these CpGs that have at least 1 read
-% 4) The total number of methylation counts in this region
-% 5) The total number of reads in this region
-
-% To seperate the ':' delimited data into tab delimited data you can
-% use one of the following two commands:
-
-% 1) sed 's/:/\t/g' [filename]
-% 2) cat [filename] | tr ':' '\t'
+It is routinely useful to compute the average methylation state across a
+large number of target regions (for instance, refseq genes or all LINE
+retrotransposons). \prog{roimethstat} performs a binary search on the
+methcounts file to find the CpGs associated with each target region and
+loads only those CpGs to save memory. However, with many target regions
+this can be tedious. The -L option loads all lines of the methcounts
+file into memory, which saves time at the expense of an increased
+memory requirement.
 
 
 \subsection{Computing methylation entropy}
@@ -1446,8 +1351,6 @@ chr1	496	+	CpG	1.8784	35
 \end{verbatim}
 
 
-
-
 \subsection{Notes on data quality}
 \label{sec:notes-data-quality}
 The performance of our tools to identify higher-level methylation
@@ -1468,7 +1371,6 @@ fo the conversion rate.
 
 \section{Methylome visualization}
 \label{sec:visualization}
-
 
 \subsection{Creating UCSC Genome Browser tracks}
 \label{sec:browser}
@@ -1556,7 +1458,7 @@ $ bedToBigBed Human_ESC.hmr hg19.chrom.sizes Human_ESC.hmr.bb
 \end{verbatim}
 \end{enumerate}
 
-\subsection{Converting browser tracks to \texttt{methcounts} format}
+\subsection{Converting browser tracks to \prog{methcounts} format}
 All tracks in MethBase are available to download through sample description
 page (See \url{http://smithlabresearch.org/software/methbase/} for details). 
 We provide a python script for converting browser tracks back to original
@@ -1595,166 +1497,6 @@ Use the path found in Step 2 as \texttt{PATH\_TO\_PROGRAM} for parameter
 
 \end{enumerate}
 
-% \subsection{Creating custom tracks for direct upload}
-
-% If you do not have access to a web server on which to provide BigBed
-% or BigWig files, you can still create tracks to display methylation
-% levels. Note that in this case the tracks will be huge and must be
-% transferred in their entirety to the remote UCSC Genome
-% Browser. Likely this is not an optimal way to be visualizing data.  To
-% create a track for methylation level at single CpG sites:
-% \begin{verbatim}
-% $ cut -f 1-3,5 Human_ESC.meth > Human_ESC.meth.bedGraph
-% $ gzip Human_ESC.meth.bedGraph
-% \end{verbatim}
-% To create a track for coverage at single CpG sites:
-% \begin{verbatim}
-% $ tr ':' '[Ctrl+v TAB]' < Human_ESC.meth | \
-%          cut -f 1-3,5 > Human_ESC.reads.bedGraph
-% $ gzip Human_ESC_CpG.reads.bedGraph
-% \end{verbatim}
-% Note that hitting \lit{Ctrl+v} then hitting \lit{TAB} produces the tab
-% character in a terminal window -- not needed when passing this as a
-% delimiter to \prog{awk}. These files can be directly uploaded to the
-% browser. If track headers are desired, they can be included in the
-% \fn{.bedGraph} files before using \prog{gzip}.  
-% %%TODO: fix this below
-% {\em Need a concise way here to produce tracks for all Cs, not just
-%   CpGs.}
-
-% % As for a track for methylation level at all Cs:
-% % \begin{verbatim}
-% % $ grep - Human_ESC_Cs_methcounts.bed | awk '{print $1"\t"$2"\t"$3"\t"$5*-1}' > temp3;
-% % $ grep + Human_ESC_Cs_methcounts.bed | awk '{print $1"\t"$2"\t"$3"\t"$5}' > temp4;
-% % $ cat temp3 temp4 | sort | sed -e "1i\\track type="bedGraph" name="Human_ESC_Cs_methcounts" \
-% % color=0,128,0 visiblity=full" > Human_ESC_Cs_methcounts.bedGraph> ;
-% % rm temp3 temp4
-% % gzip Human_ESC_Cs_methcounts.bedGraph
-% % \end{verbatim}
-
-
-\section{Organizing projects with multiple replicates and/or libraries}
-\label{sec:organ-datas-with}
-
-Often to build a methylome for a particular population of cells one
-obtains multiple biological replicates. For each of these biological
-replicates, one may construct more than one bisulfite sequencing
-library, and these correspond to technical replicates. Finally, a
-given library might be sequenced multiple times, and a given
-sequencing run might produce one or more files of reads (for example,
-corresponding to different tiles or lanes on an Illumina
-sequencer). We organize data to reflect these aspects of the experiment.
-
-\paragraph{Biological replicates}
-Distinct biological replicates refer to distinct cells from which DNA
-was extracted. Typically these are obtained form different individuals
-or different cell cultures. If one is building the ``refernce''
-methylome for a given cell type, then eventually these different
-biological replicates might be merged. However, the purpose of doing
-the replicates separately is so that the biological variation can be
-understood. Therefore, certain tests would usually be done prior to
-combining the different biological replicates. Fortunately, the
-methylomes corresponding to different biological replicates can be
-done at much lower coverage, because testing for biological variation
-does not require conducting all the kinds of analyses we would want to
-conduct on the reference methylome. Distinct biological replicates are
-necessarily distinct technical replicates, and so to combine them we
-would follow the same procedure as combining technical replicates (see
-below). If the name of our methylome is \texttt{Human\_ESC} then we
-would organize our biological replicates in a directory structure like
-this:
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/
-./Human_ESC/Human_ESC_R2/
-./Human_ESC/Human_ESC_R3/
-\end{verbatim}
-The properties that we would typically associate with a biological
-replicate include the average methylation levels through different
-parts of the genome. When comparing biological replicates we might
-observe some differences in average methylation levels through
-promoters, for example. We would hope and expect these to be minimal,
-resulting either from noise due to sampling (when coverage is low) or
-variation associated with genotype.
-
-\paragraph{Distinct libraries}
-The distinct libraries constitute technical replicates.  Each
-technical replicate may have a different distribution of fragment
-lengths (as measured using paired-end information or amount of
-adaptors present in reads), and possibly a different bisulfite
-conversion rate.  Despite these differences, we should generally see
-similar methylation levels. If we compare methylation levels between
-methylation profiles from different library preparations, using a
-defined set of intervals, we would expect to see very little
-difference. The difference we do observe should reflect noise due to
-sampling in regions with low coverage.  Because methylation data from
-two different libraries reflects different actual molecules, combining
-data from different libraries is easy. The methylation levels in
-\fn{methcounts} files can be combined by simply merging the individual
-\fn{methcounts} files.  Similarly, the \fn{methstates} files can be
-concatenated and the re-sorted. Within a biological replicate, we
-organize libraries as follows.
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L2/
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L3/
-\end{verbatim}
-
-\paragraph{Reads files within a library}
-For a given library, having a simple pipeline is facilitated by having
-a uniform scheme for naming the data files. The following example
-illustrates files corresponding to 4 sets of reads, two from
-paired-end sequencing and two from single-end sequencing:
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/1_1.fq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/1_2.fq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/2_1.fq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/2_2.fq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/3.fq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/4.fq
-\end{verbatim}
-The files \fn{1\_1.fq} and \fn{1\_2.fq} are corresponding left and
-right mates files. These must be processed together so that the
-corresponding mates can be joined. The file \fn{3.fq} is from a
-single-end sequencing run. We recommend using symbolic links to set up
-these filenames, and to keep subdirectories corresponding to the
-individual sequencing runs for the same library.
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run1/s_1_1_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run1/s_1_2_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run2/LID12345_NoIndex_L001_R1_001.fastq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run2/LID12345_NoIndex_L001_R2_001.fastq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run3/s_1_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/Run3/s_2_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/1_1.fq --> Run1/s_1_1_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/1_2.fq --> Run1/s_1_2_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/2_1.fq --> Run2/LID12345_NoIndex_L001_R1_001.fastq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/2_2.fq --> Run2/LID12345_NoIndex_L001_R2_001.fastq
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/3.fq --> Run3/s_1_sequence.txt
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/4.fq --> Run3/s_2_sequence.txt
-\end{verbatim}
-This kind of organization accomplishes four things: (1) it keeps read
-files from different runs separate, (2) it provides a place to keep
-metadata for the different runs, (3) it allows the reads files to
-exist with their original names which might not be different between
-runs, and (4) it ensures a simple naming scheme for the data files
-needed by our pipeline.
-
-\paragraph{The results directories}
-For the example scheme we have been describing, we would organize the
-results in the following directories.
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/results/
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L2/results/
-./Human_ESC/Human_ESC_R1/results/
-./Human_ESC/Human_ESC_R2/Human_ESC_R2_L1/results/
-./Human_ESC/Human_ESC_R2/Human_ESC_R2_L2/results/
-./Human_ESC/Human_ESC_R2/results/
-./Human_ESC/Human_ESC_R3/Human_ESC_R3_L1/results/
-./Human_ESC/Human_ESC_R3/Human_ESC_R3_L2/results/
-./Human_ESC/Human_ESC_R3/results/
-./Human_ESC/results/
-\end{verbatim}
-
 
 \section{Auxiliary tools}
 \label{sec:auxiliary-tools}
@@ -1777,183 +1519,6 @@ It will return the approximate number of lines in this file and by
 dividing the above number by 4, you get the approximate number of
 reads in that file. The \prog{lc\_approx} can be hundreds of times
 faster than the unix tool \prog{wc -l}.
-
-\subsection{Automating methylome analysis}
-\label{sec:automate-library-level}
-Two bash scripts have been provided to perform quick and consistent analysis
-on the individual library level and aggregated biological replicate level.
-For each library in a project, \prog{library} sorts, removes duplicate
-reads, calculates the bisulfite conversion rate, runs \prog{methcounts}, and
-runs \prog{levels}. Keep in mind that this will produce \prog{methcounts}
-output for all cytosine contexts, which corresponds to a 25GB file for the
-human genome. For RRBS data, the \prog{duplicate-remover} command should
-be commented.
-
-To run \prog{library}, navigate to the library's results directory --
-the structure should look something like
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/Human_ESC_R1_L1/results_mm9/
-\end{verbatim}
-and should contain a single mapped reads file. To run, specify the directory
-where \prog{methpipe} binaries can be found, the directory where chromosome
-files can be found, and the base name of the library or replicate you are
-working on:
-\begin{verbatim}
-library /home/user/Desktop/methpipe/trunk/bin \
-        /home/user/Desktop/mm9_chroms Human_ESC_R1_L1
-\end{verbatim}
-
-When \prog{library} has been run on all individual libraries, the
-results can be merged to produce results for the biological replicate using
-\prog{merge-methylomes}. This merges bisulfite conversion rate and methcounts
-statistics, and then uses them to generate HMRs, PMRs, and AMRs. To run
-\prog{merge-methylomes}, navigate to the biological replicate's results
-directory -- the structure should look something like
-\begin{verbatim}
-./Human_ESC/Human_ESC_R1/results_mm9/
-\end{verbatim}
-and should be empty when the program starts. To run, specify the same command
-line arguments as above, with the biological replicate as the base name:
-\begin{verbatim}
-merge-methylomes /home/user/Desktop/methpipe/trunk/bin \
-       /home/user/Desktop/mm9_chroms Human_ESC_R1 L
-\end{verbatim}
-
-In some cases, it is useful to merge biological replicates rather than
-libraries. In this case, the fourth parameter of
-\prog{merge-methylomes} should be \op{R}.
-
-All run configurations for the programs in these scripts are
-consistent with data in methbase, and therefore direct comparison is
-appropriate. These tools should provide a convenient, consistent
-workflow for researchers to quickly analyze and compare their
-methylomes with those made publicly available in methbase.
-
-\subsection{Mapping methylomes between species}
-\label{sec:mapp-methyl-betw}
-Mapping methylomes between species builds on the \prog{liftOver} tool
-provided by UCSC Genome Browser
-\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
-consuming to convert each \prog{methcounts} output file from one
-assembly to another using the UCSC \prog{liftOver} tool, given that
-they all should have the same locations but different read counts. 
-Therefore, we use \prog{liftOver} to generate an index file between 
-two assemblies, and provide the \prog{fast-liftover} tool.
-
-Suppose we have downloaded the \prog{liftOver} tool and the chain file
-\fn{mm9ToHg19.over.chain.gz} from the UCSC Genome Browser website.  If
-we have a \prog{methcounts} file \fn{Mouse\_BCell\_mm9.meth}
-of CpG sites or all cytosines in mm9. Entries in
-\fn{Mouse\_BCell\_mm9.meth} look like
-\begin{verbatim}
-chr1  3005765  +  CpG  0.166667  6
-chr1  3005846  +  CpG  0.5        10
-chr1  3005927  +  CpG  0         9
-\end{verbatim}
-
-We would like to lift it over to the human genome hg19, and generate
-an index file \fn{mm9-hg19.index} to facilitate later lift-over
-operations from mm9 to hg19, and keep a record of unlifted mm9
-cytosine positions in the file \fn{mm9-hg19.unlifted}. 
-First, prepare the input \fn{mm9\_cpg.bed} file for \prog{liftOver} into 
-the following BED format: 
-\begin{verbatim}
-chr1  3005765 	3005766  chr1:3005765:3005766:+  0  +
-chr1  3005846  3005847  chr1:3005846:3005847:+  0  +
-chr1  3005927  3005928  chr1:3005927:3005928:+  0  +
-\end{verbatim}
-Note that the 4\textsuperscript{th} column is the genomic location data linked with colons. 
-
-Then, run UCSC Genome Browser tool \fn{liftOver} as follows:
-\begin{verbatim}
-./liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz  mm9-hg19.index mm9-hg19.unlifted
-\end{verbatim}
-
-The generated index file \fn{mm9-hg19.index} will be a BED format
-file in hg19 coordinates, with entries like
-\begin{verbatim}
-chr8	56539820	56539821  chr1:3005765:3005766:+	0	-
-chr8	56539547	56539548  chr1:3005846:3005847:+	0	-
-chr8	56539209	56539210  chr1:3005927:3005928:+	0	-
-\end{verbatim}
-where the 4\textsuperscript{th} column contains the genomic position of the cytosine
-site in mm9 coordinates.
-
-After the index file is generated, we can use the \prog{fast-liftover} 
-program on any mm9 \prog{methcount} file to lift it to hg19: 
-\begin{verbatim}
-./fast-liftover -i mm9-hg19.index -f SAMPLE_mm9.meth -t SAMPLE_hg19.meth.lift -v
-\end{verbatim}
-The \op{-p} option should be specified to report positions on the positive 
-strand of the target assembly.  
-
-Before using the lifted methcount file, make sure it is sorted properly.
-\begin{verbatim}
-LC_ALL=C sort -k1,1 -k2,2g -k3,3 SAMPLE_hg19.meth.lift -o SAMPLE_hg19.meth.sorted
-\end{verbatim}
- 
-The \prog{liftOver} program may report multiple mm9 sites mapped to a same position in hg19. 
-%For example, the index file might have two following records:
-%\begin{verbatim}
-%chr1	77595107	77595108	chr1:16053645:16053646:CpG:+	0	+
-%chr1	77595107	77595108	chr1:20444502:20444503:CpG:+	0	-
-%\end{verbatim}
-In this situation, we may either collapse read counts at those mm9 sites, 
-or keep the data for only one mm9 site. We can use the \fn{lift-filter} program 
-to achieve these two options. Use
-\begin{verbatim}
-./lift-filter -o SAMPLE_hg19.meth  SAMPLE_hg19.meth.sorted -v
- \end{verbatim}
-to merge data from mm9 sites lifted to the same hg19 position. Use  
-the option \op{-u} to keep the first record of duplicated sites. 
-
-%Mapping methylomes between species builds on the the \prog{liftOver}
-%tool provided by UCSC Genome Browser
-%\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
-%consuming to directly convert large \prog{methcounts} output files
-%containing millions of CpG sites. We therefore provide the
-%\prog{fastLiftOver} tool.
-%\prog{fastLiftOver} requires its own chain files which are generated
-%with the UCSC \prog{liftOver} program. To generate \prog{fastLiftOver}
-%chain file from the mouse mm9 genome to the human hg19 genome, you
-%need a BED file (CpGs-mm9.bed) with all CpG sites in the mouse genome
-%and the \prog{liftOver} chain file (mm9ToHg19.over.chain) from the
-%UCSC Genome Browser website. The BED file of mm9 CpG sites follows the
-%format below, with the fourth column composed of the chromosome name
-%and the starting location.
-%\begin{verbatim}
-%chr1 3000573 3000574 chr1:3000573
-%chr1 3000725 3000726 chr1:3000725
-%chr1 3000900 3000901 chr1:3000900
-%...
-%\end{verbatim}
-%First, we will use the UCSC \prog{liftOver} program to map the mouse
-%CpG sites to the human reference genome:
-%\begin{verbatim}
-%liftOver CpGs-mm9.bed mm9ToHg19.over.chain CpGs-mm9Tohg19.bed CpGs-mm9Tohg19-left.bed
-%\end{verbatim}
-%Next, we need to sort the file \prog{CpGs-mm9Tohg19.bed}, that
-%contains CpG sites mapped to the human reference genome
-%\begin{verbatim}
-%export LC_ALL=C;
-%sort -k1,1 -k2,2n CpGs-mm9Tohg19.bed -o tmpfile
-%mv tmpfile CpGs-mm9Tohg19.bed
-%\end{verbatim}
-%The file CpGs-mm9Tohg19.bed will be the \prog{fastLiftOver} chain file
-%for mapping mouse methcounts output files to the human reference
-%genome. For example, if we want to map the mouse methcounts file
-%(Mouse\_ESC.meth) to the human reference genome, we may run the
-%following command:
-%\begin{verbatim}
-%fastLiftOver -f Mouse_ESC.meth -i CpGs-mm9Tohg19.bed -t Mouse_ESC-hg19.meth -v
-%\end{verbatim}
-%It is possible that multiple CpG sites in the mouse reference genome
-%are mapped to the same location in the human reference genome,
-%therefore the many-to-one conversion problem. In this situation, we
-%may use the average methylation level weighted by coverage. Please
-%checkout
-%\url{https://github.com/songqiang/MethPipe/blob/master/run-fastLiftOver.sh}
-%for example scripts that go over the whole procedure.
 
 \newpage
 
