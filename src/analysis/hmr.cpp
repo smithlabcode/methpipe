@@ -189,7 +189,8 @@ make_partial_meth(const vector<size_t> &reads,
 }
 
 static void
-shuffle_cpgs(const TwoStateHMMB &hmm,
+shuffle_cpgs(const size_t seed,
+             const TwoStateHMMB &hmm,
              vector<pair<double, double> > meth,
              vector<size_t> reset_points,
              const vector<double> &start_trans,
@@ -198,7 +199,8 @@ shuffle_cpgs(const TwoStateHMMB &hmm,
              const double fg_alpha, const double fg_beta,
              const double bg_alpha, const double bg_beta,
              vector<double> &domain_scores) {
-  srand(time(0) + getpid());
+  //srand(time(0) + getpid());
+  srand(seed);
   random_shuffle(meth.begin(), meth.end());
   vector<bool> classes;
   vector<double> scores;
@@ -304,6 +306,7 @@ main(int argc, const char **argv) {
 
     size_t desert_size = 1000;
     size_t max_iterations = 10;
+    size_t seed = 408;
 
     // run mode flags
     bool VERBOSE = false;
@@ -331,6 +334,8 @@ main(int argc, const char **argv) {
                       false, params_in_file);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file",
                       false, params_out_file);
+    opt_parse.add_opt("seed", 's', "specify random seed",
+                      false, seed);
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -428,7 +433,7 @@ main(int argc, const char **argv) {
     get_domain_scores(classes, meth, reset_points, domain_scores);
 
     vector<double> random_scores;
-    shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
+    shuffle_cpgs(seed, hmm, meth, reset_points, start_trans, trans, end_trans,
                  fg_alpha, fg_beta, bg_alpha, bg_beta, random_scores);
 
     vector<double> p_values;
