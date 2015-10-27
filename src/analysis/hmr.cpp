@@ -154,20 +154,29 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
   cpgs.erase(cpgs.begin() + j, cpgs.end());
   meth.erase(meth.begin() + j, meth.end());
   reads.erase(reads.begin() + j, reads.end());
-
+  double total_bases = 0;
+  double bases_in_deserts = 0;
   // segregate cpgs
   size_t prev_cpg = 0;
   for (size_t i = 0; i < cpgs.size(); ++i) {
     const size_t dist = (i > 0 && cpgs[i].same_chrom(cpgs[i - 1])) ?
       cpgs[i].get_start() - prev_cpg : numeric_limits<size_t>::max();
-    if (dist > desert_size)
+    if (dist > desert_size) {
       reset_points.push_back(i);
+      if(dist < numeric_limits<size_t>::max())
+        bases_in_deserts += dist;
+    }
+    if(dist<numeric_limits<size_t>::max())
+      total_bases += dist;
+    
     prev_cpg = cpgs[i].get_start();
   }
   reset_points.push_back(cpgs.size());
   if (VERBOSE)
     cerr << "CPGS RETAINED: " << cpgs.size() << endl
-         << "DESERTS REMOVED: " << reset_points.size() - 2 << endl << endl;
+         << "DESERTS REMOVED: " << reset_points.size() - 2 << endl
+         << "EFFECTIVE GENOME PROP.: " << 1.0-(bases_in_deserts/total_bases)
+         << endl << endl;
 }
 
 
