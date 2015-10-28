@@ -86,9 +86,8 @@ not_methpipe_load_cpgs(const string &cpgs_file,
 
   vector<GenomicRegion> cpgs_in;
   ReadBEDFile(cpgs_file, cpgs_in);
-  assert(check_sorted(cpgs_in));
   if (!check_sorted(cpgs_in))
-    throw SMITHLABException("regions not sorted in file: " + cpgs_file);
+    throw SMITHLABException("CpGs not sorted in file: " + cpgs_file);
 
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
@@ -396,7 +395,6 @@ main(int argc, const char **argv) {
 
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
-    assert(check_sorted(regions));
     if (!check_sorted(regions))
       throw SMITHLABException("regions not sorted in file: " + regions_file);
 
