@@ -289,7 +289,6 @@ get_cpg_stats(const bool METHPIPE_FORMAT,
       }
     }
   }
-  cerr << cpg << endl;
   cpg_in.clear();
 }
 
