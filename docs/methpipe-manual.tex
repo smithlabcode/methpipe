@@ -1404,7 +1404,7 @@ tracks or read coverage tracks, one can follow these steps:
 \item To create a \fn{bw} track for methylation level at single CpG
   sites, convert the methcounts file to bed format using:
 \begin{verbatim}
-$ awk '{print $1 "\t" $2 "\t" $2+1 "\t" $4":"$6 "\t" $5 "\t" $3}' \
+$ awk -v OFS="\t" '{print $1, $2, $2+1, $4":"$6, $5, $3}' \
       Human_ESC.meth > Human_ESC.meth.bed
 \end{verbatim}
 \item To create a \fn{bw} track from the bed format methcounts output, modify and use the following command:
@@ -1519,6 +1519,82 @@ It will return the approximate number of lines in this file and by
 dividing the above number by 4, you get the approximate number of
 reads in that file. The \prog{lc\_approx} can be hundreds of times
 faster than the unix tool \prog{wc -l}.
+
+
+\subsection{Mapping methylomes between species}
+\label{sec:mapp-methyl-betw}
+Mapping methylomes between species builds on the \prog{liftOver} tool
+provided by UCSC Genome Browser
+\url{http://genome.ucsc.edu/cgi-bin/hgLiftOver}. However it is time
+consuming to convert each \prog{methcounts} output file from one
+assembly to another using the UCSC \prog{liftOver} tool, given that
+they all should have the same locations but different read counts. 
+Therefore, we use \prog{liftOver} to generate an index file between 
+two assemblies, and provide the \prog{fast-liftover} tool.
+
+Suppose we have downloaded the \prog{liftOver} tool and the chain file
+\fn{mm9ToHg19.over.chain.gz} from the UCSC Genome Browser website.  If
+we have a \prog{methcounts} file \fn{Mouse\_BCell\_mm9.meth}
+of CpG sites or all cytosines in mm9. Entries in
+\fn{Mouse\_BCell\_mm9.meth} look like
+\begin{verbatim}
+chr1  3005765  +  CpG  0.166667  6
+chr1  3005846  +  CpG  0.5        10
+chr1  3005927  +  CpG  0         9
+\end{verbatim}
+
+We would like to lift it over to the human genome hg19, and generate
+an index file \fn{mm9-hg19.index} to facilitate later lift-over
+operations from mm9 to hg19, and keep a record of unlifted mm9
+cytosine positions in the file \fn{mm9-hg19.unlifted}. 
+First, prepare the input \fn{mm9\_cpg.bed} file for \prog{liftOver} into 
+the following BED format: 
+\begin{verbatim}
+chr1  3005765 	3005766  chr1:3005765:3005766:+  0  +
+chr1  3005846  3005847  chr1:3005846:3005847:+  0  +
+chr1  3005927  3005928  chr1:3005927:3005928:+  0  +
+\end{verbatim}
+Note that the 4\textsuperscript{th} column is the genomic location data linked with colons. 
+
+Then, run UCSC Genome Browser tool \fn{liftOver} as follows:
+\begin{verbatim}
+$ liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz  mm9-hg19.index mm9-hg19.unlifted
+\end{verbatim}
+
+The generated index file \fn{mm9-hg19.index} will be a BED format
+file in hg19 coordinates, with entries like
+\begin{verbatim}
+chr8	56539820	56539821  chr1:3005765:3005766:+	0	-
+chr8	56539547	56539548  chr1:3005846:3005847:+	0	-
+chr8	56539209	56539210  chr1:3005927:3005928:+	0	-
+\end{verbatim}
+where the 4\textsuperscript{th} column contains the genomic position of the cytosine
+site in mm9 coordinates.
+
+After the index file is generated, we can use the \prog{fast-liftover} 
+program on any mm9 \prog{methcount} file to lift it to hg19: 
+\begin{verbatim}
+$ fast-liftover -i mm9-hg19.index -f SAMPLE_mm9.meth -t SAMPLE_hg19.meth.lift -v
+\end{verbatim}
+The \op{-p} option should be specified to report positions on the positive 
+strand of the target assembly.  
+
+Before using the lifted methcount file, make sure it is sorted properly.
+\begin{verbatim}
+$ LC_ALL=C sort -k1,1 -k2,2g -k3,3 SAMPLE_hg19.meth.lift -o SAMPLE_hg19.meth.sorted
+\end{verbatim}
+ 
+The \prog{liftOver} program may report multiple mm9 sites mapped to a same position in hg19. 
+
+In this situation, we may either collapse read counts at those mm9 sites, 
+or keep the data for only one mm9 site. We can use the \fn{lift-filter} program 
+to achieve these two options. Use
+\begin{verbatim}
+$ lift-filter -o SAMPLE_hg19.meth  SAMPLE_hg19.meth.sorted -v
+ \end{verbatim}
+to merge data from mm9 sites lifted to the same hg19 position. Use  
+the option \op{-u} to keep the first record of duplicated sites. 
+
 
 \newpage
 
