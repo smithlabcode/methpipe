@@ -266,6 +266,13 @@ get_cpg_stats(const bool METHPIPE_FORMAT,
   find_start_line(chrom, start_pos, cpg_in);
 
   GenomicRegion cpg;
+  // find_start_line not necessarily locate at the start site.
+  // in this case the file pointer needs to be move forward,
+  // a little bit hopefully.
+  while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
+      (cpg.get_chrom() < chrom ||
+       (cpg.same_chrom(region) &&
+       cpg.get_end() < start_pos)));
   while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
          (cpg.same_chrom(region) &&
           cpg.get_end() <= end_pos)) {
