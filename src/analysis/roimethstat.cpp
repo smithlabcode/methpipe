@@ -252,6 +252,14 @@ load_cpg(const bool METHPIPE_FORMAT, std::ifstream &cpg_in,
 }
 
 
+static bool
+cpg_not_past_region(const GenomicRegion &region, const size_t end_pos,
+		    const GenomicRegion &cpg) {
+  return (cpg.same_chrom(region) && cpg.get_end() <= end_pos) ||
+    cpg.get_chrom() < region.get_chrom();
+}
+
+
 static void
 get_cpg_stats(const bool METHPIPE_FORMAT,
               std::ifstream &cpg_in, const GenomicRegion region,
@@ -266,17 +274,9 @@ get_cpg_stats(const bool METHPIPE_FORMAT,
   find_start_line(chrom, start_pos, cpg_in);
 
   GenomicRegion cpg;
-  // find_start_line not necessarily locate at the start site.
-  // in this case the file pointer needs to be move forward,
-  // a little bit hopefully.
   while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
-      (cpg.get_chrom() < chrom ||
-       (cpg.same_chrom(region) &&
-       cpg.get_end() < start_pos)));
-  while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
-         (cpg.same_chrom(region) &&
-          cpg.get_end() <= end_pos)) {
-    if (start_pos <= cpg.get_start()) {
+	 (cpg_not_past_region(region, end_pos, cpg))) {
+    if (start_pos <= cpg.get_start() && cpg.same_chrom(region)) {
       ++total_cpgs;
       const size_t n_reads = atoi(smithlab::split(cpg.get_name(), ":").back().c_str());
       if (n_reads > 0) {
