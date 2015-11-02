@@ -65,8 +65,8 @@ Contacts and bug reports
 Andrew D. Smith
 andrewds@usc.edu
 
-Qiang Song
-qiang.song@usc.edu
+Ben Decato
+decato@usc.edu
 
 MethPipe and MethBase Users' Mailinglist
 methpipe@googlegroups.com
@@ -75,11 +75,11 @@ http://groups.google.com/group/methpipe?hl=en
 Copyright and License Information
 =================================
 
-Copyright (C) 2013
+Copyright (C) 2013-2015
 University of Southern California,
-Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
+Andrew D. Smith
   
-Authors:  Andrew D. Smith, Qiang Song, Fang Fang, Ben Decato and Meng Zhou
+Current Authors:  Andrew D. Smith, Ben Decato, Meng Zhou, Liz Ji, Jenny Qu, Egor Dolzhenko
   
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
