@@ -70,7 +70,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
-	FileIterator.o MappedRead.o)
+	MappedRead.o)
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 

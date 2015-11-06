@@ -74,7 +74,7 @@ amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o) \
 		$(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 allelicmeth:   $(addprefix $(COMMON_DIR)/, Epiread.o) \
-    $(addprefix $(SMITHLAB_CPP)/, FileIterator.o MappedRead.o)
+    $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

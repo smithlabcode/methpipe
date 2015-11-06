@@ -96,7 +96,7 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
 	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
 duplicate-remover: \
-    $(addprefix $(SMITHLAB_CPP)/, RNG.o FileIterator.o)
+    $(addprefix $(SMITHLAB_CPP)/, RNG.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

@@ -38,7 +38,6 @@
 #include "MappedRead.hpp"
 
 #include "bsutils.hpp"
-#include "FileIterator.hpp"
 
 using std::string;
 using std::vector;
