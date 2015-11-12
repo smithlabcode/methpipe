@@ -419,22 +419,18 @@ and pluripotent mammalian cells such as embryonic stem cells. This type
 of methylation is asymmetric since the cytosines on the complementary 
 strand do not necessarily have the same methylation status.
 
-The input is in mapped read format, and the reads should be sorted
-according to (chrom, end, start, strand). If your reads are not
+The input is in mapped read format. The reads should be sorted and duplicate reads should be removed (same steps as in section 2.2). If your reads are not
 sorted, run:
 
 \begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
-       -o Human_ESC.mr.sorted_end_first Human_ESC.mr
+$ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
+       -o Human_ESC.mr.sorted_start Human_ESC.mr
 \end{verbatim}
-
-Since \prog{methcounts} can only take one input file, if you have
-multiple you can merge them using the \op{-m} option to the
-\prog{sort} program:
+If duplicate reads are not removed, run:
 
 \begin{verbatim}
-$ LC_ALL=C sort -m -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
-       -o Human_ESC.mr.sorted_end_first Human_ESC.mr.1 Human_ESC.mr.2
+$ duplicate-remover -S Human_ESC_dremove_stat.txt \
+                      -o Human_ESC.mr.dremove Human_ESC.mr.sorted_start
 \end{verbatim}
 
 \paragraph{Running \prog{methcounts}:}
