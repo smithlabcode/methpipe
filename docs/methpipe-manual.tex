@@ -1324,7 +1324,13 @@ processes epireads and calculates the methylation entropy value in
 sliding windows of specified number of CpGs. Two input files are
 required, including the directory containing the chromosome fasta
 files, and an epiread file as produced by \prog{methstates}
-program. Use the \op{-w} option to specify the desired number of CpGs
+program. The input epiread file needs to be sorted, first by chromosome,
+then by position. 
+\begin{verbatim}
+$ LC_ALL=C sort -k1,1 -k2,2g Human_ESC.epiread -o Human_ESC.epiread.sorted
+\end{verbatim} 
+
+Use the \op{-w} option to specify the desired number of CpGs
 in the sliding window; if unspecified, the default value is $4$. In
 cases where symmetric patterns are considered the same, specify option
 \op{-F}, this will cause the majority state in each epiread to be
@@ -1332,7 +1338,7 @@ forced into ``methylated'', and the minority to ``unmethylated''. The
 processed epireads will then be used for entropy calculation. To run
 the program, type command:
 \begin{verbatim}
-$ methentropy -w 5 -v -o Human_ESC.entropy hg18 Human_ESC.epiread
+$ methentropy -w 5 -v -o Human_ESC.entropy hg18 Human_ESC.epiread.sorted
 \end{verbatim} 
 The output format is the same as \prog{methcount} output. The first 3
 columns indicate the genomic location of the center CpG in each
