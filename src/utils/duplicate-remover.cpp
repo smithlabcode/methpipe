@@ -242,7 +242,7 @@ int main(int argc, const char **argv) {
     
     if (!statfile.empty()) {
       std::ofstream out_stat(statfile.c_str());    
-      out_stat << "TOTAL READS IN:\t" << reads_in << "\n"
+      out_stat << "TOTAL READS IN:\t" << reads_in + 1 << "\n"
 	       << "GOOD BASES IN:\t" << good_bases_in << "\n"
 	       << "TOTAL READS OUT:\t" << reads_out << "\n"
 	       << "GOOD BASES OUT:\t" << good_bases_out << "\n"
