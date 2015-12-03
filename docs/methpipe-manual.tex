@@ -1439,25 +1439,38 @@ AMRs, PMDs, or DMRs. To do so, follow these steps:
   create the \fn{*.chrom.sizes} file for the UCSC database you are
   working with (e.g. hg19). Note that this is the file that is
   referred to as \fn{hg19.chrom.sizes} in step 3.
-\item Modify and use the following commands: For \fn{*\_HMR.bed} files
-  with non-integer score in their 5th column, one needs to round the
-  score to integer value, for example:
+\item Modify and use the following commands: PMDs, HMRs and AMRs may
+  have a score greater than 1000 in the 5th column, in which case
+  bedToBigBed will output an error. Also, \fn{*\_HMR.bed} files
+  may have non-integer score in their 5th column. The following script 
+  rounds the 5th column and prints 1000 if the score is bigger than 1000:
 \begin{verbatim}
-$ awk -v OFS="\t" '{print $1,$2,$3,$4,int($5)}' Human_ESC.hmr \
-          > Human_ESC.hmr.rounded
+$ awk -v OFS="\t" '{if($5>1000) print $1,$2,$3,$4,"1000"; \
+          else print $1,$2,$3,$4,int($5) }' Human_ESC.hmr \
+          > Human_ESC.hmr.tobigbed
 \end{verbatim}
 
 \begin{verbatim}
- bedToBigBed Human_ESC.hmr.rounded hg19.chrom.sizes Human_ESC.hmr.bb
+ bedToBigBed Human_ESC.hmr.tobigbed hg19.chrom.sizes Human_ESC.hmr.bb
 \end{verbatim}
 
   In the above command, since the HMRs are not stranded, we do not
   print the 6th column. Keeping the 6th column would make all the HMRs
   appear as though they have a direction -- but it would all be the
-  \lit{+} strand.
+  \lit{+} strand. To maintain the 6th column, just slightly modify the 
+  above \prog{awk} command:
+
 \begin{verbatim}
-$ bedToBigBed Human_ESC.hmr hg19.chrom.sizes Human_ESC.hmr.bb
+$ awk -v OFS="\t" '{if($5>1000) print $1,$2,$3,$4,"1000",$6; \
+          else print $1,$2,$3,$4,int($5),$6 }' Human_ESC.hmr \
+          > Human_ESC.hmr.tobigbed
 \end{verbatim}
+
+\item Generate the .bb track using the command below:
+
+\begin{verbatim}
+$ bedToBigBed Human_ESC.hmr.tobigbed hg19.chrom.sizes Human_ESC.hmr.bb
+\end{verbatim}  
 \end{enumerate}
 
 \subsection{Converting browser tracks to \prog{methcounts} format}
