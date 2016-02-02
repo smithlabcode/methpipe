@@ -21,7 +21,7 @@
 #define METHPIPE_SITE_HPP
 
 #include <string>
-#include <tr1/cmath>
+#include <cmath>
 
 struct MSite {
   std::string chrom;
@@ -31,7 +31,7 @@ struct MSite {
   double meth;
   size_t n_reads;
 
-  size_t n_meth() const {return std::tr1::round(meth*n_reads);}
+  size_t n_meth() const {return std::round(meth*n_reads);}
 
   //////////////////////////////////////////////////////////////
   /// FUNCTIONS BELOW ARE FOR MANIPULATING SYMMETRIC CPG SITES
@@ -83,5 +83,8 @@ struct MSite {
 
 std::istream &
 operator>>(std::istream &in, MSite &s);
+
+std::ostream &
+operator<<(std::ostream &out, const MSite &s);
 
 #endif

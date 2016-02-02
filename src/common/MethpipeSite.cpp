@@ -52,3 +52,9 @@ MSite::tostring() const {
       << n_reads;
   return oss.str();
 }
+
+
+std::ostream &
+operator<<(std::ostream &out, const MSite &s) {
+  return out << s.tostring();
+}
