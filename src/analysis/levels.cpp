@@ -55,9 +55,9 @@ struct Site {
   string context;
   double meth;
   size_t n_reads;
-  
+
   size_t n_meth() const {return std::tr1::round(meth*n_reads);}
-  
+
   void add(const Site &other) {
     if (!is_mutated() && other.is_mutated())
       context += 'x';
@@ -72,7 +72,7 @@ struct Site {
   // expensive and might be ok to remove
   bool is_mate_of(const Site &first) {
     return (first.pos + 1 == pos && first.is_cpg() && is_cpg() &&
-	    first.strand == "+" && strand == "-");	    
+            first.strand == "+" && strand == "-");
   }
   ////////////////////////////////////////////////////////////////////////
   /////  Functions below test the type of site. These are CpG, CHH, and
@@ -109,10 +109,10 @@ struct CountSet {
   size_t called_meth, called_unmeth;
   double mean_agg;
   CountSet() : total_sites(0), sites_covered(0), max_coverage(0),
-    mutations(0), total_c(0), total_t(0),
-    called_meth(0), called_unmeth(0),
-    mean_agg(0.0) {}
-  
+               mutations(0), total_c(0), total_t(0),
+               called_meth(0), called_unmeth(0),
+               mean_agg(0.0) {}
+
   void update(const Site &s) {
     if (s.is_mutated()) {
       ++mutations;
@@ -130,10 +130,10 @@ struct CountSet {
     }
     ++total_sites;
   }
-  
+
   size_t coverage() const {return total_c + total_t;}
   size_t total_called() const {return called_meth + called_unmeth;}
-  
+
   double weighted_mean_meth() const {
     return static_cast<double>(total_c)/coverage();
   }
@@ -143,27 +143,27 @@ struct CountSet {
   double mean_meth() const {
     return mean_agg/sites_covered;
   }
-  
+
   string format_summary(const string &context) const {
     std::ostringstream oss;
     const bool good = (sites_covered != 0);
     oss << "METHYLATION LEVELS (" + context + " CONTEXT):\n"
-	<< '\t' << "sites" << '\t' << total_sites << '\n'
-	<< '\t' << "sites_covered" << '\t' << sites_covered << '\n'
-	<< '\t' << "fraction_covered" << '\t'
-	<< static_cast<double>(sites_covered)/total_sites << '\n'
-	<< '\t' << "mean_depth" << '\t' 
-	<< static_cast<double>(coverage())/total_sites << '\n'
-	<< '\t' << "mean_depth_covered" << '\t'
-	<< static_cast<double>(coverage())/sites_covered << '\n'
-	<< '\t' << "max_depth" << '\t' << max_coverage << '\n'
-	<< '\t' << "mutations" << '\t' << mutations << '\n'
-	<< '\t' << "mean_meth" << '\t' 
-	<< (good ? toa(mean_meth()) : "N/A")  << '\n'
-	<< '\t' << "w_mean_meth" << '\t' 
-	<< (good ? toa(weighted_mean_meth()) : "N/A") << '\n'
-	<< '\t' << "frac_meth" << '\t' 
-	<< (good ? toa(fractional_meth()) : "N/A");
+        << '\t' << "sites" << '\t' << total_sites << '\n'
+        << '\t' << "sites_covered" << '\t' << sites_covered << '\n'
+        << '\t' << "fraction_covered" << '\t'
+        << static_cast<double>(sites_covered)/total_sites << '\n'
+        << '\t' << "mean_depth" << '\t'
+        << static_cast<double>(coverage())/total_sites << '\n'
+        << '\t' << "mean_depth_covered" << '\t'
+        << static_cast<double>(coverage())/sites_covered << '\n'
+        << '\t' << "max_depth" << '\t' << max_coverage << '\n'
+        << '\t' << "mutations" << '\t' << mutations << '\n'
+        << '\t' << "mean_meth" << '\t'
+        << (good ? toa(mean_meth()) : "N/A")  << '\n'
+        << '\t' << "w_mean_meth" << '\t'
+        << (good ? toa(weighted_mean_meth()) : "N/A") << '\n'
+        << '\t' << "frac_meth" << '\t'
+        << (good ? toa(fractional_meth()) : "N/A");
     return oss.str();
   }
 
@@ -177,10 +177,10 @@ static bool
 get_meth_unmeth(const bool IS_METHPIPE_FILE,
                 std::ifstream &in, Site &site) {
   return (IS_METHPIPE_FILE ?
-	  methpipe::read_site(in, site.chrom, site.pos, site.strand,
-			      site.context, site.meth, site.n_reads) :
-	  methpipe::read_site_old(in, site.chrom, site.pos, site.strand,
-				  site.context, site.meth, site.n_reads));
+          methpipe::read_site(in, site.chrom, site.pos, site.strand,
+                              site.context, site.meth, site.n_reads) :
+          methpipe::read_site_old(in, site.chrom, site.pos, site.strand,
+                                  site.context, site.meth, site.n_reads));
 }
 
 
@@ -226,40 +226,40 @@ main(int argc, const char **argv) {
     if (!in)
       throw SMITHLABException("bad input file: " + meth_file);
     const bool IS_METHPIPE_FILE = methpipe::is_methpipe_file_single(meth_file);
-    
+
     CountSet cpg, cpg_symm, chh, cxg, ccg, all_c;
     Site site, prev_site;
     size_t chrom_count = 0;
-    
+
     while (get_meth_unmeth(IS_METHPIPE_FILE, in, site)) {
-      
+
       if (site.chrom != prev_site.chrom) {
-	++chrom_count;
-	if (VERBOSE)
-	  cerr << "PROCESSING:\t" << site.chrom << "\n";
+        ++chrom_count;
+        if (VERBOSE)
+          cerr << "PROCESSING:\t" << site.chrom << "\n";
       }
 
       if (site.is_cpg()) {
-	cpg.update(site);
-	if (site.is_mate_of(prev_site)) {
-	  site.add(prev_site);
-	  cpg_symm.update(site);
-	}
+        cpg.update(site);
+        if (site.is_mate_of(prev_site)) {
+          site.add(prev_site);
+          cpg_symm.update(site);
+        }
       }
       else if (site.is_chh())
-	chh.update(site);
+        chh.update(site);
       else if (site.is_ccg())
-	ccg.update(site);
+        ccg.update(site);
       else if (site.is_cxg())
-	cxg.update(site);
+        cxg.update(site);
       else
-	throw SMITHLABException("bad site context: " + site.context);
+        throw SMITHLABException("bad site context: " + site.context);
 
       all_c.update(site);
-      
+
       prev_site = site;
     }
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
@@ -267,12 +267,12 @@ main(int argc, const char **argv) {
     out << "NUMBER OF CHROMOSOMES:" << '\t' << chrom_count << endl;
 
     out << all_c.format_summary("all cytosine") << endl
-	<< cpg.format_summary("CpG") << endl
-	<< cpg_symm.format_summary("symmetric CpG") << endl
-	<< chh.format_summary("CHH") << endl
-	<< ccg.format_summary("CCG") << endl
-	<< cxg.format_summary("CXG") << endl;
-    
+        << cpg.format_summary("CpG") << endl
+        << cpg_symm.format_summary("symmetric CpG") << endl
+        << chh.format_summary("CHH") << endl
+        << ccg.format_summary("CCG") << endl
+        << cxg.format_summary("CXG") << endl;
+
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
