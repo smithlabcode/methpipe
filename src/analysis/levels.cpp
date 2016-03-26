@@ -173,14 +173,10 @@ struct CountSet {
 double CountSet::alpha = 0.95;
 
 
-static bool
-get_meth_unmeth(const bool IS_METHPIPE_FILE,
-                std::ifstream &in, Site &site) {
-  return (IS_METHPIPE_FILE ?
-          methpipe::read_site(in, site.chrom, site.pos, site.strand,
-                              site.context, site.meth, site.n_reads) :
-          methpipe::read_site_old(in, site.chrom, site.pos, site.strand,
-                                  site.context, site.meth, site.n_reads));
+static std::istream &
+get_meth_unmeth(std::istream &in, Site &site) {
+  return methpipe::read_site(in, site.chrom, site.pos, site.strand,
+                             site.context, site.meth, site.n_reads);
 }
 
 
@@ -225,13 +221,12 @@ main(int argc, const char **argv) {
     std::ifstream in(meth_file.c_str());
     if (!in)
       throw SMITHLABException("bad input file: " + meth_file);
-    const bool IS_METHPIPE_FILE = methpipe::is_methpipe_file_single(meth_file);
 
     CountSet cpg, cpg_symm, chh, cxg, ccg, all_c;
     Site site, prev_site;
     size_t chrom_count = 0;
 
-    while (get_meth_unmeth(IS_METHPIPE_FILE, in, site)) {
+    while (get_meth_unmeth(in, site)) {
 
       if (site.chrom != prev_site.chrom) {
         ++chrom_count;
