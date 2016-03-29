@@ -25,82 +25,80 @@
 #include <utility>
 #include "GenomicRegion.hpp"
 
-namespace methpipe
-{
-    enum FILETYPE {OLD, NEW};
+namespace methpipe {
+  enum FILETYPE {OLD, NEW};
 
-    std::string
-    skip_header(std::istream &in);
+  std::string
+  skip_header(std::istream &in);
 
-    void
-    load_cpgs(const std::string &cpgs_file,
-              std::vector<SimpleGenomicRegion> &cpgs,
-              std::vector<std::pair<double, double> > &meths,
-              std::vector<size_t> &reads);
+  void
+  load_cpgs(const std::string &cpgs_file,
+            std::vector<SimpleGenomicRegion> &cpgs,
+            std::vector<std::pair<double, double> > &meths,
+            std::vector<size_t> &reads);
 
-    void
-    load_cpgs(const std::string &cpgs_file,
-              std::vector<GenomicRegion> &cpgs,
-              std::vector<std::pair<double, double> > &meths,
-              std::vector<size_t> &reads);
+  void
+  load_cpgs(const std::string &cpgs_file,
+            std::vector<GenomicRegion> &cpgs,
+            std::vector<std::pair<double, double> > &meths,
+            std::vector<size_t> &reads);
 
-    void
-    load_cpgs_old(const std::string &cpgs_file,
-              std::vector<SimpleGenomicRegion> &cpgs,
-              std::vector<std::pair<double, double> > &meths,
-              std::vector<size_t> &reads);
+  void
+  load_cpgs_old(const std::string &cpgs_file,
+                std::vector<SimpleGenomicRegion> &cpgs,
+                std::vector<std::pair<double, double> > &meths,
+                std::vector<size_t> &reads);
 
-    void
-    load_cpgs_old(const std::string &cpgs_file,
-              std::vector<GenomicRegion> &cpgs,
-              std::vector<std::pair<double, double> > &meths,
-              std::vector<size_t> &reads);
+  void
+  load_cpgs_old(const std::string &cpgs_file,
+                std::vector<GenomicRegion> &cpgs,
+                std::vector<std::pair<double, double> > &meths,
+                std::vector<size_t> &reads);
 
-    std::istream&
-    read_site(std::istream &in, std::string &chrom, size_t &pos,
-              std::string &strand, std::string &seq,
-              double &meth, size_t &coverage);
+  std::istream&
+  read_site(std::istream &in, std::string &chrom, size_t &pos,
+            std::string &strand, std::string &seq,
+            double &meth, size_t &coverage);
 
-    bool
-    write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
-               const std::string &strand, const std::string &seq,
-               const double &meth, const size_t &coverage);
+  std::ostream &
+  write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
+             const std::string &strand, const std::string &seq,
+             const double &meth, const size_t &coverage);
 
-    // re-locate the file handler point to the first line
-    // that are at or behind location chrom, pos
-    void
-    seek_site(std::istream &in, const std::string &chrom,
-              const size_t pos);
+  // re-locate the file handler point to the first line
+  // that are at or behind location chrom, pos
+  void
+  seek_site(std::istream &in, const std::string &chrom,
+            const size_t pos);
 
-    bool
-    is_methpipe_file_single(const std::string &file);
+  bool
+  is_methpipe_file_single(const std::string &file);
 
-    // files to support old format
-    std::istream&
-    read_site_old(std::istream &in, std::string &chrom, size_t &pos,
-                  std::string &strand, std::string &seq,
-                  double &meth, size_t &coverage);
-  
-    bool 
-    write_site_old(std::ostream &out, const std::string &chrom,
-                   const size_t &pos, const std::string &strand,
-                   const std::string &seq, const double &meth,
-                   const size_t &coverage);
+  // files to support old format
+  std::istream&
+  read_site_old(std::istream &in, std::string &chrom, size_t &pos,
+                std::string &strand, std::string &seq,
+                double &meth, size_t &coverage);
 
-    // 	functions for methdiff results I/O
-    bool	
-    write_methdiff_site(std::ostream &out, const std::string &chrom,
-      const size_t pos, const std::string &strand,
-      const std::string &seq, const double diffscore,
-      const size_t meth_a, const size_t unmeth_a,
-      const size_t meth_b, const size_t unmeth_b);
-    
-    bool	
-    read_methdiff_site(std::istream &in, std::string &chrom,
-       size_t &pos, std::string &strand,
-       std::string &seq, double &diffscore,
-       size_t &meth_a, size_t &unmeth_a,
-       size_t &meth_b, size_t &unmeth_b);
+  std::ostream &
+  write_site_old(std::ostream &out, const std::string &chrom,
+                 const size_t &pos, const std::string &strand,
+                 const std::string &seq, const double &meth,
+                 const size_t &coverage);
+
+  //    functions for methdiff results I/O
+  std::ostream &
+  write_methdiff_site(std::ostream &out, const std::string &chrom,
+                      const size_t pos, const std::string &strand,
+                      const std::string &seq, const double diffscore,
+                      const size_t meth_a, const size_t unmeth_a,
+                      const size_t meth_b, const size_t unmeth_b);
+
+  std::istream &
+  read_methdiff_site(std::istream &in, std::string &chrom,
+                     size_t &pos, std::string &strand,
+                     std::string &seq, double &diffscore,
+                     size_t &meth_a, size_t &unmeth_a,
+                     size_t &meth_b, size_t &unmeth_b);
 }
 #endif
-

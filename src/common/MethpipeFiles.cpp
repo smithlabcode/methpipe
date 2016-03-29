@@ -16,6 +16,7 @@
   along with This program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
 #include <tr1/cmath>
 #include <cmath>
 #include <vector>
@@ -35,6 +36,9 @@ using std::string;
 using std::pair;
 using std::ios_base;
 using std::tr1::round;
+using std::istream;
+using std::ostream;
+using std::endl;
 
 string
 methpipe::skip_header(std::istream &in){
@@ -244,6 +248,7 @@ methpipe::load_cpgs_old(const string &cpgs_file,
   }
 }
 
+
 bool
 methpipe::is_methpipe_file_single(const string &file) {
 
@@ -285,6 +290,7 @@ move_to_start_of_line(std::istream &in) {
     // hope this only happens when hitting the start of the file
     in.clear();
 }
+
 
 void
 methpipe::seek_site(std::istream &in, const std::string &chr,
@@ -330,6 +336,7 @@ methpipe::seek_site(std::istream &in, const std::string &chr,
   }
 }
 
+
 std::istream&
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
@@ -340,8 +347,9 @@ methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
   return in;
 }
 
-bool
-methpipe::write_site(std::ostream &out,
+
+ostream &
+methpipe::write_site(ostream &out,
                      const string &chrom, const size_t &pos,
                      const string &strand, const string &seq,
                      const double &meth, const size_t &coverage) {
@@ -350,8 +358,9 @@ methpipe::write_site(std::ostream &out,
           << coverage << '\n');
 }
 
-std::istream&
-methpipe::read_site_old(std::istream &in, string &chrom, size_t &pos,
+
+istream&
+methpipe::read_site_old(istream &in, string &chrom, size_t &pos,
                         string &strand, std::string &seq,
                         double &meth, size_t &coverage)
 {
@@ -368,38 +377,36 @@ methpipe::read_site_old(std::istream &in, string &chrom, size_t &pos,
   return in;
 }
 
-bool
-methpipe::write_site_old(std::ostream &out, const string &chrom, const size_t &pos,
+
+ostream &
+methpipe::write_site_old(ostream &out, const string &chrom, const size_t &pos,
                          const string &strand, const string &seq,
                          const double &meth, const size_t &coverage) {
-  out << chrom << "\t" << pos << "\t" << pos + 1 << "\t"
-      << (seq + ":" + smithlab::toa(coverage)) << "\t"
-      << (coverage == 0 ? 0.0 : meth) << "\t" << strand << std::endl;
-  return out.good();
+  return (out << chrom << "\t" << pos << "\t" << pos + 1 << "\t"
+          << (seq + ":" + smithlab::toa(coverage)) << "\t"
+          << (coverage == 0 ? 0.0 : meth) << "\t" << strand << endl);
 }
 
 
 // IO functions for methdiff output
-bool
-methpipe::write_methdiff_site(std::ostream &out, const std::string &chrom,
+ostream &
+methpipe::write_methdiff_site(ostream &out, const std::string &chrom,
                               const size_t pos, const std::string &strand,
                               const std::string &seq, const double diffscore,
                               const size_t meth_a, const size_t unmeth_a,
                               const size_t meth_b, const size_t unmeth_b) {
-  out << chrom << "\t" << pos << "\t" << strand << "\t" << seq << "\t"
-      << diffscore << "\t" << meth_a << "\t" << unmeth_a << "\t"
-      << meth_b << "\t" << unmeth_b << std::endl;
-  return out;
+  return (out << chrom << "\t" << pos << "\t" << strand << "\t" << seq << "\t"
+          << diffscore << "\t" << meth_a << "\t" << unmeth_a << "\t"
+          << meth_b << "\t" << unmeth_b << endl);
 }
 
-bool
-methpipe::read_methdiff_site(std::istream &in, std::string &chrom,
+
+istream &
+methpipe::read_methdiff_site(istream &in, std::string &chrom,
                              size_t &pos, std::string &strand,
                              std::string &seq, double &diffscore,
                              size_t &meth_a, size_t &unmeth_a,
                              size_t &meth_b, size_t &unmeth_b) {
-  in >> chrom >> pos >> strand >> seq >>
-    diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b;
-  return in;
+  return (in >> chrom >> pos >> strand >> seq >>
+          diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b);
 }
-
