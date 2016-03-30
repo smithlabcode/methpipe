@@ -3,7 +3,7 @@
  *    Copyright (C) 2011-2014 University of Southern California and
  *                            Andrew D. Smith
  *
- *    Authors: Benjamin E Decato and Meng Zhou
+ *    Authors: Benjamin E Decato, Meng Zhou and Andrew D Smith
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
