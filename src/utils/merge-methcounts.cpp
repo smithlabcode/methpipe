@@ -63,14 +63,11 @@ struct Site {
 
 
 static bool
-read_site(const bool is_new_fmt, std::istream &in, string &chrom,
+read_site(std::istream &in, string &chrom,
           size_t &pos, string &strand, string &seq,
           double &meth, size_t &coverage) {
-  return (is_new_fmt ?
-          methpipe::read_site(in, chrom, pos, strand,
-                              seq, meth, coverage) :
-          methpipe::read_site_old(in, chrom, pos, strand,
-                                  seq, meth, coverage));
+  return methpipe::read_site(in, chrom, pos, strand,
+                             seq, meth, coverage);
 }
 
 struct SiteLocationLessThan {
@@ -97,13 +94,12 @@ any_files_are_good(vector<std::ifstream*> infiles){
 
 //updates outdated sites
 static bool
-load_sites(const vector<bool> &new_methcount_fmt,
-           vector<std::ifstream*> &infiles,
+load_sites(vector<std::ifstream*> &infiles,
            vector<bool> &outdated, vector<Site> &sites) {
   bool sites_loaded = false;
   for (size_t i=0; i<sites.size(); ++i){
     if (outdated[i]){
-      if(read_site(new_methcount_fmt[i], *infiles[i],
+      if(read_site(*infiles[i],
                    sites[i].chrom, sites[i].pos, sites[i].strand,
                    sites[i].seq, sites[i].meth, sites[i].coverage)){
         outdated[i]=false;
@@ -228,7 +224,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("header", 'h',"header to print (ignored for tabular)",
-		      false, header_info);
+                      false, header_info);
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
 
@@ -252,17 +248,11 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     vector<string> methcounts_files(leftover_args);
-
-
     /****************** END COMMAND LINE OPTIONS *****************/
 
     vector<std::ifstream*> infiles(methcounts_files.size());
     for (size_t i = 0; i < methcounts_files.size(); ++i)
       infiles[i] = new std::ifstream(methcounts_files[i].c_str());
-
-    vector<bool> new_methcount_fmt;
-    for (size_t i = 0; i < methcounts_files.size(); ++i)
-      new_methcount_fmt.push_back(methpipe::is_methpipe_file_single(methcounts_files[i]));
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -294,7 +284,7 @@ main(int argc, const char **argv) {
     }
 
     while (any_files_are_good(infiles) &&
-           load_sites(new_methcount_fmt, infiles, outdated, sites)) {
+           load_sites(infiles, outdated, sites)) {
       Site min_site;
       // find minimum site location
       find_minimum_site_location(sites, outdated, min_site);
@@ -327,7 +317,7 @@ main(int argc, const char **argv) {
 
       for (size_t i = 0; i < outdated.size(); ++i)
         outdated[i] = (outdated[i] || sites_to_print[i]);
-      load_sites(new_methcount_fmt, infiles, outdated, sites);
+      load_sites(infiles, outdated, sites);
     }
 
     for (size_t i = 0; i < infiles.size(); ++i) {
