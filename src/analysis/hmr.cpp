@@ -168,7 +168,7 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
     }
     if(dist<numeric_limits<size_t>::max())
       total_bases += dist;
-    
+
     prev_cpg = cpgs[i].get_start();
   }
   reset_points.push_back(cpgs.size());
@@ -375,10 +375,9 @@ main(int argc, const char **argv) {
     vector<size_t> reads;
     if (VERBOSE)
       cerr << "[READING CPGS AND METH PROPS]" << endl;
-    if (methpipe::is_methpipe_file_single(cpgs_file))
-      methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
-    else
-      methpipe::load_cpgs_old(cpgs_file, cpgs, meth, reads);
+
+    methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
+
     if (PARTIAL_METH) make_partial_meth(reads, meth);
     if (VERBOSE)
       cerr << "TOTAL CPGS: " << cpgs.size() << endl
