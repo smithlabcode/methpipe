@@ -46,34 +46,33 @@ using std::cerr;
 using std::endl;
 using std::tr1::unordered_map;
 
-struct GenomicSiteMeth
-{
+struct GenomicSiteMeth {
   string chrom;
   size_t pos;
   string strand;
   string name;
   double meth;
   size_t coverage;
-  GenomicSiteMeth(const string &c = "", 
-		  const size_t p = 0, 
-		  const string &s = "",
-		  const string &n = "",
-		  const double m = 0,
-		  const size_t cov = 0): 
+  GenomicSiteMeth(const string &c = "",
+                  const size_t p = 0,
+                  const string &s = "",
+                  const string &n = "",
+                  const double m = 0,
+                  const size_t cov = 0):
     chrom(c), pos(p), strand(s), name(n), meth(m), coverage(cov) {}
 };
 
-int 
+int
 main(int argc, const char **argv) {
   try{
     string pfile;
     bool VERBOSE = false;
     bool UNIQUE = false;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), 
-			   "Process duplicated sites from fast-liftover output",
-			   "<methcount file>");
+    OptionParser opt_parse(strip_path(argv[0]),
+                           "Process duplicated sites from fast-liftover output",
+                           "<methcount file>");
     opt_parse.add_opt("output", 'o', "Output processed methcount", true, pfile);
     opt_parse.add_opt("unique", 'u', "keep unique sites", false, UNIQUE);
     opt_parse.add_opt("verbose", 'v', "print more information", false, VERBOSE);
@@ -98,12 +97,10 @@ main(int argc, const char **argv) {
     }
     const string mfile(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     if (VERBOSE)
       cerr << "Loading methcount file " << mfile << endl;
-        
-    const bool new_methcount_fmt =
-      methpipe::is_methpipe_file_single(mfile);
+
     std::ifstream in(mfile.c_str());
     std::ofstream output(pfile.c_str());
 
@@ -113,39 +110,39 @@ main(int argc, const char **argv) {
     string seq;
     double meth;
     size_t coverage;
-    
+
     vector<GenomicSiteMeth>  newmeth;
-    size_t i=0; 
-    while (new_methcount_fmt
-	   ? methpipe::read_site(in, chrom, pos, strand,
-				 seq, meth, coverage)
-	   : methpipe::read_site_old(in, chrom, pos, strand,
-				     seq, meth, coverage)){
-      GenomicSiteMeth loc(chrom, pos, strand, seq, meth, coverage);
-      if (i==0){
-	newmeth.push_back(loc);
-	++i;
-      }else if(newmeth.back().chrom == chrom && 
-	       newmeth.back().pos == pos &&
-	       newmeth.back().strand == strand){
-	if(!UNIQUE){
-	  newmeth[i].meth = (newmeth[i].meth*newmeth[i].coverage + 
-			     meth*coverage)/(newmeth[i].coverage + coverage);
-	  newmeth[i].coverage =  newmeth[i].coverage + coverage;
-	}
-      }else{
-	newmeth.push_back(loc);
-	++i;
+    size_t i = 0;
+    while (methpipe::read_site(in, chrom, pos, strand,
+                               seq, meth, coverage)) {
+      const GenomicSiteMeth loc(chrom, pos, strand, seq, meth, coverage);
+      if (i==0) {
+        newmeth.push_back(loc);
+        ++i;
+      }
+      else if(newmeth.back().chrom == chrom &&
+              newmeth.back().pos == pos &&
+              newmeth.back().strand == strand){
+        if (!UNIQUE) {
+          newmeth[i].meth = (newmeth[i].meth*newmeth[i].coverage +
+                             meth*coverage)/(newmeth[i].coverage + coverage);
+          newmeth[i].coverage =  newmeth[i].coverage + coverage;
+        }
+      }
+      else {
+        newmeth.push_back(loc);
+        ++i;
       }
     }
 
-    if(VERBOSE) 
+    if(VERBOSE)
       cerr << "Keeping " << i << " sites" << endl;
 
     for(size_t j=0; j < newmeth.size(); ++j){
-      methpipe::write_site(output, newmeth[j].chrom, 
-			   newmeth[j].pos, newmeth[j].strand, 
-			   newmeth[j].name, newmeth[j].meth, newmeth[j].coverage);
+      methpipe::write_site(output, newmeth[j].chrom,
+                           newmeth[j].pos, newmeth[j].strand,
+                           newmeth[j].name, newmeth[j].meth,
+                           newmeth[j].coverage);
     }
   }
   catch (const SMITHLABException &e) {
