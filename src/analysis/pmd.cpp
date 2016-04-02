@@ -76,14 +76,14 @@ static bool
 precedes(const string &chrom, const size_t position,
          const GenomicRegion &r) {
   return chrom < r.get_chrom() ||
-    (chrom == r.get_chrom() && position < r.get_start());
+                 (chrom == r.get_chrom() && position < r.get_start());
 }
 
 static bool
 succeeds(const string &chrom, const size_t position,
          const GenomicRegion &r) {
   return r.get_chrom() < chrom ||
-    (chrom == r.get_chrom() && r.get_end() <= position);
+                         (chrom == r.get_chrom() && r.get_end() <= position);
 }
 
 static size_t
@@ -129,7 +129,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
     }
   }
   return (best_score > -std::numeric_limits<double>::max()) ?
-    positions[best_idx] : -std::numeric_limits<size_t>::max();
+                 positions[best_idx] : -std::numeric_limits<size_t>::max();
 }
 
 
@@ -155,8 +155,6 @@ optimize_boundaries(const size_t bin_size,
     bounds.back().set_end(pmds[i].get_end() + bin_size);
   }
 
-  const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
-
   ////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////
   ///// FIND THE EXACT CPG BOUNDARY SITES
@@ -171,19 +169,16 @@ optimize_boundaries(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
-  while ( ((METHPIPE_FORMAT && methpipe::read_site(in, chrom, position,
-                                                   strand, site_name, meth_level, coverage))
-           || (!METHPIPE_FORMAT && methpipe::read_site_old(in, chrom, position,
-                                                           strand, site_name, meth_level, coverage)))
-          && bound_idx < bounds.size() ) {
+  while (methpipe::read_site(in, chrom, position,
+                             strand, site_name, meth_level, coverage)
+         && bound_idx < bounds.size()) {
 
-    n_meth = round(meth_level * coverage);
+    n_meth = round(meth_level*coverage);
     n_unmeth = coverage - n_meth;
 
     if (succeeds(chrom, position, bounds[bound_idx])) {
       // find the boundary CpG position
-      bound_site.push_back(find_best_bound(bound_idx % 2, meth_tot,
-                                           positions));
+      bound_site.push_back(find_best_bound(bound_idx % 2, meth_tot, positions));
       positions.clear();
       meth_tot.clear();
       ++bound_idx;
@@ -498,8 +493,6 @@ load_intervals(const size_t bin_size,
                vector<pair<double, double> > &meth,
                vector<size_t> &reads, bool FORMAT) {
 
-  const bool METHPIPE_FORMAT = methpipe::is_methpipe_file_single(cpgs_file);
-
   std::ifstream in(cpgs_file.c_str());
 
   string curr_chrom;
@@ -509,10 +502,8 @@ load_intervals(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
-  while ( (METHPIPE_FORMAT && methpipe::read_site(in, chrom, position,
-                                                  strand, site_name, meth_level, coverage))
-          || (!METHPIPE_FORMAT && methpipe::read_site_old(in, chrom, position,
-                                                          strand, site_name, meth_level, coverage)) ) {
+  while (methpipe::read_site(in, chrom, position,
+                             strand, site_name, meth_level, coverage)) {
 
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
