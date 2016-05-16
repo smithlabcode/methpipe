@@ -430,7 +430,7 @@ main(int argc, const char **argv) {
       /****************** GET COMMAND LINE ARGUMENTS ***************************/
       OptionParser opt_parse("dmrs", "a program to merge significantly "
                              "differentially methylated CpGs into DMRs",
-                             "<bed-file-in-wand-format>");
+                             "<bed-file-in-radmeth-format>");
       opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
             false , outfile);
       opt_parse.add_opt("cutoff", 'p', "P-value cutoff (default: 0.01)",

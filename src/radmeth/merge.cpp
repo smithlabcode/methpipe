@@ -70,7 +70,6 @@ read_next_significant_cpg(istream &cpg_stream, GenomicRegion &cpg,
 
 void
 merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
-
   bool skipped_last_cpg, sig_raw;
   GenomicRegion dmr;
   dmr.set_name("dmr");
@@ -120,6 +119,8 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
       dmr_rest_meth += rest_meth;
     }
   }
-
-  dmr_stream << dmr << std::endl;
+  if(dmr.get_score() != 0) {
+      std::cerr << dmr.get_score() << std::endl;
+      dmr_stream << dmr << std::endl;
+  }
 }
