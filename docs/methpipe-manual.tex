@@ -90,7 +90,9 @@ to map reads with a different tool, make sure that your post-mapping
 files are appropriately formatted for the next components of the
 \meth{} pipeline (necessary file formats for each step are covered in
 the corresponding sections).  The default behavior of \prog{WALT} is to
-assume that reads are T-rich and map accordingly.
+assume that reads are T-rich and map accordingly. \prog{WALT} is available 
+on github at \href{http://github.com/smithlabcode/walt}
+{http://github.com/smithlabcode/walt}.
 
 \paragraph{Input and output file formats:} We assume that the original
 data is a set of sequenced read files, typically as produced by
@@ -126,7 +128,7 @@ two files and run through \prog{WALT} with different parameters.
 
 If your data is compressed as a Sequenced Read Archive, or SRA file, you can
 decompress and split paired-end reads into two files at the same time using
- \prog{fastq-dump}, which is a program included in the \prog{sra-toolkit} 
+\prog{fastq-dump}, which is a program included in the \prog{sra-toolkit} 
 package, available for most unix systems.  Below is an example of using
 \prog{fastq-dump} to decompress and separate FASTQ data by end:
 \begin{verbatim}
