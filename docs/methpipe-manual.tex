@@ -341,10 +341,12 @@ in this way. Assuming method (3) from the above paragraph of measuring
 conversion rate at non-CpG cytosines in a mammalian methylome, the
 following command will estimate the conversion rate.
 \begin{verbatim}
-$ bsrate -c hg18 -o Human_ESC.bsrate Human_ESC.mr.dremove
-$ bsrate -c hg18 -o Human_NHFF.bsrate Human_NHFF.mr.dremove
+$ bsrate -c hg38 -o Human_ESC.bsrate Human_ESC.mr.dremove
+$ bsrate -c hg38 -o Human_NHFF.bsrate Human_NHFF.mr.dremove
 \end{verbatim}
-The \prog{bsrate} program requires that the input be sorted so that
+Note that we used the output of \prog{duplicate-remover} to reduce any
+bias introduced by incomplete conversion on PCR duplicate reads. The
+\prog{bsrate} program requires that the input be sorted so that
 reads mapping to the same chromosome are contiguous and the input should
 have duplicate reads already removed to reduce bias. The first several
 lines of the output might look like the following:
@@ -392,9 +394,14 @@ also shown for each position, though this is an underestimate because
 we assume at these genomic sites any read with either a C or a T
 contains no error.
 
-If you are using reads from an unmethylated spike-in or reads mapping
-to mitochondria, then there is an option to use all Cs, including those
-at CpG sites:
+The bisulfite conversion rate reported in MethBase is computed from all
+non-CpG cytosines, and assumes zero non-CpG methylation. Because this is
+likely not true, we report a conservative estimate of conversion rate. A
+better method for computing conversion rate is to use an unmethylated
+spike-in or reads mapping to mitochondria, which has been shown to be
+entirely unmethylated in most human tissues. To use the mitochondria,
+you can use the following command:
+
 \begin{verbatim}
 $ grep ^chrM Human_ESC.mr > Human_ESC.mr.chrM
 $ bsrate -N -c chrM.fa -o Human_ESC.bsrate Human_ESC.mr.chrM
@@ -482,7 +489,6 @@ column is the estimated methylation level, equal to the number of Cs in
 reads at position corresponding to the site, divided by the sum of the Cs 
 and Ts mapping to that position. The final column is number of reads
 overlapping with that site.
-
 
 Note that because \prog{methcounts} produces a file containing one line
 for every cytosine in the genome, the file can get quite large. For
@@ -616,7 +622,7 @@ high methylation, and regions of low methylation are typically more
 interesting. These are called {\em hypo-methylated regions} (HMRs). In
 plants, most of the genome has low methylation, and it is the high
 parts that are interesting. These are called {\em hyper-methylated
-  regions}. For stupid historical reasons in the Smith lab, we call
+regions}. For stupid historical reasons in the Smith lab, we call
 both of these kinds of regions HMRs. One of the most important
 analysis tasks is identifying the HMRs, and we use the \prog{hmr}
 program for this. The \prog{hmr} program uses a hidden Markov model
@@ -773,8 +779,10 @@ $ pmd -o Human_ESC.pmd Human_ESC.meth
 
 The program calculates in nonoverlapping bins the total methylated and
 unmethylated read counts. The default bin size is $1000$bp, and users
-can customize the value by specifying the option \op{-b}. The bin-level read
-counts are modeled with a 2-state HMM in the same form
+can customize the value by specifying the option \op{-b}. A good way to
+compare PMDs across samples is to standardize the average number of
+observations per bin by adjusting for per-sample coverage. The bin-level 
+read counts are modeled with a 2-state HMM in the same form
 as the model used for HMR detection. The sequence of genomic bins is
 segmented into hypermethylation and partial-methylation domains, where
 the latter are the candidate PMDs. Further processing of candidate
