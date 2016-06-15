@@ -93,9 +93,9 @@ not_mutated(const SiteInfo &si) {
 
 static bool
 found_symmetric(const SiteInfo &first, const SiteInfo &second) {
-  return (first.is_cpg() && 
+  return (first.is_cpg() &&
           second.is_cpg() &&
-          (first.strand == '+') && 
+          (first.strand == '+') &&
           (second.strand == '-') &&
           (first.pos + 1 == second.pos));
 }
@@ -109,7 +109,7 @@ main(int argc, const char **argv) {
     string outfile;
     bool VERBOSE;
     bool include_mutated = false;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "get CpG sites and make methylation levels symmetric",
@@ -140,15 +140,15 @@ main(int argc, const char **argv) {
     }
     const string filename(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    
+
     std::ifstream in(filename.c_str());
     if (!in)
       throw SMITHLABException("could not open file: " + filename);
-    
+
     SiteInfo prev, si;
     while (in >> si) {
       if (found_symmetric(prev, si)) {
@@ -160,9 +160,30 @@ main(int argc, const char **argv) {
           prev.context = "CpGx";
           out << prev << '\n';
         }
+        prev = SiteInfo();
       }
-      prev = si;
+      else {
+        if (prev.is_cpg() &&
+            (not_mutated(prev) || include_mutated)) {
+          if (prev.strand == '-') {
+            prev.strand = '+';
+            --prev.pos;
+          }
+          out << prev << '\n';
+        }
+        prev = si;
+      }
     }
+
+    if (prev.is_cpg() &&
+        (not_mutated(prev) || include_mutated)) {
+      if (prev.strand == '-') {
+        prev.strand = '+';
+        --prev.pos;
+      }
+      out << prev << '\n';
+    }
+
   }
   catch (const SMITHLABException &e)  {
     cerr << e.what() << endl;
