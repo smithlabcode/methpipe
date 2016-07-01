@@ -408,7 +408,7 @@ main(int argc, const char **argv) {
       read_params_file(VERBOSE, params_in_file,
                        fg_alpha, fg_beta, bg_alpha, bg_beta,
                        start_trans, trans, end_trans, fdr_cutoff);
-                       max_iterations = 0;
+      max_iterations = 0;
     }
     else {
       const double n_reads =
