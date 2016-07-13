@@ -38,7 +38,7 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 
 static void
@@ -50,22 +50,22 @@ backup_to_start_of_current_record(std::ifstream &in) {
 
 
 static streampos
-find_first_epiread_ending_after_position(const string &query_chrom, 
-					 const size_t query_pos,
-					 std::ifstream &in) {
+find_first_epiread_ending_after_position(const string &query_chrom,
+                                         const size_t query_pos,
+                                         std::ifstream &in) {
   in.seekg(0, std::ios_base::end);
   size_t high_pos = in.tellg();
   size_t eof = in.tellg();
   in.seekg(0, std::ios_base::beg);
   size_t low_pos = 0;
-  
+
   string chrom, seq;
   size_t start = 0ul;
-  
+
   // This is just binary search on disk
   while (high_pos > low_pos + 1) {
     const size_t mid_pos = (low_pos + high_pos)/2;
-    
+
     in.seekg(mid_pos);
     backup_to_start_of_current_record(in);
 
@@ -76,8 +76,8 @@ find_first_epiread_ending_after_position(const string &query_chrom,
     if (!(in >> chrom >> start >> seq)) {
       throw SMITHLABException("problem loading reads");
     }
-    if (chrom < query_chrom || 
-	(chrom == query_chrom && start + seq.length() <= query_pos))
+    if (chrom < query_chrom ||
+        (chrom == query_chrom && start + seq.length() <= query_pos))
       low_pos = mid_pos;
     else
       high_pos = mid_pos;
@@ -88,41 +88,41 @@ find_first_epiread_ending_after_position(const string &query_chrom,
 
 static void
 load_reads(const string &reads_file_name,
-	   const GenomicRegion &region, vector<epiread> &the_reads) {
-  
+           const GenomicRegion &region, vector<epiread> &the_reads) {
+
   // open and check the file
   std::ifstream in(reads_file_name.c_str());
-  if (!in) 
+  if (!in)
     throw SMITHLABException("cannot open input file " + reads_file_name);
-  
+
   const string query_chrom(region.get_chrom());
   const size_t query_start = region.get_start();
   const size_t query_end = region.get_end();
-  const streampos low_offset = 
+  const streampos low_offset =
     find_first_epiread_ending_after_position(query_chrom, query_start, in);
-  
+
   in.seekg(low_offset, std::ios_base::beg);
   backup_to_start_of_current_record(in);
-  
+
   string chrom, seq;
   size_t start = 0ul;
-  while ((in >> chrom >> start >> seq) && 
-	 chrom == query_chrom && start < query_end)
+  while ((in >> chrom >> start >> seq) &&
+         chrom == query_chrom && start < query_end)
     the_reads.push_back(epiread(start, seq));
 }
 
 static void
 convert_coordinates(const vector<size_t> &cpg_positions,
-		    GenomicRegion &region) {
+                    GenomicRegion &region) {
 
-  const size_t start_pos = 
+  const size_t start_pos =
     lower_bound(cpg_positions.begin(), cpg_positions.end(),
-		region.get_start()) - cpg_positions.begin();
+                region.get_start()) - cpg_positions.begin();
 
-  const size_t end_pos = 
+  const size_t end_pos =
     lower_bound(cpg_positions.begin(), cpg_positions.end(),
-		region.get_end()) - cpg_positions.begin();
-  
+                region.get_end()) - cpg_positions.begin();
+
   region.set_start(start_pos);
   region.set_end(end_pos);
 }
@@ -144,13 +144,13 @@ collect_cpgs(const string &s, vector<size_t> &cpgs) {
 
 
 static void
-get_cpg_positions(const string &chrom_file, 
-		  vector<size_t> &cpg_positions) {
+get_cpg_positions(const string &chrom_file,
+                  vector<size_t> &cpg_positions) {
   vector<string> chrom_names, chrom_seqs;
   read_fasta_file(chrom_file.c_str(), chrom_names, chrom_seqs);
   if (chrom_names.size() > 1)
     throw SMITHLABException("error: more than one seq "
-			    "in chrom file" + chrom_file);
+                            "in chrom file" + chrom_file);
   cpg_positions.clear();
   collect_cpgs(chrom_seqs.front(), cpg_positions);
 }
@@ -164,19 +164,19 @@ get_cpg_positions(const string &chrom_file,
 
 
 static void
-clip_reads(const size_t start_pos, const size_t end_pos, 
-	   vector<epiread> &r) {
+clip_reads(const size_t start_pos, const size_t end_pos,
+           vector<epiread> &r) {
   size_t j = 0;
   for (size_t i = 0; i < r.size(); ++i) {
     if (start_pos < r[i].pos + r[i].seq.length() &&
-	r[i].pos < end_pos) {
+        r[i].pos < end_pos) {
       if (r[i].pos < start_pos) {
-	assert(start_pos - r[i].pos < r[i].seq.length());
-	r[i].seq = r[i].seq.substr(start_pos - r[i].pos);
-	r[i].pos = start_pos;
+        assert(start_pos - r[i].pos < r[i].seq.length());
+        r[i].seq = r[i].seq.substr(start_pos - r[i].pos);
+        r[i].pos = start_pos;
       }
       if (r[i].end() > end_pos)
-	r[i].seq = r[i].seq.substr(0, end_pos - r[i].pos);
+        r[i].seq = r[i].seq.substr(0, end_pos - r[i].pos);
       r[j] = r[i];
       ++j;
     }
@@ -185,13 +185,13 @@ clip_reads(const size_t start_pos, const size_t end_pos,
 }
 
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
 
     static const string fasta_suffix = "fa";
-    
+
     bool VERBOSE = false;
     bool PROGRESS = false;
     bool USE_BIC = false;
@@ -201,10 +201,10 @@ main(int argc, const char **argv) {
 
     size_t max_itr = 10;
     double high_prob = 0.75, low_prob = 0.25;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles", 
-			   "<bed-regions> <mapped-reads>");
+    OptionParser opt_parse(strip_path(argv[0]), "resolve epi-alleles",
+                           "<bed-regions> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file", false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
@@ -212,12 +212,12 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
     opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
-    
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -230,7 +230,7 @@ main(int argc, const char **argv) {
     }
     if (leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     const string regions_file(leftover_args.front());
@@ -241,19 +241,19 @@ main(int argc, const char **argv) {
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
       throw SMITHLABException("regions not sorted in: " + regions_file);
-    
+
     unordered_map<string, string> chrom_files;
     identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
-    
+
     size_t n_regions  = regions.size();
     if (VERBOSE)
       cerr << "NUMBER OF REGIONS: " << n_regions << endl;
-    
+
     string curr_chrom;
     vector<size_t> cpg_positions;
-    
+
     vector<GenomicRegion> amrs;
-    
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
@@ -261,32 +261,32 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < regions.size(); ++i) {
       if (PROGRESS)
         cerr << '\r' << percent(i, n_regions) << "%\r";
-      
+
       if (regions[i].get_chrom() != curr_chrom) {
         curr_chrom = regions[i].get_chrom();
-        const unordered_map<string, string>::const_iterator 
-        chrom_file(chrom_files.find(curr_chrom));
-      if (chrom_file == chrom_files.end())
-        throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
+        const unordered_map<string, string>::const_iterator
+          chrom_file(chrom_files.find(curr_chrom));
+        if (chrom_file == chrom_files.end())
+          throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
         get_cpg_positions(chrom_file->second, cpg_positions);
       }
-      
+
       GenomicRegion converted_region(regions[i]);
       convert_coordinates(cpg_positions, converted_region);
-      
+
       vector<epiread> reads;
       load_reads(reads_file_name, converted_region, reads);
-      
-      clip_reads(converted_region.get_start(), 
-      converted_region.get_end(), reads);
-      
+
+      clip_reads(converted_region.get_start(),
+                 converted_region.get_end(), reads);
+
       if (!reads.empty()) {
         regions[i].set_score((USE_BIC) ?
-                 test_asm_bic(max_itr, low_prob, high_prob, reads):
-                 test_asm_lrt(max_itr, low_prob, high_prob, reads));
+                             test_asm_bic(max_itr, low_prob, high_prob, reads):
+                             test_asm_lrt(max_itr, low_prob, high_prob, reads));
       }
       else regions[i].set_score(1.0);
-      
+
       regions[i].set_name(regions[i].get_name() + ":" + toa(reads.size()));
       out << regions[i] << endl;
     }
