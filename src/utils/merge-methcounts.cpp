@@ -19,7 +19,7 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <tr1/cmath>
+#include <cmath>
 
 #include <string>
 #include <vector>
@@ -42,7 +42,7 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::accumulate;
-using std::tr1::round;
+using std::round;
 
 
 struct Site {
@@ -62,7 +62,7 @@ struct Site {
 };
 
 
-static bool
+static std::istream &
 read_site(std::istream &in, string &chrom,
           size_t &pos, string &strand, string &seq,
           double &meth, size_t &coverage) {
