@@ -60,6 +60,11 @@ namespace methpipe {
             std::string &strand, std::string &seq,
             double &meth, size_t &coverage);
 
+  std::istream&
+  read_site(std::istream &in, std::string &chrom, size_t &pos,
+            char &strand, std::string &seq,
+            double &meth, size_t &coverage);
+
   std::ostream &
   write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
              const std::string &strand, const std::string &seq,

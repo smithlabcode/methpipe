@@ -17,7 +17,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <tr1/cmath>
+#include <cmath>
 #include <cmath>
 #include <vector>
 #include <string>
@@ -35,7 +35,7 @@ using std::vector;
 using std::string;
 using std::pair;
 using std::ios_base;
-using std::tr1::round;
+using std::round;
 using std::istream;
 using std::ostream;
 using std::endl;
@@ -340,6 +340,17 @@ methpipe::seek_site(std::istream &in, const std::string &chr,
 std::istream&
 methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
                     string &strand, string &seq,
+                    double &meth, size_t &coverage) {
+  string line = skip_header(in);
+  std::istringstream iss(line);
+  iss >> chrom >> pos >> strand >> seq >> meth >> coverage;
+  return in;
+}
+
+
+std::istream&
+methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
+                    char &strand, string &seq,
                     double &meth, size_t &coverage) {
   string line = skip_header(in);
   std::istringstream iss(line);
