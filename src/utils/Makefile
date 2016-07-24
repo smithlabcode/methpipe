@@ -44,9 +44,9 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 LIBS = -lgsl -lgslcblas -lz
 
 CC = gcc
-CXX = g++-6.1.0
+CXX = g++
 CFLAGS = -Wall -fmessage-length=50
-CXXFLAGS = -Wall -fmessage-length=50
+CXXFLAGS = -std=c++11 -Wall -fmessage-length=50
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -56,18 +56,6 @@ endif
 
 ifdef OPT
 CXXFLAGS += $(OPTFLAGS)
-endif
-
-# Flags for Mavericks
-ifeq "$(shell uname)" "Darwin"
-CXXFLAGS += 
-CFLAGS +=  -std=gnu89
-INCLUDEARGS += -I/usr/local/include
-LIBS += -L/usr/local/lib
-ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
-              then echo 'true'; fi)" "true"
-CXXFLAGS += -std=c++11
-endif
 endif
 
 all: $(PROGS)
