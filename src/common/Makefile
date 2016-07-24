@@ -21,7 +21,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-CXX = g++
+CXX = g++-6.1.0
 CXXFLAGS = -Wall -fmessage-length=50 
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
@@ -39,10 +39,10 @@ endif
 
 # Flags for Mavericks
 ifeq "$(shell uname)" "Darwin"
-CXXFLAGS += -arch x86_64
+CXXFLAGS += 
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
               then echo 'true'; fi)" "true"
-CXXFLAGS += -stdlib=libstdc++
+CXXFLAGS += -std=c++11
 endif
 endif
 

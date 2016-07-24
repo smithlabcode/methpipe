@@ -44,7 +44,7 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::accumulate;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 /* The three functions below here should probably be moved into
    bsutils.hpp. I am not sure if the DDG function is needed, but it

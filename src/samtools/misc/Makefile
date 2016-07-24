@@ -1,5 +1,5 @@
 CC=			gcc
-CXX=		g++
+CXX=		g++-6.1.0
 CFLAGS=		-g -Wall -O2 #-m64 #-arch ppc
 CXXFLAGS=	$(CFLAGS)
 DFLAGS=		-D_FILE_OFFSET_BITS=64

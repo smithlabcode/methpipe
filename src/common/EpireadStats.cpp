@@ -26,7 +26,7 @@
 #include <numeric>
 #include <limits>
 #include <iostream>
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 #include <gsl/gsl_sf.h>
 #include <gsl/gsl_cdf.h>

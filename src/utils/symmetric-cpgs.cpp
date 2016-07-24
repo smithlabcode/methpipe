@@ -27,7 +27,7 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
-#include <tr1/cmath>
+#include <cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -38,15 +38,15 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::tr1::round;
+using std::round;
 
 struct SiteInfo {
   bool is_cpg() const {return context.compare(0, 3, "CpG") == 0;}
   void add_meth_info(const SiteInfo &other) {
     const size_t other_meth_count =
-      static_cast<size_t>(std::tr1::round(other.meth*other.total));
+      static_cast<size_t>(std::round(other.meth*other.total));
     const size_t meth_count =
-      static_cast<size_t>(std::tr1::round(meth*total));
+      static_cast<size_t>(std::round(meth*total));
     total += other.total;
     meth = (total == 0) ? 0.0 :
       static_cast<double>(meth_count + other_meth_count)/total;

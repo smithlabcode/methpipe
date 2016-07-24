@@ -32,7 +32,7 @@ chr21   26608683        26608684        chr1:3007015:3007016:-  0       +
 #include <vector>
 #include <iostream>
 #include <cstdlib>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <stdexcept>
 #include <algorithm>
 
@@ -50,7 +50,7 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 struct GenomicSite {
   string chrom;

@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -35,7 +35,7 @@
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 using std::string;
 using std::vector;

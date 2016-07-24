@@ -28,7 +28,7 @@
 #include <numeric>
 #include <utility>
 
-#include <tr1/cmath>
+#include <cmath>
 #include <sstream>
 #include <gsl/gsl_sf_gamma.h>
 
@@ -45,7 +45,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::istringstream;
-using std::tr1::unordered_map;
+using std::unordered_map;
 using std::ostringstream;
 using std::max;
 using std::min;

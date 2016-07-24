@@ -26,7 +26,7 @@
 #include <vector>
 #include <iostream>
 #include <cstdlib>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <stdexcept>
 #include <algorithm>
 
@@ -44,7 +44,7 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 struct GenomicSiteMeth {
   string chrom;

@@ -27,7 +27,7 @@ PROGS = pmd methcounts bsrate hmr hypermr \
 	levels roimethstat  \
 	methstates methentropy hmr_posterior
 
-CXX = g++
+CXX = g++-6.1.0
 CFLAGS = -Wall -fmessage-length=50
 CXXFLAGS = -Wall -fmessage-length=50
 OPTFLAGS = -O2
@@ -50,12 +50,12 @@ LIBS = -lgsl -lgslcblas
 
 # Flags for Mavericks
 ifeq "$(shell uname)" "Darwin"
-CXXFLAGS += -arch x86_64
+CXXFLAGS += 
 INCLUDEARGS += -I/usr/local/include
 LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
               then echo 'true'; fi)" "true"
-CXXFLAGS += -stdlib=libstdc++
+CXXFLAGS += -std=c++11
 endif
 endif
 

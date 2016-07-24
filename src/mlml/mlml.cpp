@@ -8,7 +8,7 @@
 
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_cdf.h>
-#include <tr1/cmath>
+#include <cmath>
 
 using std::string;
 using std::vector;
@@ -17,7 +17,7 @@ using std::cout;
 using std::endl;
 using std::max;
 using std::min;
-using std::tr1::round;
+using std::round;
 
 
 static void

@@ -25,8 +25,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <tr1/unordered_map>
-#include <tr1/unordered_set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -43,7 +43,7 @@ using std::cerr;
 using std::endl;
 using std::ifstream;
 using std::ofstream;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 
 static bool
@@ -107,7 +107,7 @@ get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
     patterns[s].push_back(i);
   }
   
-  std::tr1::unordered_set<size_t> keepers;
+  std::unordered_set<size_t> keepers;
   for (unordered_map<string, vector<size_t> >::iterator i(patterns.begin());
        i != patterns.end(); ++i)
     keepers.insert(i->second[rand() % i->second.size()]);
