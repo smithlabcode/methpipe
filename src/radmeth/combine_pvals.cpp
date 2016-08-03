@@ -101,7 +101,7 @@ update_pval_loci(istream &input_encoding,
                       << cur_locus_iter->corrected_pval << "\t";
       cur_locus_iter++;
     } else {
-      output_encoding << -1 << "\t" << -1 << pval << "\t";
+      output_encoding << -1 << "\t" << -1 << "\t";
     }
 
     output_encoding << coverage_factor << "\t" << meth_factor << "\t"

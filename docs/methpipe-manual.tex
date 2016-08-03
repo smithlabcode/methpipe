@@ -858,9 +858,9 @@ input files or just subtract the probability from 1.0.) The method used
 to calculate this probability is detailed in Altham (1971) 
 \cite{altham1969exact}, and can be thought of as a one-directional 
 version of Fisher's exact test.  The remaining columns in the output 
-give the coverage of each CpG in NHFF, number of methylated reads in 
-NHFF, coverage in ESC, and number of methylated reads in ESC 
-respectively.
+give the number of methylated reads of each CpG in NHFF, number of unmethylated
+reads in  NHFF, number of methylated reads in ESC, and number of unmethylated
+reads in ESC, respectively.
 
 With differential methylation scores and HMRs for both methylomes 
 available (see Section~\ref{sec:indent-hypo-methyl} for instructions 
@@ -1042,6 +1042,8 @@ The first five columns and the last four columns of {\tt radmeth adjust} have
 the same meaning as those output by {\tt radmeth regression}. The 6-th column
 gives the modified p-value based on the original p-value of the site and the
 p-values of its neighbors. The 7-th column gives the FDR-corrected p-value.
+Then the last four columns corresponds to the methylated/unmethylated read
+counts of the case group and control group, respectively.
 
 Here is what the `cpgs.adjusted.bed` ﬁle looks like for our example dataset:
 
@@ -1062,7 +1064,7 @@ previous steps, individual differentially methylated sites can be obtained with
 
 {\small{%%
 \begin{verbatim}
-$ awk '$5 < 0.01 "{ print $0; $}"' cpgs.adjusted.bed > dm_cpgs.bed
+$ awk '$7 <= 0.01 "{ print $0; $}"' cpgs.adjusted.bed > dm_cpgs.bed
 \end{verbatim}%%
 }}
 
