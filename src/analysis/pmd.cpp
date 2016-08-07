@@ -23,7 +23,7 @@
  *set to 1, this program would be the same as the hmr program.
  ****************************************/
 
-#include <tr1/cmath>
+#include <cmath>
 #include <numeric>
 #include <cmath>
 #include <fstream>
@@ -49,7 +49,7 @@ using std::max;
 using std::min;
 using std::pair;
 using std::make_pair;
-using std::tr1::round;
+using std::round;
 
 
 static void

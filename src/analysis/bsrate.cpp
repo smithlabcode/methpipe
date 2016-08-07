@@ -43,7 +43,7 @@ using std::endl;
 using std::max;
 using std::accumulate;
 
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 
 static void

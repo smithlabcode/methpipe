@@ -29,7 +29,7 @@ using std::vector;
 using std::cerr;
 using std::cout;
 using std::endl;
-using std::tr1::unordered_map;
+using std::unordered_map;
 
 
 ////////////////////////////////////////////////////////////////////////

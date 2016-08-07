@@ -27,7 +27,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -201,7 +201,7 @@ main(int argc, const char **argv) {
     }
 
     SAMReader sam_reader(mapped_reads_file, mapper);
-    std::tr1::unordered_map<string, SAMRecord> dangling_mates;
+    std::unordered_map<string, SAMRecord> dangling_mates;
     
     size_t count = 0;
     const size_t progress_step = 1000000;
@@ -238,7 +238,7 @@ main(int argc, const char **argv) {
         // flush dangling_mates
         if (dangling_mates.size() > 500)
         {
-          using std::tr1::unordered_map;
+          using std::unordered_map;
           unordered_map<string, SAMRecord> tmp;
           for (unordered_map<string, SAMRecord>::iterator
                  itr = dangling_mates.begin();

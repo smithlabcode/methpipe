@@ -85,12 +85,12 @@ relative_sort(const std::vector<GenomicRegion> &mapped_locations,
 	      const std::vector<std::string> &names,
 	      std::vector<size_t> &lookup) {
 
-  std::tr1::unordered_map<std::string, size_t> names_map;
+  std::unordered_map<std::string, size_t> names_map;
   for (size_t i = 0; i < names.size(); ++i)
     names_map[names[i]] = i;
   
   for (size_t i = 0; i < mapped_locations.size(); ++i) {
-    const std::tr1::unordered_map<std::string, size_t>::const_iterator 
+    const std::unordered_map<std::string, size_t>::const_iterator 
       j(names_map.find(mapped_locations[i].get_name()));
     if (j == names_map.end())
       throw SMITHLABException("read sequence not found for: " + names[i]);

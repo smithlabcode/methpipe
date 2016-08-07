@@ -21,8 +21,7 @@ endif
 PROGS = radmeth methdiff dmr
 
 CXX = g++
-CFLAGS = -Wall -fmessage-length=50
-CXXFLAGS = -Wall -fmessage-length=50
+CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -48,7 +47,7 @@ INCLUDEARGS += -I/usr/local/include
 LIBS += -L/usr/local/lib
 ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
 							then echo 'true'; fi)" "true"
-CXXFLAGS += -stdlib=libstdc++
+CXXFLAGS += -stdlib=libc++
 endif
 endif
 

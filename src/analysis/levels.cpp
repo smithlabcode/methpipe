@@ -33,7 +33,7 @@
 #include <iostream>
 #include <fstream>
 #include <numeric>
-#include <tr1/cmath>
+#include <cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -56,7 +56,7 @@ struct Site {
   double meth;
   size_t n_reads;
 
-  size_t n_meth() const {return std::tr1::round(meth*n_reads);}
+  size_t n_meth() const {return std::round(meth*n_reads);}
 
   void add(const Site &other) {
     if (!is_mutated() && other.is_mutated())
