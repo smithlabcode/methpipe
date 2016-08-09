@@ -40,17 +40,6 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas
 
-# Flags for Mavericks
-ifeq "$(shell uname)" "Darwin"
-CXXFLAGS += -arch x86_64
-INCLUDEARGS += -I/usr/local/include
-LIBS += -L/usr/local/lib
-ifeq "$(shell if [ `sysctl -n kern.osrelease | cut -d . -f 1` -ge 13 ];\
-							then echo 'true'; fi)" "true"
-CXXFLAGS += -stdlib=libc++
-endif
-endif
-
 all: $(PROGS)
 
 install: $(PROGS)
