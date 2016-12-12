@@ -22,109 +22,110 @@
 #include <sstream>
 #include <iostream>
 #include <cmath>
+#include <numeric>
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_statistics.h>
 #include <gsl/gsl_cdf.h>
 
 #include "smithlab_utils.hpp"
-
 #include "combine_pvals.hpp"
 
-using std::vector; using std::cerr;
-using std::endl; using std::copy;
-using std::vector; using std::back_inserter;
-using std::cout; using std::istream;
-using std::string; using std::ostream;
+using std::vector;
+using std::cerr;
+using std::endl;
+using std::copy;
+using std::vector;
+using std::istream;
+using std::string;
 
 static double
 to_zscore(double pval) {
-  if (pval == 1)
-    pval = 0.9999;
+  static const double local_epsilon = 1e-6;
 
-  if (pval == 0)
-    pval = 1 - 0.9999;
+  if (pval > 1.0 - local_epsilon)
+    pval = 1.0 - local_epsilon;
+  else if (pval < local_epsilon)
+    pval = local_epsilon;
 
-  return gsl_cdf_ugaussian_Pinv(1 - pval);
+  return gsl_cdf_ugaussian_Pinv(1.0 - pval);
 }
 
-double
-stouffer_liptak(std::vector<double> &pvals,
-                const std::vector< std::vector<double> > &cor_matrix) {
+static double
+stouffer_liptak(const vector<vector<double> > &corr_mat, vector<double> &pvals) {
+
   double correction = 0;
-  size_t num_pvals = pvals.size();
-  for (size_t row_ind = 0; row_ind < cor_matrix.size(); ++row_ind)
-    for (size_t col_ind = row_ind + 1; col_ind < cor_matrix.size(); ++col_ind)
-      correction += cor_matrix[row_ind][col_ind];
+  for (size_t row_ind = 0; row_ind < corr_mat.size(); ++row_ind)
+    for (size_t col_ind = row_ind + 1; col_ind < corr_mat.size(); ++col_ind)
+      correction += corr_mat[row_ind][col_ind];
 
   vector<double> zscores;
+  transform(pvals.begin(), pvals.end(), std::back_inserter(zscores), to_zscore);
 
-  transform(pvals.begin(), pvals.end(), back_inserter(zscores),
-            to_zscore);
-  double sum = 0;
+  const double sum = std::accumulate(zscores.begin(), zscores.end(), 0.0);
+  const double test_stat =
+    sum/sqrt(static_cast<double>(pvals.size()) + 2.0*correction);
 
-  for (size_t ind = 0; ind < num_pvals; ++ind)
-    sum += zscores[ind];
-
-  double test_statistic = sum/sqrt(double(num_pvals) + 2*correction);
-  return 1 - gsl_cdf_gaussian_P(test_statistic, 1);
+  return 1.0 - gsl_cdf_gaussian_P(test_stat, 1.0);
 }
 
 void
-update_pval_loci(istream &input_encoding,
+update_pval_loci(std::istream &input_encoding,
                  const vector<PvalLocus> &pval_loci,
-                 ostream &output_encoding) {
+                 std::ostream &output_encoding) {
+
   string record, chrom, name, sign;
   size_t position, coverage_factor, meth_factor, coverage_rest, meth_rest;
   double pval;
 
   vector<PvalLocus>::const_iterator cur_locus_iter = pval_loci.begin();
 
-  while(getline(input_encoding, record)) {
-
+  while (getline(input_encoding, record)) {
+    // ADS: this seems not to be done well; the code should exit in a
+    // "normal" state if bad parse
     try {
       std::istringstream iss(record);
       iss.exceptions(std::ios::failbit);
       iss >> chrom >> position >> sign >> name >> pval
           >> coverage_factor >> meth_factor >> coverage_rest >> meth_rest;
-    } catch (std::exception const & err) {
-      std::cerr << err.what() << std::endl << "Couldn't parse the line \""
-                << record << "\"." << std::endl;
+    }
+    catch (std::exception const & err) {
+      cerr << err.what() << endl << "could not parse line:\n"
+           << record << endl;
       std::terminate();
     }
 
     output_encoding << chrom << "\t" << position << "\t" << sign << "\t"
                     << name << "\t" << pval << "\t";
 
-    if (0 <= pval && pval <= 1) {
+    if (0.0 <= pval && pval <= 1.0) {
       output_encoding << cur_locus_iter->combined_pval << "\t"
                       << cur_locus_iter->corrected_pval << "\t";
       cur_locus_iter++;
-    } else {
-      output_encoding << -1 << "\t" << -1 << pval << "\t";
     }
+    else output_encoding << -1 << "\t" << -1 << pval << "\t"; // MAGIC??
 
     output_encoding << coverage_factor << "\t" << meth_factor << "\t"
-                    << coverage_rest << "\t" << meth_rest << std::endl;
-
+                    << coverage_rest << "\t" << meth_rest << endl;
   }
 }
 
 BinForDistance::BinForDistance(std::string spec_string) {
   std::replace(spec_string.begin(), spec_string.end(), ':', ' ');
 
-  std::stringstream ss(spec_string);
-  ss >> min_dist_ >> max_dist_ >> bin_size_;
+  std::istringstream iss(spec_string);
+  iss >> min_dist_ >> max_dist_ >> bin_size_;
 
   num_bins_ = (max_dist_ - min_dist_) / bin_size_;
   invalid_bin_ = num_bins_ + 1;
 }
 
-size_t BinForDistance::which_bin(size_t value) const {
+size_t
+BinForDistance::which_bin(size_t value) const {
   if (value < min_dist_)
     return invalid_bin_;
 
-  const size_t bin = (value - min_dist_) / bin_size_;
+  const size_t bin = (value - min_dist_)/bin_size_;
 
   //Bin numbering is 0 based.
   if (bin >= num_bins_)
@@ -169,10 +170,10 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
       ++down_pos;
       size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
 
-      if( down_dist <= max_distance_ ) {
+      if (down_dist <= max_distance_) {
           neighbors.push_back(*down_pos);
-      } else
-        too_far = true;
+      }
+      else too_far = true;
 
     } while (!too_far && down_pos != loci_.end() - 1);
   }
@@ -299,7 +300,7 @@ combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
 
     distance_corr_matrix(bin_for_distance, correlation_for_bin,
                          neighbors, correlation_matrix);
-    double combined_pval = stouffer_liptak(p_vals, correlation_matrix);
+    double combined_pval = stouffer_liptak(correlation_matrix, p_vals);
     loci[i].combined_pval = combined_pval;
 
     i++;
