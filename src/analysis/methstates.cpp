@@ -27,21 +27,18 @@
 #include <algorithm>
 #include <numeric>
 
-#include <unordered_map>
-
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 
-using std::unordered_map;
-
 using std::string;
 using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::unordered_map;
 
 
 inline static bool

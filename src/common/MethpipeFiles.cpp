@@ -18,7 +18,6 @@
 */
 
 #include <cmath>
-#include <cmath>
 #include <vector>
 #include <string>
 #include <utility>

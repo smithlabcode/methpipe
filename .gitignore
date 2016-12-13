@@ -24,6 +24,7 @@ src/analysis/clipmates
 src/analysis/mergelanes
 src/analysis/methcounts
 src/analysis/hmr
+src/analysis/hmr_posterior
 src/analysis/bsrate
 src/analysis/mappedstat
 src/analysis/sortreads

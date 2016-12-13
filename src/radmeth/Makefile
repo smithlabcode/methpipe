@@ -21,8 +21,7 @@ endif
 PROGS = radmeth methdiff dmr
 
 CXX = g++
-CFLAGS = -Wall -fmessage-length=50
-CXXFLAGS = -std=c++11 -Wall -fmessage-length=50
+CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
