@@ -385,12 +385,11 @@ main(int argc, const char **argv) {
           if (0 <= pval && pval <= 1) {
             // locus is on new chrom.
             if (!prev_chrom.empty() && prev_chrom != chrom)
-              chrom_offset += pvals.back().pos;
+		chrom_offset += pvals.back().pos+bin_for_dist.max_dist() + 1;//shift bin_for_dist.max_dist() to this place more readable and more efficient
 
             PvalLocus plocus;
             plocus.raw_pval = pval;
-            plocus.pos = chrom_offset +
-            bin_for_dist.max_dist() + 1 + position;
+            plocus.pos = chrom_offset + position;
 
             pvals.push_back(plocus);
             prev_chrom = chrom;

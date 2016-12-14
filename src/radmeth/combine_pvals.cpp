@@ -150,7 +150,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
 
     do {
       --up_pos;
-      size_t up_dist = cur_pos->pos - (up_pos->pos + 1);
+      size_t up_dist = cur_pos->pos - (up_pos->pos);
 
       if(up_dist <= max_distance_) {
           neighbors.push_back(*up_pos);
@@ -168,7 +168,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
 
     do {
       ++down_pos;
-      size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
+      size_t down_dist = down_pos->pos - cur_pos->pos;
 
       if (down_dist <= max_distance_) {
           neighbors.push_back(*down_pos);
@@ -193,7 +193,7 @@ DistanceCorrelation::bin(const vector<PvalLocus> &loci) {
     bool too_far = false;
 
     while (forward_it != loci.end() && !too_far) {
-      const size_t dist = forward_it->pos - (it->pos + 1);
+      const size_t dist = forward_it->pos - it->pos;
       const size_t bin = bin_for_dist_.which_bin(dist);
 
       //check if the appropriate bin exists
@@ -262,7 +262,7 @@ distance_corr_matrix(BinForDistance bin_for_dist,
 
   for (size_t row = 0; row < num_neighbors; ++row) {
     corr_matrix[row][row] = 1.0;
-    const size_t row_locus = neighbors[row].pos + 1;
+    const size_t row_locus = neighbors[row].pos;
 
     for (size_t col = row + 1; col < num_neighbors; ++col) {
       const size_t col_locus = neighbors[col].pos;
