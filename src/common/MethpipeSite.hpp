@@ -87,4 +87,7 @@ operator>>(std::istream &in, MSite &s);
 std::ostream &
 operator<<(std::ostream &out, const MSite &s);
 
+size_t
+distance(const MSite &a, const MSite &b);
+
 #endif

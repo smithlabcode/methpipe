@@ -58,3 +58,10 @@ std::ostream &
 operator<<(std::ostream &out, const MSite &s) {
   return out << s.tostring();
 }
+
+
+size_t
+distance(const MSite &a, const MSite &b) {
+  return a.chrom == b.chrom ? std::max(a.pos, b.pos) - std::min(a.pos, b.pos) :
+    std::numeric_limits<size_t>::max();
+}
