@@ -198,6 +198,7 @@ main(int argc, const char **argv) {
     // run mode flags
     bool VERBOSE = false;
     bool PARTIAL_METH = false;
+    bool BG = false;
 
     // corrections for small values (not parameters):
     double tolerance = 1e-10;
@@ -216,6 +217,8 @@ main(int argc, const char **argv) {
 		      false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.add_opt("methprob", 'm', "report posterior prob. of methylation "
+                      "(default: false)", false, BG);
     opt_parse.add_opt("partial", '\0', "identify PMRs instead of HMRs",
 		      false, PARTIAL_METH);
     opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)",
@@ -247,7 +250,6 @@ main(int argc, const char **argv) {
 
     // separate the regions by chrom and by desert
     vector<SimpleGenomicRegion> cpgs;
-    // vector<double> meth;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
     if (VERBOSE)
@@ -310,18 +312,16 @@ main(int argc, const char **argv) {
     /***********************************
      * STEP 5: DECODE THE DOMAINS
      */
-    // vector<bool> classes;
     bool fg_class = true;
     vector<double> scores;
     hmm.PosteriorScores(meth, reset_points, start_trans, trans,
                         end_trans, fg_alpha, fg_beta, bg_alpha,
                         bg_beta, fg_class, scores);
 
-    if (!params_out_file.empty())
-    {
+    if (!params_out_file.empty()) {
       std::ofstream out(params_out_file.c_str(), std::ios::app);
       out << "FDR_CUTOFF\t"
-	  << std::setprecision(30) << fdr_cutoff << endl;
+          << std::setprecision(30) << fdr_cutoff << endl;
       out.close();
     }
 
@@ -335,7 +335,7 @@ main(int argc, const char **argv) {
       GenomicRegion cpg(cpgs[i]);
       cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
                    ":" + toa(static_cast<size_t>(meth[i].second)));
-      cpg.set_score(scores[i]);
+      cpg.set_score(BG? 1.0 - scores[i] : scores[i]);
       out << cpg << '\n';
     }
   }
