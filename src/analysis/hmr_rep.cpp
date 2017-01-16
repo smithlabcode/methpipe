@@ -330,7 +330,7 @@ main(int argc, const char **argv) {
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
 			   "HMRs from methylomes of replicates ",
-			   "<cpg-BED-files separated by comma>");
+			   "<methcount-files separated by comma>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
 		      false, outfile);
     opt_parse.add_opt("desert", 'd', "max dist btwn cpgs with reads in HMR",
