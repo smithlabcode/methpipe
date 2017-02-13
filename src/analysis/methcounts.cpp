@@ -221,14 +221,17 @@ get_chrom(const MappedRead &mr,
           const chrom_file_map &chrom_files,
           GenomicRegion &chrom_region, string &chrom) {
 
-  const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
-  if (fn == chrom_files.end())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
-
   chrom.clear();
+
+  const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
+  if (fn == chrom_files.end()) {
+    return ;
+  }
+
   read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
-  if (chrom.empty())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+  if (chrom.empty()) {
+    return ;
+  }
 
   chrom_region.set_chrom(mr.r.get_chrom());
 }
@@ -315,6 +318,10 @@ main(int argc, const char **argv) {
 
         // load the new chromosome and reset the counts
         get_chrom(mr, chrom_files, chrom_region, chrom);
+	if (chrom.empty()) {
+	  cerr << "WARNING could not find chrom: " << mr.r.get_chrom() << endl;
+	  continue ; 
+	}
         if (VERBOSE)
           cerr << "PROCESSING:\t" << chrom_region.get_chrom() << '\t'
                << "(REQD MEM = "
