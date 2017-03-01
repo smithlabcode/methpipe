@@ -25,7 +25,7 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hypermr \
 	levels roimethstat  \
-	methstates methentropy hmr_posterior hmr_rep
+	methstates methentropy hmr_rep
 
 CXX = g++
 CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
@@ -41,7 +41,7 @@ CXXFLAGS += $(OPTFLAGS)
 endif
 
 COMMON_DIR = ../common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
@@ -62,7 +62,7 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
-hmr pmd hmr_posterior hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
+hmr pmd hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
