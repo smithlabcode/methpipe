@@ -22,6 +22,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <string>
 
 #include <unistd.h>
 
@@ -312,6 +313,8 @@ main(int argc, const char **argv) {
   try {
 
     string outfile;
+    string hypo_post_outfile;
+    string meth_post_outfile;
 
     size_t desert_size = 1000;
     size_t max_iterations = 10;
@@ -339,6 +342,12 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("partial", '\0', "identify PMRs instead of HMRs",
                       false, PARTIAL_METH);
+    opt_parse.add_opt("post-hypo", '\0', "output file for single-CpG posteiror "
+                      "hypomethylation probability (default: NULL)",
+                      false, hypo_post_outfile);
+    opt_parse.add_opt("post-meth", '\0', "output file for single-CpG posteiror "
+                      "methylation probability (default: NULL)",
+                      false, meth_post_outfile);
     opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)",
                       false, params_in_file);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file",
@@ -472,6 +481,50 @@ main(int argc, const char **argv) {
         domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
         out << domains[i] << '\n';
       }
+
+    /***********************************
+     * STEP 6: (OPTIONAL) WRITE POSTERIOR
+     */
+
+    if (!hypo_post_outfile.empty() || !meth_post_outfile.empty()) {
+      bool fg_class = true;
+      vector<double> fg_posterior;
+      hmm.PosteriorScores(meth, reset_points, start_trans, trans,
+                          end_trans, fg_alpha, fg_beta, bg_alpha,
+                          bg_beta, fg_class, fg_posterior);
+
+      if (!hypo_post_outfile.empty()) {
+        if (VERBOSE)
+          cerr << "[WRITING " << hypo_post_outfile
+               << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
+        std::ofstream of;
+        of.open(hypo_post_outfile.c_str());
+        std::ostream out(of.rdbuf());
+        for (size_t i = 0; i < cpgs.size(); ++i) {
+          GenomicRegion cpg(cpgs[i]);
+          cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
+                     ":" + toa(static_cast<size_t>(meth[i].second)));
+          cpg.set_score(scores[i]);
+          out << cpg << '\n';
+        }
+      }
+
+      if (!meth_post_outfile.empty()) {
+        std::ofstream of;
+        of.open(meth_post_outfile.c_str());
+        std::ostream out(of.rdbuf());
+        if (VERBOSE)
+          cerr << "[WRITING " << meth_post_outfile
+               << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
+        for (size_t i = 0; i < cpgs.size(); ++i) {
+          GenomicRegion cpg(cpgs[i]);
+          cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
+                     ":" + toa(static_cast<size_t>(meth[i].second)));
+          cpg.set_score(1.0 - scores[i]);
+          out << cpg << '\n';
+        }
+      }
+    }
   }
   catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;
