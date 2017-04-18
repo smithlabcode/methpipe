@@ -91,43 +91,51 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
                 const vector<pair<size_t, size_t> > &meth_tot,
                 const vector<size_t> &positions) {
 
-  size_t cumu_meth = 0, cumu_tot = 0;
-  for (size_t i = 0; i < meth_tot.size(); ++i) {
-    cumu_meth += meth_tot[i].first;
-    cumu_tot += meth_tot[i].second;
-  }
+  vector<size_t> cumu_left_meth(meth_tot.size(), 0);
+  vector<size_t> cumu_left_tot(meth_tot.size(), 0);
+  vector<size_t> cumu_right_meth(meth_tot.size(), 0);
+  vector<size_t> cumu_right_tot(meth_tot.size(), 0);
+  if (meth_tot.size() > 0)
+    for (size_t i = 1; i < meth_tot.size()-1; ++i) {
+      const size_t j = meth_tot.size() - 1 - i;
+      cumu_left_meth[i] = cumu_left_meth[i-1] + meth_tot[i-1].first;
+      cumu_left_tot[i] = cumu_left_tot[i-1] + meth_tot[i-1].second;
+      cumu_right_meth[j] = cumu_right_meth[j+1] + meth_tot[j+1].first;
+      cumu_right_tot[j] = cumu_right_tot[j+1] + meth_tot[j+1].second;
+    }
 
   size_t best_idx = 0;
   double best_score = -std::numeric_limits<double>::max();
-  for (size_t i = 0; i < meth_tot.size(); ++i) {
-
-    const size_t N_low = IS_RIGHT_BOUNDARY ?
-      meth_tot[i].second : cumu_tot - meth_tot[i].second;
-    const size_t k_low = IS_RIGHT_BOUNDARY ?
-      meth_tot[i].first : cumu_meth - meth_tot[i].first;
-
-    const size_t N_hi = IS_RIGHT_BOUNDARY ?
-      cumu_tot - meth_tot[i].second : meth_tot[i].second;
-    const size_t k_hi = IS_RIGHT_BOUNDARY ?
-      cumu_meth - meth_tot[i].first : meth_tot[i].first;
-
-    if (N_hi > 0 && N_low > 0) {
-
-      const double p_low = static_cast<double>(k_low)/N_low;
-      const double p_hi = static_cast<double>(k_hi)/N_hi;
-
-      const double score =
-        (gsl_sf_lnchoose(N_hi, k_hi) +
-         k_hi*log(p_hi) + (N_hi - k_hi)*log(1.0 - p_hi)) +
-        (gsl_sf_lnchoose(N_low, k_low) +
-         k_low*log(p_low) + (N_low - k_low)*log(1.0 - p_low));
-
-      if (p_hi > p_low && score > best_score) {
-        best_idx = i;
-        best_score = score;
+  if (meth_tot.size() > 0)
+    for (size_t i = 1; i < meth_tot.size()-1; ++i) {
+      size_t N_low, k_low, N_hi, k_hi;  
+      if (!IS_RIGHT_BOUNDARY) {
+        N_low = cumu_right_tot[i] + meth_tot[i].second;
+        k_low = cumu_right_meth[i] + meth_tot[i].first;
+        N_hi = cumu_left_tot[i];
+        k_hi = cumu_left_meth[i];
+      } else {
+        N_low = cumu_left_tot[i] + meth_tot[i].second;
+        k_low = cumu_left_meth[i] + meth_tot[i].first;
+        N_hi = cumu_right_tot[i];
+        k_hi = cumu_right_meth[i];
+      }
+      if (N_hi > 0 && N_low > 0) {
+  
+        const double p_low = static_cast<double>(k_low)/N_low;
+        const double p_hi = static_cast<double>(k_hi)/N_hi;
+        const double score =
+          (gsl_sf_lnchoose(N_hi, k_hi) +
+          k_hi*log(p_hi) + (N_hi - k_hi)*log(1.0 - p_hi)) +
+          (gsl_sf_lnchoose(N_low, k_low) +
+          k_low*log(p_low) + (N_low - k_low)*log(1.0 - p_low));
+    
+        if (p_hi > p_low && score > best_score) {
+          best_idx = i;
+          best_score = score;
+        }
       }
     }
-  }
   return (best_score > -std::numeric_limits<double>::max()) ?
                  positions[best_idx] : -std::numeric_limits<size_t>::max();
 }
@@ -197,7 +205,7 @@ optimize_boundaries(const size_t bin_size,
   ////////////////////////////////////////////////////////////////////////
   ///// NOW RE-ASSEMBLE THE GIANTS
   /////
-
+  
   for (size_t i = 0; i < pmds.size(); ++i) {
     const size_t start_site = bound_site[2*i];
     if (start_site != -std::numeric_limits<size_t>::max())
@@ -358,7 +366,7 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
       cpgs[i].get_start() - prev_cpg : numeric_limits<size_t>::max();
     if (dist > desert_size)
       reset_points.push_back(i);
-    prev_cpg = cpgs[i].get_start();
+    prev_cpg = cpgs[i].get_end();
   }
   reset_points.push_back(cpgs.size());
   if (VERBOSE)
@@ -701,7 +709,6 @@ main(int argc, const char **argv) {
           << std::setprecision(30) << score_cutoff_for_fdr << endl;
       out.close();
     }
-
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
 
