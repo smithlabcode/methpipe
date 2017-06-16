@@ -108,7 +108,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
   double best_score = -std::numeric_limits<double>::max();
   if (meth_tot.size() > 0)
     for (size_t i = 1; i < meth_tot.size()-1; ++i) {
-      size_t N_low, k_low, N_hi, k_hi;  
+      size_t N_low, k_low, N_hi, k_hi;
       if (!IS_RIGHT_BOUNDARY) {
         N_low = cumu_right_tot[i] + meth_tot[i].second;
         k_low = cumu_right_meth[i] + meth_tot[i].first;
@@ -121,7 +121,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         k_hi = cumu_right_meth[i];
       }
       if (N_hi > 0 && N_low > 0) {
-  
+
         const double p_low = static_cast<double>(k_low)/N_low;
         const double p_hi = static_cast<double>(k_hi)/N_hi;
         const double score =
@@ -129,7 +129,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
           k_hi*log(p_hi) + (N_hi - k_hi)*log(1.0 - p_hi)) +
           (gsl_sf_lnchoose(N_low, k_low) +
           k_low*log(p_low) + (N_low - k_low)*log(1.0 - p_low));
-    
+
         if (p_hi > p_low && score > best_score) {
           best_idx = i;
           best_score = score;
@@ -205,7 +205,7 @@ optimize_boundaries(const size_t bin_size,
   ////////////////////////////////////////////////////////////////////////
   ///// NOW RE-ASSEMBLE THE GIANTS
   /////
-  
+
   for (size_t i = 0; i < pmds.size(); ++i) {
     const size_t start_site = bound_site[2*i];
     if (start_site != -std::numeric_limits<size_t>::max())
@@ -264,7 +264,7 @@ get_domain_scores(const vector<bool> &classes,
                   const vector<size_t> &reset_points,
                   vector<double> &scores) {
   static const bool CLASS_ID = true;
-  size_t n_cpgs = 0, reset_idx = 1;
+  size_t reset_idx = 1;
   bool in_domain = false;
   double score = 0;
   for (size_t i = 0; i < classes.size(); ++i) {
@@ -279,7 +279,6 @@ get_domain_scores(const vector<bool> &classes,
     if (classes[i] == CLASS_ID) {
       in_domain = true;
       score += 1.0 - (meth[i].first/(meth[i].first + meth[i].second));
-      ++n_cpgs;
     }
     else if (in_domain) {
       in_domain = false;
