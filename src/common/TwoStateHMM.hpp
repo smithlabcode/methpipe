@@ -129,7 +129,7 @@ public:
 		      const std::vector<double> &end_trans,
 		      const std::vector<double> fg_alpha, const std::vector<double> fg_beta,
 		      const std::vector<double> bg_alpha, const std::vector<double> bg_beta,
-		      const std::vector<bool> &classes,
+		      const bool &fg_class,
 		      std::vector<double> &llr_scores) const;
 
   /***************************/
@@ -333,7 +333,7 @@ private:
 		      double p_bf, double p_bb, double p_bt,
 		      const std::vector<betabin> &fg_distro,
 		      const std::vector<betabin> &bg_distro,
-		      const std::vector<bool> &classes,
+		      const bool fg_class,
 		      std::vector<double> &llr_scores) const;
 
   double
