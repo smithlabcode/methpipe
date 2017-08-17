@@ -312,6 +312,8 @@ main(int argc, const char **argv) {
 
     const char* sep = ",";
     string outfile;
+    string hypo_post_outfile;
+    string meth_post_outfile;
 
     bool DEBUG = false;
     size_t desert_size = 1000;
@@ -338,6 +340,12 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("debug", 'D', "print more run info", false, DEBUG);
+    opt_parse.add_opt("post-hypo", '\0', "output file for single-CpG posteiror "
+                      "hypomethylation probability (default: NULL)",
+                      false, hypo_post_outfile);
+    opt_parse.add_opt("post-meth", '\0', "output file for single-CpG posteiror "
+                      "methylation probability (default: NULL)",
+                      false, meth_post_outfile);
     opt_parse.add_opt("params-in", 'P', "HMM parameter files for "
                       "individual methylomes (separated with comma)",
 		      false, params_in_files);
@@ -368,7 +376,7 @@ main(int argc, const char **argv) {
 
     vector<string> cpgs_file =  smithlab::split(cpgs_files, sep, false);
     vector<string> params_in_file;
-    if(!params_in_file.empty()) {
+    if(!params_in_files.empty()) {
       params_in_file = smithlab::split(params_in_files, sep, false);
       assert(cpgs_file.size() == params_in_file.size());
     }
@@ -423,7 +431,7 @@ main(int argc, const char **argv) {
     vector<double> reps_bg_alpha(NREP, 0);
     vector<double> reps_bg_beta(NREP, 0);
     double fdr_cutoff = std::numeric_limits<double>::max();
-
+    
     if (!params_in_file.empty()) {
       // READ THE PARAMETERS FILES
       double fdr_cutoff_rep;
@@ -432,6 +440,7 @@ main(int argc, const char **argv) {
                          reps_fg_beta[i], reps_bg_alpha[i], reps_bg_beta[i],
 			 start_trans, trans, end_trans, fdr_cutoff_rep);
       }
+      max_iterations = 0;
     } else {
       for (size_t r = 0; r < NREP; ++r) {
 	// Actually, there are many 0s in reads[r],
@@ -500,7 +509,61 @@ main(int argc, const char **argv) {
 	domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
 	out << domains[i] << '\n';
       }
+    /***********************************
+     * STEP 6: (OPTIONAL) WRITE POSTERIOR
+     */
 
+    if (!hypo_post_outfile.empty() || !meth_post_outfile.empty()) {
+      bool fg_class = true;
+      vector<double> fg_posterior;
+      hmm.PosteriorScores_rep(meth, reset_points, start_trans, trans,
+                              end_trans, reps_fg_alpha, reps_fg_beta,
+                              reps_bg_alpha, reps_bg_beta,
+                              fg_class, fg_posterior);
+
+      
+      if (!hypo_post_outfile.empty()) {
+        if (VERBOSE)
+          cerr << "[WRITING " << hypo_post_outfile
+               << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
+        std::ofstream of;
+        of.open(hypo_post_outfile.c_str());
+        std::ostream out(of.rdbuf());
+        for (size_t i = 0; i < cpgs[0].size(); ++i) {
+          GenomicRegion cpg(cpgs[0][i]);
+          size_t M_reads = 0;
+          size_t U_reads = 0;
+          for (size_t j = 0; j < NREP; ++j){
+            M_reads += static_cast<size_t>(meth[j][i].first);
+            U_reads += static_cast<size_t>(meth[j][i].second);
+          }
+          cpg.set_name("CpG:" + toa(M_reads) + ":" + toa(U_reads));
+          cpg.set_score(scores[i]);
+          out << cpg << '\n';
+        }
+      }
+
+      if (!meth_post_outfile.empty()) {
+        std::ofstream of;
+        of.open(meth_post_outfile.c_str());
+        std::ostream out(of.rdbuf());
+        if (VERBOSE)
+          cerr << "[WRITING " << meth_post_outfile
+               << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
+        for (size_t i = 0; i < cpgs[0].size(); ++i) {
+          GenomicRegion cpg(cpgs[0][i]);
+          size_t M_reads = 0;
+          size_t U_reads = 0;
+          for (size_t j = 0; j < NREP; ++j){
+            M_reads += static_cast<size_t>(meth[j][i].first);
+            U_reads += static_cast<size_t>(meth[j][i].second);
+          }
+          cpg.set_name("CpG:" +toa(M_reads) + ":" + toa(U_reads));
+          cpg.set_score(1.0 - scores[i]);
+          out << cpg << '\n';
+        }
+      }
+    }
   }
   catch (SMITHLABException &e) {
     cerr << "ERROR:\t" << e.what() << endl;

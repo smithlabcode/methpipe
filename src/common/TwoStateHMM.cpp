@@ -1493,7 +1493,7 @@ TwoStateHMMB::PosteriorScores_rep(const vector<vector<pair<double, double> > > &
 				  const vector<double> &end_trans,
 				  const vector<double> fg_alpha, const vector<double> fg_beta,
 				  const vector<double> bg_alpha, const vector<double> bg_beta,
-				  const vector<bool> &classes,
+				  const bool &fg_class,
 				  vector<double> &llr_scores) const {
 
   vector<betabin> fg_distro;
@@ -1517,7 +1517,7 @@ TwoStateHMMB::PosteriorScores_rep(const vector<vector<pair<double, double> > > &
                              start_trans[0], start_trans[1],
                              trans[0][0], trans[0][1], end_trans[0],
                              trans[1][0], trans[1][1], end_trans[1],
-                             fg_distro, bg_distro, classes, llr_scores);
+                             fg_distro, bg_distro, fg_class, llr_scores);
 }
 
 
@@ -1529,7 +1529,7 @@ TwoStateHMMB::PosteriorScores_rep(const vector<vector<pair<double, double> > > &
 				  double p_bf, double p_bb, double p_bt,
 				  const vector<betabin> &fg_distro,
 				  const vector<betabin> &bg_distro,
-				  const vector<bool> &classes,
+				  const bool fg_class,
 				  vector<double> &llr_scores) const {
 
   double total_score = 0;
@@ -1582,7 +1582,7 @@ TwoStateHMMB::PosteriorScores_rep(const vector<vector<pair<double, double> > > &
   for (size_t i = 0; i < values[0].size(); ++i) {
     const double fg_state = forward[i].first + backward[i].first;
     const double bg_state = forward[i].second + backward[i].second;
-    if (classes[i])
+    if (fg_class)
       llr_scores[i] = (fg_state - bg_state);
     else
       llr_scores[i] = (bg_state - fg_state);
