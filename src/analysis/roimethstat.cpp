@@ -104,6 +104,7 @@ not_methpipe_load_cpgs(const string &cpgs_file,
 
 static void
 process_with_cpgs_loaded(const bool METHPIPE_FORMAT,
+                         const bool VERBOSE,
                          const bool PRINT_NAN,
                          const bool PRINT_ADDITIONAL_LEVELS,
                          const string &cpgs_file,
@@ -117,6 +118,9 @@ process_with_cpgs_loaded(const bool METHPIPE_FORMAT,
     methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
   else
     not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
+
+  if(VERBOSE)
+    cerr << meths.size() << " CpG sites read" << endl;
 
   for (size_t i = 0; i < regions.size(); ++i) {
 
@@ -417,7 +421,7 @@ main(int argc, const char **argv) {
            << (METHPIPE_FORMAT ? "METHPIPE" : "BED") << endl;
 
     if (LOAD_ENTIRE_FILE)
-      process_with_cpgs_loaded(METHPIPE_FORMAT, PRINT_NAN,
+      process_with_cpgs_loaded(METHPIPE_FORMAT, VERBOSE, PRINT_NAN,
                                PRINT_ADDITIONAL_LEVELS,
                                cpgs_file, regions, out);
     else
