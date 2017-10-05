@@ -49,12 +49,12 @@ using std::unordered_map;
 static bool
 precedes(const MappedRead &a, const MappedRead &b) {
   return a.r.get_chrom() < b.r.get_chrom() ||
-    (a.r.get_chrom() == b.r.get_chrom() && 
-     (a.r.get_start() < b.r.get_start() ||
-      (a.r.get_start() == b.r.get_start() && 
-       (a.r.get_end() < b.r.get_end() ||
-	(a.r.get_end() == b.r.get_end() &&
-	 (a.r.get_strand() < b.r.get_strand()))))));
+                           (a.r.get_chrom() == b.r.get_chrom() &&
+                            (a.r.get_start() < b.r.get_start() ||
+                             (a.r.get_start() == b.r.get_start() &&
+                              (a.r.get_end() < b.r.get_end() ||
+                               (a.r.get_end() == b.r.get_end() &&
+                                (a.r.get_strand() < b.r.get_strand()))))));
 }
 
 
@@ -93,12 +93,12 @@ get_cytosines(const vector<MappedRead> &mr, vector<size_t> &c_pos) {
 
 static void
 get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
-  
+
   vector<size_t> sites;
   if (ALL_C)
     get_cytosines(mr, sites);
   else get_cpgs(mr, sites);
-  
+
   unordered_map<string, vector<size_t> > patterns;
   for (size_t i = 0; i < mr.size(); ++i) {
     string s;
@@ -106,12 +106,12 @@ get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
       s += (is_cytosine(mr[i].seq[sites[j]]) ? '1' : '0');
     patterns[s].push_back(i);
   }
-  
+
   std::unordered_set<size_t> keepers;
   for (unordered_map<string, vector<size_t> >::iterator i(patterns.begin());
        i != patterns.end(); ++i)
     keepers.insert(i->second[rand() % i->second.size()]);
-  
+
   size_t j = 0;
   for (size_t i = 0; i < mr.size(); ++i)
     if (keepers.find(i) != keepers.end()) {
@@ -130,13 +130,13 @@ int main(int argc, const char **argv) {
     bool ALL_C = false;
     bool DISABLE_SORT_TEST = false;
     bool INPUT_FROM_STDIN = false;
-    
+
     string outfile;
     string statfile;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
-			   "duplicate reads from sorted mapped reads", 
+			   "duplicate reads from sorted mapped reads",
 			   "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file for unique reads",
                       false, outfile);
@@ -144,12 +144,12 @@ int main(int argc, const char **argv) {
                       false, INPUT_FROM_STDIN);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
     opt_parse.add_opt("seq", 's', "use sequence info", false, USE_SEQUENCE);
-    opt_parse.add_opt("all-cytosines", 'A', "use all cytosines (default: CpG)", 
+    opt_parse.add_opt("all-cytosines", 'A', "use all cytosines (default: CpG)",
 		      false, ALL_C);
-    opt_parse.add_opt("disable", 'D', "disable sort test", 
+    opt_parse.add_opt("disable", 'D', "disable sort test",
 		      false, DISABLE_SORT_TEST);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (opt_parse.help_requested()) {
@@ -184,32 +184,33 @@ int main(int argc, const char **argv) {
     std::ifstream ifs;
     if (!infile.empty()) ifs.open(infile.c_str());
     std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
-    
+
     MappedRead mr;
     if (!(in >> mr))
       throw SMITHLABException("error reading file: " + infile);
-    
-    size_t reads_in = 0;
+
+
+    size_t reads_in = 1;
     size_t reads_out = 0;
-    size_t good_bases_in = 0;
-    size_t good_bases_out = 0;
+    size_t good_bases_in = mr.seq.length();
+    size_t good_bases_out = mr.seq.length();
     size_t reads_with_duplicates = 0;
-    
+
     vector<MappedRead> buffer(1, mr);
     while (in >> mr) {
       ++reads_in;
       good_bases_in += mr.seq.length();
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
-	throw SMITHLABException("input not properly sorted:\n" + 
+	throw SMITHLABException("input not properly sorted:\n" +
 				toa(buffer.front()) + "\n" + toa(mr));
       if (!equivalent(buffer.front(), mr)) {
 	if (USE_SEQUENCE) {
 	  const size_t orig_buffer_size = buffer.size();
 	  get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
-	  copy(buffer.begin(), buffer.end(), 
+	  copy(buffer.begin(), buffer.end(),
 	       std::ostream_iterator<MappedRead>(out, "\n"));
 	  reads_out += buffer.size();
-      good_bases_out += buffer.size();
+          good_bases_out += buffer[0].seq.length();
 	  reads_with_duplicates += (buffer.size() < orig_buffer_size);
 	}
 	else {
@@ -223,11 +224,11 @@ int main(int argc, const char **argv) {
       }
       buffer.push_back(mr);
     }
-    
+
     if (USE_SEQUENCE) {
       const size_t orig_buffer_size = buffer.size();
       get_meth_patterns(ALL_C, buffer);
-      copy(buffer.begin(), buffer.end(), 
+      copy(buffer.begin(), buffer.end(),
 	   std::ostream_iterator<MappedRead>(out, "\n"));
       reads_out += buffer.size();
       reads_with_duplicates += (buffer.size() < orig_buffer_size);
@@ -239,10 +240,10 @@ int main(int argc, const char **argv) {
       ++reads_out;
       reads_with_duplicates += (buffer.size() > 1);
     }
-    
+
     if (!statfile.empty()) {
-      std::ofstream out_stat(statfile.c_str());    
-      out_stat << "TOTAL READS IN:\t" << reads_in + 1 << "\n"
+      std::ofstream out_stat(statfile.c_str());
+      out_stat << "TOTAL READS IN:\t" << reads_in << "\n"
 	       << "GOOD BASES IN:\t" << good_bases_in << "\n"
 	       << "TOTAL READS OUT:\t" << reads_out << "\n"
 	       << "GOOD BASES OUT:\t" << good_bases_out << "\n"
