@@ -193,7 +193,7 @@ int main(int argc, const char **argv) {
     size_t reads_in = 1;
     size_t reads_out = 0;
     size_t good_bases_in = mr.seq.length();
-    size_t good_bases_out = mr.seq.length();
+    size_t good_bases_out = 0;
     size_t reads_with_duplicates = 0;
 
     vector<MappedRead> buffer(1, mr);
@@ -210,7 +210,7 @@ int main(int argc, const char **argv) {
 	  copy(buffer.begin(), buffer.end(),
 	       std::ostream_iterator<MappedRead>(out, "\n"));
 	  reads_out += buffer.size();
-          good_bases_out += buffer[0].seq.length();
+          good_bases_out += buffer.size() * buffer[0].seq.length();
 	  reads_with_duplicates += (buffer.size() < orig_buffer_size);
 	}
 	else {
@@ -232,6 +232,7 @@ int main(int argc, const char **argv) {
 	   std::ostream_iterator<MappedRead>(out, "\n"));
       reads_out += buffer.size();
       reads_with_duplicates += (buffer.size() < orig_buffer_size);
+      good_bases_out += buffer.size() * buffer[0].seq.length();
     }
     else {
       const size_t selected = rand() % buffer.size();
