@@ -32,11 +32,12 @@ wilson_ci_for_binomial(const double alpha, const double n,
 }
 
 static int
-binom_null(const double alpha, const double n, const double p_hat, const double p){
+binom_null(const double alpha, const double n,
+           const double p_hat, const double p) {
   double lower;
   double upper;
-  wilson_ci_for_binomial(alpha, n, p_hat, lower, upper) ;
-  if(p < upper && p >lower) return 0;
+  wilson_ci_for_binomial(alpha, n, p_hat, lower, upper);
+  if (p < upper && p >lower) return 0;
   else return 1;
 }
 
@@ -85,8 +86,6 @@ log_L(const size_t h, const size_t g, const size_t m, const size_t l,
   return log_lkhd;
 }
 
-
-
 //get start point if all 3 inputs are available
 static void
 get_start_point(const size_t t, const size_t u,
@@ -95,13 +94,12 @@ get_start_point(const size_t t, const size_t u,
                 const double tolerance,
                 double &p_m, double &p_h) {
 
-  p_m = 1.0*m/(m + l)+tolerance;
-  p_h = 1.0*h/(h + g)+tolerance;
-  double p_u = 1.0*u/(t+u)+tolerance;
+  p_m = static_cast<double>(m)/(m + l + tolerance) + tolerance;
+  p_h = static_cast<double>(h)/(h + g + tolerance) + tolerance;
+  double p_u = static_cast<double>(u)/(t + u + tolerance) + tolerance;
   double sum = p_m + p_h + p_u;
   p_m = p_m/sum;
   p_h = p_h/sum;
-
 }
 
 static void
@@ -119,7 +117,7 @@ expectation(const size_t a, const size_t x,
   const double log_p_q = log(p + q);
 
   vector<double> a_c_j;
-  for (size_t j = 0; j <= a; ++j){
+  for (size_t j = 0; j <= a; ++j) {
     a_c_j.push_back(gsl_sf_lnchoose(a, j) + log_q*(a - j) + log_p*j - log_p_q*a);
   }
 
@@ -181,7 +179,8 @@ expectation_maximization(const bool DEBUG,
 
   do {
     vector<vector<double> > coeff;
-    expectation( a, x, p, q, coeff);
+    assert (p > 0 && q > 0);
+    expectation(a, x, p, q, coeff);
     const double M = maximization(x, y, a, b, coeff);
     const double p_old = p, q_old = q;
     p = update_p_m(x, y, z, w, a, b, coeff);
@@ -192,8 +191,8 @@ expectation_maximization(const bool DEBUG,
 
     iter ++;
 
-  }
-  while (delta > tolerance && iter <=500);
+  } while (delta > tolerance && iter <=500);
+
   if (DEBUG) {
     cerr << iter << '\t'
          << "p_m=" << p << '\t'
@@ -208,7 +207,7 @@ expectation_maximization(const bool DEBUG,
 static double
 log_L(const size_t x, const size_t y,
       const size_t z, const size_t w,
-      const double p, const double q){
+      const double p, const double q) {
   assert(p+q <= 1);
   double log_lkhd = gsl_sf_lnchoose(x+y, x) + gsl_sf_lnchoose(z+w, z);
   if (p > 0) log_lkhd += x*log(p);
@@ -229,8 +228,8 @@ get_start_point(const size_t x, const size_t y,
 
   p = tolerance + 1.0*x/(x + y);
   q = tolerance + 1.0*z/(z + w);
-  if( p + q >= 1.0 ){
-    p = max(tolerance, (1.0 - tolerance)*p/(p+q) );
+  if (p + q >= 1.0) {
+    p = max(tolerance, (1.0 - tolerance)*p/(p+q));
     q = max(tolerance, 1.0 - p - tolerance);
   }
 
@@ -264,13 +263,13 @@ maximization(const size_t x, const size_t y,
 static double
 update_q(const size_t x, const size_t y,
          const size_t z, const size_t w,
-         const vector<double> &coeff){
+         const vector<double> &coeff) {
   double num = z;
   double denom = x+y+z+w;
-  for (size_t j =0; j <=y; ++j){
+  for (size_t j =0; j <=y; ++j) {
     num += coeff[j]*j;
   }
-  return num/denom ;
+  return num/denom;
 }
 
 static void
@@ -284,7 +283,7 @@ expectation_maximization(const bool DEBUG,
 
   do {
     vector<double> coeff;
-    expectation( y, p, q, coeff);
+    expectation(y, p, q, coeff);
     const double M = maximization(x, y, coeff);
     const double p_old = p, q_old = q;
     q = update_q(x, y, z, w, coeff);
@@ -293,7 +292,8 @@ expectation_maximization(const bool DEBUG,
     q = max(tolerance, min(q, 1-tolerance-p));
     delta = max(fabs(p_old - p), fabs(q_old - q));
     iter ++;
-  }  while (delta > tolerance && iter <= 500);
+  } while (delta > tolerance && iter <= 500);
+
   if (DEBUG) {
     cerr << iter << '\t'
          << "p=" << p << '\t'
@@ -316,8 +316,8 @@ parse_line(const bool REV, const string &line,
   size_t count;
   is >> chr >> pos >> dummy >> str_count >> level >> count;
 
-  if (count > 50) count = 50;
-
+  if (count > 500) count = 500;
+  
   a = round(count*level);
   b = count - a;
   if (REV) std::swap(a, b);
@@ -336,9 +336,10 @@ main(int argc, const char **argv) {
     string hydroxy_file;
     string bs_seq_file;
     string outfile;
+    string out_methcount_pseudo_h;
+    string out_methcount_pseudo_m;
     double alpha = 0.05;
     static double tolerance = 1e-10;
-
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "", "");
@@ -352,8 +353,12 @@ main(int argc, const char **argv) {
                       false , oxbs_seq_file);
     opt_parse.add_opt("tolerance", 't', "EM convergence threshold. Default 1e-10",
                       false , tolerance);
-    opt_parse.add_opt("alpha", 'a', "significance level of binomial test for each site. Default 0.05", false,
-                      alpha);
+    opt_parse.add_opt("alpha", 'a', "significance level of binomial test for each site. Default 0.05",
+                      false, alpha);
+    opt_parse.add_opt("outh", 'H', "hmC pseudo methcount output file (default: null)",
+                      false, out_methcount_pseudo_h);
+    opt_parse.add_opt("outm", 'M', "mC pseudo methcount output file (default: null)",
+                      false, out_methcount_pseudo_m);
     opt_parse.add_opt("verbose", 'v', "print run statistics", false, VERBOSE);
     vector<string> leftover_args;
 
@@ -375,7 +380,7 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (alpha <= 0.0 || alpha >= 1.0){
+    if (alpha <= 0.0 || alpha >= 1.0) {
       cerr << "Please specify a value in (0, 1) for -a option." << endl;
       return EXIT_SUCCESS;
     }
@@ -390,6 +395,12 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
     std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
 
+    std::ofstream out_m, out_h;
+    if (!out_methcount_pseudo_m.empty())
+      out_m.open(out_methcount_pseudo_m, std::ofstream::out);
+    if (!out_methcount_pseudo_h.empty())
+      out_h.open(out_methcount_pseudo_h, std::ofstream::out);
+    
     size_t h = 0, g = 0;
     size_t m = 0, l = 0;
     size_t u = 0, t = 0;
@@ -424,28 +435,35 @@ main(int argc, const char **argv) {
                h_pos == o_pos && h_pos == b_pos);
 
         total_sites++;
-        double p_m = 0.0, p_h = 0.0, p_u;
-        int CONFLICT=0, cflt_m, cflt_h, cflt_u;
+        double p_m, p_h, p_u;
+        int CONFLICT = 0, cflt_m, cflt_h, cflt_u;
         double p_m_hat, p_h_hat, p_u_hat;
-        if ((h + g > 0 && u + t > 0 ) ||
-            (h + g > 0 && m + l > 0 ) ||
-            (m + l > 0 && u + t > 0 )) {
+        if ((h + g > 0 && u + t > 0) ||
+            (h + g > 0 && m + l > 0) ||
+            (m + l > 0 && u + t > 0)) {
           x = g; y = h;
           z = m; w = l;
           a = t; b = u;
-          p_h_hat =  static_cast<double>(y)/(x+y);
-          p_m_hat =  static_cast<double>(z)/(z+w);
-          p_u_hat =  static_cast<double>(b)/(a+b);
+          p_h_hat = static_cast<double>(y)/(x+y);
+          p_m_hat = static_cast<double>(z)/(z+w);
+          p_u_hat = static_cast<double>(b)/(a+b);
 
           // use frequent method result if no overshoot
-          if(p_h_hat+p_m_hat+p_u_hat ==1.0) {
+          if (p_h_hat + p_m_hat + p_u_hat == 1.0) {
             out << h_chr << '\t' << h_pos << '\t'
                 << h_pos + 1 << '\t' <<p_m_hat << '\t'
                 << p_h_hat << '\t' << p_u_hat << "\t0" << endl;
-          }
-          else {
+
+            // write out pseudo methcount files for mC and hmC
+            if (!out_methcount_pseudo_m.empty()) 
+              out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                    << p_m_hat << "\t" << a+b+x+y+z+w << endl;
+            if (!out_methcount_pseudo_h.empty()) 
+              out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                    << p_h_hat << "\t" << a+b+x+y+z+w << endl;
+          } else {
             overshoot_sites++;
-            get_start_point(t,u,m,l,h,g,tolerance,p_m,p_h);
+            get_start_point(t, u, m, l, h, g, tolerance, p_m, p_h);
             expectation_maximization(false, x, y, z, w, a, b, tolerance, p_m, p_h);
 
             p_u = 1 - p_m - p_h;
@@ -456,30 +474,51 @@ main(int argc, const char **argv) {
             if (p_h >= 1.0-2.0*tolerance) p_h = 1.0;
             if (p_u >= 1.0-2.0*tolerance) p_u = 1.0;
 
-            if(p_h_hat+p_m_hat+p_u_hat != 1 && FLAG) {
-              cflt_h = binom_null( alpha, static_cast<double>(x+y),  p_h_hat,  p_h);
-              cflt_m = binom_null( alpha, static_cast<double>(z+w),  p_m_hat,  p_m);
-              cflt_u = binom_null( alpha, static_cast<double>(a+b),  p_u_hat,  p_u);
-              //CONFLICT = (cflt_m && cflt_h) ||  (cflt_u && cflt_h) || (cflt_m && cflt_u);
+            if (p_h_hat+p_m_hat+p_u_hat != 1 && FLAG) {
+              cflt_h = binom_null(alpha, static_cast<double>(x+y), p_h_hat, p_h);
+              cflt_m = binom_null(alpha, static_cast<double>(z+w), p_m_hat, p_m);
+              cflt_u = binom_null(alpha, static_cast<double>(a+b), p_u_hat, p_u);
+              //CONFLICT = (cflt_m && cflt_h) || (cflt_u && cflt_h) || (cflt_m && cflt_u);
               CONFLICT = cflt_m + cflt_u + cflt_h;
             }
+            
             out << h_chr << '\t' << h_pos << '\t'
                 << h_pos + 1 << '\t' << p_m << '\t'
                 << p_h << "\t" << p_u << "\t" << CONFLICT << endl;
+
             if (CONFLICT > 1)
               conflict_sites++;
+
+            // write out pseudo methcount files for mC and hmC
+            if (!out_methcount_pseudo_m.empty()) 
+              out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                    << p_m << '\t' << a+b+x+y+z+w << endl;
+            if (!out_methcount_pseudo_h.empty()) 
+              out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                    << p_h << '\t' << a+b+x+y+z+w << endl;
           }
-        }
-        else {
+        } else { //observation from only one experiment
           out << h_chr << '\t' << h_pos << '\t'
               << h_pos +1 << '\t' << "nan\tnan\tnan\tnan" << endl;
-        }
-      }
-      while (getline(h_in, hydroxy_line) &&
-             getline(b_in, bs_line) &&
-             getline(o_in, oxbs_line));
-    }
-    else {
+
+          // write out pseudo methcount files for mC and hmC
+          if (!out_methcount_pseudo_m.empty()) {
+            int coverage = m + l;
+            double level = coverage > 0 ? static_cast<double>(m)/(coverage) : 0.0;
+            out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                  << level << "\t" << coverage << endl;
+          }
+          if (!out_methcount_pseudo_h.empty()) {
+            int coverage = h + g;
+            double level = coverage > 0 ? static_cast<double>(h)/(coverage) : 0.0;
+            out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
+                  << level << "\t" << coverage << endl;
+          }
+        } 
+      } while (getline(h_in, hydroxy_line) &&
+               getline(b_in, bs_line) &&
+               getline(o_in, oxbs_line));
+    } else {
       std::ifstream f_in, s_in;
       string f_line, s_line, f_chr, s_chr;
       size_t f_pos = 0, s_pos = 0;
@@ -489,19 +528,18 @@ main(int argc, const char **argv) {
         s_rev = true;
         f_in.open(hydroxy_file.c_str());
         s_in.open(bs_seq_file.c_str());
-      }
-      else if (hydroxy_file.empty()) {
+      } else if (hydroxy_file.empty()) {
         f_rev = true;
         f_in.open(bs_seq_file.c_str());
         s_in.open(oxbs_seq_file.c_str());
-      }
-      else {
+      } else {
         f_in.open(oxbs_seq_file.c_str());
         s_in.open(hydroxy_file.c_str());
       }
 
       f_line = methpipe::skip_header(f_in);
       s_line = methpipe::skip_header(s_in);
+      
       do {
         parse_line(f_rev, f_line, x, y, f_chr, f_pos);
         parse_line(s_rev, s_line, z, w, s_chr, s_pos);
@@ -511,17 +549,16 @@ main(int argc, const char **argv) {
         total_sites++;
         double p = 0.0, q = 0.0, r = 0.0;
         int CONFLICT=0, cflt1, cflt2;
-        if (x + y > 0 && z + w >0) {
+        if (x + y > 0 && z + w > 0) {
           if (static_cast<double>(x)/(x+y) +
-              static_cast<double>(z)/(z+w) <= 1.0){
+              static_cast<double>(z)/(z+w) <= 1.0) {
             p = static_cast<double>(x)/(x+y);
             q = static_cast<double>(z)/(z+w);
             r = 1.0 - p - q;
-          }
-          else {
+          } else {
             overshoot_sites++;
-            get_start_point(x,y,z,w,tolerance,p,q);
-            expectation_maximization(false,x, y, z, w, tolerance, p, q);
+            get_start_point(x, y, z, w, tolerance, p, q);
+            expectation_maximization(false, x, y, z, w, tolerance, p, q);
             r = 1.0 - p - q;
             if (p <= 2.0*tolerance) p = 0.0;
             if (q <= 2.0*tolerance) q = 0.0;
@@ -530,32 +567,85 @@ main(int argc, const char **argv) {
             if (q >= 1.0 - 2.0*tolerance) q = 1.0;
             if (r >= 1.0 - 2.0*tolerance) r = 1.0;
             if (FLAG) {
-              const double p_hat1 =  static_cast<double>(x)/(x+y);
-              cflt1 = binom_null( alpha, static_cast<double>(x+y),  p_hat1,  p);
-              const double p_hat2 =  static_cast<double>(z)/(z+w);
-              cflt2 = binom_null( alpha, static_cast<double>(z+w),  p_hat2,  q);
+              const double p_hat1 = static_cast<double>(x)/(x+y);
+              cflt1 = binom_null(alpha, static_cast<double>(x+y), p_hat1, p);
+              const double p_hat2 = static_cast<double>(z)/(z+w);
+              cflt2 = binom_null(alpha, static_cast<double>(z+w), p_hat2, q);
               CONFLICT = cflt1 + cflt2;
             }
           }
+          
           out << f_chr << '\t' << f_pos << '\t'
               << f_pos + 1 << '\t';
 
-          if (oxbs_seq_file.empty())
+          if (oxbs_seq_file.empty()) {
             out << r << '\t' << p << '\t' << q << '\t';
-          else if (hydroxy_file.empty())
+          } else if (hydroxy_file.empty()) {
             out << q << '\t' << r << '\t' << p << '\t';
-          else
+          } else {
             out << p << '\t' << q << '\t' << r << '\t';
-
+          }
           out << CONFLICT << endl;
           if (CONFLICT > 1)
             conflict_sites++;
-        }
-        else
+          
+          // write out pseudo methcount files for mC and hmC
+          if (!out_methcount_pseudo_h.empty()) {
+            out_h << f_chr << '\t' << f_pos << "\t+\tCpG\t";
+            if (oxbs_seq_file.empty()) {
+              out_h << p;
+            } else if (hydroxy_file.empty()) {
+              out_h << r;
+            } else {
+              out_h << q;
+            }
+            out_h << '\t' << x + y + z+ w << endl;                  
+          }
+          if (!out_methcount_pseudo_m.empty()) {
+            out_m << f_chr << '\t' << f_pos << "\t+\tCpG\t";
+            if (oxbs_seq_file.empty()) {
+              out_m << r;
+            } else if (hydroxy_file.empty()) {
+              out_m << q;
+            } else {
+              out_m << p;
+            }
+            out_m << '\t' << x + y + z+ w << endl;
+          }                  
+        } else { // only one input file has non-zero coverage
           out << f_chr << '\t' << f_pos << '\t'
               << f_pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
-      }
-      while (getline(f_in, f_line) && getline(s_in, s_line));
+
+          // write out pseudo methcount files for mC and hmC
+          if (!out_methcount_pseudo_h.empty()) {
+            int coverage = 0;
+            double level = 0.0;
+            if (oxbs_seq_file.empty() && x+y > 0) {
+              coverage = x + y;
+              level = static_cast<double>(x)/(coverage);
+            } else if (bs_seq_file.empty() && z+w > 0) {
+              coverage = z + w;
+              level = static_cast<double>(z)/(coverage);
+            }
+            out_h << s_chr << '\t' << s_pos << "\t+\tCpG\t"
+                  << level << '\t' << coverage << endl;
+          }
+          
+          if (!out_methcount_pseudo_m.empty()) {
+            int coverage = 0;
+            double level = 0.0;
+            if (bs_seq_file.empty() && x + y > 0) {
+              coverage = x + y;
+              level = static_cast<double>(x)/(coverage);
+            } else if (hydroxy_file.empty() && z + w > 0) {
+              coverage = z + w;
+              level = static_cast<double>(z)/(coverage);
+            }
+            out_m << s_chr << '\t' << s_pos << "\t+\tCpG\t"
+                  << level << '\t' << coverage << endl;
+          }   
+        }
+      } while (getline(f_in, f_line) && getline(s_in, s_line));
     }
 
     if (VERBOSE)
