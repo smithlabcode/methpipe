@@ -155,9 +155,9 @@ count_states_pos(const string &chrom, const MappedRead &r,
   const size_t width = r.r.get_width();
 
   size_t position = r.r.get_start();
+  assert(position + width <= chrom.length());
   for (size_t i = 0; i < width; ++i, ++position)
-    if (position < chrom.length())
-      counts[position].add_count_pos(r.seq[i]);
+    counts[position].add_count_pos(r.seq[i]);
 }
 
 
@@ -168,9 +168,9 @@ count_states_neg(const string &chrom, const MappedRead &r,
   const size_t width = r.r.get_width();
 
   size_t position = r.r.get_start() + width - 1;
+  assert(position < chrom.length());
   for (size_t i = 0; i < width; ++i, --position)
-    if (position < chrom.length())
-      counts[position].add_count_neg(r.seq[i]);
+    counts[position].add_count_neg(r.seq[i]);
 }
 
 

@@ -65,10 +65,12 @@ count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
   const size_t offset = r.r.get_start();
 
   size_t position = offset;
+  assert(offset < chrom.length()); // at least one bp of read on chr
   for (size_t i = 0; i < width; ++i, ++position) {
     if (position >= chrom.length()) // some overhang
       ++hanging;
-    else if (is_cytosine(chrom[position]) &&
+
+    if (is_cytosine(chrom[position]) &&
         (!is_guanine(chrom[position+1]) ||
          position == chrom.length() ||
          INCLUDE_CPGS)) {
@@ -92,10 +94,11 @@ count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
   const size_t offset = r.r.get_start();
 
   size_t position = offset + width - 1;
+  assert(position < chrom.length()); // at least one bp of read on chr
   for (size_t i = 0; i < width; ++i, --position) {
     if (position >= chrom.length())
       ++hanging;
-    else if (is_guanine(chrom[position]) &&
+    if (is_guanine(chrom[position]) &&
         (position == 0 ||
          !is_cytosine(chrom[position-1]) ||
          INCLUDE_CPGS)) {
