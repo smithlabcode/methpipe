@@ -94,7 +94,7 @@ count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
   const size_t offset = r.r.get_start();
 
   size_t position = offset + width - 1;
-  assert(position < chrom.length()); // at least one bp of read on chr
+  assert(offset < chrom.length()); // at least one bp of read on chr
   for (size_t i = 0; i < width; ++i, --position) {
     if (position >= chrom.length())
       ++hanging;
