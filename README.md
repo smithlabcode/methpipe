@@ -75,7 +75,7 @@ http://groups.google.com/group/methpipe?hl=en
 Copyright and License Information
 =================================
 
-Copyright (C) 2013-2015
+Copyright (C) 2018-2020
 University of Southern California,
 Andrew D. Smith
   
