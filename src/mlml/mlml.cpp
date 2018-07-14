@@ -1,3 +1,19 @@
+/*   Copyright (C) 2014 University of Southern California and
+ *                      Meng Zhou, Jenny Qu and Andrew D. Smith
+ *
+ *   Authors: Meng Zhou, Jenny Qu and Andrew D. Smith
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by 
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ */
+
 #include <string>
 #include <vector>
 #include <iostream>
@@ -19,7 +35,6 @@ using std::max;
 using std::min;
 using std::round;
 
-
 static void
 wilson_ci_for_binomial(const double alpha, const double n,
                        const double p_hat, double &lower, double &upper) {
@@ -40,8 +55,6 @@ binom_null(const double alpha, const double n,
   if (p < upper && p >lower) return 0;
   else return 1;
 }
-
-
 
 /* NOTATION:
  * p_m: probability of mC
