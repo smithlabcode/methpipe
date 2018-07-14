@@ -251,8 +251,11 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
     vector<std::ifstream*> infiles(methcounts_files.size());
-    for (size_t i = 0; i < methcounts_files.size(); ++i)
+    for (size_t i = 0; i < methcounts_files.size(); ++i) {
       infiles[i] = new std::ifstream(methcounts_files[i].c_str());
+      if (!infiles[i])
+        throw SMITHLABException("cannot open file: " + methcounts_files[i]);
+    }
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
