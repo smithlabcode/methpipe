@@ -1012,7 +1012,10 @@ $ radmeth regression -factor case design_matrix.txt proportion_table.txt > cpgs.
 The {\tt -factor} parameter specifies the factor with respect to which we
 want to test for differential methylation. The test factor is {\tt case},
 meaning that we are testing for differential methylation between cases and 
-controls. The output file {\tt cpgs.bed} has the same format {\tt methdiff}.
+controls.
+In the output file {\tt cpgs.bed},
+the last four columns correspond to the total read counts and
+methylated read counts of the case group and control group, respectively.
 The p-value (5-th column) is given by the log-likelihood ratio test. A
 p-value of -1 means that the test was not performed: either due to zero
 coverage over all case or control samples, or because the methylation level
