@@ -47,8 +47,9 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::to_string;
 
-struct Site {
+struct LevelsSite {
   string chrom;
   size_t pos;
   string strand;
@@ -58,7 +59,7 @@ struct Site {
 
   size_t n_meth() const {return std::round(meth*n_reads);}
 
-  void add(const Site &other) {
+  void add(const LevelsSite &other) {
     if (!is_mutated() && other.is_mutated())
       context += 'x';
     // ADS: order matters below as n_reads update invalidates n_meth()
@@ -70,7 +71,7 @@ struct Site {
 
   // ADS: function below has redundant check for is_cpg, which is
   // expensive and might be ok to remove
-  bool is_mate_of(const Site &first) {
+  bool is_mate_of(const LevelsSite &first) {
     return (first.pos + 1 == pos && first.is_cpg() && is_cpg() &&
             first.strand == "+" && strand == "-");
   }
@@ -103,23 +104,23 @@ struct Site {
 struct CountSet {
   size_t total_sites;
   size_t sites_covered;
-  size_t max_coverage;
+  size_t max_depth;
   size_t mutations;
   size_t total_c, total_t;
   size_t called_meth, called_unmeth;
   double mean_agg;
-  CountSet() : total_sites(0), sites_covered(0), max_coverage(0),
+  CountSet() : total_sites(0), sites_covered(0), max_depth(0),
                mutations(0), total_c(0), total_t(0),
                called_meth(0), called_unmeth(0),
                mean_agg(0.0) {}
 
-  void update(const Site &s) {
+  void update(const LevelsSite &s) {
     if (s.is_mutated()) {
       ++mutations;
     }
     else if (s.n_reads > 0) {
       ++sites_covered;
-      max_coverage = std::max(max_coverage, s.n_reads);
+      max_depth = std::max(max_depth, s.n_reads);
       total_c += s.n_meth();
       total_t += s.n_reads - s.n_meth();
       mean_agg += s.meth;
@@ -134,7 +135,7 @@ struct CountSet {
   size_t coverage() const {return total_c + total_t;}
   size_t total_called() const {return called_meth + called_unmeth;}
 
-  double weighted_mean_meth() const {
+  double mean_meth_weighted() const {
     return static_cast<double>(total_c)/coverage();
   }
   double fractional_meth() const {
@@ -145,25 +146,26 @@ struct CountSet {
   }
 
   string format_summary(const string &context) const {
+    static const string indent = string(2, ' ');
     std::ostringstream oss;
     const bool good = (sites_covered != 0);
-    oss << "METHYLATION LEVELS (" + context + " CONTEXT):\n"
-        << '\t' << "sites" << '\t' << total_sites << '\n'
-        << '\t' << "sites_covered" << '\t' << sites_covered << '\n'
-        << '\t' << "fraction_covered" << '\t'
+    oss << context + ":\n"
+        << indent << "total_sites: " << total_sites << '\n'
+        << indent << "sites_covered: " << sites_covered << '\n'
+        << indent << "sites_covered_fraction: "
         << static_cast<double>(sites_covered)/total_sites << '\n'
-        << '\t' << "mean_depth" << '\t'
+        << indent << "mean_depth: "
         << static_cast<double>(coverage())/total_sites << '\n'
-        << '\t' << "mean_depth_covered" << '\t'
+        << indent << "mean_depth_covered: "
         << static_cast<double>(coverage())/sites_covered << '\n'
-        << '\t' << "max_depth" << '\t' << max_coverage << '\n'
-        << '\t' << "mutations" << '\t' << mutations << '\n'
-        << '\t' << "mean_meth" << '\t'
-        << (good ? toa(mean_meth()) : "N/A")  << '\n'
-        << '\t' << "w_mean_meth" << '\t'
-        << (good ? toa(weighted_mean_meth()) : "N/A") << '\n'
-        << '\t' << "frac_meth" << '\t'
-        << (good ? toa(fractional_meth()) : "N/A");
+        << indent << "max_depth: " << max_depth << '\n'
+        << indent << "mutations: " << mutations << '\n'
+        << indent << "mean_meth: "
+        << (good ? to_string(mean_meth()) : "NA")  << '\n'
+        << indent << "mean_meth_weighted: "
+        << (good ? to_string(mean_meth_weighted()) : "NA") << '\n'
+        << indent << "fractional_meth: "
+        << (good ? to_string(fractional_meth()) : "NA");
     return oss.str();
   }
 
@@ -172,13 +174,11 @@ struct CountSet {
 
 double CountSet::alpha = 0.95;
 
-
 static std::istream &
-get_meth_unmeth(std::istream &in, Site &site) {
+get_meth_unmeth(std::istream &in, LevelsSite &site) {
   return methpipe::read_site(in, site.chrom, site.pos, site.strand,
                              site.context, site.meth, site.n_reads);
 }
-
 
 int
 main(int argc, const char **argv) {
@@ -220,10 +220,10 @@ main(int argc, const char **argv) {
 
     std::ifstream in(meth_file.c_str());
     if (!in)
-      throw SMITHLABException("bad input file: " + meth_file);
+      throw std::runtime_error("bad input file: " + meth_file);
 
-    CountSet cpg, cpg_symm, chh, cxg, ccg, all_c;
-    Site site, prev_site;
+    CountSet cpg, cpg_symmetric, chh, cxg, ccg, cytosines;
+    LevelsSite site, prev_site;
     size_t chrom_count = 0;
 
     while (get_meth_unmeth(in, site)) {
@@ -238,7 +238,7 @@ main(int argc, const char **argv) {
         cpg.update(site);
         if (site.is_mate_of(prev_site)) {
           site.add(prev_site);
-          cpg_symm.update(site);
+          cpg_symmetric.update(site);
         }
       }
       else if (site.is_chh())
@@ -248,9 +248,9 @@ main(int argc, const char **argv) {
       else if (site.is_cxg())
         cxg.update(site);
       else
-        throw SMITHLABException("bad site context: " + site.context);
+        throw std::runtime_error("bad site context: " + site.context);
 
-      all_c.update(site);
+      cytosines.update(site);
 
       prev_site = site;
     }
@@ -259,22 +259,16 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-    out << "NUMBER OF CHROMOSOMES:" << '\t' << chrom_count << endl;
-
-    out << all_c.format_summary("all cytosine") << endl
-        << cpg.format_summary("CpG") << endl
-        << cpg_symm.format_summary("symmetric CpG") << endl
-        << chh.format_summary("CHH") << endl
-        << ccg.format_summary("CCG") << endl
-        << cxg.format_summary("CXG") << endl;
-
+    out << "number_of_chromosomes: " << chrom_count << endl
+        << cytosines.format_summary("cytosines") << endl
+        << cpg.format_summary("cpg") << endl
+        << cpg_symmetric.format_summary("cpg_symmetric") << endl
+        << chh.format_summary("chh") << endl
+        << ccg.format_summary("ccg") << endl
+        << cxg.format_summary("cxg") << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const std::exception &e) {
     cerr << e.what() << endl;
-    return EXIT_FAILURE;
-  }
-  catch (std::bad_alloc &ba) {
-    cerr << "ERROR: could not allocate memory" << endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
