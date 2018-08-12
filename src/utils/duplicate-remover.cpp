@@ -1,32 +1,20 @@
-/*   duplicate-remover:
+/* duplicate-remover:
  *
- *    Copyright (C) 2013 University of Southern California and
- *                       Andrew D. Smith
+ * Copyright (C) 2013-2018 University of Southern California and
+ *                         Andrew D. Smith
  *
- *    Authors: Andrew D. Smith, Ben Decato, Song Qiang
+ * Authors: Andrew D. Smith, Ben Decato, Song Qiang
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
-
-#include <sys/types.h>
-#include <unistd.h>
-
-#include <string>
-#include <vector>
-#include <iostream>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -34,6 +22,15 @@
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 #include "bsutils.hpp"
+
+#include <string>
+#include <vector>
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+
+#include <sys/types.h>
+#include <unistd.h>
 
 using std::string;
 using std::vector;
@@ -48,13 +45,13 @@ using std::unordered_map;
 
 static bool
 precedes(const MappedRead &a, const MappedRead &b) {
-  return a.r.get_chrom() < b.r.get_chrom() ||
-                           (a.r.get_chrom() == b.r.get_chrom() &&
-                            (a.r.get_start() < b.r.get_start() ||
-                             (a.r.get_start() == b.r.get_start() &&
-                              (a.r.get_end() < b.r.get_end() ||
-                               (a.r.get_end() == b.r.get_end() &&
-                                (a.r.get_strand() < b.r.get_strand()))))));
+  return (a.r.get_chrom() < b.r.get_chrom() ||
+          (a.r.get_chrom() == b.r.get_chrom() &&
+           (a.r.get_start() < b.r.get_start() ||
+            (a.r.get_start() == b.r.get_start() &&
+             (a.r.get_end() < b.r.get_end() ||
+              (a.r.get_end() == b.r.get_end() &&
+               (a.r.get_strand() < b.r.get_strand())))))));
 }
 
 
@@ -108,8 +105,7 @@ get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
   }
 
   std::unordered_set<size_t> keepers;
-  for (unordered_map<string, vector<size_t> >::iterator i(patterns.begin());
-       i != patterns.end(); ++i)
+  for (auto i(patterns.begin()); i != patterns.end(); ++i)
     keepers.insert(i->second[rand() % i->second.size()]);
 
   size_t j = 0;
@@ -136,8 +132,8 @@ int main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
-			   "duplicate reads from sorted mapped reads",
-			   "<mapped-reads>");
+                           "duplicate reads from sorted mapped reads",
+                           "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file for unique reads",
                       false, outfile);
     opt_parse.add_opt("stdin", '\0', "take input from stdin",
@@ -145,9 +141,9 @@ int main(int argc, const char **argv) {
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
     opt_parse.add_opt("seq", 's', "use sequence info", false, USE_SEQUENCE);
     opt_parse.add_opt("all-cytosines", 'A', "use all cytosines (default: CpG)",
-		      false, ALL_C);
+                      false, ALL_C);
     opt_parse.add_opt("disable", 'D', "disable sort test",
-		      false, DISABLE_SORT_TEST);
+                      false, DISABLE_SORT_TEST);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
 
     vector<string> leftover_args;
@@ -201,26 +197,26 @@ int main(int argc, const char **argv) {
       ++reads_in;
       good_bases_in += mr.seq.length();
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
-	throw SMITHLABException("input not properly sorted:\n" +
-				toa(buffer.front()) + "\n" + toa(mr));
+        throw SMITHLABException("input not properly sorted:\n" +
+                                toa(buffer.front()) + "\n" + toa(mr));
       if (!equivalent(buffer.front(), mr)) {
-	if (USE_SEQUENCE) {
-	  const size_t orig_buffer_size = buffer.size();
-	  get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
-	  copy(buffer.begin(), buffer.end(),
-	       std::ostream_iterator<MappedRead>(out, "\n"));
-	  reads_out += buffer.size();
+        if (USE_SEQUENCE) {
+          const size_t orig_buffer_size = buffer.size();
+          get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
+          copy(buffer.begin(), buffer.end(),
+               std::ostream_iterator<MappedRead>(out, "\n"));
+          reads_out += buffer.size();
           good_bases_out += buffer.size() * buffer[0].seq.length();
-	  reads_with_duplicates += (buffer.size() < orig_buffer_size);
-	}
-	else {
-	  const size_t selected = rand() % buffer.size();
-	  out << buffer[selected] << "\n";
-	  good_bases_out += buffer[selected].seq.length();
-	  ++reads_out;
-	  reads_with_duplicates += (buffer.size() > 1);
-	}
-	buffer.clear();
+          reads_with_duplicates += (buffer.size() < orig_buffer_size);
+        }
+        else {
+          const size_t selected = rand() % buffer.size();
+          out << buffer[selected] << "\n";
+          good_bases_out += buffer[selected].seq.length();
+          ++reads_out;
+          reads_with_duplicates += (buffer.size() > 1);
+        }
+        buffer.clear();
       }
       buffer.push_back(mr);
     }
@@ -229,7 +225,7 @@ int main(int argc, const char **argv) {
       const size_t orig_buffer_size = buffer.size();
       get_meth_patterns(ALL_C, buffer);
       copy(buffer.begin(), buffer.end(),
-	   std::ostream_iterator<MappedRead>(out, "\n"));
+           std::ostream_iterator<MappedRead>(out, "\n"));
       reads_out += buffer.size();
       reads_with_duplicates += (buffer.size() < orig_buffer_size);
       good_bases_out += buffer.size() * buffer[0].seq.length();
@@ -243,16 +239,27 @@ int main(int argc, const char **argv) {
     }
 
     if (!statfile.empty()) {
+
+      const size_t reads_removed = reads_in - reads_out;
+      const double duplication_rate =
+        static_cast<double>(reads_in)/reads_out;
+      const double duplication_rate_for_dups =
+        static_cast<double>(reads_with_duplicates)/
+        (reads_removed - reads_with_duplicates);
+
       std::ofstream out_stat(statfile.c_str());
-      out_stat << "TOTAL READS IN:\t" << reads_in << "\n"
-	       << "GOOD BASES IN:\t" << good_bases_in << "\n"
-	       << "TOTAL READS OUT:\t" << reads_out << "\n"
-	       << "GOOD BASES OUT:\t" << good_bases_out << "\n"
-	       << "DUPLICATES REMOVED:\t" << reads_in - reads_out << "\n"
-	       << "READS WITH DUPLICATES:\t" << reads_with_duplicates << "\n";
+      out_stat << "total_reads: " << reads_in << endl
+               << "total_bases: " << good_bases_in << endl
+               << "unique_reads: " << reads_out << endl
+               << "unique_read_bases: " << good_bases_out << endl
+               << "duplicate_reads: " << reads_with_duplicates << endl
+               << "reads_removed: " << reads_removed << endl
+               << "duplication_rate: " << duplication_rate << endl
+               << "duplication_rate_for_dups: "
+               << duplication_rate_for_dups << endl;
     }
   }
-  catch (const SMITHLABException &e) {
+  catch (const std::runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
