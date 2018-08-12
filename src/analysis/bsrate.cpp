@@ -326,9 +326,10 @@ main(int argc, const char **argv) {
                  conv_count_pos, unconv_count_neg,
                  conv_count_neg, err_pos, err_neg);
     if (hanging > 0) // some overhanging reads
-      cerr << "Warning: a nonzero number (" << hanging << ") of reads mapped"
-           << " to the very end of a chromosome. For high numbers, make"
-           << " sure you are using the same assembly you mapped with."
+      cerr << "Warning: hanging reads detected at chrom ends "
+           << "(N=" << hanging<< ")" << endl
+           << "High numbers of hanging reads suggest mismatch "
+           << "between assembly provided here and that used for mapping"
            << endl;
   }
   catch (const SMITHLABException &e) {
