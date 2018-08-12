@@ -237,6 +237,7 @@ main(int argc, const char **argv) {
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
+    string sequence_to_use;
 
     double max_mismatches = std::numeric_limits<double>::max();
 
@@ -255,6 +256,8 @@ main(int argc, const char **argv) {
     //                false , fasta_suffix);
     opt_parse.add_opt("all", 'N', "count all Cs (including CpGs)",
                       false , INCLUDE_CPGS);
+    opt_parse.add_opt("seq", '\0', "use only this sequence (e.g. chrM)",
+                      false , sequence_to_use);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)",
                       false , max_mismatches);
     opt_parse.add_opt("a-rich", 'A', "reads are A-rich", false, A_RICH_READS);
@@ -282,12 +285,21 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
     if (VERBOSE && max_mismatches != std::numeric_limits<double>::max())
-      cerr << "MAX_MISMATCHES=" << max_mismatches << endl;
+      cerr << "max_mismatches: " << max_mismatches << endl;
 
     chrom_file_map chrom_files;
     identify_and_read_chromosomes(chrom_file, fasta_suffix, chrom_files);
-    if (VERBOSE)
-      cerr << "N_CHROMS=" << chrom_files.size() << endl;
+    if (VERBOSE) {
+      cerr << "n_chroms: " << chrom_files.size() << endl;
+      if (!sequence_to_use.empty())
+        cerr << "chrom_for_analysis: " << sequence_to_use << endl;
+    }
+
+    if (!sequence_to_use.empty()) {
+      auto fn(chrom_files.find(sequence_to_use));
+      if (fn == chrom_files.end())
+        throw std::runtime_error("could not find sequence: " + sequence_to_use);
+    }
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
@@ -305,26 +317,37 @@ main(int argc, const char **argv) {
     GenomicRegion chrom_region; // exists only for faster comparison
     size_t hanging = 0;
 
+    GenomicRegion seq_to_use_check;
+    seq_to_use_check.set_chrom(sequence_to_use);
+
+    bool use_this_chrom = sequence_to_use.empty();
+
     while (in >> mr) {
 
       if (A_RICH_READS)
         revcomp(mr);
 
       // get the correct chrom if it has changed
-      if (chrom.empty() || !mr.r.same_chrom(chrom_region))
+      if (chrom.empty() || !mr.r.same_chrom(chrom_region)) {
         get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
+        use_this_chrom =
+          (sequence_to_use.empty() || mr.r.same_chrom(seq_to_use_check));
+      }
 
-      // do the work for this mapped read
-      if (mr.r.pos_strand())
-        count_states_pos(INCLUDE_CPGS, chrom, mr,
-                         unconv_count_pos, conv_count_pos, err_pos, hanging);
-      else
-        count_states_neg(INCLUDE_CPGS, chrom, mr,
-                         unconv_count_neg, conv_count_neg, err_neg, hanging);
+      if (use_this_chrom) {
+        // do the work for this mapped read
+        if (mr.r.pos_strand())
+          count_states_pos(INCLUDE_CPGS, chrom, mr,
+                           unconv_count_pos, conv_count_pos, err_pos, hanging);
+        else
+          count_states_neg(INCLUDE_CPGS, chrom, mr,
+                           unconv_count_neg, conv_count_neg, err_neg, hanging);
+      }
     }
     write_output(outfile, unconv_count_pos,
                  conv_count_pos, unconv_count_neg,
                  conv_count_neg, err_pos, err_neg);
+
     if (hanging > 0) // some overhanging reads
       cerr << "Warning: hanging reads detected at chrom ends "
            << "(N=" << hanging<< ")" << endl
