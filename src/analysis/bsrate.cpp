@@ -20,20 +20,21 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <numeric>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
-
 #include "bsutils.hpp"
+
+#include <string>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <numeric>
+#include <stdexcept>
 
 using std::string;
 using std::vector;
@@ -45,6 +46,7 @@ using std::accumulate;
 
 using std::unordered_map;
 
+using std::runtime_error;
 
 static void
 revcomp(MappedRead &mr) {
@@ -211,12 +213,12 @@ get_chrom(const bool VERBOSE, const MappedRead &mr,
 
   const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
   if (fn == chrom_files.end())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
   chrom.clear();
   read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
   if (chrom.empty())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
   chrom_region.set_chrom(mr.r.get_chrom());
 }
@@ -303,7 +305,7 @@ main(int argc, const char **argv) {
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
-      throw SMITHLABException("cannot open file: " + mapped_reads_file);
+      throw runtime_error("cannot open file: " + mapped_reads_file);
 
     vector<size_t> unconv_count_pos(OUTPUT_SIZE, 0ul);
     vector<size_t> conv_count_pos(OUTPUT_SIZE, 0ul);
@@ -355,7 +357,7 @@ main(int argc, const char **argv) {
            << "between assembly provided here and that used for mapping"
            << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
