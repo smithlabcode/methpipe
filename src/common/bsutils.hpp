@@ -42,21 +42,12 @@ is_adenine(char c)  {return (c == 'a' || c == 'A');}
 
 
 //// CONFIDENCE INTERVALS //**************////////////////////////
-#include <gsl/gsl_cdf.h>
 void
 wilson_ci_for_binomial(const double alpha, const double n,
-                       const double p_hat, double &lower, double &upper) {
-  const double z = gsl_cdf_ugaussian_Pinv(1 - alpha/2);
-  const double denom = 1 + z*z/n;
-  const double first_term = p_hat + z*z/(2*n);
-  const double discriminant = p_hat*(1 - p_hat)/n + z*z/(4*n*n);
-  lower = std::max(0.0, (first_term - z*std::sqrt(discriminant))/denom);
-  upper = std::min(1.0, (first_term + z*std::sqrt(discriminant))/denom);
-}
-//////////////////////////**************////////////////////////
+                       const double p_hat, double &lower, double &upper);
 
 
-bool
+inline bool
 is_cpg(const std::string &s, size_t i) {
   return (i < (s.length() - 1)) &&
     is_cytosine(s[i]) && is_guanine(s[i + 1]);
@@ -65,38 +56,13 @@ is_cpg(const std::string &s, size_t i) {
 
 void
 adjust_region_ends(const std::vector<std::vector<GenomicRegion> > &clusters,
-                   std::vector<GenomicRegion> &regions) {
-  assert(clusters.size() == regions.size());
-  for (size_t i = 0; i < regions.size(); ++i) {
-    size_t max_pos = regions[i].get_end();
-    size_t min_pos = regions[i].get_start();
-    for (size_t j = 0; j < clusters[i].size(); ++j) {
-      max_pos = std::max(clusters[i][j].get_end(), max_pos);
-      min_pos = std::min(clusters[i][j].get_start(), min_pos);
-    }
-    regions[i].set_end(max_pos);
-    regions[i].set_start(min_pos);
-  }
-}
+                   std::vector<GenomicRegion> &regions);
 
 
 void
 relative_sort(const std::vector<GenomicRegion> &mapped_locations,
               const std::vector<std::string> &names,
-              std::vector<size_t> &lookup) {
-
-  std::unordered_map<std::string, size_t> names_map;
-  for (size_t i = 0; i < names.size(); ++i)
-    names_map[names[i]] = i;
-
-  for (size_t i = 0; i < mapped_locations.size(); ++i) {
-    const std::unordered_map<std::string, size_t>::const_iterator
-      j(names_map.find(mapped_locations[i].get_name()));
-    if (j == names_map.end())
-      throw SMITHLABException("read sequence not found for: " + names[i]);
-    lookup.push_back(j->second);
-  }
-}
+              std::vector<size_t> &lookup);
 
 
 template <class T, class U, class V> static void
