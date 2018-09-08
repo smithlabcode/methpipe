@@ -36,6 +36,12 @@ struct LevelsCounter {
     called_meth(0), called_unmeth(0),
     mean_agg(0.0) {}
 
+  LevelsCounter() :
+    total_sites(0), sites_covered(0), max_depth(0),
+    mutations(0), total_c(0), total_t(0),
+    called_meth(0), called_unmeth(0),
+    mean_agg(0.0) {}
+
   void update(const MSite &s);
 
   size_t coverage() const {return total_c + total_t;}
