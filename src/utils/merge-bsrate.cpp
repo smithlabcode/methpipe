@@ -60,26 +60,26 @@ bool readline(std::vector<std::ifstream*>& infiles,
   return true;
 }
 
-int 
+int
 main(int argc, const char **argv) {
-  
-  try {    
+
+  try {
     bool VERBOSE = false;
     string outfile;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program to merge the "
-			   "BS conversion rate from two sets of BS-seq "
-			   "reads mapped to a genome",
-			   "<bsrate file>, ..., <bsrate file>");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)", 
-		      false, outfile);
+                           "BS conversion rate from two sets of BS-seq "
+                           "reads mapped to a genome",
+                           "<bsrate file>, ..., <bsrate file>");
+    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
+                      false, outfile);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args; // list of mapped-read files to merge
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -122,12 +122,12 @@ main(int argc, const char **argv) {
     size_t sum_neg = 0ul;
     size_t base = 1;
     for (size_t i = 0; i < infiles.size(); ++i)
-    {
-      getline(*infiles[i],overall_line[i]);
-      getline(*infiles[i],pos_line[i]);
-      getline(*infiles[i],neg_line[i]);
-      getline(*infiles[i],title_line[i]);
-    }
+      {
+        getline(*infiles[i],overall_line[i]);
+        getline(*infiles[i],pos_line[i]);
+        getline(*infiles[i],neg_line[i]);
+        getline(*infiles[i],title_line[i]);
+      }
 
     vector<string> ostrings;
     ostrings.clear();
@@ -152,7 +152,7 @@ main(int argc, const char **argv) {
 
       for (size_t j=0; j< cur_line.size(); ++j) {
         //parse the line
-        stringstream ss(cur_line[j]);     
+        stringstream ss(cur_line[j]);
         string item;
         vector<string> elems;
         while(getline(ss,item,'\t')){
@@ -176,7 +176,7 @@ main(int argc, const char **argv) {
       }
       size_t ptot_out = 0, ntot_out = 0, bthtot_out = 0, pconv_out = 0;
       size_t nconv_out = 0, bthconv_out = 0;
-      size_t err_out = 0, all_out = 0; 
+      size_t err_out = 0, all_out = 0;
       double prate_out = 0, nrate_out = 0, bthrate_out = 0, errrate_out = 0;
 
       for (size_t k=0; k<p_total.size(); ++k) {
@@ -200,7 +200,7 @@ main(int argc, const char **argv) {
       bthrate_out /= bthtot_out;
       errrate_out /= all_out;
       std::ostringstream x;
-      x.precision(precision_val); 
+      x.precision(precision_val);
       x << base << "\t" << ptot_out << "\t" << pconv_out << "\t";
       x << setw(precision_val) << prate_out << "\t";
       x << ntot_out << "\t" << nconv_out << "\t";
@@ -218,7 +218,7 @@ main(int argc, const char **argv) {
       sum_pos += ptot_out;
       sum_neg += ntot_out;
       ++base;
-    } 
+    }
 
     out << "OVERALL CONVERSION RATE = ";
     out << setw(precision_val) << overall_conversion_rate/sum_bth << endl;
@@ -229,18 +229,18 @@ main(int argc, const char **argv) {
     out << sum_neg << endl;
 
     out << "BASE" << '\t'
-    << "PTOT" << '\t'
-    << "PCONV" << '\t'
-    << "PRATE" << '\t'
-    << "NTOT" << '\t'
-    << "NCONV" << '\t'
-    << "NRATE" << '\t'
-    << "BTHTOT" << '\t'
-    << "BTHCONV" << '\t'
-    << "BTHRATE" << '\t'
-    << "ERR" << '\t'
-    << "ALL" << '\t'
-    << "ERRRATE"  << endl;
+        << "PTOT" << '\t'
+        << "PCONV" << '\t'
+        << "PRATE" << '\t'
+        << "NTOT" << '\t'
+        << "NCONV" << '\t'
+        << "NRATE" << '\t'
+        << "BTHTOT" << '\t'
+        << "BTHCONV" << '\t'
+        << "BTHRATE" << '\t'
+        << "ERR" << '\t'
+        << "ALL" << '\t'
+        << "ERRRATE"  << endl;
 
     for(size_t i = 0; i < ostrings.size(); ++i) {
       out << ostrings[i];
@@ -249,7 +249,7 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < infiles.size(); ++i) {
       infiles[i]->close();
       delete infiles[i];
-    } 
+    }
   }
   catch (const SMITHLABException &e) {
     cerr << e.what() << endl;
