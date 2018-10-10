@@ -269,12 +269,12 @@ main(int argc, const char **argv) {
            << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (opt_parse.option_missing()) {
-      cerr << opt_parse.option_missing_message() << endl;
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (opt_parse.about_requested() || leftover_args.size() != 1) {
-      cerr << opt_parse.about_message() << endl;
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
     const string mapped_reads_file = leftover_args.front();
