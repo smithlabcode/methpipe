@@ -27,9 +27,10 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fast-liftover lift-filter\
+PROGS = lc_approx fast-liftover lift-filter \
 	to-mr merge-bsrate merge-methcounts \
-        duplicate-remover symmetric-cpgs
+	duplicate-remover symmetric-cpgs \
+	clean-hairpins
 
 # if SAMTOOLS location not set, try to set it
 ifndef SAMTOOLS_DIR
