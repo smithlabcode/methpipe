@@ -75,7 +75,7 @@ operator>>(std::istream& s, FASTQRecord &r) {
     if (r.name.empty() || r.name[0] != '@')
       throw std::runtime_error("bad name line: " + r.name);
 
-    r.name = r.name.substr(1);
+    r.name = r.name.substr(1, r.name.find_first_of(' '));
 
     if (!getline(s, r.seq))
       throw runtime_error("failed to read expected seq line");
