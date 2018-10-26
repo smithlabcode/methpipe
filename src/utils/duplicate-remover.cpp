@@ -241,22 +241,22 @@ int main(int argc, const char **argv) {
     if (!statfile.empty()) {
 
       const size_t reads_removed = reads_in - reads_out;
+      const double non_dup_fraction =
+        static_cast<double>(reads_out - reads_with_duplicates)/reads_in;
       const double duplication_rate =
-        static_cast<double>(reads_in)/reads_out;
-      const double duplication_rate_for_dups =
-        static_cast<double>(reads_with_duplicates)/
-        (reads_removed - reads_with_duplicates);
+        static_cast<double>(reads_removed + reads_with_duplicates)/
+        reads_with_duplicates;
 
       std::ofstream out_stat(statfile.c_str());
       out_stat << "total_reads: " << reads_in << endl
                << "total_bases: " << good_bases_in << endl
                << "unique_reads: " << reads_out << endl
                << "unique_read_bases: " << good_bases_out << endl
+               << "non_duplicate_fraction: " << non_dup_fraction << endl
                << "duplicate_reads: " << reads_with_duplicates << endl
                << "reads_removed: " << reads_removed << endl
-               << "duplication_rate: " << duplication_rate << endl
-               << "duplication_rate_for_dups: "
-               << duplication_rate_for_dups << endl;
+               << "duplication_rate: "
+               << duplication_rate << endl;
     }
   }
   catch (const std::runtime_error &e) {
