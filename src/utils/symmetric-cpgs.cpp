@@ -25,79 +25,25 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <algorithm>
-#include <numeric>
-#include <cmath>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
+#include "MethpipeSite.hpp"
 
 using std::string;
-using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::round;
-
-struct SiteInfo {
-  bool is_cpg() const {return context.compare(0, 3, "CpG") == 0;}
-  void add_meth_info(const SiteInfo &other) {
-    const size_t other_meth_count =
-      static_cast<size_t>(std::round(other.meth*other.total));
-    const size_t meth_count =
-      static_cast<size_t>(std::round(meth*total));
-    total += other.total;
-    meth = (total == 0) ? 0.0 :
-      static_cast<double>(meth_count + other_meth_count)/total;
-  }
-  string chrom;
-  string context;
-  size_t pos;
-  size_t total;
-  double meth;
-  char strand;
-};
 
 
-static std::istream &
-operator>>(std::istream &in, SiteInfo &si) {
-  string line;
-  if (getline(in, line)) {
-    std::istringstream iss(line);
-    if (!(iss >> si.chrom >> si.pos >> si.strand
-          >> si.context >> si.meth >> si.total))
-      in.setstate(std::ios_base::badbit);
-  }
-  return in;
-}
-
-
-static std::ostream &
-operator<<(std::ostream &out, const SiteInfo &si) {
-  return out << si.chrom << '\t' << si.pos << '\t'
-             << si.strand << '\t' << si.context << '\t'
-             << si.meth << '\t' << si.total;
-}
-
-
-static bool
-not_mutated(const SiteInfo &si) {
-  const size_t len = si.context.length();
-  //assert(len > 0);
-  // when dealing with the first site, the previous one is empty
-  if (si.context.empty()) return true;
-  return si.context[len-1] != 'x';
-}
-
-
-static bool
-found_symmetric(const SiteInfo &first, const SiteInfo &second) {
-  return (first.is_cpg() &&
-          second.is_cpg() &&
-          (first.strand == '+') &&
-          (second.strand == '-') &&
-          (first.pos + 1 == second.pos));
+inline bool
+found_symmetric(const MSite &prev_cpg, const MSite &curr_cpg) {
+  // assumes check for CpG already done
+  return (prev_cpg.strand == '+' &&
+          curr_cpg.strand == '-' &&
+          prev_cpg.pos + 1 == curr_cpg.pos);
 }
 
 
@@ -119,7 +65,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("muts", 'm', "include mutated CpG sites",
                       false, include_mutated);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-    vector<string> leftover_args;
+    std::vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
@@ -147,45 +93,27 @@ main(int argc, const char **argv) {
 
     std::ifstream in(filename.c_str());
     if (!in)
-      throw SMITHLABException("could not open file: " + filename);
+      throw std::runtime_error("could not open file: " + filename);
 
-    SiteInfo prev, si;
-    while (in >> si) {
-      if (found_symmetric(prev, si)) {
-        prev.add_meth_info(si);
-        if (not_mutated(si) && not_mutated(prev)) {
-          out << prev << '\n';
+    MSite prev_site, curr_site;
+    bool prev_is_good_cpg = false;
+    if (in >> prev_site)
+      if (prev_site.is_cpg() && (include_mutated || !prev_site.is_mutated()))
+        prev_is_good_cpg = true;
+
+    while (in >> curr_site) {
+      if (curr_site.is_cpg() && (include_mutated || !curr_site.is_mutated())) {
+        if (prev_is_good_cpg && found_symmetric(prev_site, curr_site)) {
+          prev_site.add(curr_site);
+          out << prev_site << '\n';
         }
-        else if (include_mutated) {
-          prev.context = "CpGx";
-          out << prev << '\n';
-        }
-        prev = SiteInfo();
+        prev_is_good_cpg = true;
       }
-      else {
-        if (prev.is_cpg() &&
-            (not_mutated(prev) || include_mutated)) {
-          if (prev.strand == '-') {
-            prev.strand = '+';
-            --prev.pos;
-          }
-          out << prev << '\n';
-        }
-        prev = si;
-      }
+      else prev_is_good_cpg = false;
+      std::swap(prev_site, curr_site);
     }
-
-    if (prev.is_cpg() &&
-        (not_mutated(prev) || include_mutated)) {
-      if (prev.strand == '-') {
-        prev.strand = '+';
-        --prev.pos;
-      }
-      out << prev << '\n';
-    }
-
   }
-  catch (const SMITHLABException &e)  {
+  catch (const std::runtime_error &e)  {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
