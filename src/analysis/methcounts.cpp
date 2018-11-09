@@ -27,6 +27,7 @@
 #include <numeric>
 #include <sstream>
 #include <iomanip>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -45,6 +46,14 @@ using std::endl;
 using std::max;
 using std::accumulate;
 using std::unordered_map;
+using std::runtime_error;
+
+void
+identify_chrom_files(const string &chrom_file_or_dir,
+                     const string fasta_suffix,
+                     vector<string> &chrom_files) {
+}
+
 
 /* The three functions below here should probably be moved into
    bsutils.hpp. I am not sure if the DDG function is needed, but it
@@ -220,15 +229,16 @@ write_output(std::ostream &out,
 typedef unordered_map<string, string> chrom_file_map;
 static void
 get_chrom(const MappedRead &mr,
-          const chrom_file_map &chrom_files,
+          const vector<string> &all_chroms,
+          const unordered_map<string, size_t> &chrom_lookup,
           GenomicRegion &chrom_region, string &chrom) {
 
-  const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
-  if (fn == chrom_files.end())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+  const unordered_map<string, size_t>::const_iterator
+    the_chrom(chrom_lookup.find(mr.r.get_chrom()));
+  if (the_chrom == chrom_lookup.end())
+    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
-  chrom.clear();
-  read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
+  chrom = all_chroms[the_chrom->second];
   if (chrom.empty())
     throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
 
@@ -283,10 +293,30 @@ main(int argc, const char **argv) {
     if (!outfile.empty() && !is_valid_output_file(outfile))
       throw SMITHLABException("bad output file: " + outfile);
 
-    chrom_file_map chrom_files;
-    identify_and_read_chromosomes(chrom_file, fasta_suffix, chrom_files);
+    vector<string> chrom_files;
+    if (isdir(chrom_file.c_str()))
+      read_dir(chrom_file, fasta_suffix, chrom_files);
+    else chrom_files.push_back(chrom_file);
+
     if (VERBOSE)
-      cerr << "CHROMS_FOUND=" << chrom_files.size() << endl;
+      cerr << "n_chrom_files: " << chrom_files.size() << endl;
+
+    vector<string> all_chroms;
+    vector<string> chrom_names;
+    unordered_map<string, size_t> chrom_lookup;
+    for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
+      vector<string> tmp_chroms, tmp_names;
+      read_fasta_file(*i, tmp_names, tmp_chroms);
+      for (size_t j = 0; j < tmp_chroms.size(); ++j) {
+        chrom_names.push_back(tmp_names[j]);
+        chrom_lookup[chrom_names.back()] = all_chroms.size();
+        all_chroms.push_back("");
+        all_chroms.back().swap(tmp_chroms[j]);
+      }
+    }
+
+    if (VERBOSE)
+      cerr << "n_chroms: " << all_chroms.size() << endl;
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
@@ -316,12 +346,12 @@ main(int argc, const char **argv) {
           write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
 
         // load the new chromosome and reset the counts
-        get_chrom(mr, chrom_files, chrom_region, chrom);
+        get_chrom(mr, all_chroms, chrom_lookup, chrom_region, chrom);
         if (VERBOSE)
-          cerr << "PROCESSING:\t" << chrom_region.get_chrom() << '\t'
-               << "(REQD MEM = "
-               << std::setprecision(3)
-               << chrom.length()*gigs_per_base << "GB)" << endl;
+          cerr << "PROCESSING:\t" << chrom_region.get_chrom() << endl;
+
+        if (!mr.r.same_chrom(chrom_region))
+          throw runtime_error("chrom not found: " + chrom_region.get_chrom());
 
         counts.clear();
         counts.resize(chrom.size());
