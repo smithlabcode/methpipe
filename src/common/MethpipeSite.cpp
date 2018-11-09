@@ -30,13 +30,13 @@ using std::string;
 std::istream &
 operator>>(std::istream &in, MSite &s) {
   string line;
-  if (!getline(in, line))
-    return in;
-
-  std::istringstream iss(line);
-  if (!(iss >> s.chrom >> s.pos >> s.strand
-        >> s.context >> s.meth >> s.n_reads))
-    throw SMITHLABException("bad methcounts file");
+  if (getline(in, line)) {
+    std::istringstream iss;
+    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+    if (!(iss >> s.chrom >> s.pos >> s.strand
+          >> s.context >> s.meth >> s.n_reads))
+      throw SMITHLABException("bad methcounts file");
+  }
   return in;
 }
 
@@ -56,7 +56,12 @@ MSite::tostring() const {
 
 std::ostream &
 operator<<(std::ostream &out, const MSite &s) {
-  return out << s.tostring();
+  return out << s.chrom << '\t'
+             << s.pos << '\t'
+             << s.strand << '\t'
+             << s.context << '\t'
+             << s.meth << '\t'
+             << s.n_reads;
 }
 
 

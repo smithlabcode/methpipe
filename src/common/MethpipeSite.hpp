@@ -43,7 +43,7 @@ struct MSite {
     // function until meth has been updated
     const size_t total_c_reads = n_meth() + other.n_meth();
     n_reads += other.n_reads;
-    meth = static_cast<double>(total_c_reads)/n_reads;
+    meth = static_cast<double>(total_c_reads)/std::max(1ul, n_reads);
   }
 
   // ADS: function below has redundant check for is_cpg, which is
@@ -58,23 +58,25 @@ struct MSite {
   /////  CHG divided into two kinds: CCG and CXG, the former including a
   /////  CpG within. Also included is a function that tests if a site
   /////  has a mutation.
-  /////  WARNING: None of these functions test for the length of their
-  /////  argument std::string, which could cause problems.
   ////////////////////////////////////////////////////////////////////////
   bool is_cpg() const {
-    return (context[0] == 'C' && context[1] == 'p' && context[2] == 'G');
+    return context.length() >= 3 &&
+      (context[0] == 'C' && context[1] == 'p' && context[2] == 'G');
   }
   bool is_chh() const {
-    return (context[0] == 'C' && context[1] == 'H' && context[2] == 'H');
+    return context.length() >= 3 &&
+      (context[0] == 'C' && context[1] == 'H' && context[2] == 'H');
   }
   bool is_ccg() const {
-    return (context[0] == 'C' && context[1] == 'C' && context[2] == 'G');
+    return context.length() >= 3 &&
+      (context[0] == 'C' && context[1] == 'C' && context[2] == 'G');
   }
   bool is_cxg() const {
-    return (context[0] == 'C' && context[1] == 'X' && context[2] == 'G');
+    return context.length() >= 3 &&
+      (context[0] == 'C' && context[1] == 'X' && context[2] == 'G');
   }
   bool is_mutated() const {
-    return context[3] == 'x';
+    return context.length() == 4 && context[3] == 'x';
   }
 
   std::string tostring() const;
