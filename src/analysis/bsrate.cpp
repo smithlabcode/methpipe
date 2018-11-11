@@ -207,18 +207,19 @@ write_output(const string &outfile,
 
 typedef unordered_map<string, string> chrom_file_map;
 static void
-get_chrom(const bool VERBOSE, const MappedRead &mr,
-          const chrom_file_map& chrom_files,
+get_chrom(const MappedRead &mr,
+          const vector<string> &all_chroms,
+          const unordered_map<string, size_t> &chrom_lookup,
           GenomicRegion &chrom_region, string &chrom) {
 
-  const chrom_file_map::const_iterator fn(chrom_files.find(mr.r.get_chrom()));
-  if (fn == chrom_files.end())
+  const unordered_map<string, size_t>::const_iterator
+    the_chrom(chrom_lookup.find(mr.r.get_chrom()));
+  if (the_chrom == chrom_lookup.end())
     throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
-  chrom.clear();
-  read_fasta_file(fn->second, mr.r.get_chrom(), chrom);
+  chrom = all_chroms[the_chrom->second];
   if (chrom.empty())
-    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
+    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
 
   chrom_region.set_chrom(mr.r.get_chrom());
 }
@@ -289,19 +290,30 @@ main(int argc, const char **argv) {
     if (VERBOSE && max_mismatches != std::numeric_limits<double>::max())
       cerr << "max_mismatches: " << max_mismatches << endl;
 
-    chrom_file_map chrom_files;
-    identify_and_read_chromosomes(chrom_file, fasta_suffix, chrom_files);
-    if (VERBOSE) {
-      cerr << "n_chroms: " << chrom_files.size() << endl;
-      if (!sequence_to_use.empty())
-        cerr << "chrom_for_analysis: " << sequence_to_use << endl;
+    vector<string> chrom_files;
+    if (isdir(chrom_file.c_str()))
+      read_dir(chrom_file, fasta_suffix, chrom_files);
+    else chrom_files.push_back(chrom_file);
+
+    if (VERBOSE)
+      cerr << "n_chrom_files: " << chrom_files.size() << endl;
+
+    vector<string> all_chroms;
+    vector<string> chrom_names;
+    unordered_map<string, size_t> chrom_lookup;
+    for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
+      vector<string> tmp_chroms, tmp_names;
+      read_fasta_file(*i, tmp_names, tmp_chroms);
+      for (size_t j = 0; j < tmp_chroms.size(); ++j) {
+        chrom_names.push_back(tmp_names[j]);
+        chrom_lookup[chrom_names.back()] = all_chroms.size();
+        all_chroms.push_back("");
+        all_chroms.back().swap(tmp_chroms[j]);
+      }
     }
 
-    if (!sequence_to_use.empty()) {
-      auto fn(chrom_files.find(sequence_to_use));
-      if (fn == chrom_files.end())
-        throw std::runtime_error("could not find sequence: " + sequence_to_use);
-    }
+    if (VERBOSE)
+      cerr << "n_chroms: " << all_chroms.size() << endl;
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
@@ -331,7 +343,7 @@ main(int argc, const char **argv) {
 
       // get the correct chrom if it has changed
       if (chrom.empty() || !mr.r.same_chrom(chrom_region)) {
-        get_chrom(VERBOSE, mr, chrom_files, chrom_region, chrom);
+        get_chrom(mr, all_chroms, chrom_lookup, chrom_region, chrom);
         use_this_chrom =
           (sequence_to_use.empty() || mr.r.same_chrom(seq_to_use_check));
       }
