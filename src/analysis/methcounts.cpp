@@ -43,16 +43,9 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::max;
-using std::accumulate;
 using std::unordered_map;
 using std::runtime_error;
 
-void
-identify_chrom_files(const string &chrom_file_or_dir,
-                     const string fasta_suffix,
-                     vector<string> &chrom_files) {
-}
 
 
 /* The three functions below here should probably be moved into
@@ -159,28 +152,28 @@ get_methylation_context_tag(const string &s, const size_t pos) {
 
 template <class count_type>
 static void
-count_states_pos(const string &chrom, const MappedRead &r,
+count_states_pos(const size_t chrom_len, const MappedRead &r,
                  vector<CountSet<count_type> > &counts) {
   const size_t width = r.r.get_width();
 
   size_t position = r.r.get_start();
-  assert(position < chrom.length());
+  assert(position < chrom_len);
   for (size_t i = 0; i < width; ++i, ++position)
-    if (position < chrom.length())
+    if (position < chrom_len)
       counts[position].add_count_pos(r.seq[i]);
 }
 
 
 template <class count_type>
 static void
-count_states_neg(const string &chrom, const MappedRead &r,
+count_states_neg(const size_t chrom_len, const MappedRead &r,
                  vector<CountSet<count_type> > &counts) {
   const size_t width = r.r.get_width();
 
   size_t position = r.r.get_start() + width - 1;
-  assert(r.r.get_start() < chrom.length());
+  assert(r.r.get_start() < chrom_len);
   for (size_t i = 0; i < width; ++i, --position)
-    if (position < chrom.length())
+    if (position < chrom_len)
       counts[position].add_count_neg(r.seq[i]);
 }
 
@@ -226,32 +219,21 @@ write_output(std::ostream &out,
 }
 
 
-typedef unordered_map<string, string> chrom_file_map;
-static void
-get_chrom(const MappedRead &mr,
-          const vector<string> &all_chroms,
-          const unordered_map<string, size_t> &chrom_lookup,
-          GenomicRegion &chrom_region, string &chrom) {
+inline size_t
+get_chrom_id(const MappedRead &mr, const unordered_map<string, size_t> &cl) {
 
   const unordered_map<string, size_t>::const_iterator
-    the_chrom(chrom_lookup.find(mr.r.get_chrom()));
-  if (the_chrom == chrom_lookup.end())
+    the_chrom(cl.find(mr.r.get_chrom()));
+  if (the_chrom == end(cl))
     throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
-  chrom = all_chroms[the_chrom->second];
-  if (chrom.empty())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
-
-  chrom_region.set_chrom(mr.r.get_chrom());
+  return the_chrom->second;
 }
 
 int
 main(int argc, const char **argv) {
 
   try {
-
-    static const double gigs_per_base =
-      (1.0 + sizeof(CountSet<unsigned short>))/(1073741824.0);
 
     bool VERBOSE = false;
     bool CPG_ONLY = false;
@@ -291,7 +273,7 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
     if (!outfile.empty() && !is_valid_output_file(outfile))
-      throw SMITHLABException("bad output file: " + outfile);
+      throw runtime_error("bad output file: " + outfile);
 
     vector<string> chrom_files;
     if (isdir(chrom_file.c_str()))
@@ -301,71 +283,82 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chrom_files: " << chrom_files.size() << endl;
 
-    vector<string> all_chroms;
-    vector<string> chrom_names;
+    vector<string> chroms, names;
     unordered_map<string, size_t> chrom_lookup;
+    vector<size_t> chrom_sizes;
     for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
+
+      const size_t chrom_counter = chroms.size();
       vector<string> tmp_chroms, tmp_names;
       read_fasta_file(*i, tmp_names, tmp_chroms);
+
+      chroms.resize(chrom_counter + tmp_chroms.size());
+      names.resize(chrom_counter + tmp_chroms.size());
+
       for (size_t j = 0; j < tmp_chroms.size(); ++j) {
-        chrom_names.push_back(tmp_names[j]);
-        chrom_lookup[chrom_names.back()] = all_chroms.size();
-        all_chroms.push_back("");
-        all_chroms.back().swap(tmp_chroms[j]);
+        const size_t k = chrom_counter + j;
+        names[k].swap(tmp_names[j]);
+        chroms[k].swap(tmp_chroms[j]);
+        chrom_sizes[k] = chroms[k].size();
+        chrom_lookup[names[k]] = k;
       }
     }
 
     if (VERBOSE)
-      cerr << "n_chroms: " << all_chroms.size() << endl;
+      cerr << "n_chroms: " << chroms.size() << endl;
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
-      throw SMITHLABException("cannot open file: " + mapped_reads_file);
-
-    // this is where all the counts are accumulated
-    vector<CountSet<unsigned short> > counts;
-
-    string chrom; // holds the current chromosome being processed
-    GenomicRegion chrom_region; // holds chrom name for fast comparisons
+      throw runtime_error("cannot open file: " + mapped_reads_file);
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
+    size_t chrom_id = 0;
+    size_t chrom_size = 0;
+    GenomicRegion chrom_region; // holds chrom name for fast comparisons
     MappedRead mr;
+
+    // this is where all the counts are accumulated
+    vector<CountSet<unsigned short> > counts;
+
     while (in >> mr) {
 
       // if chrom changes, output previous results, get new one
-      if (chrom.empty() || !mr.r.same_chrom(chrom_region)) {
+      if (counts.empty() || !mr.r.same_chrom(chrom_region)) {
 
         // make sure all reads from same chrom are contiguous in the file
         if (mr.r.get_chrom() < chrom_region.get_chrom())
-          throw SMITHLABException("chroms out of order: " + mapped_reads_file);
+          throw runtime_error("chroms out of order: " + mapped_reads_file);
 
         if (!counts.empty()) // if we have results, output them
-          write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
+          write_output(out, chrom_region.get_chrom(),
+                       chroms[chrom_id], counts, CPG_ONLY);
 
-        // load the new chromosome and reset the counts
-        get_chrom(mr, all_chroms, chrom_lookup, chrom_region, chrom);
+        // move to the new chromosome
+        chrom_id = get_chrom_id(mr, chrom_lookup);
+        chrom_size = chrom_sizes[chrom_id];
+        chrom_region.set_chrom(mr.r.get_chrom());
+
         if (VERBOSE)
           cerr << "PROCESSING:\t" << chrom_region.get_chrom() << endl;
 
-        if (!mr.r.same_chrom(chrom_region))
-          throw runtime_error("chrom not found: " + chrom_region.get_chrom());
-
+        // reset the counts
         counts.clear();
-        counts.resize(chrom.size());
+        counts.resize(chrom_size);
       }
 
       // do the work for this mapped read, depending on strand
       if (mr.r.pos_strand())
-        count_states_pos(chrom, mr, counts);
-      else count_states_neg(chrom, mr, counts);
+        count_states_pos(chrom_size, mr, counts);
+      else count_states_neg(chrom_size, mr, counts);
     }
     // ALWAYS output the chromosome, even if all sites are uncovered.
-    write_output(out, chrom_region.get_chrom(), chrom, counts, CPG_ONLY);
+    write_output(out, chrom_region.get_chrom(),
+                 chroms[chrom_id], counts, CPG_ONLY);
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
