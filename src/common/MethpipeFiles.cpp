@@ -277,6 +277,35 @@ methpipe::is_methpipe_file_single(const string &file) {
 }
 
 
+bool
+methpipe::is_methpipe_file_array(const string &file) {
+
+  std::ifstream in(file.c_str());
+  if (!in)
+    throw SMITHLABException("could not open file: " + file);
+
+  string line;
+  if (!std::getline(in, line))
+    throw SMITHLABException("could not read file: " + file);
+  line = skip_header(in);
+  std::istringstream iss(line);
+
+  string chrom, strand, name;
+  size_t pos = 0;
+  double meth = 0.0;
+  iss >> chrom >> pos >> strand >> name >> meth;
+
+  if (strand != "+" && strand != "-") return false;
+
+  if (meth < 0.0 || meth > 1.0) return false;
+
+  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
+    return false;
+
+  return true;
+}
+
+
 static void
 move_to_start_of_line(std::istream &in) {
   char next;
@@ -357,6 +386,20 @@ methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
   return in;
 }
 
+
+std::istream&
+methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
+          string &strand, string &seq, double &meth,
+          size_t &coverage, bool &is_array_data) {
+  string line = methpipe::skip_header(in);
+  std::istringstream iss(line);
+  iss >> chrom >> pos >> strand >> seq >> meth;
+  if(is_array_data)
+    coverage = 1;
+  else
+   iss >> coverage;
+  return in;
+}
 
 ostream &
 methpipe::write_site(ostream &out,

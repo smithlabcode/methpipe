@@ -19,8 +19,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all_subdirs=common utils analysis amrfinder mlml samtools radmeth
-lib_subdirs=common
+all_subdirs=common common-pmd utils analysis amrfinder mlml samtools radmeth
+lib_subdirs=common common-pmd
 app_subdirs=analysis utils amrfinder mlml radmeth
 
 # check if a global copy of smithlab_cpp cannot be found and try to

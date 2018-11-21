@@ -65,6 +65,11 @@ namespace methpipe {
             char &strand, std::string &seq,
             double &meth, size_t &coverage);
 
+  std::istream&
+  read_site(std::istream &in, std::string &chrom, size_t &pos,
+            std::string &strand, std::string &seq,
+            double &meth, size_t &coverage, bool &is_array_data);
+
   std::ostream &
   write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
              const std::string &strand, const std::string &seq,
@@ -78,6 +83,9 @@ namespace methpipe {
 
   bool
   is_methpipe_file_single(const std::string &file);
+
+  bool
+  is_methpipe_file_array(const std::string &file);
 
   // files to support old format
   std::istream&

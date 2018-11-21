@@ -41,7 +41,8 @@ CXXFLAGS += $(OPTFLAGS)
 endif
 
 COMMON_DIR = ../common
-INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
+COMMON_PMD_DIR = ../common-pmd
+INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR) $(COMMON_PMD_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
@@ -62,7 +63,9 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
-hmr pmd hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
+hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
+
+pmd: $(addprefix $(COMMON_DIR)/, bsutils.o) $(addprefix $(COMMON_PMD_DIR)/, TwoStateHMM_PMD.o EmissionDistribution.o)
 
 hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)

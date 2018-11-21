@@ -759,7 +759,7 @@ $ hmr -partial -o Human_ESC.pmr Human_ESC.meth
 \end{verbatim}
 
 
-\paragraph{Partial methylation in cancer samples (AKA PMDs):}
+\subsection{Partially methylated domains (PMDs)}
 
 Huge genomic blocks with abnormal hypomethylation have been
 extensively observed in human cancer methylomes and more recently in
@@ -774,16 +774,25 @@ identify these larger domains. The program \prog{pmd} is provided for
 their identification, and can be run as follows:
 
 \begin{verbatim}
-$ pmd -o Human_ESC.pmd Human_ESC.meth
+$ pmd -i 1000 -o Human_ESC.pmd Human_ESC.meth
 \end{verbatim}
 
 The program calculates in nonoverlapping bins the total methylated and
-unmethylated read counts. The default bin size is $1000$bp, and users
-can customize the value by specifying the option \op{-b}. A good way to
-compare PMDs across samples is to standardize the average number of
-observations per bin by adjusting for per-sample coverage. The bin-level 
-read counts are modeled with a 2-state HMM in the same form
-as the model used for HMR detection. The sequence of genomic bins is
+unmethylated read counts.
+The underlying Hidden Markov Model for PMD identification is very
+similar to that of HMR identification, with a few key differences. Because
+PMDs are large, megabase-scale regions of methylation loss with
+individual CpGs exhibiting high methylation variance, each step in
+the HMM should be the average methylation level in a genomic region 
+rather than a single CpG site. For samples with high sequencing coverage
+and depth, a bin size of $1000$bp suffices most of the time. The PMD
+program has a built-in bin-size selection method that chooses the smallest
+bin size (in $500$bp increments) such that bins have enough observations
+for their average methylation to be confidently estimated. The bin size
+can be fixed by specifying \op{-b}. We recommend defaulting to $1000$
+iterations to ensure the Baum-Welch training procedure converges.
+
+The sequence of genomic bins is
 segmented into hypermethylation and partial-methylation domains, where
 the latter are the candidate PMDs. Further processing of candidate
 PMDs includes trimming the two ends of a domain to the first and last
@@ -808,6 +817,29 @@ at promoter regions. A good workaround for this is to call PMDs first, and
 then call HMRs separately inside and outside of PMDs. This ensures that
 the foreground methylation state learned by the HMM in both types of background
 is the focused hypomethylation at CpG islands and promoter regions.
+
+\paragraph{PMD detection in multiple samples}
+
+The \prog{pmd} program allows for multiple samples to be provided at once,
+and it models each emission distribution separately. This behavior is not yet
+well understood, but does yield an estimate of the ``composite'' PMD state
+across the samples input. Because each emission distribution is learned
+separately with no concept of a normally distributed error on the parameters,
+this mode is less applicable with technical replicates of the same tissue but
+potentially useful when looking across many tissue types where substantial
+sample-to-sample biological variability is expected.
+
+\paragraph{PMD detection in microarray data}
+
+Our recent addition of a binsize selection method, coupled with tuning the desert
+size, can lead to a rough estimation of PMDs in human Illumina MethylationEPIC
+microarray data. The \op{-a} option can be used to specify that the input is all
+microarray data, and will
+result in the emission distributions being modeled as Beta rather than
+Beta-binomial. One should keep in mind that to use this option will require
+some tuning of the desert size and bin sizes (we have seen large desert sizes
+$>100kb$ and bin sizes around $20$kb perform well) and is best paired with
+matching WGBS data.
 
 \subsection{Differential Methylation}
 \label{sec:differential_methylation}
