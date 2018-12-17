@@ -71,6 +71,7 @@ src/utils/fast-liftover
 src/utils/lift-filter
 src/utils/fastLiftOver2
 src/utils/symmetric-cpgs
+src/utils/clean-hairpins
 src/radmeth/make_table
 src/radmeth/radmeth
 src/radmeth/dmr

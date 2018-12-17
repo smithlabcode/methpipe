@@ -294,6 +294,7 @@ main(int argc, const char **argv) {
 
       chroms.resize(chrom_counter + tmp_chroms.size());
       names.resize(chrom_counter + tmp_chroms.size());
+      chrom_sizes.resize(chrom_counter + tmp_chroms.size());
 
       for (size_t j = 0; j < tmp_chroms.size(); ++j) {
         const size_t k = chrom_counter + j;
