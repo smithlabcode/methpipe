@@ -104,7 +104,7 @@ load_sites(vector<std::ifstream*> &infiles,
                    sites[i].seq, sites[i].meth, sites[i].coverage)){
         outdated[i]=false;
         sites_loaded = true;
-        if ((*infiles[i]).fail()) sites_loaded= false;
+	//        if ((*infiles[i]).fail()) sites_loaded= false;
       }
     }
   }
