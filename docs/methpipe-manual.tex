@@ -549,6 +549,9 @@ execute
 $ merge-methcounts Human_ESC_R1/R1.meth  Human_ESC_R2/R2.meth \
   Human_ESC_R3/R3.meth -o Human_ESC.meth
 \end{verbatim}
+The \prog{merge-methcounts} program assumes that the input files
+end with an empty line. The program can handle an arbitrary number
+of files, even empty ones, that can have different numbers of lines.
 
 \paragraph{Computation of methylation level statistics}
 The \prog{levels} program computes statistics for the output of
