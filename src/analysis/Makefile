@@ -65,7 +65,9 @@ bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
-pmd: $(addprefix $(COMMON_DIR)/, bsutils.o) $(addprefix $(COMMON_PMD_DIR)/, TwoStateHMM_PMD.o EmissionDistribution.o)
+pmd: $(addprefix $(COMMON_DIR)/, bsutils.o) \
+	$(addprefix $(COMMON_PMD_DIR)/, \
+	TwoStateHMM_PMD.o EmissionDistribution.o)
 
 hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
