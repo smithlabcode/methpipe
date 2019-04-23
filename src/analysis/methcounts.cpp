@@ -220,12 +220,13 @@ write_output(std::ostream &out,
 
 
 inline size_t
-get_chrom_id(const MappedRead &mr, const unordered_map<string, size_t> &cl) {
+get_chrom_id(const string &chrom_name,
+             const unordered_map<string, size_t> &cl) {
 
   const unordered_map<string, size_t>::const_iterator
-    the_chrom(cl.find(mr.r.get_chrom()));
+    the_chrom(cl.find(chrom_name));
   if (the_chrom == end(cl))
-    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + chrom_name);
 
   return the_chrom->second;
 }
@@ -304,6 +305,8 @@ main(int argc, const char **argv) {
         chrom_lookup[names[k]] = k;
       }
     }
+    vector<string> chrom_order(names);
+    sort(begin(chrom_order), end(chrom_order));
 
     if (VERBOSE)
       cerr << "n_chroms: " << chroms.size() << endl;
@@ -324,6 +327,8 @@ main(int argc, const char **argv) {
     // this is where all the counts are accumulated
     vector<CountSet<unsigned short> > counts;
 
+    size_t j = 0; // current chromosome
+
     while (in >> mr) {
 
       // if chrom changes, output previous results, get new one
@@ -333,31 +338,58 @@ main(int argc, const char **argv) {
         if (mr.r.get_chrom() < chrom_region.get_chrom())
           throw runtime_error("chroms out of order: " + mapped_reads_file);
 
-        if (!counts.empty()) // if we have results, output them
-          write_output(out, chrom_region.get_chrom(),
-                       chroms[chrom_id], counts, CPG_ONLY);
+        if (!counts.empty()) {// should be true after first iteration
+          write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+          ++j;
+        }
+        while (j < chrom_order.size() && chrom_order[j] != mr.r.get_chrom()) {
+          if (VERBOSE)
+            cerr << "NO_READS:\t" << chrom_order[j] << endl;
+          chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+          chrom_size = chrom_sizes[chrom_id];
+          chrom_region.set_chrom(chrom_order[j]);
+          counts.clear();
+          counts.resize(chrom_size);
+          write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+          ++j;
+        }
 
-        // move to the new chromosome
-        chrom_id = get_chrom_id(mr, chrom_lookup);
+        if (j == chrom_order.size() || chrom_order[j] != mr.r.get_chrom())
+          throw runtime_error("problem with chrom order in mapped reads");
+
+        // move to the current chromosome
+        chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
         chrom_size = chrom_sizes[chrom_id];
-        chrom_region.set_chrom(mr.r.get_chrom());
-
-        if (VERBOSE)
-          cerr << "PROCESSING:\t" << chrom_region.get_chrom() << endl;
-
+        chrom_region.set_chrom(chrom_order[j]);
         // reset the counts
         counts.clear();
         counts.resize(chrom_size);
+
+        if (VERBOSE)
+          cerr << "PROCESSING:\t" << chrom_order[j] << endl;
       }
 
       // do the work for this mapped read, depending on strand
       if (mr.r.pos_strand())
         count_states_pos(chrom_size, mr, counts);
       else count_states_neg(chrom_size, mr, counts);
+
     }
-    // ALWAYS output the chromosome, even if all sites are uncovered.
-    write_output(out, chrom_region.get_chrom(),
-                 chroms[chrom_id], counts, CPG_ONLY);
+    if (!counts.empty()) {// should be true after first iteration
+      write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+      ++j;
+    }
+    while (j < chrom_order.size()) {
+      if (VERBOSE)
+        cerr << "NO_READS:\t" << chrom_order[j] << endl;
+      chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+      chrom_size = chrom_sizes[chrom_id];
+      chrom_region.set_chrom(chrom_order[j]);
+      counts.clear();
+      counts.resize(chrom_size);
+      write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+      ++j;
+    }
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;
