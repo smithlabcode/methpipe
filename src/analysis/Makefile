@@ -25,7 +25,8 @@ endif
 
 PROGS = pmd methcounts bsrate hmr hypermr \
 	levels roimethstat  \
-	methstates methentropy hmr_rep
+	methstates methentropy hmr_rep \
+	selectsites
 
 CXX = g++
 CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
@@ -75,6 +76,8 @@ hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o MethpipeSite.o)
+
+selectsites: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
 
