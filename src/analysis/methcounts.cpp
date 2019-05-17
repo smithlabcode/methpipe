@@ -133,7 +133,7 @@ struct CountSet {
  * size_t.
  */
 string
-get_methylation_context_tag(const string &s, const size_t pos) {
+get_methylation_context_tag_from_genome(const string &s, const size_t pos) {
   if (is_cytosine(s[pos])) {
     if (is_cpg(s, pos)) return "CpG";
     else if (is_chh(s, pos)) return "CHH";
@@ -191,6 +191,12 @@ has_mutated(const char base, const CountSet<count_type> &cs) {
     (cs.pG < MUTATION_DEFINING_FRACTION*(cs.pos_total()));
 }
 
+inline static bool
+is_cpg_site(const string &s, const size_t pos) {
+  return (is_cytosine(s[pos]) ? is_guanine(s[pos+1]) :
+          (is_guanine(s[pos]) ?
+           (pos > 0 && is_cytosine(s[pos - 1])) : false));
+}
 
 template <class count_type>
 static void
@@ -207,9 +213,9 @@ write_output(std::ostream &out,
       const double converted = is_cytosine(base) ?
         counts[i].converted_cytosine() : counts[i].converted_guanine();
       const double meth = unconverted/(converted + unconverted);
-      const string tag = get_methylation_context_tag(chrom, i) +
+      const string tag = get_methylation_context_tag_from_genome(chrom, i) +
         (has_mutated(base, counts[i]) ? "x" : "");
-      if (!CPG_ONLY || (!tag.compare("CpG")||!tag.compare("CpGx"))) {
+      if (!CPG_ONLY || is_cpg_site(chrom, i)) {
         methpipe::write_site(out, chrom_name, i,
                              (is_cytosine(base) ? "+" : "-"),
                              tag, meth, converted + unconverted);
