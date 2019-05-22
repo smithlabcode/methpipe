@@ -87,8 +87,8 @@ struct SiteLocationEqual {
 //checks if any files still have data to read in
 static bool
 any_files_are_good(vector<std::ifstream*> infiles){
-  for(size_t i=0; i< infiles.size(); ++i)
-    if(!(*infiles[i]).eof())return true;
+  for (size_t i = 0; i < infiles.size(); ++i)
+    if (*infiles[i]) return true;
   return false;
 }
 
@@ -97,14 +97,14 @@ static bool
 load_sites(vector<std::ifstream*> &infiles,
            vector<bool> &outdated, vector<Site> &sites) {
   bool sites_loaded = false;
-  for (size_t i=0; i<sites.size(); ++i){
-    if (outdated[i]){
-      if(read_site(*infiles[i],
-                   sites[i].chrom, sites[i].pos, sites[i].strand,
-                   sites[i].seq, sites[i].meth, sites[i].coverage)){
+  for (size_t i = 0; i < sites.size(); ++i) {
+    if (outdated[i]) {
+      if (read_site(*infiles[i],
+                    sites[i].chrom, sites[i].pos, sites[i].strand,
+                    sites[i].seq, sites[i].meth, sites[i].coverage)) {
         outdated[i]=false;
         sites_loaded = true;
-	//        if ((*infiles[i]).fail()) sites_loaded= false;
+        //        if ((*infiles[i]).fail()) sites_loaded= false;
       }
     }
   }
