@@ -264,14 +264,7 @@ main(int argc, const char **argv) {
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
       throw runtime_error("regions not sorted in file: " + regions_file);
-
-    if (VERBOSE)
-      cerr << "[n regions loaded: " << regions.size() << "]" << endl;
-
     collapsebed(regions);
-
-    if (VERBOSE)
-      cerr << "[n regions collapsed: " << regions.size() << "]" << endl;
 
     ifstream in(cpgs_file);
     if (!in)
