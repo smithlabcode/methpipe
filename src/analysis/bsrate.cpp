@@ -43,6 +43,7 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::accumulate;
+using std::to_string;
 
 using std::unordered_map;
 
@@ -67,7 +68,10 @@ count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
   const size_t offset = r.r.get_start();
 
   size_t position = offset;
-  assert(offset < chrom.length()); // at least one bp of read on chr
+  if (chrom.length() < offset) // at least one bp of read on chr
+    throw runtime_error("read mapped off chrom:\n" +
+                        r.tostring() + "\n" +
+                        to_string(chrom.length()));
   for (size_t i = 0; i < width; ++i, ++position) {
     if (position >= chrom.length()) // some overhang
       ++hanging;
