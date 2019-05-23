@@ -1,5 +1,6 @@
 /* Copyright (C) 2009-2012 University of Southern California
  *                         Andrew D Smith
+ *
  * Author: Andrew D. Smith, Song Qiang
  *
  * This is free software; you can redistribute it and/or modify it
@@ -23,8 +24,7 @@
 #include <fstream>
 #include <iomanip>
 #include <string>
-
-#include <unistd.h>
+#include <exception>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -42,6 +42,7 @@ using std::numeric_limits;
 using std::max;
 using std::min;
 using std::pair;
+using std::runtime_error;
 
 double
 get_fdr_cutoff(const vector<double> &scores, const double fdr) {
@@ -331,30 +332,37 @@ main(int argc, const char **argv) {
     string params_in_file;
     string params_out_file;
 
+    const string description =
+      "Identify HMRs in methylomes. Methylation must be provided in the \
+      methcounts format (chrom, position, strand, context, \
+      methylation, reads). See the methcounts documentation for \
+      details. This program assumes only data at CpG sites and that \
+      strands are collapsed so only the positive site appears in the \
+      file.";
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
-                           "HMRs in methylation data", "<cpg-BED-file>");
+    OptionParser opt_parse(strip_path(argv[0]),
+                           description, "<methylation-file>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
                       false, outfile);
-    opt_parse.add_opt("desert", 'd', "max dist btwn cpgs with reads in HMR",
+    opt_parse.add_opt("desert", 'd', "max dist btwn covered cpgs in HMR",
                       false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("partial", '\0', "identify PMRs instead of HMRs",
                       false, PARTIAL_METH);
-    opt_parse.add_opt("post-hypo", '\0', "output file for single-CpG posteiror "
-                      "hypomethylation probability (default: NULL)",
+    opt_parse.add_opt("post-hypo", '\0', "output file for single-CpG posterior "
+                      "hypomethylation probability (default: none)",
                       false, hypo_post_outfile);
     opt_parse.add_opt("post-meth", '\0', "output file for single-CpG posteiror "
-                      "methylation probability (default: NULL)",
+                      "methylation probability (default: none)",
                       false, meth_post_outfile);
-    opt_parse.add_opt("params-in", 'P', "HMM parameters file (no training)",
-                      false, params_in_file);
-    opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file",
-                      false, params_out_file);
-    opt_parse.add_opt("seed", 's', "specify random seed",
-                      false, seed);
-
+    opt_parse.add_opt("params-in", 'P', "HMM parameter file "
+                      "(override training)", false, params_in_file);
+    opt_parse.add_opt("params-out", 'p', "write HMM parameters to this "
+                      "file (default: none)", false, params_out_file);
+    opt_parse.add_opt("seed", 's', "specify random seed", false, seed);
+    opt_parse.set_show_defaults();
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -460,13 +468,12 @@ main(int argc, const char **argv) {
     if (fdr_cutoff == numeric_limits<double>::max())
       fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
 
-    if (!params_out_file.empty())
-      {
-        std::ofstream out(params_out_file.c_str(), std::ios::app);
-        out << "FDR_CUTOFF\t"
-            << std::setprecision(30) << fdr_cutoff << endl;
-        out.close();
-      }
+    if (!params_out_file.empty()) {
+      std::ofstream out(params_out_file.c_str(), std::ios::app);
+      out << "FDR_CUTOFF\t"
+          << std::setprecision(30) << fdr_cutoff << endl;
+      out.close();
+    }
 
     vector<GenomicRegion> domains;
     build_domains(VERBOSE, cpgs, scores, reset_points, classes, domains);
@@ -526,8 +533,8 @@ main(int argc, const char **argv) {
       }
     }
   }
-  catch (SMITHLABException &e) {
-    cerr << "ERROR:\t" << e.what() << endl;
+  catch (runtime_error &e) {
+    cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
   catch (std::bad_alloc &ba) {
