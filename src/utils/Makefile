@@ -88,7 +88,7 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 duplicate-remover: \
     $(addprefix $(SMITHLAB_CPP)/, RNG.o)
 
-symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+merge-methcounts symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 
 %.o: %.cpp %.hpp
