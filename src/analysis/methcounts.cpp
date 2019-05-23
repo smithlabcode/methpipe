@@ -152,29 +152,43 @@ get_methylation_context_tag_from_genome(const string &s, const size_t pos) {
 
 template <class count_type>
 static void
-count_states_pos(const size_t chrom_len, const MappedRead &r,
+count_states_pos(const MappedRead &r,
                  vector<CountSet<count_type> > &counts) {
+
+  const size_t chrom_len = counts.size(); // the counts should have
+                                          // one entry per position
   const size_t width = r.r.get_width();
 
   size_t position = r.r.get_start();
-  assert(position < chrom_len);
-  for (size_t i = 0; i < width; ++i, ++position)
-    if (position < chrom_len)
-      counts[position].add_count_pos(r.seq[i]);
+  if (chrom_len < r.r.get_start())
+    throw runtime_error("read mapped past chrom end: " + r.tostring());
+
+  for (size_t i = 0; i < width && position < chrom_len; ++i, ++position)
+    counts[position].add_count_pos(r.seq[i]);
 }
 
 
 template <class count_type>
 static void
-count_states_neg(const size_t chrom_len, const MappedRead &r,
+count_states_neg(const MappedRead &r,
                  vector<CountSet<count_type> > &counts) {
+
+  const size_t chrom_len = counts.size(); // the counts should have
+                                          // one entry per position
   const size_t width = r.r.get_width();
 
-  size_t position = r.r.get_start() + width - 1;
-  assert(r.r.get_start() < chrom_len);
-  for (size_t i = 0; i < width; ++i, --position)
-    if (position < chrom_len)
-      counts[position].add_count_neg(r.seq[i]);
+  size_t position = r.r.get_start() + width;
+  if (chrom_len < r.r.get_start())
+    throw runtime_error("read mapped past chrom end: " + r.tostring());
+
+  // skip past any part of read not overlapping chrom; condition above
+  // ensures value for i remains valid as it is incremented in this
+  // first loop below
+  size_t i = 0;
+  for (; position > chrom_len; ++i, --position);
+
+  for (; i < width && position > 0; ++i)
+    counts[--position].add_count_neg(r.seq[i]);
 }
 
 
@@ -377,8 +391,8 @@ main(int argc, const char **argv) {
 
       // do the work for this mapped read, depending on strand
       if (mr.r.pos_strand())
-        count_states_pos(chrom_size, mr, counts);
-      else count_states_neg(chrom_size, mr, counts);
+        count_states_pos(mr, counts);
+      else count_states_neg(mr, counts);
 
     }
     if (!counts.empty()) {// should be true after first iteration
