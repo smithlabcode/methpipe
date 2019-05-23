@@ -22,10 +22,12 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <exception>
 
 #include "smithlab_utils.hpp"
 
 using std::string;
+using std::runtime_error;
 
 std::istream &
 operator>>(std::istream &in, MSite &s) {
@@ -33,9 +35,13 @@ operator>>(std::istream &in, MSite &s) {
   if (getline(in, line)) {
     std::istringstream iss;
     iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-    if (!(iss >> s.chrom >> s.pos >> s.strand
+    string strand_tmp;
+    if (!(iss >> s.chrom >> s.pos >> strand_tmp
           >> s.context >> s.meth >> s.n_reads))
-      throw SMITHLABException("bad methcounts file");
+      throw runtime_error("bad methcounts file");
+    s.strand = strand_tmp[0];
+    if (s.strand != '-' && s.strand != '+')
+      throw runtime_error("bad methcounts file");
   }
   return in;
 }
