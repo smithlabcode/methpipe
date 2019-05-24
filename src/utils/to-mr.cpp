@@ -207,7 +207,7 @@ main(int argc, const char **argv) {
     const size_t progress_step = 1000000;
     SAMRecord samr;
 
-    while ((sam_reader >> samr, sam_reader.is_good()))
+    while (sam_reader >> samr)
     {
       if (samr.is_mapping_paired)
       {
