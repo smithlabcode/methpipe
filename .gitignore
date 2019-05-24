@@ -16,6 +16,7 @@ bin/
 *.dvi
 
 # ignore binary file
+src/analysis/selectsites
 src/premapping/trim-adapter
 src/premapping/read-quality-prof
 src/premapping/visireads
