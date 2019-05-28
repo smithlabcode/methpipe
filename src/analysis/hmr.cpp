@@ -24,7 +24,7 @@
 #include <fstream>
 #include <iomanip>
 #include <string>
-#include <exception>
+#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"

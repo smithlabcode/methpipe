@@ -27,8 +27,11 @@
 
 #include "regression.hpp"
 
-using std::istream; using std::string;
-using std::vector; using std::istringstream;
+using std::istream;
+using std::string;
+using std::vector;
+using std::istringstream;
+using std::runtime_error;
 
 std::istream&
 operator>> (std::istream &is, Design &design) {
@@ -56,13 +59,13 @@ operator>> (std::istream &is, Design &design) {
       if (token.length() == 1 && (token == "0" || token == "1"))
         matrix_row.push_back(token == "1");
       else
-        throw SMITHLABException("only binary factor levels are allowed:\n"
-                                + row);
+        throw runtime_error("only binary factor levels are allowed:\n"
+                            + row);
     }
 
     if (matrix_row.size() != design.factor_names.size())
-      throw SMITHLABException("each row must have as many columns as "
-            "factors:\n" + row);
+      throw runtime_error("each row must have as many columns as "
+                          "factors:\n" + row);
 
     design.matrix.push_back(vector<double>());
     swap(design.matrix.back(), matrix_row);
@@ -86,7 +89,7 @@ operator<< (std::ostream &os, const Design &design) {
       if (factor + 1 != design.factor_names.size())
         os << "\t";
     }
-      os << "\n";
+    os << "\n";
   }
   return os;
 }
@@ -106,8 +109,8 @@ parse_natural_number(string encoding) {
   size_t number;
   iss >> number;
   if (!iss)
-    throw SMITHLABException("The token \"" +encoding + "\" "
-                            "does not encode a natural number");
+    throw runtime_error("The token \"" +encoding + "\" "
+                        "does not encode a natural number");
   return number;
 }
 
@@ -138,20 +141,20 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   // corresponding site. Here we check this identifier has the correct number
   // of colons.
   const size_t num_colon =
-            std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
+    std::count(row_name_encoding.begin(), row_name_encoding.end(), ':');
 
   if (num_colon != 3)
-    throw SMITHLABException("Each row in the count table must start with "
-                            "a line chromosome:position:strand:context."
-                            "Got \"" + row_name_encoding + "\" instead." );
+    throw runtime_error("Each row in the count table must start with "
+                        "a line chromosome:position:strand:context."
+                        "Got \"" + row_name_encoding + "\" instead." );
 
   // First parse the row identifier.
   istringstream name_stream(row_name_encoding);
   getline(name_stream, props.chrom, ':');
 
   if (props.chrom.empty())
-    throw SMITHLABException("Error parsing " + row_name_encoding +
-                            ": chromosome name is missing.");
+    throw runtime_error("Error parsing " + row_name_encoding +
+                        ": chromosome name is missing.");
 
   string position_encoding;
 
@@ -169,12 +172,12 @@ operator>>(std::istream &table_encoding, SiteProportions &props) {
   }
 
   if (!row_stream.eof())
-    throw SMITHLABException("Some row entries are not natural numbers: " +
-                            row_stream.str());
+    throw runtime_error("Some row entries are not natural numbers: " +
+                        row_stream.str());
 
   if (props.total.size() != props.meth.size())
-    throw SMITHLABException("This row does not encode proportions"
-                            "correctly:\n" + row_encoding);
+    throw runtime_error("This row does not encode proportions"
+                        "correctly:\n" + row_encoding);
   return table_encoding;
 }
 
@@ -184,7 +187,7 @@ pi(Regression *reg, size_t sample, const gsl_vector *parameters) {
 
   for(size_t factor = 0; factor < reg->design.factor_names.size(); ++factor)
     dot_prod +=
-          reg->design.matrix[sample][factor]*gsl_vector_get(parameters, factor);
+      reg->design.matrix[sample][factor]*gsl_vector_get(parameters, factor);
 
   double p = exp(dot_prod)/(1 + exp(dot_prod));
 
@@ -200,7 +203,7 @@ neg_loglik(const gsl_vector *parameters, void *object) {
 
   //dispersion parameter phi is the last element of parameter vector
   const double dispersion_param = gsl_vector_get(parameters,
-                                                  num_parameters - 1);
+                                                 num_parameters - 1);
   const double phi = exp(dispersion_param)/(1 + exp(dispersion_param));
 
   for(size_t s = 0; s < reg->design.sample_names.size(); ++s) {
@@ -226,13 +229,13 @@ neg_loglik(const gsl_vector *parameters, void *object) {
 
 static void
 neg_gradient(const gsl_vector *parameters, void *object,
-                      gsl_vector *output) {
+             gsl_vector *output) {
 
   Regression *reg = (Regression *)(object);
   const size_t num_parameters = reg->design.factor_names.size() + 1;
 
   const double dispersion_param = gsl_vector_get(parameters,
-                                                  num_parameters - 1);
+                                                 num_parameters - 1);
 
   const double phi = exp(dispersion_param)/(1 + exp(dispersion_param));
 
@@ -282,9 +285,9 @@ neg_gradient(const gsl_vector *parameters, void *object,
 
 static void
 neg_loglik_and_grad(const gsl_vector *parameters,
-                                void *object,
-                                double *loglik_val,
-                                gsl_vector *d_loglik_val) {
+                    void *object,
+                    double *loglik_val,
+                    gsl_vector *d_loglik_val) {
 
   *loglik_val = neg_loglik(parameters, object);
   neg_gradient(parameters, object, d_loglik_val);
@@ -318,7 +321,7 @@ fit(Regression &r, vector<double> initial_parameters) {
   gsl_vector *parameters = gsl_vector_alloc(num_parameters);
 
   for (size_t parameter = 0; parameter < initial_parameters.size();
-        ++parameter) {
+       ++parameter) {
     gsl_vector_set(parameters, parameter, initial_parameters[parameter]);
   }
 

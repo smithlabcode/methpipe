@@ -45,6 +45,7 @@ using std::cerr;
 using std::endl;
 using std::istream;
 using std::ostream;
+using std::runtime_error;
 
 static bool
 lt_locus_pval(const PvalLocus &r1, const PvalLocus &r2) {
@@ -59,35 +60,35 @@ ls_locus_position(const PvalLocus &r1, const PvalLocus &r2) {
 void
 fdr(vector<PvalLocus> &loci) {
 
-      std::sort(loci.begin(), loci.end(), lt_locus_pval);
+  std::sort(loci.begin(), loci.end(), lt_locus_pval);
 
-      for (size_t ind = 0; ind < loci.size(); ++ind) {
-        const double current_score = loci[ind].combined_pval;
+  for (size_t ind = 0; ind < loci.size(); ++ind) {
+    const double current_score = loci[ind].combined_pval;
 
-        //Assign a new one.
-        const double corrected_pval = loci.size()*current_score/(ind + 1);
-        loci[ind].corrected_pval = corrected_pval;
-      }
+    //Assign a new one.
+    const double corrected_pval = loci.size()*current_score/(ind + 1);
+    loci[ind].corrected_pval = corrected_pval;
+  }
 
-      for (vector<PvalLocus>::reverse_iterator
-            it = loci.rbegin() + 1; it != loci.rend(); ++it) {
+  for (vector<PvalLocus>::reverse_iterator
+         it = loci.rbegin() + 1; it != loci.rend(); ++it) {
 
-        const PvalLocus &prev_locus = *(it - 1);
-        PvalLocus &cur_locus = *(it);
+    const PvalLocus &prev_locus = *(it - 1);
+    PvalLocus &cur_locus = *(it);
 
-        cur_locus.corrected_pval =
-              std::min(prev_locus.corrected_pval, cur_locus.corrected_pval);
-      }
+    cur_locus.corrected_pval =
+      std::min(prev_locus.corrected_pval, cur_locus.corrected_pval);
+  }
 
-      for (vector<PvalLocus>::iterator it = loci.begin();
-            it != loci.end(); ++it) {
-        PvalLocus &cur_locus = *(it);
-        if (cur_locus.corrected_pval > 1.0)
-          cur_locus.corrected_pval = 1.0;
-      }
+  for (vector<PvalLocus>::iterator it = loci.begin();
+       it != loci.end(); ++it) {
+    PvalLocus &cur_locus = *(it);
+    if (cur_locus.corrected_pval > 1.0)
+      cur_locus.corrected_pval = 1.0;
+  }
 
-      // Restore original order
-      std::sort(loci.begin(), loci.end(), ls_locus_position);
+  // Restore original order
+  std::sort(loci.begin(), loci.end(), ls_locus_position);
 }
 
 // Splits a string using white-space characters as delimeters.
@@ -170,13 +171,13 @@ main(int argc, const char **argv) {
       "Available commands: \n"
       "  regression  Calculates multi-factor differential methylation scores.\n"
       "  adjust      Adjusts the p-value of each site based on the p-value of "
-                     "its neighbors.\n"
+      "its neighbors.\n"
       "  merge       Combines significantly differentially methylated CpGs into"
-                     " DMRs.\n";
+      " DMRs.\n";
 
     if (argc == 1) {
       cerr << "Analysis of differential methylation in multi-factor bisulfite "
-              "sequencing experiments.\n"
+        "sequencing experiments.\n"
            << main_help_message;
       return EXIT_SUCCESS;
     }
@@ -228,11 +229,11 @@ main(int argc, const char **argv) {
 
       std::ifstream design_file(design_filename.c_str());
       if (!design_file)
-        throw SMITHLABException("could not open file: " + design_filename);
+        throw runtime_error("could not open file: " + design_filename);
 
       std::ifstream table_file(table_filename.c_str());
       if (!table_file)
-        throw SMITHLABException("could not open file: " + table_filename);
+        throw runtime_error("could not open file: " + table_filename);
 
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
@@ -248,11 +249,11 @@ main(int argc, const char **argv) {
                   full_regression.design.factor_names.end(), test_factor_name);
 
       if (test_factor_it == full_regression.design.factor_names.end())
-        throw SMITHLABException("Error: " + test_factor_name +
-                                " is not a part of the design specification.");
+        throw runtime_error("Error: " + test_factor_name +
+                            " is not a part of the design specification.");
 
       size_t test_factor = test_factor_it -
-                                  full_regression.design.factor_names.begin();
+        full_regression.design.factor_names.begin();
 
       Regression null_regression;
       null_regression.design = full_regression.design;
@@ -265,10 +266,10 @@ main(int argc, const char **argv) {
       getline(table_file, sample_names_encoding);
 
       if (full_regression.design.sample_names != split(sample_names_encoding))
-        throw SMITHLABException(sample_names_encoding + " does not match factor "
-                                "names or their order in the design matrix. "
-                                "Please verify that the design matrix and the "
-                                "proportion table are correctly formatted.");
+        throw runtime_error(sample_names_encoding + " does not match factor "
+                            "names or their order in the design matrix. "
+                            "Please verify that the design matrix and the "
+                            "proportion table are correctly formatted.");
 
       // Performing the log-likelihood ratio test on proportions from each row
       // of the proportion table.
@@ -276,11 +277,11 @@ main(int argc, const char **argv) {
 
         if (full_regression.design.sample_names.size() !=
             full_regression.props.total.size())
-              throw SMITHLABException("There is a row with"
-                                      "incorrect number of proportions.");
+          throw runtime_error("There is a row with"
+                              "incorrect number of proportions.");
 
         size_t coverage_factor = 0, coverage_rest = 0,
-               meth_factor = 0, meth_rest = 0;
+          meth_factor = 0, meth_rest = 0;
 
         for(size_t s = 0; s < full_regression.design.sample_names.size(); ++s) {
           if(full_regression.design.matrix[s][test_factor] != 0) {
@@ -311,7 +312,7 @@ main(int argc, const char **argv) {
           null_regression.props = full_regression.props;
           fit(null_regression);
           const double pval = loglikratio_test(null_regression.max_loglik,
-                                         full_regression.max_loglik);
+                                               full_regression.max_loglik);
 
           // If error occured in the fitting algorithm (i.e. p-val is nan or
           // -nan).
@@ -321,7 +322,7 @@ main(int argc, const char **argv) {
             << "\t" << coverage_rest << "\t" << meth_rest << endl;
       }
 
-    // Combine p-values using the Z test.
+      // Combine p-values using the Z test.
     } else if (command_name == "adjust") {
       string outfile;
       string bin_spec = "1:200:1";
@@ -331,9 +332,9 @@ main(int argc, const char **argv) {
                              "adjusted p-values using autocorrelation",
                              "<regression-output>");
       opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
-            false , outfile);
+                        false , outfile);
       opt_parse.add_opt("bins", 'b', "corrlation bin specification",
-            false , bin_spec);
+                        false , bin_spec);
       vector<string> leftover_args;
       opt_parse.parse(argc - 1, argv + 1, leftover_args);
       if (argc == 2 || opt_parse.help_requested()) {
@@ -390,7 +391,7 @@ main(int argc, const char **argv) {
             PvalLocus plocus;
             plocus.raw_pval = pval;
             plocus.pos = chrom_offset +
-            bin_for_dist.max_dist() + 1 + position;
+              bin_for_dist.max_dist() + 1 + position;
 
             pvals.push_back(plocus);
             prev_chrom = chrom;
@@ -413,7 +414,7 @@ main(int argc, const char **argv) {
 
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
-        std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+      std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
       std::ifstream original_bed_file(bed_filename.c_str());
 
@@ -432,9 +433,9 @@ main(int argc, const char **argv) {
                              "differentially methylated CpGs into DMRs",
                              "<bed-file-in-radmeth-format>");
       opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
-            false , outfile);
+                        false , outfile);
       opt_parse.add_opt("cutoff", 'p', "P-value cutoff (default: 0.01)",
-            false , cutoff);
+                        false , cutoff);
       vector<string> leftover_args;
       opt_parse.parse(argc - 1, argv + 1, leftover_args);
       if (argc == 1 || opt_parse.help_requested()) {
@@ -474,7 +475,7 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

@@ -24,6 +24,8 @@
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <stdexcept>
+
 #include <unistd.h>
 
 #include <gsl/gsl_sf.h>
@@ -34,6 +36,7 @@
 #include "OptionParser.hpp"
 #include "TwoStateHMM_PMD.hpp"
 #include "MethpipeFiles.hpp"
+
 using std::string;
 using std::vector;
 using std::cout;
@@ -88,7 +91,7 @@ merge_nearby_pmd(const size_t max_merge, vector<GenomicRegion> &pmds) {
 
 static void
 copy_map_to_vectors(std::map<size_t, pair<size_t, size_t> > &pos_meth_tot,
-                    vector<size_t> &positions, 
+                    vector<size_t> &positions,
                     vector<pair<size_t, size_t> > &meth_tot) {
   for (std::map<size_t, pair<size_t, size_t> >::iterator
        it=pos_meth_tot.begin(); it != pos_meth_tot.end(); ++it) {
@@ -101,9 +104,9 @@ copy_map_to_vectors(std::map<size_t, pair<size_t, size_t> > &pos_meth_tot,
 static size_t
 find_best_bound(const bool IS_RIGHT_BOUNDARY,
                 std::map<size_t, pair<size_t, size_t> > &pos_meth_tot,
-                const vector<double> &fg_alpha_reps, 
+                const vector<double> &fg_alpha_reps,
                 const vector<double> &fg_beta_reps,
-                const vector<double> &bg_alpha_reps, 
+                const vector<double> &bg_alpha_reps,
                 const vector<double> &bg_beta_reps) {
 
   vector<pair<size_t,size_t> > meth_tot;
@@ -191,8 +194,8 @@ pull_out_boundary_positions(vector<GenomicRegion> &bounds,
 
 static void
 compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
-                        vector<GenomicRegion> &bounds, 
-                        const vector<bool> &array_status, 
+                        vector<GenomicRegion> &bounds,
+                        const vector<bool> &array_status,
                         const vector<double> &fg_alpha_reps,
                         const vector<double> &fg_beta_reps,
                         const vector<double> &bg_alpha_reps,
@@ -245,12 +248,12 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
         }
       }
     }
-    
+
     // Get the boundary position
     size_t boundary_position = bounds[bound_idx].get_start()
            + (bounds[bound_idx].get_end()-bounds[bound_idx].get_start())/2;
     size_t N_low = 0, k_low = 0, N_hi = 0, k_hi = 0;
-    for(std::map<size_t, pair<size_t,size_t> >::iterator it = 
+    for(std::map<size_t, pair<size_t,size_t> >::iterator it =
         pos_meth_tot.begin(); it != pos_meth_tot.end(); ++it) {
       if(it->first<boundary_position) {
         N_low += it->second.second;
@@ -297,7 +300,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
 
 static void
 find_exact_boundaries(const vector<string> &cpgs_file,
-                      vector<GenomicRegion> &bounds, 
+                      vector<GenomicRegion> &bounds,
                       const vector<bool> &array_status,
                       const vector<double> &fg_alpha_reps,
                       const vector<double> &fg_beta_reps,
@@ -364,7 +367,7 @@ optimize_boundaries(const size_t bin_size,
                     const vector<string> &cpgs_file,
                     vector<GenomicRegion> &pmds,
                     const vector<bool> &array_status,
-                    const vector<double> &fg_alpha_reps, 
+                    const vector<double> &fg_alpha_reps,
                     const vector<double> &fg_beta_reps,
                     const vector<double> &bg_alpha_reps,
                     const vector<double> &bg_beta_reps) {
@@ -373,7 +376,7 @@ optimize_boundaries(const size_t bin_size,
   pull_out_boundary_positions(bounds, pmds, bin_size);
   vector<size_t> bound_site;
   find_exact_boundaries(cpgs_file, bounds, array_status, fg_alpha_reps,
-                        fg_beta_reps, bg_alpha_reps, bg_beta_reps, 
+                        fg_beta_reps, bg_alpha_reps, bg_beta_reps,
                         bound_site);
 
   ////////////////////////////////////////////////////////////////////////
@@ -427,7 +430,7 @@ optimize_boundaries(const size_t bin_size,
 
   // Add the boundary scores to the PMD names
   for (size_t i = 0; i < pmds.size(); ++i)
-    pmds[i].set_name(pmds[i].get_name() 
+    pmds[i].set_name(pmds[i].get_name()
                      + ":" + std::to_string(boundary_scores[2*i])
                      + ":" + std::to_string(boundary_certainties[2*i])
                      + ":" + std::to_string(boundary_scores[2*i+1])
@@ -534,7 +537,7 @@ template <class T, class U> static void
 separate_regions(const bool VERBOSE, const size_t desert_size,
                  vector<vector<SimpleGenomicRegion> > &cpgs,
                  vector<vector<T> > &meth, vector<vector<U> > &reads,
-                 vector<size_t> &reset_points, 
+                 vector<size_t> &reset_points,
                  vector<size_t> &dists_btwn_cpgs) {
   if (VERBOSE)
     cerr << "[SEPARATING BY CPG DESERT]" << endl;
@@ -573,7 +576,7 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
   for (size_t i = 0; i < cpgs[0].size(); ++i) {
     const size_t dist = (i > 0 && cpgs[0][i].same_chrom(cpgs[0][i - 1])) ?
       cpgs[0][i].get_start() - prev_cpg : numeric_limits<size_t>::max();
-    if (dist > desert_size) 
+    if (dist > desert_size)
       reset_points.push_back(i);
     prev_cpg = cpgs[0][i].get_start();
   }
@@ -761,7 +764,7 @@ load_array_data(const size_t bin_size,
     if (curr_chrom != chrom) {
       if (!curr_chrom.empty()) {
         if(chrom < curr_chrom)
-          throw SMITHLABException("CpGs not sorted in file \""
+          throw runtime_error("CpGs not sorted in file \""
                                   + cpgs_file + "\"");
         intervals.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                             prev_pos + 1));
@@ -911,7 +914,7 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
   first_chrom = chrom;
   in.seekg(0,std::ios::beg);
 
-  while(methpipe::read_site(in, chrom, position, strand, site_name, 
+  while(methpipe::read_site(in, chrom, position, strand, site_name,
                             meth_level, coverage) && first_chrom == chrom){
       n_meth = round(meth_level * coverage);
       n_unmeth = coverage - n_meth;
@@ -1075,7 +1078,7 @@ main(int argc, const char **argv) {
                          methpipe::is_methpipe_file_array(cpgs_file[i])
                          : methpipe::is_methpipe_file_single(cpgs_file[i]);
         if(!goodInput)
-          throw SMITHLABException("Data not proper input format");
+          throw runtime_error("Data not proper input format");
         if(!arrayData)
           bin_size=binsize_selection(bin_size, cpgs_file[i],
                           confidence_interval, prop_accept, VERBOSE);
@@ -1119,7 +1122,7 @@ main(int argc, const char **argv) {
       aligned = (cpgs[rep_idx].size() == cpgs[0].size());
     }
     if (rep_idx < NREP)
-      throw SMITHLABException("Inputs contain different number of sites");
+      throw runtime_error("Inputs contain different number of sites");
 
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs
@@ -1241,7 +1244,7 @@ main(int argc, const char **argv) {
     copy(good_domains.begin(), good_domains.end(),
          std::ostream_iterator<GenomicRegion>(out, "\n"));
   }
-  catch (SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;
   }

@@ -24,6 +24,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "GenomicRegion.hpp"
 #include "smithlab_utils.hpp"
@@ -38,6 +39,7 @@ using std::round;
 using std::istream;
 using std::ostream;
 using std::endl;
+using std::runtime_error;
 
 string
 methpipe::skip_header(std::istream &in){
@@ -83,12 +85,12 @@ methpipe::load_cpgs(const string &cpgs_file,
       std::ostringstream oss;
       oss << chrom << "\t" << pos << "\t" << strand << "\t"
           << seq << "\t" << meth << "\t" << coverage << "\n";
-      throw SMITHLABException("Invalid input line:" + oss.str());
+      throw runtime_error("Invalid input line:" + oss.str());
     }
 
     // order check
     if (prev_chrom > chrom || (prev_chrom == chrom && prev_pos > pos)) {
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+      throw runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     prev_chrom = chrom;
     prev_pos = pos;
@@ -135,12 +137,12 @@ methpipe::load_cpgs(const string &cpgs_file,
       std::ostringstream oss;
       oss << chrom << "\t" << pos << "\t" << strand << "\t"
           << seq << "\t" << meth << "\t" << coverage << "\n";
-      throw SMITHLABException("Invalid input line:" + oss.str());
+      throw runtime_error("Invalid input line:" + oss.str());
     }
 
     // order check
     if (prev_chrom > chrom || (prev_chrom == chrom && prev_pos > pos)) {
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+      throw runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     prev_chrom = chrom;
     prev_pos = pos;
@@ -184,7 +186,7 @@ methpipe::load_cpgs_old(const string &cpgs_file,
   while (in >> r) {
     // order check
     if (r < prev_site) {
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+      throw runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     // append site
     const string site_name(r.get_name());
@@ -230,7 +232,7 @@ methpipe::load_cpgs_old(const string &cpgs_file,
   while (in >> r) {
     // order check
     if (r < prev_site) {
-      throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+      throw runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     // append site
     const string site_name(r.get_name());
@@ -253,11 +255,11 @@ methpipe::is_methpipe_file_single(const string &file) {
 
   std::ifstream in(file.c_str());
   if (!in)
-    throw SMITHLABException("could not open file: " + file);
+    throw runtime_error("could not open file: " + file);
 
   string line;
   if (!std::getline(in, line))
-    throw SMITHLABException("could not read file: " + file);
+    throw runtime_error("could not read file: " + file);
   line = skip_header(in);
   std::istringstream iss(line);
 
@@ -282,11 +284,11 @@ methpipe::is_methpipe_file_array(const string &file) {
 
   std::ifstream in(file.c_str());
   if (!in)
-    throw SMITHLABException("could not open file: " + file);
+    throw runtime_error("could not open file: " + file);
 
   string line;
   if (!std::getline(in, line))
-    throw SMITHLABException("could not read file: " + file);
+    throw runtime_error("could not read file: " + file);
   line = skip_header(in);
   std::istringstream iss(line);
 
@@ -426,7 +428,7 @@ methpipe::read_site_old(istream &in, string &chrom, size_t &pos,
     coverage = atoi(name.substr(name.find(":") + 1).c_str());
   }
   else if (!line.empty())
-    throw SMITHLABException("Invalid input line:" + line);
+    throw runtime_error("Invalid input line:" + line);
   return in;
 }
 

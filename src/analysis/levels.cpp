@@ -34,6 +34,7 @@
 #include <fstream>
 #include <numeric>
 #include <cmath>
+#include <exception>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"

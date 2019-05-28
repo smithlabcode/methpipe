@@ -25,8 +25,8 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
-#include <list>
 #include <utility>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -43,6 +43,7 @@ using std::cerr;
 using std::endl;
 using std::pair;
 using std::ios_base;
+using std::runtime_error;
 
 
 static pair<bool, bool>
@@ -87,7 +88,7 @@ not_methpipe_load_cpgs(const string &cpgs_file,
   vector<GenomicRegion> cpgs_in;
   ReadBEDFile(cpgs_file, cpgs_in);
   if (!check_sorted(cpgs_in))
-    throw SMITHLABException("CpGs not sorted in file: " + cpgs_file);
+    throw runtime_error("CpGs not sorted in file: " + cpgs_file);
 
   for (size_t i = 0; i < cpgs_in.size(); ++i) {
     cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
@@ -194,7 +195,7 @@ find_start_line(const string &chr, const size_t idx, std::ifstream &cpg_in) {
   const size_t end_pos = cpg_in.tellg();
 
   if (end_pos - begin_pos < 2)
-    throw SMITHLABException("empty meth file");
+    throw runtime_error("empty meth file");
 
   size_t step_size = (end_pos - begin_pos)/2;
 
@@ -258,7 +259,7 @@ load_cpg(const bool METHPIPE_FORMAT, std::ifstream &cpg_in,
 
 static bool
 cpg_not_past_region(const GenomicRegion &region, const size_t end_pos,
-		    const GenomicRegion &cpg) {
+                    const GenomicRegion &cpg) {
   return (cpg.same_chrom(region) && cpg.get_end() <= end_pos) ||
     cpg.get_chrom() < region.get_chrom();
 }
@@ -279,7 +280,7 @@ get_cpg_stats(const bool METHPIPE_FORMAT,
 
   GenomicRegion cpg;
   while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
-	 (cpg_not_past_region(region, end_pos, cpg))) {
+         (cpg_not_past_region(region, end_pos, cpg))) {
     if (start_pos <= cpg.get_start() && cpg.same_chrom(region)) {
       ++total_cpgs;
       const size_t n_reads = atoi(smithlab::split(cpg.get_name(), ":").back().c_str());
@@ -407,7 +408,7 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
-      throw SMITHLABException("regions not sorted in file: " + regions_file);
+      throw runtime_error("regions not sorted in file: " + regions_file);
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -429,7 +430,7 @@ main(int argc, const char **argv) {
                                 PRINT_ADDITIONAL_LEVELS,
                                 cpgs_file, regions, out);
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

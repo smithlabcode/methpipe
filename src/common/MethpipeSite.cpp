@@ -22,7 +22,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <exception>
+#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 

@@ -26,6 +26,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -39,6 +40,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::unordered_map;
+using std::runtime_error;
 
 
 inline static bool
@@ -190,7 +192,7 @@ main(int argc, const char **argv) {
 
     std::ifstream in(mapped_reads_file.c_str());
     if (!in)
-      throw SMITHLABException("cannot open input file " + mapped_reads_file);
+      throw runtime_error("cannot open input file " + mapped_reads_file);
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -207,7 +209,7 @@ main(int argc, const char **argv) {
         const unordered_map<string, string>::const_iterator
           fn(chrom_files.find(mr.r.get_chrom()));
         if (fn == chrom_files.end())
-          throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+          throw runtime_error("could not find chrom: " + mr.r.get_chrom());
         chrom_names.clear();
         chroms.clear();
         read_fasta_file(fn->second.c_str(), chrom_names, chroms);
@@ -228,7 +230,7 @@ main(int argc, const char **argv) {
             << seq << '\n';
     }
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
@@ -238,4 +240,3 @@ main(int argc, const char **argv) {
   }
   return EXIT_SUCCESS;
 }
-

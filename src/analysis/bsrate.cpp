@@ -44,9 +44,7 @@ using std::endl;
 using std::max;
 using std::accumulate;
 using std::to_string;
-
 using std::unordered_map;
-
 using std::runtime_error;
 
 static void
@@ -223,7 +221,7 @@ get_chrom(const MappedRead &mr,
 
   chrom = all_chroms[the_chrom->second];
   if (chrom.empty())
-    throw SMITHLABException("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
 
   chrom_region.set_chrom(mr.r.get_chrom());
 }

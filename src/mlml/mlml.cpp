@@ -4,7 +4,7 @@
  *   Authors: Meng Zhou, Jenny Qu and Andrew D. Smith
  *
  *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by 
+ *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation, either version 3 of the License, or
  *   (at your option) any later version.
  *
@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_os.hpp"
@@ -330,7 +331,7 @@ parse_line(const bool REV, const string &line,
   is >> chr >> pos >> dummy >> str_count >> level >> count;
 
   if (count > 500) count = 500;
-  
+
   a = round(count*level);
   b = count - a;
   if (REV) std::swap(a, b);
@@ -413,7 +414,7 @@ main(int argc, const char **argv) {
       out_m.open(out_methcount_pseudo_m, std::ofstream::out);
     if (!out_methcount_pseudo_h.empty())
       out_h.open(out_methcount_pseudo_h, std::ofstream::out);
-    
+
     size_t h = 0, g = 0;
     size_t m = 0, l = 0;
     size_t u = 0, t = 0;
@@ -468,10 +469,10 @@ main(int argc, const char **argv) {
                 << p_h_hat << '\t' << p_u_hat << "\t0" << endl;
 
             // write out pseudo methcount files for mC and hmC
-            if (!out_methcount_pseudo_m.empty()) 
+            if (!out_methcount_pseudo_m.empty())
               out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
                     << p_m_hat << "\t" << a+b+x+y+z+w << endl;
-            if (!out_methcount_pseudo_h.empty()) 
+            if (!out_methcount_pseudo_h.empty())
               out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
                     << p_h_hat << "\t" << a+b+x+y+z+w << endl;
           } else {
@@ -494,7 +495,7 @@ main(int argc, const char **argv) {
               //CONFLICT = (cflt_m && cflt_h) || (cflt_u && cflt_h) || (cflt_m && cflt_u);
               CONFLICT = cflt_m + cflt_u + cflt_h;
             }
-            
+
             out << h_chr << '\t' << h_pos << '\t'
                 << h_pos + 1 << '\t' << p_m << '\t'
                 << p_h << "\t" << p_u << "\t" << CONFLICT << endl;
@@ -503,10 +504,10 @@ main(int argc, const char **argv) {
               conflict_sites++;
 
             // write out pseudo methcount files for mC and hmC
-            if (!out_methcount_pseudo_m.empty()) 
+            if (!out_methcount_pseudo_m.empty())
               out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
                     << p_m << '\t' << a+b+x+y+z+w << endl;
-            if (!out_methcount_pseudo_h.empty()) 
+            if (!out_methcount_pseudo_h.empty())
               out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
                     << p_h << '\t' << a+b+x+y+z+w << endl;
           }
@@ -527,7 +528,7 @@ main(int argc, const char **argv) {
             out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
                   << level << "\t" << coverage << endl;
           }
-        } 
+        }
       } while (getline(h_in, hydroxy_line) &&
                getline(b_in, bs_line) &&
                getline(o_in, oxbs_line));
@@ -552,7 +553,7 @@ main(int argc, const char **argv) {
 
       f_line = methpipe::skip_header(f_in);
       s_line = methpipe::skip_header(s_in);
-      
+
       do {
         parse_line(f_rev, f_line, x, y, f_chr, f_pos);
         parse_line(s_rev, s_line, z, w, s_chr, s_pos);
@@ -587,7 +588,7 @@ main(int argc, const char **argv) {
               CONFLICT = cflt1 + cflt2;
             }
           }
-          
+
           out << f_chr << '\t' << f_pos << '\t'
               << f_pos + 1 << '\t';
 
@@ -601,7 +602,7 @@ main(int argc, const char **argv) {
           out << CONFLICT << endl;
           if (CONFLICT > 1)
             conflict_sites++;
-          
+
           // write out pseudo methcount files for mC and hmC
           if (!out_methcount_pseudo_h.empty()) {
             out_h << f_chr << '\t' << f_pos << "\t+\tCpG\t";
@@ -612,7 +613,7 @@ main(int argc, const char **argv) {
             } else {
               out_h << q;
             }
-            out_h << '\t' << x + y + z+ w << endl;                  
+            out_h << '\t' << x + y + z+ w << endl;
           }
           if (!out_methcount_pseudo_m.empty()) {
             out_m << f_chr << '\t' << f_pos << "\t+\tCpG\t";
@@ -624,7 +625,7 @@ main(int argc, const char **argv) {
               out_m << p;
             }
             out_m << '\t' << x + y + z+ w << endl;
-          }                  
+          }
         } else { // only one input file has non-zero coverage
           out << f_chr << '\t' << f_pos << '\t'
               << f_pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
@@ -643,7 +644,7 @@ main(int argc, const char **argv) {
             out_h << s_chr << '\t' << s_pos << "\t+\tCpG\t"
                   << level << '\t' << coverage << endl;
           }
-          
+
           if (!out_methcount_pseudo_m.empty()) {
             int coverage = 0;
             double level = 0.0;
@@ -656,7 +657,7 @@ main(int argc, const char **argv) {
             }
             out_m << s_chr << '\t' << s_pos << "\t+\tCpG\t"
                   << level << '\t' << coverage << endl;
-          }   
+          }
         }
       } while (getline(f_in, f_line) && getline(s_in, s_line));
     }
@@ -668,7 +669,7 @@ main(int argc, const char **argv) {
            << "sites conflicting to at least two input: " << conflict_sites
            << " (" << 1.0*conflict_sites/total_sites*100 << "%)" << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const std::runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

@@ -22,11 +22,10 @@
  * 02110-1301 USA
  */
 
-#include <gsl/gsl_sf_gamma.h>
-
 #include <cmath>
 #include <fstream>
 #include <utility>
+#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -34,6 +33,7 @@
 #include "OptionParser.hpp"
 #include "MethpipeFiles.hpp"
 
+#include <gsl/gsl_sf_gamma.h>
 
 using std::string;
 using std::vector;
@@ -41,6 +41,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::pair;
+using std::runtime_error;
 
 using std::ostream_iterator;
 using std::ofstream;
@@ -203,7 +204,7 @@ main(int argc, const char **argv) {
       }
     }
   }
-  catch (SMITHLABException &e) {
+  catch (runtime_error &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;
   }

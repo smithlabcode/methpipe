@@ -17,8 +17,9 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include<limits>
-#include<string>
+#include <limits>
+#include <string>
+#include <stdexcept>
 
 #include "Epiread.hpp"
 
@@ -50,7 +51,7 @@ operator>>(std::istream &in, epiread &er) {
   if (getline(in, buffer)) {
     std::istringstream is(buffer);
     if (!(is >> er.chr >> er.pos >> er.seq))
-      throw SMITHLABException("malformed epiread line:\n" + buffer);
+      throw std::runtime_error("malformed epiread line:\n" + buffer);
   }
   return in;
 }
@@ -60,5 +61,3 @@ std::ostream&
 operator<<(std::ostream &out, const epiread &er) {
   return out << er.chr << '\t' << er.pos << '\t' << er.seq;
 }
-
-

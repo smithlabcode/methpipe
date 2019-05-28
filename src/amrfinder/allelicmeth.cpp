@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <numeric>
 #include <utility>
+#include <stdexcept>
 
 #include <cmath>
 #include <sstream>
@@ -49,6 +50,7 @@ using std::unordered_map;
 using std::ostringstream;
 using std::max;
 using std::min;
+using std::runtime_error;
 
 static inline double
 log_sum_log(const double p, const double q) {
@@ -64,8 +66,8 @@ log_sum_log(const double p, const double q) {
 static double
 log_hyper_g(const size_t k, const size_t n1, const size_t n2, const size_t t) {
   return (gsl_sf_lnfact(n1) - gsl_sf_lnfact(k) - gsl_sf_lnfact(n1 - k) +
-  	  gsl_sf_lnfact(n2) - gsl_sf_lnfact(t - k) - gsl_sf_lnfact(n2 - (t - k)) -
-  	  (gsl_sf_lnfact(n1 + n2) - gsl_sf_lnfact(t) - gsl_sf_lnfact(n1 + n2 - t)));
+          gsl_sf_lnfact(n2) - gsl_sf_lnfact(t - k) - gsl_sf_lnfact(n2 - (t - k)) -
+          (gsl_sf_lnfact(n1 + n2) - gsl_sf_lnfact(t) - gsl_sf_lnfact(n1 + n2 - t)));
 }
 
 
@@ -105,19 +107,19 @@ state_pair_to_index(const string &s, const size_t idx) {
 }
 
 
-template <class T> 
+template <class T>
 struct PairStateCounter {
   T CC;
   T CT;
   T TC;
   T TT;
-  
+
   double score() const {
     return (CC*TT > CT*TC) ?
       fishers_exact(CC, CT, TC, TT) : fishers_exact(CT, CC, TT, TC);
   }
   double total() const {return CC + CT + TC + TT;}
-  
+
   string tostring() const {
     return toa(CC) + '\t' + toa(CT) + '\t' + toa(TC) + '\t' + toa(TT);
   }
@@ -143,12 +145,12 @@ fit_states(const epiread &er, vector<PairStateCounter<T> > &counts) {
 
 
 static void
-get_chrom_sizes(const bool VERBOSE, const string &epi_file, 
-		unordered_map<string, size_t> &chrom_sizes) {
+get_chrom_sizes(const bool VERBOSE, const string &epi_file,
+                unordered_map<string, size_t> &chrom_sizes) {
   std::ifstream in(epi_file.c_str());
   if (!in)
-    throw SMITHLABException("cannot open input file: " + epi_file);
-  
+    throw runtime_error("cannot open input file: " + epi_file);
+
   string chrom;
   epiread er;
   while (in >> er) {
@@ -186,29 +188,29 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 
 
 static void
-convert_coordinates(const unordered_map<size_t, size_t> &cpgs, 
+convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
                     GenomicRegion &region)  {
-  const unordered_map<size_t, size_t>::const_iterator 
+  const unordered_map<size_t, size_t>::const_iterator
     start_itr(cpgs.find(region.get_start()));
   if (start_itr == cpgs.end())
-    throw SMITHLABException("could not convert:\n" + region.tostring());
+    throw runtime_error("could not convert:\n" + region.tostring());
   region.set_start(start_itr->second);
   region.set_end(start_itr->second + 1);
 }
 
 
 static void
-get_chrom(const bool VERBOSE, const GenomicRegion &r, 
-	  const unordered_map<string, string>& chrom_files,
+get_chrom(const bool VERBOSE, const GenomicRegion &r,
+          const unordered_map<string, string>& chrom_files,
       GenomicRegion &chrom_region,  string &chrom) {
   const unordered_map<string, string>::const_iterator
-                              fn(chrom_files.find(r.get_chrom()));  
+                              fn(chrom_files.find(r.get_chrom()));
   if (fn == chrom_files.end())
-    throw SMITHLABException("could not find chrom: " + r.get_chrom());
+    throw runtime_error("could not find chrom: " + r.get_chrom());
   chrom.clear();
   read_fasta_file(fn->second, r.get_chrom(), chrom);
-  if (chrom.empty()) 
-    throw SMITHLABException("could not find chrom: " + r.get_chrom());
+  if (chrom.empty())
+    throw runtime_error("could not find chrom: " + r.get_chrom());
   else {
     chrom_region.set_chrom(r.get_chrom());
   }
@@ -218,12 +220,12 @@ get_chrom(const bool VERBOSE, const GenomicRegion &r,
 static void
 convert_coordinates(const bool VERBOSE, const string chroms_dir,
                     const string fasta_suffix, vector<GenomicRegion> &amrs) {
-  
+
   unordered_map<string, string> chrom_files;
   identify_and_read_chromosomes(chroms_dir, fasta_suffix, chrom_files);
   if (VERBOSE)
     cerr << "CHROMS:\t" << chrom_files.size() << endl;
-  
+
   unordered_map<size_t, size_t> cpgs;
   string chrom;
   GenomicRegion chrom_region("chr0", 0, 0);
@@ -240,8 +242,8 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
 
 
 static void
-add_cytosine(const string &chrom_name, const size_t start_cpg, 
-     vector<PairStateCounter<unsigned short> > &counts, 
+add_cytosine(const string &chrom_name, const size_t start_cpg,
+     vector<PairStateCounter<unsigned short> > &counts,
      vector<GenomicRegion> &cytosines) {
   const size_t end_cpg = start_cpg + 1;
   ostringstream s;
@@ -249,12 +251,12 @@ add_cytosine(const string &chrom_name, const size_t start_cpg,
     << "\t" << counts[start_cpg].tostring();
   const string name(s.str());
   cytosines.push_back(GenomicRegion(chrom_name, start_cpg, end_cpg,
-			       name, 0, '+'));
+                               name, 0, '+'));
 }
 
 
 static size_t
-process_chrom(const bool VERBOSE, const string &chrom_name, 
+process_chrom(const bool VERBOSE, const string &chrom_name,
         const vector<epiread> &epireads, vector<GenomicRegion> &cytosines,
           vector<PairStateCounter<unsigned short> > &counts) {
   size_t max_epiread_len = 0;
@@ -263,8 +265,8 @@ process_chrom(const bool VERBOSE, const string &chrom_name,
   const size_t chrom_cpgs = get_n_cpgs(epireads);
   if (VERBOSE)
     cerr << "PROCESSING: " << chrom_name << " "
-	 << "[reads: " << epireads.size() << "] "
-	 << "[cpgs: " << chrom_cpgs << "]" << endl;
+         << "[reads: " << epireads.size() << "] "
+         << "[cpgs: " << chrom_cpgs << "]" << endl;
 
   for ( size_t i = 0; i < epireads.size(); ++i) {
     fit_states(epireads[i],counts);
@@ -276,19 +278,19 @@ process_chrom(const bool VERBOSE, const string &chrom_name,
 }
 
 
-int 
+int
 main(int argc, const char **argv) {
-  
+
   try {
     static const string fasta_suffix = "fa";
     bool VERBOSE = false;
 
     string outfile;
-    string chroms_dir; 
+    string chroms_dir;
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "computes probability of allele-specific methylation at each tuple of CpGs", "<epireads>");
-    opt_parse.add_opt("output", 'o', "output file name (default: stdout)", 
-		      false, outfile);
+    opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
+                      false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
               true, chroms_dir);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -296,7 +298,7 @@ main(int argc, const char **argv) {
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -313,21 +315,21 @@ main(int argc, const char **argv) {
     }
     const string epi_file(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
-    
+
     unordered_map<string, size_t> chrom_sizes;
     get_chrom_sizes(VERBOSE, epi_file, chrom_sizes);
 
     if (VERBOSE)
       cerr << "CHROMS: " << chrom_sizes.size() << endl;
-    
+
     std::ifstream in(epi_file.c_str());
     if (!in)
-      throw SMITHLABException("cannot open input file: " + epi_file);
-    
+      throw runtime_error("cannot open input file: " + epi_file);
+
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    
+
     string chrom;
     epiread er;
     vector<epiread> epireads;
@@ -352,7 +354,7 @@ main(int argc, const char **argv) {
     }
     if (!chrom.empty()) {
         counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
-        process_chrom(VERBOSE, chrom, epireads, cytosines, counts);    
+        process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
         convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
         // output STILL assumes CpG ... probably should fix this soon
         for( size_t i = 0; i < cytosines.size()-1; ++i ) {
@@ -363,7 +365,7 @@ main(int argc, const char **argv) {
 
     }
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

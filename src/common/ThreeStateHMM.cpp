@@ -27,6 +27,7 @@
 #include <numeric>
 #include <limits>
 #include <cmath>
+#include <stdexcept>
 
 #include <gsl/gsl_sf_psi.h>
 #include <gsl/gsl_sf_gamma.h>
@@ -105,13 +106,13 @@ ThreeStateHMM::ThreeStateHMM(
     HYPO_HYPO(_observations.size()), classes(_observations.size()),
     state_posteriors(_observations.size()),
     tolerance(tol), max_iterations(max_itr),
-    VERBOSE(v) 
+    VERBOSE(v)
 {
     for (size_t i = 0; i < observations.size(); ++i)
     {
         const double m = observations[i].first;
         const double u = observations[i].second;
-        
+
         meth_lp[i] =
             log(std::min(std::max(m/(m + u), 1e-2), 1.0 - 1e-2));
         unmeth_lp[i] =
@@ -164,7 +165,7 @@ ThreeStateHMM::update_observation_likelihood()
     hypo_log_likelihood.front() = hypo_emission(observations.front());
     HYPER_log_likelihood.front() = HYPER_emission(observations.front());
     HYPO_log_likelihood.front() = HYPO_emission(observations.front());
-    
+
     for (size_t i = 1; i < observations.size(); ++i)
     {
         hypo_log_likelihood[i] = hypo_log_likelihood[i - 1]
@@ -207,7 +208,7 @@ ThreeStateHMM::HYPO_segment_log_likelihood(
 }
 
 double
-ThreeStateHMM::forward_algorithm(const size_t start, const size_t end) 
+ThreeStateHMM::forward_algorithm(const size_t start, const size_t end)
 {
 /////
     // cerr << "check enter forward_algorithm: "<< "OK" << endl;
@@ -230,14 +231,14 @@ ThreeStateHMM::forward_algorithm(const size_t start, const size_t end)
                         forward[i - 1].HYPER + log(trans[HYPER][hypo]))
             + hypo_segment_log_likelihood(i, i + 1);
 
-        // hypermethylated CpG in HyperMR segment 
+        // hypermethylated CpG in HyperMR segment
         forward[i].HYPER =
             log_sum_log(forward[i - 1].hypo + log(trans[hypo][HYPER]),
                         forward[i - 1].HYPER + log(trans[HYPER][HYPER]),
                         forward[i - 1].HYPO + log(trans[HYPO][HYPER]))
             + HYPER_segment_log_likelihood(i, i + 1);
 
-        // hypomethylated CpG in HyperMR segment 
+        // hypomethylated CpG in HyperMR segment
         forward[i].HYPO =
             log_sum_log(forward[i - 1].HYPER + log(trans[HYPER][HYPO]),
                         forward[i - 1].HYPO + log(trans[HYPO][HYPO]))
@@ -247,7 +248,7 @@ ThreeStateHMM::forward_algorithm(const size_t start, const size_t end)
     return log_sum_log(forward[end - 1].hypo + lp_end.hypo,
                        forward[end - 1].HYPER + lp_end.HYPER,
                        forward[end - 1].HYPO + lp_end.HYPO);
-    
+
 //     /////
 //     cerr << "check forward_algorithm: "<< "OK" << endl;
 // /////
@@ -261,17 +262,17 @@ ThreeStateHMM::backward_algorithm(const size_t start, const size_t end)
 // /////
 
     const int start_int(start), end_int(end);
-    
+
     for (size_t i = start; i < end; ++i)
         backward[i].hypo = backward[i].HYPER = backward[i].HYPO = 0.0;
- 
+
     backward[end - 1].hypo = lp_end.hypo;
     backward[end - 1].HYPER = lp_end.HYPER;
     backward[end - 1].HYPO = lp_end.HYPO;
 
     for (int i = end_int - 2; i >= start_int; --i)
     {
-        //  i in hypo-methylated state of HypoMR 
+        //  i in hypo-methylated state of HypoMR
         backward[i].hypo =
             log_sum_log(log(trans[hypo][hypo])
                         + hypo_segment_log_likelihood(i + 1, i + 2)
@@ -280,7 +281,7 @@ ThreeStateHMM::backward_algorithm(const size_t start, const size_t end)
                         + HYPER_segment_log_likelihood(i + 1, i + 2)
                         + backward[i + 1].HYPER);
 
-        //  i in hyper-methylated state of HyperMR 
+        //  i in hyper-methylated state of HyperMR
         backward[i].HYPER =
             log_sum_log(log(trans[HYPER][hypo])
                         + hypo_segment_log_likelihood(i + 1, i + 2)
@@ -292,7 +293,7 @@ ThreeStateHMM::backward_algorithm(const size_t start, const size_t end)
                         + HYPO_segment_log_likelihood(i + 1, i + 2)
                         + backward[i + 1].HYPO);
 
-        //  i in hypo-methylated state of HyperMR 
+        //  i in hypo-methylated state of HyperMR
         backward[i].HYPO =
             log_sum_log(log(trans[HYPO][HYPER])
                         + HYPER_segment_log_likelihood(i + 1, i + 2)
@@ -301,7 +302,7 @@ ThreeStateHMM::backward_algorithm(const size_t start, const size_t end)
                         + HYPO_segment_log_likelihood(i + 1, i + 2)
                         + backward[i + 1].HYPO);
     }
-    
+
     return log_sum_log(lp_start.hypo
                        + hypo_segment_log_likelihood(start, start + 1)
                        + backward[start].hypo,
@@ -323,7 +324,7 @@ ThreeStateHMM::backward_algorithm(const size_t start, const size_t end)
 //////////////////////////////////////////////
 // Expectation
 void
-ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)  
+ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)
 {
 // /////
 //     cerr << "check enter estimate_state_posterior: "<< "OK" << endl;
@@ -342,7 +343,7 @@ ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)
         denom = log_sum_log(hypo_evidence[i - start],
                             HYPER_evidence[i - start],
                             HYPO_evidence[i - start]);
-        
+
         if (i > start) assert(fabs(exp(prev_denom - denom) -1) < 1e-6);
         prev_denom = denom;
     }
@@ -360,10 +361,10 @@ ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)
         HYPER_posteriors[i] /= sum;
         HYPO_posteriors[i] /= sum;
         // if (fabs(hypo_posteriors[i] + HYPER_posteriors[i]
-        //          + HYPO_posteriors[i] - 1.0) > 1e-6) 
+        //          + HYPO_posteriors[i] - 1.0) > 1e-6)
         //     cerr << fabs(hypo_posteriors[i] + HYPER_posteriors[i]
         //                  + HYPO_posteriors[i] - 1.0) << endl;
-        
+
         assert(fabs(hypo_posteriors[i] + HYPER_posteriors[i]
                     + HYPO_posteriors[i] - 1.0) < 1e-3);
     }
@@ -376,13 +377,13 @@ ThreeStateHMM::estimate_state_posterior(const size_t start, const size_t end)
 
 void
 ThreeStateHMM::estimate_posterior_trans_prob(
-    const size_t start, const size_t end)  
+    const size_t start, const size_t end)
 {
     const double denom =
         log_sum_log(forward[start].hypo + backward[start].hypo,
                     forward[start].HYPER + backward[start].HYPER,
                     forward[start].HYPO + backward[start].HYPO);
-    
+
     for (size_t i = start; i < end - 1; ++i)
     {
         hypo_hypo[i] =
@@ -391,32 +392,32 @@ ThreeStateHMM::estimate_posterior_trans_prob(
             + backward[i + 1].hypo - denom;
         hypo_HYPER[i] =
             forward[i].hypo + log(trans[hypo][HYPER])
-            + HYPER_segment_log_likelihood(i + 1, i + 2) 
+            + HYPER_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].HYPER - denom;
 
         HYPER_hypo[i] =
             forward[i].HYPER + log(trans[HYPER][hypo])
-            + hypo_segment_log_likelihood(i + 1, i + 2) 
+            + hypo_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].hypo - denom;
         HYPER_HYPER[i] =
             forward[i].HYPER + log(trans[HYPER][HYPER])
-            + HYPER_segment_log_likelihood(i + 1, i + 2) 
+            + HYPER_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].HYPER - denom;
         HYPER_HYPO[i] =
             forward[i].HYPER + log(trans[HYPER][HYPO])
-            + HYPO_segment_log_likelihood(i + 1, i + 2) 
+            + HYPO_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].HYPO - denom;
 
         HYPO_HYPER[i] =
             forward[i].HYPO + log(trans[HYPO][HYPER])
-            + HYPER_segment_log_likelihood(i + 1, i + 2) 
+            + HYPER_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].HYPER - denom;
         HYPO_HYPO[i] =
             forward[i].HYPO + log(trans[HYPO][HYPO])
-            + HYPO_segment_log_likelihood(i + 1, i + 2) 
+            + HYPO_segment_log_likelihood(i + 1, i + 2)
             + backward[i + 1].HYPO - denom;
 
-        double sum = exp(hypo_hypo[i]) + exp(hypo_HYPER[i]) + 
+        double sum = exp(hypo_hypo[i]) + exp(hypo_HYPER[i]) +
                      exp(HYPER_hypo[i]) + exp(HYPER_HYPER[i]) +
                      exp(HYPER_HYPO[i]) + exp(HYPO_HYPER[i]) +
                      exp(HYPO_HYPO[i]);
@@ -436,18 +437,18 @@ ThreeStateHMM::estimate_posterior_trans_prob(
     }
 }
 
-void 
+void
 ThreeStateHMM::estimate_parameters()
 {
     // hypo_emission.fit(meth_lp, unmeth_lp, hypo_posteriors);
     // HYPER_emission.fit(meth_lp, unmeth_lp, HYPER_posteriors);
     // HYPO_emission.fit(meth_lp, unmeth_lp, HYPO_posteriors);
-    
+
     // assume the emission distribution for short and long HypoMR are the same
     vector<double> combined_hypo_posteriors(hypo_posteriors.size());
     std::transform(hypo_posteriors.begin(), hypo_posteriors.end(),
                    HYPO_posteriors.begin(), combined_hypo_posteriors.begin(),
-                   std::plus<double>()); 
+                   std::plus<double>());
     hypo_emission.fit(meth_lp, unmeth_lp, combined_hypo_posteriors);
     HYPO_emission = hypo_emission;
     HYPER_emission.fit(meth_lp, unmeth_lp, HYPER_posteriors);
@@ -470,7 +471,7 @@ ThreeStateHMM::estimate_parameters()
     trans[HYPER][hypo] = sum_HYPER_hypo / sum_HYPER;
     trans[HYPER][HYPER] = sum_HYPER_HYPER / sum_HYPER;
     trans[HYPER][HYPO] = sum_HYPER_HYPO / sum_HYPER;
-    
+
     const double sum_HYPO_HYPER =
         exp(log_sum_log(HYPO_HYPER.begin(), HYPO_HYPER.end()));
     const double sum_HYPO_HYPO =
@@ -493,7 +494,7 @@ ThreeStateHMM::single_iteration()
             forward_algorithm(reset_points[i], reset_points[i + 1]);
         const double backward_score =
             backward_algorithm(reset_points[i], reset_points[i + 1]);
-        
+
         assert(fabs((forward_score - backward_score)
                     / max(forward_score, backward_score))
                     < 1e-10);
@@ -507,7 +508,7 @@ ThreeStateHMM::single_iteration()
 }
 
 double
-ThreeStateHMM::BaumWelchTraining()  
+ThreeStateHMM::BaumWelchTraining()
 {
 // /////
 //     cerr << "check enter BaumWelchTraining: "<< "OK" << endl;
@@ -515,28 +516,28 @@ ThreeStateHMM::BaumWelchTraining()
 
     if (VERBOSE)
         cerr << "Baum-Welch Training" << endl;
-  
+
     double prev_total = -std::numeric_limits<double>::max();
-  
-    for (size_t i = 0; i < max_iterations; ++i) 
+
+    for (size_t i = 0; i < max_iterations; ++i)
     {
         const betabin old_hypo_emission = hypo_emission;
         const betabin old_HYPER_emission = HYPER_emission;
         const betabin old_HYPO_emission = HYPO_emission;
         const vector<vector<double> > old_trans(trans);
-        
+
         double total = single_iteration();
-    
+
         if (VERBOSE)
         {
-            cerr << "Itration: " << setw(2) << i + 1 << ";\t" 
+            cerr << "Itration: " << setw(2) << i + 1 << ";\t"
                  << "Log-Likelihood: " << total << ";\t"
-                 << "Delta: " << (total - prev_total)/std::fabs(total)  
+                 << "Delta: " << (total - prev_total)/std::fabs(total)
                  << endl
                  << "hypo: " << old_hypo_emission.tostring() << ";\t"
                  << "HYPER: " << old_HYPER_emission.tostring() << ";\t"
                  << "HYPO: " << old_HYPO_emission.tostring() << endl;
-            
+
             cerr << setw(5) << "" << setw(10) << "hypo"
                  << setw(10) << "HYPER" << setw(10) << "HYPO" << endl;
             for (size_t r = 0; r < 3; ++r)
@@ -546,7 +547,7 @@ ThreeStateHMM::BaumWelchTraining()
                 case 0: cerr << setw(5) << "hypo"; break;
                 case 1: cerr << setw(5) << "HYPER"; break;
                 case 2: cerr << setw(5) << "HYPO"; break;
-                } 
+                }
 
                 for (size_t c = 0; c < 3; ++c)
                     cerr << setw(10) << old_trans[r][c];
@@ -554,7 +555,7 @@ ThreeStateHMM::BaumWelchTraining()
             }
             cerr << endl;
         }
-        
+
 
         if ((total - prev_total)/std::fabs(total) < tolerance)
         {
@@ -563,7 +564,7 @@ ThreeStateHMM::BaumWelchTraining()
             HYPO_emission = old_HYPO_emission;
             update_observation_likelihood();
             trans = old_trans;
-            
+
             if (VERBOSE)
                 cerr << "CONVERGED" << endl << endl;
             break;
@@ -586,14 +587,14 @@ double
 ThreeStateHMM::PosteriorDecoding()
 {
     double total_score = 0;
-    
+
     for (size_t i = 0; i < reset_points.size() - 1; ++i)
     {
         const double forward_score =
             forward_algorithm(reset_points[i], reset_points[i + 1]);
         const double backward_score =
             backward_algorithm(reset_points[i], reset_points[i + 1]);
-        
+
         assert(fabs((forward_score - backward_score)
                     / max(forward_score, backward_score))
                     < 1e-10);
@@ -619,15 +620,15 @@ double
 ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
 {
     if (start >= end)
-        throw SMITHLABException("Invalid HMM sequence indices");
+      throw std::runtime_error("Invalid HMM sequence indices");
 
     const size_t lim = end - start;
-        
+
     vector<Triplet> llh(lim);
     vector<STATE_LABELS> trace_hypo(lim);
     vector<STATE_LABELS> trace_HYPER(lim);
     vector<STATE_LABELS> trace_HYPO(lim);
-    
+
     llh.front().hypo =
         lp_start.hypo + hypo_segment_log_likelihood(start, start + 1);
     llh.front().HYPER =
@@ -652,7 +653,7 @@ ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
                 + hypo_segment_log_likelihood(start + i, start + i + 1);
             trace_hypo[i] = HYPER;
         }
-        
+
         // HYPER
         const double hypo_HYPER = llh[i - 1].hypo + log(trans[hypo][HYPER]);
         const double HYPER_HYPER = llh[i - 1].HYPER + log(trans[HYPER][HYPER]);
@@ -675,7 +676,7 @@ ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
                 + HYPER_segment_log_likelihood(start + i, start + i + 1);
             trace_HYPER[i] = HYPO;
         }
-        
+
         // HYPO
         const double HYPER_HYPO = llh[i - 1].HYPER + log(trans[HYPER][HYPO]);
         const double HYPO_HYPO = llh[i - 1].HYPO + log(trans[HYPO][HYPO]);
@@ -692,9 +693,9 @@ ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
             trace_HYPO[i] = HYPO;
         }
     }
-    
+
     vector<STATE_LABELS> inner_ml_classes;
-    
+
     // do the traceback
     STATE_LABELS curr = max_state(llh.back());
     for (size_t i = 0; i < trace_hypo.size(); ++i)
@@ -711,12 +712,12 @@ ThreeStateHMM::ViterbiDecoding(const size_t start, const size_t end)
         case HYPO:; break;
             curr = trace_HYPO[lim - i - 1];
             break;
-        } 
+        }
     }
 
     reverse(inner_ml_classes.begin(), inner_ml_classes.end());
     std::copy(inner_ml_classes.begin(), inner_ml_classes.end(),
-              classes.begin() + start); 
+              classes.begin() + start);
 
     return max_value(llh.back());
 }
@@ -745,6 +746,3 @@ ThreeStateHMM::get_classes(std::vector<STATE_LABELS> & ml_classes) const
 {
     ml_classes = classes;
 }
-
-
-

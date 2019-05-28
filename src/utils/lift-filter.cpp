@@ -1,66 +1,45 @@
-/*    lift-filter: process lift results
+/* lift-filter: process lift results
  *
- *    Copyright (C) 2014 University of Southern California and
- *                       Andrew D. Smith
+ * Copyright (C) 2014 University of Southern California and
+ *                    Andrew D. Smith
  *
- *    Authors: Jenny Qu
+ * Authors: Jenny Qu
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
-
 
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <iostream>
-#include <cstdlib>
-#include <unordered_map>
 #include <stdexcept>
 #include <algorithm>
-
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "OptionParser.hpp"
-#include "GenomicRegion.hpp"
-#include "MethpipeFiles.hpp"
-
+#include "MethpipeSite.hpp"
 
 using std::string;
-using std::ios_base;
 using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::unordered_map;
+using std::runtime_error;
 
-struct GenomicSiteMeth {
-  string chrom;
-  size_t pos;
-  string strand;
-  string name;
-  double meth;
-  size_t coverage;
-  GenomicSiteMeth(const string &c = "",
-                  const size_t p = 0,
-                  const string &s = "",
-                  const string &n = "",
-                  const double m = 0,
-                  const size_t cov = 0):
-    chrom(c), pos(p), strand(s), name(n), meth(m), coverage(cov) {}
-};
+static bool
+same_chrom_pos_strand(const MSite &a, const MSite &b) {
+  return a.pos == b.pos && a.chrom == b.chrom && a.strand == b.strand;
+}
 
 int
 main(int argc, const char **argv) {
@@ -98,54 +77,38 @@ main(int argc, const char **argv) {
     const string mfile(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    if (VERBOSE)
-      cerr << "Loading methcount file " << mfile << endl;
+    std::ifstream in(mfile);
+    if (!in)
+      throw runtime_error("cannot open input file: " + mfile);
 
-    std::ifstream in(mfile.c_str());
-    std::ofstream output(pfile.c_str());
+    std::ofstream out(pfile);
+    if (!out)
+      throw runtime_error("cannot open output file: " + pfile);
 
-    string chrom;
-    size_t pos;
-    string strand;
-    string seq;
-    double meth;
-    size_t coverage;
+    // read first site
+    MSite curr_site;
+    if (!(in >> curr_site))
+      throw runtime_error("failed reading: " + mfile);
 
-    vector<GenomicSiteMeth>  newmeth;
-    size_t i = 0;
-    while (methpipe::read_site(in, chrom, pos, strand,
-                               seq, meth, coverage)) {
-      const GenomicSiteMeth loc(chrom, pos, strand, seq, meth, coverage);
-      if (i==0) {
-        newmeth.push_back(loc);
-        ++i;
-      }
-      else if(newmeth.back().chrom == chrom &&
-              newmeth.back().pos == pos &&
-              newmeth.back().strand == strand){
-        if (!UNIQUE) {
-          newmeth[i].meth = (newmeth[i].meth*newmeth[i].coverage +
-                             meth*coverage)/(newmeth[i].coverage + coverage);
-          newmeth[i].coverage =  newmeth[i].coverage + coverage;
-        }
+    MSite next_site;
+    bool site_is_unique = true;
+    while (in >> next_site) {
+      if (same_chrom_pos_strand(curr_site, next_site)) {
+        site_is_unique = false;
+        curr_site.add(next_site);
       }
       else {
-        newmeth.push_back(loc);
-        ++i;
+        if (!UNIQUE || site_is_unique)
+          out << curr_site << endl;
+        site_is_unique = true;
+        curr_site = next_site;
       }
     }
+    if (!UNIQUE || site_is_unique)
+      out << curr_site << endl;
 
-    if(VERBOSE)
-      cerr << "Keeping " << i << " sites" << endl;
-
-    for(size_t j=0; j < newmeth.size(); ++j){
-      methpipe::write_site(output, newmeth[j].chrom,
-                           newmeth[j].pos, newmeth[j].strand,
-                           newmeth[j].name, newmeth[j].meth,
-                           newmeth[j].coverage);
-    }
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

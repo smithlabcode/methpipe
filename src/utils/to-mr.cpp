@@ -28,6 +28,7 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -42,11 +43,12 @@ using std::endl;
 using std::ifstream;
 using std::max;
 using std::min;
+using std::runtime_error;
 
 
 /********Below are functions for merging pair-end reads********/
 static void
-fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start, 
+fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start,
              const size_t end, const size_t offset, string &seq, string &scr) {
   const size_t a = pos_str ? (start - mr.r.get_start()) : (mr.r.get_end() - end);
   const size_t b = pos_str ? (end -  mr.r.get_start()) : (mr.r.get_end() - start);
@@ -58,23 +60,23 @@ static void
 merge_mates(const size_t suffix_len, const size_t range,
             const MappedRead &one, const MappedRead &two,
             MappedRead &merged, int &len) {
-  
+
   const bool pos_str = one.r.pos_strand();
   const size_t overlap_start = max(one.r.get_start(), two.r.get_start());
   const size_t overlap_end = min(one.r.get_end(), two.r.get_end());
 
-  const size_t one_left = pos_str ? 
+  const size_t one_left = pos_str ?
     one.r.get_start() : max(overlap_end, one.r.get_start());
-  const size_t one_right = 
+  const size_t one_right =
     pos_str ? min(overlap_start, one.r.get_end()) : one.r.get_end();
-  
-  const size_t two_left = pos_str ? 
+
+  const size_t two_left = pos_str ?
     max(overlap_end, two.r.get_start()) : two.r.get_start();
-  const size_t two_right = pos_str ? 
+  const size_t two_right = pos_str ?
     two.r.get_end() : min(overlap_start, two.r.get_end());
-  
+
   len = pos_str ? (two_right - one_left) : (one_right - two_left);
-  
+
   // assert(len > 0);
   // if the above assertion fails, it usually means the mair is discordant (end1
   // downstream of end2). Also it means the SAM flag of this pair of reads is
@@ -82,9 +84,9 @@ merge_mates(const size_t suffix_len, const size_t range,
   // but no output will be generated for discordant pairs.
 
   // assert(one_left <= one_right && two_left <= two_right);
-  // assert(overlap_start >= overlap_end || static_cast<size_t>(len) == 
+  // assert(overlap_start >= overlap_end || static_cast<size_t>(len) ==
   //    ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
-  
+
   if (len > 0) {
     string seq(len, 'N');
     string scr(len, 'B');
@@ -93,19 +95,19 @@ merge_mates(const size_t suffix_len, const size_t range,
       const size_t lim_one = one_right - one_left;
       copy(one.seq.begin(), one.seq.begin() + lim_one, seq.begin());
       copy(one.scr.begin(), one.scr.begin() + lim_one, scr.begin());
-      
+
       const size_t lim_two = two_right - two_left;
       copy(two.seq.end() - lim_two, two.seq.end(), seq.end() - lim_two);
       copy(two.scr.end() - lim_two, two.scr.end(), scr.end() - lim_two);
-      
+
       // deal with overlapping part
       if (overlap_start < overlap_end) {
         const size_t one_bads = count(one.seq.begin(), one.seq.end(), 'N');
         const int info_one = one.seq.length() - (one_bads + one.r.get_score());
-        
+
         const size_t two_bads = count(two.seq.begin(), two.seq.end(), 'N');
         const int info_two = two.seq.length() - (two_bads + two.r.get_score());
-        
+
         // use the mate with the most info to fill in the overlap
         if (info_one >= info_two)
           fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
@@ -113,21 +115,21 @@ merge_mates(const size_t suffix_len, const size_t range,
           fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
       }
     }
-    
+
     merged = one;
     merged.r.set_start(pos_str ? one.r.get_start() : two.r.get_start());
     merged.r.set_end(merged.r.get_start() + len);
     merged.r.set_score(one.r.get_score() + two.r.get_score());
     merged.seq = seq;
-    merged.scr = scr;  
+    merged.scr = scr;
     const string name(one.r.get_name());
     merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
   }
 }
 
 inline static bool
-same_read(const size_t suffix_len, 
-	  const MappedRead &a, const MappedRead &b) {
+same_read(const size_t suffix_len,
+          const MappedRead &a, const MappedRead &b) {
   const string sa(a.r.get_name());
   const string sb(b.r.get_name());
   return std::equal(sa.begin(), sa.end() - suffix_len, sb.begin());
@@ -143,7 +145,7 @@ revcomp(MappedRead &mr) {
 }
 /********Above are functions for merging pair-end reads********/
 
-int 
+int
 main(int argc, const char **argv) {
   try {
     string outfile;
@@ -151,21 +153,21 @@ main(int argc, const char **argv) {
     size_t MAX_SEGMENT_LENGTH = 1000;
     size_t suffix_len = 1;
     bool VERBOSE = false;
-    
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "Convert the SAM/BAM output from "
                            "bismark or bs_seeker to MethPipe mapped read format",
                            "sam/bam_file");
-    opt_parse.add_opt("output", 'o', "Name of output file", 
+    opt_parse.add_opt("output", 'o', "Name of output file",
                       false, outfile);
     opt_parse.add_opt("mapper", 'm',
                       "Original mapper: bismark, bs_seeker or general",
                       true, mapper);
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
-                      false, suffix_len); 
-    opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size", 
-                      false, MAX_SEGMENT_LENGTH); 
+                      false, suffix_len);
+    opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size",
+                      false, MAX_SEGMENT_LENGTH);
     opt_parse.add_opt("verbose", 'v', "print more information",
                       false, VERBOSE);
 
@@ -202,7 +204,7 @@ main(int argc, const char **argv) {
 
     SAMReader sam_reader(mapped_reads_file, mapper);
     std::unordered_map<string, SAMRecord> dangling_mates;
-    
+
     size_t count = 0;
     const size_t progress_step = 1000000;
     SAMRecord samr;
@@ -224,7 +226,7 @@ main(int argc, const char **argv) {
           int len = 0;
           merge_mates(suffix_len, MAX_SEGMENT_LENGTH,
                       dangling_mates[read_name].mr, samr.mr, merged, len);
-          if (len <= static_cast<int>(MAX_SEGMENT_LENGTH)) 
+          if (len <= static_cast<int>(MAX_SEGMENT_LENGTH))
             out << merged << endl;
           else if (len > 0)
             out << dangling_mates[read_name].mr << endl << samr.mr << endl;
@@ -274,11 +276,11 @@ main(int argc, const char **argv) {
       out << dangling_mates.begin()->second.mr << endl;
       dangling_mates.erase(dangling_mates.begin());
     }
-          
+
     if (VERBOSE)
       cerr << "Done." << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

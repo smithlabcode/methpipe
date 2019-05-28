@@ -28,6 +28,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <stdexcept>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -41,6 +42,7 @@ using std::endl;
 using std::ifstream;
 using std::ofstream;
 using std::unordered_map;
+using std::runtime_error;
 
 
 static bool
@@ -183,7 +185,7 @@ int main(int argc, const char **argv) {
 
     MappedRead mr;
     if (!(in >> mr))
-      throw SMITHLABException("error reading file: " + infile);
+      throw runtime_error("error reading file: " + infile);
 
 
     size_t reads_in = 1;
@@ -197,8 +199,8 @@ int main(int argc, const char **argv) {
       ++reads_in;
       good_bases_in += mr.seq.length();
       if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
-        throw SMITHLABException("input not properly sorted:\n" +
-                                toa(buffer.front()) + "\n" + toa(mr));
+        throw runtime_error("input not properly sorted:\n" +
+                            toa(buffer.front()) + "\n" + toa(mr));
       if (!equivalent(buffer.front(), mr)) {
         if (USE_SEQUENCE) {
           const size_t orig_buffer_size = buffer.size();

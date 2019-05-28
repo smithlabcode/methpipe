@@ -22,6 +22,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <stdexcept>
 
 #include <unistd.h>
 
@@ -41,6 +42,7 @@ using std::numeric_limits;
 using std::max;
 using std::min;
 using std::pair;
+using std::runtime_error;
 
 
 double
@@ -53,16 +55,16 @@ get_fdr_cutoff(const vector<double> &scores, const double fdr) {
   std::sort(local.begin(), local.end());
   size_t i = 0;
   for (; i < local.size() - 1 &&
-	 local[i+1] < fdr*static_cast<double>(i+1)/local.size(); ++i);
+         local[i+1] < fdr*static_cast<double>(i+1)/local.size(); ++i);
   return local[i];
 }
 
 
 static void
 get_domain_scores_rep(const vector<bool> &classes,
-		      const vector<vector<pair<double, double> > > &meth,
-		      const vector<size_t> &reset_points,
-		      vector<double> &scores) {
+                      const vector<vector<pair<double, double> > > &meth,
+                      const vector<size_t> &reset_points,
+                      vector<double> &scores) {
   size_t NREP = meth.size();
   static const bool CLASS_ID = true;
   size_t reset_idx = 1;
@@ -71,19 +73,19 @@ get_domain_scores_rep(const vector<bool> &classes,
   for (size_t i = 0; i < classes.size(); ++i) {
     if (reset_points[reset_idx] == i) {
       if (in_domain) {
-	in_domain = false;
-	scores.push_back(score);
-	score = 0;
+        in_domain = false;
+        scores.push_back(score);
+        score = 0;
       }
       ++reset_idx;
     }
     if (classes[i] == CLASS_ID) {
       in_domain = true;
       for (size_t r = 0; r < NREP ; ++r) {
-	if (meth[r][i].first + meth[r][i].second >= 1) {
-	  score += 1.0 - (meth[r][i].first/(meth[r][i].first +
+        if (meth[r][i].first + meth[r][i].second >= 1) {
+          score += 1.0 - (meth[r][i].first/(meth[r][i].first +
                                             meth[r][i].second));
-	}
+        }
       }
     } else if (in_domain) {
       in_domain = false;
@@ -96,11 +98,11 @@ get_domain_scores_rep(const vector<bool> &classes,
 
 static void
 build_domains(const bool VERBOSE,
-	      const vector<SimpleGenomicRegion> &cpgs,
-	      const vector<double> &post_scores,
-	      const vector<size_t> &reset_points,
-	      const vector<bool> &classes,
-	      vector<GenomicRegion> &domains) {
+              const vector<SimpleGenomicRegion> &cpgs,
+              const vector<double> &post_scores,
+              const vector<size_t> &reset_points,
+              const vector<bool> &classes,
+              vector<GenomicRegion> &domains) {
   static const bool CLASS_ID = true;
   size_t n_cpgs = 0, n_domains = 0, reset_idx = 1, prev_end = 0;
   bool in_domain = false;
@@ -108,19 +110,19 @@ build_domains(const bool VERBOSE,
   for (size_t i = 0; i < classes.size(); ++i) {
     if (reset_points[reset_idx] == i) {
       if (in_domain) {
-	in_domain = false;
-	domains.back().set_end(prev_end);
-	domains.back().set_score(n_cpgs);
-	n_cpgs = 0;
-	score = 0;
+        in_domain = false;
+        domains.back().set_end(prev_end);
+        domains.back().set_score(n_cpgs);
+        n_cpgs = 0;
+        score = 0;
       }
       ++reset_idx;
     }
     if (classes[i] == CLASS_ID) {
       if (!in_domain) {
-	in_domain = true;
-	domains.push_back(GenomicRegion(cpgs[i]));
-	domains.back().set_name("HYPO" + toa(n_domains++));
+        in_domain = true;
+        domains.push_back(GenomicRegion(cpgs[i]));
+        domains.back().set_name("HYPO" + toa(n_domains++));
       }
       ++n_cpgs;
       score += post_scores[i];
@@ -139,9 +141,9 @@ build_domains(const bool VERBOSE,
 //Modified to take multiple replicates
 template <class T, class U> static void
 separate_regions(const bool VERBOSE, const size_t desert_size,
-		 vector<vector<SimpleGenomicRegion> > &cpgs,
-		 vector<vector<T> > &meth, vector<vector<U> > &reads,
-		 vector<size_t> &reset_points) {
+                 vector<vector<SimpleGenomicRegion> > &cpgs,
+                 vector<vector<T> > &meth, vector<vector<U> > &reads,
+                 vector<size_t> &reset_points) {
   if (VERBOSE)
     cerr << "[SEPARATING BY CPG DESERT]" << endl;
   // eliminate the zero-read cpg sites if no coverage in any replicates
@@ -158,9 +160,9 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
     }
     if (!all_empty) {
       for (size_t r = 0; r < NREP; ++r) {
-	cpgs[r][j] = cpgs[r][i];
-	meth[r][j] = meth[r][i];
-	reads[r][j] = reads[r][i];
+        cpgs[r][j] = cpgs[r][i];
+        meth[r][j] = meth[r][i];
+        reads[r][j] = reads[r][i];
       }
       ++j;
     }
@@ -183,19 +185,19 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
   reset_points.push_back(cpgs[0].size());
   if (VERBOSE)
     cerr << "CPGS RETAINED: " << cpgs[0].size() << endl
-	 << "DESERTS REMOVED: " << reset_points.size() - 2 << endl << endl;
+         << "DESERTS REMOVED: " << reset_points.size() - 2 << endl << endl;
 }
 
 static void
 shuffle_cpgs_rep(const TwoStateHMMB &hmm,
-		 vector<vector<pair<double, double> > > meth,
-		 vector<size_t> reset_points,
-		 const vector<double> &start_trans,
-		 const vector<vector<double> > &trans,
-		 const vector<double> &end_trans,
-		 const vector<double> fg_alpha, const vector<double> fg_beta,
-		 const vector<double> bg_alpha, const vector<double> bg_beta,
-		 vector<double> &domain_scores) {
+                 vector<vector<pair<double, double> > > meth,
+                 vector<size_t> reset_points,
+                 const vector<double> &start_trans,
+                 const vector<vector<double> > &trans,
+                 const vector<double> &end_trans,
+                 const vector<double> fg_alpha, const vector<double> fg_beta,
+                 const vector<double> bg_alpha, const vector<double> bg_beta,
+                 vector<double> &domain_scores) {
 
   srand(time(0) + getpid());
   size_t NREP = meth.size();
@@ -206,37 +208,37 @@ shuffle_cpgs_rep(const TwoStateHMMB &hmm,
   vector<bool> classes;
   vector<double> scores;
   hmm.PosteriorDecoding_rep(meth, reset_points, start_trans, trans,
-			    end_trans, fg_alpha, fg_beta, bg_alpha,
-			    bg_beta, classes, scores);
+                            end_trans, fg_alpha, fg_beta, bg_alpha,
+                            bg_beta, classes, scores);
   get_domain_scores_rep(classes, meth, reset_points, domain_scores);
   sort(domain_scores.begin(), domain_scores.end());
 }
 
 static void
 assign_p_values(const vector<double> &random_scores,
-		const vector<double> &observed_scores,
-		vector<double> &p_values) {
+                const vector<double> &observed_scores,
+                vector<double> &p_values) {
   const double n_randoms =
     random_scores.size() == 0 ? 1 : random_scores.size();
   for (size_t i = 0; i < observed_scores.size(); ++i)
     p_values.push_back((random_scores.end() -
-			upper_bound(random_scores.begin(),
-				    random_scores.end(),
-				    observed_scores[i]))/n_randoms);
+                        upper_bound(random_scores.begin(),
+                                    random_scores.end(),
+                                    observed_scores[i]))/n_randoms);
 }
 
 
 static void
 read_params_file(const bool VERBOSE,
-		 const string &params_file,
-		 double &fg_alpha,
-		 double &fg_beta,
-		 double &bg_alpha,
-		 double &bg_beta,
-		 vector<double> &start_trans,
-		 vector<vector<double> > &trans,
-		 vector<double> &end_trans,
-		 double &fdr_cutoff) {
+                 const string &params_file,
+                 double &fg_alpha,
+                 double &fg_beta,
+                 double &bg_alpha,
+                 double &bg_beta,
+                 vector<double> &start_trans,
+                 vector<vector<double> > &trans,
+                 vector<double> &end_trans,
+                 double &fdr_cutoff) {
   string jnk;
   std::ifstream in(params_file.c_str());
 
@@ -256,31 +258,31 @@ read_params_file(const bool VERBOSE,
 
   if (VERBOSE)
     cerr << "Read in params from " << params_file << endl
-	 << "FG_ALPHA\t" << fg_alpha << endl
-	 << "FG_BETA\t" << fg_beta << endl
-	 << "BG_ALPHA\t" << bg_alpha << endl
-	 << "BG_BETA\t" << bg_beta << endl
-	 << "S_F\t" << start_trans[0] << endl
-	 << "S_B\t" << start_trans[1] << endl
-	 << "F_F\t" << trans[0][0] << endl
-	 << "F_B\t" << trans[0][1] << endl
-	 << "B_F\t" << trans[1][0] << endl
-	 << "B_B\t" << trans[1][1] << endl
-	 << "F_E\t" << end_trans[0] << endl
-	 << "B_E\t" << end_trans[1] << endl
-	 << "FDR_CUTOFF\t" << fdr_cutoff << endl;
+         << "FG_ALPHA\t" << fg_alpha << endl
+         << "FG_BETA\t" << fg_beta << endl
+         << "BG_ALPHA\t" << bg_alpha << endl
+         << "BG_BETA\t" << bg_beta << endl
+         << "S_F\t" << start_trans[0] << endl
+         << "S_B\t" << start_trans[1] << endl
+         << "F_F\t" << trans[0][0] << endl
+         << "F_B\t" << trans[0][1] << endl
+         << "B_F\t" << trans[1][0] << endl
+         << "B_B\t" << trans[1][1] << endl
+         << "F_E\t" << end_trans[0] << endl
+         << "B_E\t" << end_trans[1] << endl
+         << "FDR_CUTOFF\t" << fdr_cutoff << endl;
 }
 
 
 static void
 write_params_file(const string &outfile,
-		  const vector<double> fg_alpha,
-		  const vector<double> fg_beta,
-		  const vector<double> bg_alpha,
-		  const vector<double> bg_beta,
-		  const vector<double> &start_trans,
-		  const vector<vector<double> > &trans,
-		  const vector<double> &end_trans) {
+                  const vector<double> fg_alpha,
+                  const vector<double> fg_beta,
+                  const vector<double> bg_alpha,
+                  const vector<double> bg_beta,
+                  const vector<double> &start_trans,
+                  const vector<vector<double> > &trans,
+                  const vector<double> &end_trans) {
 
   std::ofstream of;
   if (!outfile.empty()) of.open(outfile.c_str());
@@ -289,9 +291,9 @@ write_params_file(const string &outfile,
   out.precision(30);
   for (size_t r =0; r < fg_alpha.size(); ++r)
     out << "FG_ALPHA_" << r+1 << "\t" << std::setw(14) << fg_alpha[r] << "\t"
-	<< "FG_BETA_" << r+1 << "\t" << std::setw(14) << fg_beta[r] << "\t"
-	<< "BG_ALPHA_" << r+1 << "\t" << std::setw(14) << bg_alpha[r] << "\t"
-	<< "BG_BETA_" << r+1 << "\t" << std::setw(14) << bg_beta[r] << endl;
+        << "FG_BETA_" << r+1 << "\t" << std::setw(14) << fg_beta[r] << "\t"
+        << "BG_ALPHA_" << r+1 << "\t" << std::setw(14) << bg_alpha[r] << "\t"
+        << "BG_BETA_" << r+1 << "\t" << std::setw(14) << bg_beta[r] << endl;
 
   out << "S_F\t" << start_trans[0] << endl
       << "S_B\t" << start_trans[1] << endl
@@ -331,12 +333,12 @@ main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
-			   "HMRs from methylomes of replicates ",
-			   "<methcount-files separated by comma>");
+                           "HMRs from methylomes of replicates ",
+                           "<methcount-files separated by comma>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
-		      false, outfile);
+                      false, outfile);
     opt_parse.add_opt("desert", 'd', "max dist btwn cpgs with reads in HMR",
-		      false, desert_size);
+                      false, desert_size);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("debug", 'D', "print more run info", false, DEBUG);
@@ -348,15 +350,15 @@ main(int argc, const char **argv) {
                       false, meth_post_outfile);
     opt_parse.add_opt("params-in", 'P', "HMM parameter files for "
                       "individual methylomes (separated with comma)",
-		      false, params_in_files);
+                      false, params_in_files);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file",
-		      false, params_out_file);
+                      false, params_out_file);
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-	   << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -393,7 +395,7 @@ main(int argc, const char **argv) {
       vector<pair<double, double> > meth_rep;
       vector<size_t> reads_rep;
       if (VERBOSE)
-	cerr << "[READING CPGS AND METH PROPS] from " << cpgs_file[i] << endl;
+        cerr << "[READING CPGS AND METH PROPS] from " << cpgs_file[i] << endl;
 
       methpipe::load_cpgs(cpgs_file[i], cpgs_rep, meth_rep, reads_rep);
 
@@ -414,7 +416,7 @@ main(int argc, const char **argv) {
       aligned = (cpgs[rep_idx].size() == cpgs[0].size());
     }
     if (rep_idx < NREP)
-      throw SMITHLABException("Inputs contain different number of sites");
+      throw runtime_error("Inputs contain different number of sites");
 
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs
@@ -431,41 +433,41 @@ main(int argc, const char **argv) {
     vector<double> reps_bg_alpha(NREP, 0);
     vector<double> reps_bg_beta(NREP, 0);
     double fdr_cutoff = std::numeric_limits<double>::max();
-    
+
     if (!params_in_file.empty()) {
       // READ THE PARAMETERS FILES
       double fdr_cutoff_rep;
       for (size_t i= 0; i< NREP; ++i) {
-	read_params_file(VERBOSE, params_in_file[i], reps_fg_alpha[i],
+        read_params_file(VERBOSE, params_in_file[i], reps_fg_alpha[i],
                          reps_fg_beta[i], reps_bg_alpha[i], reps_bg_beta[i],
-			 start_trans, trans, end_trans, fdr_cutoff_rep);
+                         start_trans, trans, end_trans, fdr_cutoff_rep);
       }
       max_iterations = 0;
     } else {
       for (size_t r = 0; r < NREP; ++r) {
-	// Actually, there are many 0s in reads[r],
-	// But the parameter start points don't need to be accurate
-	double n_reads =
-	  accumulate(reads[r].begin(), reads[r].end(), 0.0)/reads[r].size();
-	reps_fg_alpha[r] = 0.33*n_reads;
-	reps_fg_beta[r] = 0.67*n_reads;
-	reps_bg_alpha[r] = 0.67*n_reads;
-	reps_bg_beta[r] = 0.33*n_reads;
+        // Actually, there are many 0s in reads[r],
+        // But the parameter start points don't need to be accurate
+        double n_reads =
+          accumulate(reads[r].begin(), reads[r].end(), 0.0)/reads[r].size();
+        reps_fg_alpha[r] = 0.33*n_reads;
+        reps_fg_beta[r] = 0.67*n_reads;
+        reps_bg_alpha[r] = 0.67*n_reads;
+        reps_bg_beta[r] = 0.33*n_reads;
       }
     }
 
     if (max_iterations > 0)
       hmm.BaumWelchTraining_rep(meth, reset_points,
-    				start_trans, trans, end_trans,
-    				reps_fg_alpha, reps_fg_beta,
-    				reps_bg_alpha, reps_bg_beta);
+                                start_trans, trans, end_trans,
+                                reps_fg_alpha, reps_fg_beta,
+                                reps_bg_alpha, reps_bg_beta);
 
     if (!params_out_file.empty()) {
       // WRITE ALL THE HMM PARAMETERS:
       write_params_file(params_out_file,
-			reps_fg_alpha, reps_fg_beta,
-			reps_bg_alpha, reps_bg_beta,
-			start_trans, trans, end_trans);
+                        reps_fg_alpha, reps_fg_beta,
+                        reps_bg_alpha, reps_bg_beta,
+                        start_trans, trans, end_trans);
     }
 
     /***********************************/
@@ -473,15 +475,15 @@ main(int argc, const char **argv) {
     vector<bool> classes;
     vector<double> scores;
     hmm.PosteriorDecoding_rep(meth, reset_points, start_trans, trans, end_trans,
-			      reps_fg_alpha, reps_fg_beta,
-			      reps_bg_alpha, reps_bg_beta, classes, scores);
+                              reps_fg_alpha, reps_fg_beta,
+                              reps_bg_alpha, reps_bg_beta, classes, scores);
 
     vector<double> domain_scores;
     get_domain_scores_rep(classes, meth, reset_points, domain_scores);
 
     vector<double> random_scores;
     shuffle_cpgs_rep(hmm, meth, reset_points, start_trans, trans, end_trans,
-		     reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
+                     reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
                      random_scores);
 
     vector<double> p_values;
@@ -506,8 +508,8 @@ main(int argc, const char **argv) {
     size_t good_hmr_count = 0;
     for (size_t i = 0; i < domains.size(); ++i)
       if (p_values[i] < fdr_cutoff) {
-	domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
-	out << domains[i] << '\n';
+        domains[i].set_name("HYPO" + smithlab::toa(good_hmr_count++));
+        out << domains[i] << '\n';
       }
     /***********************************
      * STEP 6: (OPTIONAL) WRITE POSTERIOR
@@ -521,7 +523,7 @@ main(int argc, const char **argv) {
                               reps_bg_alpha, reps_bg_beta,
                               fg_class, fg_posterior);
 
-      
+
       if (!hypo_post_outfile.empty()) {
         if (VERBOSE)
           cerr << "[WRITING " << hypo_post_outfile
@@ -565,7 +567,7 @@ main(int argc, const char **argv) {
       }
     }
   }
-  catch (SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << "ERROR:\t" << e.what() << endl;
     return EXIT_FAILURE;
   }

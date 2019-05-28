@@ -21,6 +21,7 @@
 #include <numeric>
 #include <cmath>
 #include <fstream>
+#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -39,6 +40,7 @@ using std::max;
 using std::min;
 using std::pair;
 using std::make_pair;
+using std::runtime_error;
 
 using std::ostream_iterator;
 using std::ofstream;
@@ -54,7 +56,7 @@ load_cpgs(const bool VERBOSE,
   vector<GenomicRegion> cpgs_in;
   ReadBEDFile(cpgs_file, cpgs_in);
   if (!check_sorted(cpgs_in))
-    throw SMITHLABException("CpGs not sorted in file \"" + cpgs_file + "\"");
+    throw runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
 
   for (size_t i = 0; i < cpgs_in.size(); ++i)
     {
@@ -547,15 +549,13 @@ main(int argc, const char **argv)
             }
         }
     }
-  catch (SMITHLABException &e)
-    {
-      cerr << "ERROR:\t" << e.what() << endl;
-      return EXIT_FAILURE;
-    }
-  catch (std::bad_alloc &ba)
-    {
-      cerr << "ERROR: could not allocate memory" << endl;
-      return EXIT_FAILURE;
-    }
+  catch (const runtime_error &e) {
+    cerr << "ERROR:\t" << e.what() << endl;
+    return EXIT_FAILURE;
+  }
+  catch (std::bad_alloc &ba) {
+    cerr << "ERROR: could not allocate memory" << endl;
+    return EXIT_FAILURE;
+  }
   return EXIT_SUCCESS;
 }

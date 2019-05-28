@@ -25,6 +25,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <stdexcept>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -40,33 +41,34 @@ using std::endl;
 using std::pair;
 using std::max;
 using std::ifstream;
+using std::runtime_error;
 
 static void
-read_diffs_file(const string &diffs_file, vector<GenomicRegion> &cpgs, const bool VERBOSE)
-{
+read_diffs_file(const string &diffs_file,
+                vector<GenomicRegion> &cpgs, const bool VERBOSE) {
   std::ifstream in(diffs_file.c_str());
   string chrom, strand, seq;
   double diffscore;
   size_t pos, meth_a, unmeth_a, meth_b, unmeth_b;
   int n = 0;
-  while (methpipe::read_methdiff_site(in, chrom, pos, strand, seq,
-									  diffscore, meth_a, unmeth_a, meth_b, unmeth_b))
-  {
-	++n;
-	cpgs.push_back(GenomicRegion(chrom, pos, pos + 1, seq, diffscore, strand[0]));
+  while (methpipe::read_methdiff_site(in, chrom, pos, strand, seq, diffscore,
+                                      meth_a, unmeth_a, meth_b, unmeth_b)) {
+    ++n;
+    cpgs.push_back(GenomicRegion(chrom, pos, pos + 1,
+                                 seq, diffscore, strand[0]));
   }
 
   if (!in.eof() && !in.good())
-	throw SMITHLABException("Immature termination when reading " + diffs_file +
-							" around line " + smithlab::toa(n));
+    throw runtime_error("Immature termination when reading " + diffs_file +
+                            " around line " + smithlab::toa(n));
   if (VERBOSE)
-	cerr << "Read " << n << " sites from " + diffs_file << endl;
+    cerr << "Read " << n << " sites from " + diffs_file << endl;
 }
 
 static void
 complement_regions(const size_t max_end, const vector<GenomicRegion> &a,
-		   const size_t start, const size_t end,
-		   vector<GenomicRegion> &cmpl) {
+                   const size_t start, const size_t end,
+                   vector<GenomicRegion> &cmpl) {
   cmpl.push_back(GenomicRegion(a[start]));
   cmpl.back().set_start(0);
   for (size_t i = start; i < end; ++i) {
@@ -105,7 +107,7 @@ static bool
 check_no_overlap(const vector<GenomicRegion> &regions) {
   for (size_t i = 1; i < regions.size(); ++i)
     if (regions[i].same_chrom(regions[i-1]) &&
-	regions[i].get_start() < regions[i - 1].get_end())
+        regions[i].get_start() < regions[i - 1].get_end())
       return false;
   return true;
 }
@@ -212,9 +214,9 @@ main(int argc, const char **argv) {
     ReadBEDFile(hmr1_file, regions_a);
     assert(check_sorted(regions_a));
     if (!check_sorted(regions_a))
-      throw SMITHLABException("regions not sorted in file: " + hmr1_file);
+      throw runtime_error("regions not sorted in file: " + hmr1_file);
     if (!check_no_overlap(regions_a))
-      throw SMITHLABException("regions overlap in file: " + hmr1_file);
+      throw runtime_error("regions overlap in file: " + hmr1_file);
 
     if (VERBOSE)
       cerr << "[LOADING HMRS] " << hmr2_file << endl;
@@ -223,9 +225,9 @@ main(int argc, const char **argv) {
     ReadBEDFile(hmr2_file, regions_b);
     assert(check_sorted(regions_b));
     if (!check_sorted(regions_b))
-      throw SMITHLABException("regions not sorted in file: " + hmr2_file);
+      throw runtime_error("regions not sorted in file: " + hmr2_file);
     if (!check_no_overlap(regions_b))
-      throw SMITHLABException("regions overlap in file: " + hmr2_file);
+      throw runtime_error("regions overlap in file: " + hmr2_file);
 
     if (VERBOSE)
       cerr << "[COMPUTING SYMMETRIC DIFFERENCE]" << endl;
@@ -249,9 +251,9 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING CPG METH DIFFS]" << endl;
     vector<GenomicRegion> cpgs;
-	read_diffs_file(diffs_file, cpgs, VERBOSE);
+        read_diffs_file(diffs_file, cpgs, VERBOSE);
     if (!check_sorted(cpgs))
-      throw SMITHLABException("CpGs not sorted in: " + diffs_file);
+      throw runtime_error("CpGs not sorted in: " + diffs_file);
     if (VERBOSE)
       cerr << "[TOTAL CPGS]: " << cpgs.size() << endl;
 
@@ -290,7 +292,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[OUTPUT FORMAT] COL4=NAME:N_COVERED_CPGS COL5=N_SIG_CPGS" << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

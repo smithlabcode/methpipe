@@ -31,6 +31,8 @@
 #include <iterator>
 #include <string>
 #include <iomanip>
+#include <stdexcept>
+
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -46,6 +48,7 @@ using std::cerr;
 using std::endl;
 using std::setw;
 using std::stringstream;
+using std::runtime_error;
 
 bool readline(std::vector<std::ifstream*>& infiles,
               std::vector<string>& cur_line) {
@@ -99,7 +102,7 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < leftover_args.size(); ++i) {
       infiles[i] = new std::ifstream(leftover_args[i].c_str());
       if (!infiles[i])
-        throw SMITHLABException("cannot open input file " + leftover_args[i]);
+        throw runtime_error("cannot open input file " + leftover_args[i]);
     }
 
     std::ofstream of;
@@ -251,7 +254,7 @@ main(int argc, const char **argv) {
       delete infiles[i];
     }
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <stdexcept>
 
 #include <OptionParser.hpp>
 #include <smithlab_utils.hpp>
@@ -39,6 +40,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::unordered_map;
+using std::runtime_error;
 
 
 static void
@@ -74,7 +76,7 @@ find_first_epiread_ending_after_position(const string &query_chrom,
       return -1;
 
     if (!(in >> chrom >> start >> seq)) {
-      throw SMITHLABException("problem loading reads");
+      throw runtime_error("problem loading reads");
     }
     if (chrom < query_chrom ||
         (chrom == query_chrom && start + seq.length() <= query_pos))
@@ -93,7 +95,7 @@ load_reads(const string &reads_file_name,
   // open and check the file
   std::ifstream in(reads_file_name.c_str());
   if (!in)
-    throw SMITHLABException("cannot open input file " + reads_file_name);
+    throw runtime_error("cannot open input file " + reads_file_name);
 
   const string query_chrom(region.get_chrom());
   const size_t query_start = region.get_start();
@@ -149,7 +151,7 @@ get_cpg_positions(const string &chrom_file,
   vector<string> chrom_names, chrom_seqs;
   read_fasta_file(chrom_file.c_str(), chrom_names, chrom_seqs);
   if (chrom_names.size() > 1)
-    throw SMITHLABException("error: more than one seq "
+    throw runtime_error("error: more than one seq "
                             "in chrom file" + chrom_file);
   cpg_positions.clear();
   collect_cpgs(chrom_seqs.front(), cpg_positions);
@@ -240,7 +242,7 @@ main(int argc, const char **argv) {
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
-      throw SMITHLABException("regions not sorted in: " + regions_file);
+      throw runtime_error("regions not sorted in: " + regions_file);
 
     unordered_map<string, string> chrom_files;
     identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
@@ -267,7 +269,7 @@ main(int argc, const char **argv) {
         const unordered_map<string, string>::const_iterator
           chrom_file(chrom_files.find(curr_chrom));
         if (chrom_file == chrom_files.end())
-          throw SMITHLABException("no chrom file for:\n" + toa(regions[i]));
+          throw runtime_error("no chrom file for:\n" + toa(regions[i]));
         get_cpg_positions(chrom_file->second, cpg_positions);
       }
 
@@ -292,7 +294,7 @@ main(int argc, const char **argv) {
     }
     if (PROGRESS) cerr << "\r100%" << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

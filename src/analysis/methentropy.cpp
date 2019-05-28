@@ -30,6 +30,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::unordered_map;
+using std::runtime_error;
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -52,12 +53,12 @@ build_coordinate_converter(const unordered_map<string, string> &chrom_files,
   const unordered_map<string, string>::const_iterator
     file_name(chrom_files.find(chrom));
   if (file_name == chrom_files.end())
-    throw SMITHLABException("chrom file not found for chrom: " + chrom);
+    throw runtime_error("chrom file not found for chrom: " + chrom);
 
   vector<string> dummy, chrom_seq;
   read_fasta_file(file_name->second.c_str(), dummy, chrom_seq);
   if (chrom_seq.size() > 1)
-    throw SMITHLABException("multiple chroms/file: " + file_name->second);
+    throw runtime_error("multiple chroms/file: " + file_name->second);
 
   const size_t lim = chrom_seq.front().length() - 1;
   size_t cpg_count = 0;
@@ -76,7 +77,7 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
   const unordered_map<size_t, size_t>::const_iterator
     i(cpgs.find(position));
   if (i == cpgs.end())
-    throw SMITHLABException("could not convert:\n" + toa(position));
+    throw runtime_error("could not convert:\n" + toa(position));
   return i->second;
 }
 
@@ -125,7 +126,7 @@ operator>>(std::istream &in, epiread &er) {
   if (getline(in, buffer)) {
     std::istringstream is(buffer);
     if (!(is >> er.chr >> er.pos >> er.seq))
-      throw SMITHLABException("malformed epiread line:\n" + buffer);
+      throw runtime_error("malformed epiread line:\n" + buffer);
   }
   return in;
 }
@@ -272,7 +273,7 @@ process_chrom(const bool VERBOSE, const size_t cpg_window,
 
   const string chrom(epireads.front().chr);
   if (!check_sorted(epireads))
-    throw SMITHLABException("epireads not sorted in chrom: " + chrom);
+    throw runtime_error("epireads not sorted in chrom: " + chrom);
 
   const size_t n_cpgs = cpg_lookup.size();
   if (VERBOSE)
@@ -365,7 +366,7 @@ main(int argc, const char **argv) {
 
     std::ifstream in(epi_file.c_str());
     if (!in)
-      throw SMITHLABException("cannot open input file: " + epi_file);
+      throw runtime_error("cannot open input file: " + epi_file);
 
     unordered_map<string, string> chrom_files;
     identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
@@ -394,7 +395,7 @@ main(int argc, const char **argv) {
       process_chrom(VERBOSE, cpg_window, epireads, cpg_lookup, out);
     }
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }

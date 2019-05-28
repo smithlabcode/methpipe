@@ -46,8 +46,8 @@ LIBS = -lgsl -lgslcblas -lz
 
 CC = gcc
 CXX = g++
-CFLAGS = -Wall -fmessage-length=50 -std=gnu89
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
+CFLAGS = -Wall -std=gnu89
+CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -75,7 +75,7 @@ fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
 
 fast-liftover: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o MethpipeSite.o)
 
 fast-lift-filter: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
@@ -85,7 +85,7 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
 	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
 
-selectsites: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+selectsites lift-filter: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 duplicate-remover: \
     $(addprefix $(SMITHLAB_CPP)/, RNG.o)

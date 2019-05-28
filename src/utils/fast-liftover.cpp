@@ -1,30 +1,27 @@
-/*    fast-liftover: lift over sites using index file
+/* fast-liftover: lift over sites using index file
  *
- *    Copyright (C) 2014 University of Southern California and
- *                       Andrew D. Smith
+ * Copyright (C) 2014 University of Southern California and
+ *                    Andrew D. Smith
  *
- *    Authors: Jenny Qu, Qiang Song
+ * Authors: Jenny Qu, Qiang Song
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 
 /*
-Sample indexfile line:
-[T-chr] [T-start] [T-end] [S-chr]:[S-start]:[S-end]:[S-strand] [] [T-strand]
-chr21   26608683        26608684        chr1:3007015:3007016:-  0       +
- */
+  Sample indexfile line:
+  [T-chr] [T-start] [T-end] [S-chr]:[S-start]:[S-end]:[S-strand] [] [T-strand]
+  chr21   26608683        26608684        chr1:3007015:3007016:-  0       +
+*/
 
 #include <string>
 #include <iostream>
@@ -36,13 +33,12 @@ chr21   26608683        26608684        chr1:3007015:3007016:-  0       +
 #include <stdexcept>
 #include <algorithm>
 
-
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "OptionParser.hpp"
 #include "GenomicRegion.hpp"
 #include "MethpipeFiles.hpp"
-
+#include "MethpipeSite.hpp"
 
 using std::string;
 using std::ios_base;
@@ -51,79 +47,76 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::unordered_map;
+using std::runtime_error;
 
-struct GenomicSite {
+struct SimpleSite {
   string chrom;
-  size_t pos;
-  string strand;
-  string name;
-  GenomicSite(const string &c = "",
-              const size_t p = 0,
-              const string &s = ""):
+  uint32_t pos;
+  char strand;
+  SimpleSite() {}
+  SimpleSite(const string &c, const uint32_t p, const char s) :
     chrom(c), pos(p), strand(s) {}
 };
 
-struct GenomicSiteMeth {
-  string chrom;
-  size_t pos;
-  string strand;
-  string name;
-  double meth;
-  size_t coverage;
-  GenomicSiteMeth(const string &c = "",
-                  const size_t p = 0,
-                  const string &s = "",
-                  const string &n = "",
-                  const double m = 0,
-                  const size_t cov = 0):
-    chrom(c), pos(p), strand(s), name(n), meth(m), coverage(cov) {}
-};
-
-
 void
-flip_strand(GenomicSite &site){
-  if (site.strand == "-"){
-    site.pos--;
-    site.strand = "+";
+flip_strand(SimpleSite &s) {
+  if (s.strand == '-') {
+    s.pos--;
+    s.strand = '+';
   }
-  return;
 }
 
-typedef unordered_map<string,
-                      unordered_map<size_t, GenomicSite> > liftover_index;
+typedef
+unordered_map<size_t, SimpleSite> liftover_index;
 
 static void
-read_index_file(const bool SS, const string &indexFile,
+read_index_file(const bool plus_strand, const string &index_file,
                 unordered_map<string, liftover_index> &index) {
-  std::ifstream in(indexFile.c_str());
-  if (!in)
-    throw SMITHLABException("problem opening index file");
 
-  size_t toPos, toEnd, toScore;
-  string toChrom, fromName, toStrand;
-  while (in >> toChrom >> toPos >> toEnd >> fromName >> toScore >> toStrand){
-    const size_t dim1 = fromName.find_first_of(":");
-    const size_t dim2 = fromName.find(":", dim1+1);
-    const size_t dim3 = fromName.find(":", dim2+1);
-    const string chrom = fromName.substr(0, dim1);
-    const size_t pos = atoi(fromName.substr(dim1 + 1, dim2-dim1).c_str());
-    const string strand = fromName.substr(dim3 + 1);
-    GenomicSite site(toChrom, toPos, toStrand);
-    if (SS) flip_strand(site);
-    index[chrom][strand][pos] = site;
+  std::ifstream in(index_file);
+  if (!in)
+    throw runtime_error("problem opening index file: " + index_file);
+
+  size_t from_pos, to_pos;
+  string from_chrom, to_chrom;
+  string to_strand;
+  MSite curr_site;
+  while (in >> from_chrom >> from_pos >> to_chrom >> to_pos >> to_strand) {
+    SimpleSite the_site(to_chrom, to_pos, to_strand[0]);
+    if (plus_strand)
+      flip_strand(the_site);
+    index[from_chrom][from_pos] = the_site;
   }
+}
+
+static bool
+lift_site(const unordered_map<string, liftover_index> &index,
+          MSite &meth_site) {
+
+  auto chrom_index = index.find(meth_site.chrom);
+  if (chrom_index == end(index))
+    return false;
+
+  auto pos_index = chrom_index->second.find(meth_site.pos);
+  if (pos_index == end(chrom_index->second))
+    return false;
+
+  meth_site.chrom = pos_index->second.chrom;
+  meth_site.pos = pos_index->second.pos;
+  meth_site.strand = pos_index->second.strand;
+  return true;
 }
 
 int
 main(int argc, const char **argv) {
-  try{
+  try {
     string indexfile;
     string tofile;
     string fromfile;
-    string leftfile;
+    string unlifted_file;
 
     bool VERBOSE = false;
-    bool SS = false;
+    bool plus_strand = false;
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
@@ -131,10 +124,10 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("indexfile", 'i', "index file", true, indexfile);
     opt_parse.add_opt("from", 'f', "Original file", true, fromfile);
     opt_parse.add_opt("to", 't', "Output file liftovered", true, tofile);
-    opt_parse.add_opt("unmapped", 'u', "(optional) File for unmapped sites",
-                      false, leftfile);
+    opt_parse.add_opt("unlifted", 'u', "(optional) File for unlifted sites",
+                      false, unlifted_file);
     opt_parse.add_opt("plus-strand", 'p', "(optional) Report sites on + strand",
-                      false, SS);
+                      false, plus_strand);
     opt_parse.add_opt("verbose", 'v', "(optional) Print more information",
                       false, VERBOSE);
 
@@ -156,51 +149,33 @@ main(int argc, const char **argv) {
 
     unordered_map<string, liftover_index> index;
     if (VERBOSE)
-      cerr << "Loading index file " << indexfile << endl;
-    read_index_file(SS, indexfile, index);
+      cerr << "[loading liftover index file " << indexfile << "]" << endl;
+    read_index_file(plus_strand, indexfile, index);
 
-    std::ifstream from(fromfile.c_str());
-    std::ofstream to(tofile.c_str());
-    std::ofstream unmapped;
-    if (!leftfile.empty()) unmapped.open(leftfile.c_str());
+    std::ifstream in(fromfile);
+    if (!in)
+      throw runtime_error("cannot open input file: " + fromfile);
 
-    string chrom;
-    size_t pos;
-    string strand;
-    string seq;
-    double meth;
-    size_t coverage;
+    std::ofstream out(tofile);
+    if (!out)
+      throw runtime_error("cannot open output file: " + tofile);
 
-    size_t total = 0;
-    size_t good = 0;
-    size_t nogood = 0;
+    std::ofstream unlifted;
+    if (!unlifted_file.empty())
+      unlifted.open(unlifted_file.c_str());
 
     if (VERBOSE)
-      cerr << "Lifting " << fromfile << " to " << tofile << endl;
+      cerr << "[lifting from: " << fromfile << " to: " << tofile << "]" << endl;
 
-    while (methpipe::read_site(from, chrom, pos, strand,
-                               seq, meth, coverage)) {
-      ++total;
-      GenomicSite loc = index[chrom][strand][pos];
-      if (!loc.chrom.empty()){
-        methpipe::write_site(to, loc.chrom, loc.pos, loc.strand,
-                             seq, meth, coverage);
-        ++good;
-      }
-      else {
-        if (unmapped.good())
-          methpipe::write_site(unmapped, chrom, pos, strand,
-                               seq, meth, coverage);
-        ++nogood;
-        index[chrom][strand].erase(pos);
-      }
+    MSite lifted, meth_site;
+    while (in >> meth_site) {
+      if (lift_site(index, meth_site))
+        out << meth_site << '\n';
+      else if (!unlifted_file.empty())
+        unlifted << meth_site << '\n';
     }
-
-    if (VERBOSE)
-      cerr << "Total sites: " << total << ";\tMapped: "
-           << good << ";\tUnmapped: " << nogood << endl;
   }
-  catch (const SMITHLABException &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
