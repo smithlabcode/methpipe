@@ -1,21 +1,19 @@
-/*    roimethstat2: average methylation in each of a set of regions
+/* selectsites: program to select sites, specified in a methcounts
+ * format file, that are contained in given (bed format) intervals
  *
- *    Copyright (C) 2014 Andrew D. Smith
+ * Copyright (C) 2019 Andrew D. Smith
  *
- *    Authors: Andrew D. Smith
+ * Authors: Andrew D. Smith
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <string>
@@ -31,8 +29,6 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MethpipeSite.hpp"
-
-#include "bsutils.hpp"
 
 using std::string;
 using std::vector;
@@ -127,14 +123,16 @@ find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
   cpg_in.seekg(0, ios_base::beg);
   string low_chr;
   size_t low_idx = 0;
-  cpg_in >> low_chr >> low_idx;
+  if (!(cpg_in >> low_chr >> low_idx))
+    throw runtime_error("failed navigating inside file");
 
   // MAGIC: need the -2 here to get past the EOF and possibly a '\n'
   cpg_in.seekg(-2, ios_base::end);
   move_to_start_of_line(cpg_in);
   string high_chr;
   size_t high_idx;
-  cpg_in >> high_chr >> high_idx;
+  if (!(cpg_in >> high_chr >> high_idx))
+    throw runtime_error("failed navigating inside file");
 
   size_t pos = step_size;
   cpg_in.seekg(pos, ios_base::beg);
@@ -143,7 +141,8 @@ find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
   while (step_size > 0) {
     string mid_chr;
     size_t mid_idx = 0;
-    cpg_in >> mid_chr >> mid_idx;
+    if (!(cpg_in >> mid_chr >> mid_idx))
+      throw runtime_error("failed navigating inside file");
     step_size /= 2;
     if (chr < mid_chr || (chr == mid_chr && idx <= mid_idx)) {
       std::swap(mid_chr, high_chr);
@@ -160,17 +159,6 @@ find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
   }
 }
 
-
-
-
-// static bool
-// cpg_not_past_region(const GenomicRegion &region, const size_t end_pos,
-//                     const MSite &cpg) {
-//   return (cpg.same_chrom(region) && cpg.pos < end_pos) ||
-//     cpg.get_chrom() < region.get_chrom();
-// }
-
-
 static void
 get_cpgs_in_region(ifstream &cpg_in, const GenomicRegion &region,
                    std::ostream &out) {
@@ -182,10 +170,9 @@ get_cpgs_in_region(ifstream &cpg_in, const GenomicRegion &region,
 
   MSite the_site;
   while (cpg_in >> the_site && (the_site.chrom == chrom &&
-                                (the_site.pos < end_pos))) {
+                                (the_site.pos < end_pos)))
     if (start_pos <= the_site.pos)
       out << the_site << endl;
-  }
 }
 
 
@@ -195,11 +182,11 @@ process_with_cpgs_on_disk(const string &cpgs_file,
                           std::ostream &out) {
 
   ifstream in(cpgs_file);
-  for (size_t i = 0; i < regions.size() && in; ++i) {
+  if (!in)
+    throw runtime_error("cannot open file: " + cpgs_file);
 
+  for (size_t i = 0; i < regions.size() && in; ++i)
     get_cpgs_in_region(in, regions[i], out);
-
-  }
 }
 
 
@@ -264,7 +251,12 @@ main(int argc, const char **argv) {
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
       throw runtime_error("regions not sorted in file: " + regions_file);
+
+    const size_t n_orig_regions = regions.size();
     collapsebed(regions);
+    if (VERBOSE && n_orig_regions != regions.size())
+      cerr << "[number of regions merged due to overlap: "
+           << n_orig_regions - regions.size() << "]" << endl;
 
     ifstream in(cpgs_file);
     if (!in)
