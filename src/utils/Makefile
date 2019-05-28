@@ -30,7 +30,7 @@ endif
 PROGS = lc_approx fast-liftover lift-filter \
 	to-mr merge-bsrate merge-methcounts \
 	duplicate-remover symmetric-cpgs \
-	clean-hairpins
+	clean-hairpins selectsites
 
 # if SAMTOOLS location not set, try to set it
 ifndef SAMTOOLS_DIR
@@ -84,6 +84,8 @@ fast-lift-filter: $(addprefix $(SMITHLAB_CPP)/, \
 to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
 	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
+
+selectsites: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 duplicate-remover: \
     $(addprefix $(SMITHLAB_CPP)/, RNG.o)
