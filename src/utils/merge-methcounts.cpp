@@ -124,7 +124,8 @@ collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
 
 
 static void
-write_line_for_tabular(std::ostream &out,
+write_line_for_tabular(const bool write_fractional,
+                       std::ostream &out,
                        const vector<bool> &to_print,
                        const vector<MSite> &sites,
                        MSite min_site) {
@@ -137,13 +138,23 @@ write_line_for_tabular(std::ostream &out,
   out << min_site.chrom << ':'
       << min_site.pos << ':'
       << min_site.strand << ':'
-      << min_site.context << '\t';
+      << min_site.context;
 
-  for (size_t i = 0; i < n_files; ++i) {
-    if (to_print[i])
-      out << sites[i].n_reads << '\t' << sites[i].n_meth()  << '\t';
-    else
-      out << 0 << '\t' << 0 << '\t';
+  if (write_fractional) {
+    for (size_t i = 0; i < n_files; ++i) {
+      if (to_print[i])
+        out << '\t' << sites[i].meth;
+      else
+        out << '\t' << 0;
+    }
+  }
+  else {
+    for (size_t i = 0; i < n_files; ++i) {
+      if (to_print[i])
+        out << '\t' << sites[i].n_reads << '\t' << sites[i].n_meth();
+      else
+        out << '\t' << 0 << '\t'<< 0;
+    }
   }
   out << '\n';
 }
@@ -186,6 +197,7 @@ main(int argc, const char **argv) {
     string outfile;
     bool VERBOSE;
     bool TABULAR = false;
+    bool FRAC = false;
 
     string header_info;
 
@@ -199,7 +211,8 @@ main(int argc, const char **argv) {
                       false, header_info);
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
-
+    opt_parse.add_opt("fractional", 'f', "output fractions (requires tabular)",
+                      false, FRAC);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -213,6 +226,10 @@ main(int argc, const char **argv) {
     }
     if (opt_parse.option_missing()) {
       cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (FRAC && !TABULAR) {
+      cerr << "fractional output only available for tabular format" << endl;
       return EXIT_SUCCESS;
     }
     if (leftover_args.empty()) {
@@ -262,7 +279,7 @@ main(int argc, const char **argv) {
 
       // output the appropriate sites' data
       if (TABULAR)
-        write_line_for_tabular(out, sites_to_print, sites, sites[idx]);
+        write_line_for_tabular(FRAC, out, sites_to_print, sites, sites[idx]);
       else
         write_line_for_merged_counts(out, sites_to_print, sites, sites[idx]);
 
