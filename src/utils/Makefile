@@ -66,8 +66,9 @@ install: $(PROGS)
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
-    $(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+	MappedRead.o smithlab_os.o smithlab_utils.o \
+	GenomicRegion.o OptionParser.o) \
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
 	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
@@ -92,6 +93,13 @@ duplicate-remover: \
 
 merge-methcounts symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
+to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
+	MappedRead.o smithlab_os.o smithlab_utils.o \
+	GenomicRegion.o OptionParser.o) \
+	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+
+to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
