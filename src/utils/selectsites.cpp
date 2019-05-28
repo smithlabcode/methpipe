@@ -70,14 +70,14 @@ contains(const GenomicRegion &r, const MSite &s) {
 
 
 static void
-process_all_cpgs(const bool VERBOSE,
-                 const string &cpgs_file,
+process_all_sites(const bool VERBOSE,
+                 const string &sites_file,
                  vector<GenomicRegion> &regions,
                  std::ostream &out) {
 
-  ifstream in(cpgs_file);
+  ifstream in(sites_file);
   if (!in)
-    throw runtime_error("cannot open file: " + cpgs_file);
+    throw runtime_error("cannot open file: " + sites_file);
 
   MSite the_site;
   size_t i = 0;
@@ -92,7 +92,6 @@ process_all_cpgs(const bool VERBOSE,
 
 
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
 ///  CODE BELOW HERE IS FOR SEARCHING ON DISK
 static void
 move_to_start_of_line(ifstream &in) {
@@ -106,42 +105,41 @@ move_to_start_of_line(ifstream &in) {
     in.clear();
 }
 
-
 static void
-find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
+find_start_line(const string &chr, const size_t idx, ifstream &site_in) {
 
-  cpg_in.seekg(0, ios_base::beg);
-  const size_t begin_pos = cpg_in.tellg();
-  cpg_in.seekg(0, ios_base::end);
-  const size_t end_pos = cpg_in.tellg();
+  site_in.seekg(0, ios_base::beg);
+  const size_t begin_pos = site_in.tellg();
+  site_in.seekg(0, ios_base::end);
+  const size_t end_pos = site_in.tellg();
 
   if (end_pos - begin_pos < 2)
     throw runtime_error("empty meth file");
 
   size_t step_size = (end_pos - begin_pos)/2;
 
-  cpg_in.seekg(0, ios_base::beg);
+  site_in.seekg(0, ios_base::beg);
   string low_chr;
   size_t low_idx = 0;
-  if (!(cpg_in >> low_chr >> low_idx))
+  if (!(site_in >> low_chr >> low_idx))
     throw runtime_error("failed navigating inside file");
 
   // MAGIC: need the -2 here to get past the EOF and possibly a '\n'
-  cpg_in.seekg(-2, ios_base::end);
-  move_to_start_of_line(cpg_in);
+  site_in.seekg(-2, ios_base::end);
+  move_to_start_of_line(site_in);
   string high_chr;
   size_t high_idx;
-  if (!(cpg_in >> high_chr >> high_idx))
+  if (!(site_in >> high_chr >> high_idx))
     throw runtime_error("failed navigating inside file");
 
   size_t pos = step_size;
-  cpg_in.seekg(pos, ios_base::beg);
-  move_to_start_of_line(cpg_in);
+  site_in.seekg(pos, ios_base::beg);
+  move_to_start_of_line(site_in);
 
   while (step_size > 0) {
     string mid_chr;
     size_t mid_idx = 0;
-    if (!(cpg_in >> mid_chr >> mid_idx))
+    if (!(site_in >> mid_chr >> mid_idx))
       throw runtime_error("failed navigating inside file");
     step_size /= 2;
     if (chr < mid_chr || (chr == mid_chr && idx <= mid_idx)) {
@@ -154,50 +152,41 @@ find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
       std::swap(mid_idx, low_idx);
       pos += step_size;
     }
-    cpg_in.seekg(pos, ios_base::beg);
-    move_to_start_of_line(cpg_in);
+    site_in.seekg(pos, ios_base::beg);
+    move_to_start_of_line(site_in);
   }
 }
 
 static void
-get_cpgs_in_region(ifstream &cpg_in, const GenomicRegion &region,
+get_sites_in_region(ifstream &site_in, const GenomicRegion &region,
                    std::ostream &out) {
 
   string chrom(region.get_chrom());
   const size_t start_pos = region.get_start();
   const size_t end_pos = region.get_end();
-  find_start_line(chrom, start_pos, cpg_in);
+  find_start_line(chrom, start_pos, site_in);
 
   MSite the_site;
-  while (cpg_in >> the_site && (the_site.chrom == chrom &&
+  while (site_in >> the_site && (the_site.chrom == chrom &&
                                 (the_site.pos < end_pos)))
     if (start_pos <= the_site.pos)
       out << the_site << endl;
 }
 
-
 static void
-process_with_cpgs_on_disk(const string &cpgs_file,
+process_with_sites_on_disk(const string &sites_file,
                           vector<GenomicRegion> &regions,
                           std::ostream &out) {
 
-  ifstream in(cpgs_file);
+  ifstream in(sites_file);
   if (!in)
-    throw runtime_error("cannot open file: " + cpgs_file);
+    throw runtime_error("cannot open file: " + sites_file);
 
   for (size_t i = 0; i < regions.size() && in; ++i)
-    get_cpgs_in_region(in, regions[i], out);
+    get_sites_in_region(in, regions[i], out);
 }
-
-
-///
 ///  END OF CODE FOR SEARCHING ON DISK
-///
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-
 
 
 int
@@ -217,13 +206,14 @@ main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), description,
-                           "<intervals-bed> <cpgs-bed>", 2);
+                           "<intervals-bed> <sites-file>", 2);
     opt_parse.add_opt("output", 'o', "output file (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("preload", 'p',
-                      "preload sites (use if target intervals very large)",
+                      "preload sites (use for large target intervals)",
                       false, LOAD_ENTIRE_FILE);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.set_show_defaults();
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -244,7 +234,7 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     const string regions_file = leftover_args.front();
-    const string cpgs_file = leftover_args.back();
+    const string sites_file = leftover_args.back();
     /****************** END COMMAND LINE OPTIONS *****************/
 
     vector<GenomicRegion> regions;
@@ -258,9 +248,9 @@ main(int argc, const char **argv) {
       cerr << "[number of regions merged due to overlap: "
            << n_orig_regions - regions.size() << "]" << endl;
 
-    ifstream in(cpgs_file);
+    ifstream in(sites_file);
     if (!in)
-      throw runtime_error("cannot open file: " + cpgs_file);
+      throw runtime_error("cannot open file: " + sites_file);
 
     std::ofstream of;
     if (!outfile.empty()) of.open(outfile.c_str());
@@ -269,9 +259,9 @@ main(int argc, const char **argv) {
       throw runtime_error("failed to open output file: " + outfile);
 
     if (LOAD_ENTIRE_FILE)
-      process_all_cpgs(VERBOSE, cpgs_file, regions, out);
+      process_all_sites(VERBOSE, sites_file, regions, out);
     else
-      process_with_cpgs_on_disk(cpgs_file, regions, out);
+      process_with_sites_on_disk(sites_file, regions, out);
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;
