@@ -201,7 +201,7 @@ make_partial_meth(const vector<size_t> &reads,
 
 static void
 shuffle_cpgs(const size_t seed,
-             const TwoStateHMMB &hmm,
+             const TwoStateHMM &hmm,
              vector<pair<double, double> > meth,
              vector<size_t> reset_points,
              const vector<double> &start_trans,
@@ -411,7 +411,7 @@ main(int argc, const char **argv) {
     vector<vector<double> > trans(2, vector<double>(2, 0.25));
     trans[0][0] = trans[1][1] = 0.75;
 
-    const TwoStateHMMB hmm(min_prob, tolerance, max_iterations, VERBOSE);
+    const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE);
 
     double fg_alpha = 0;
     double fg_beta = 0;

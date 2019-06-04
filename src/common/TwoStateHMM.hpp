@@ -27,10 +27,10 @@
 
 struct betabin;
 
-class TwoStateHMMB {
+class TwoStateHMM {
 public:
 
-  TwoStateHMMB(const double mp, const double tol,
+  TwoStateHMM(const double mp, const double tol,
 	       const size_t max_itr, const bool v, bool d = false) :
     MIN_PROB(mp), tolerance(tol), max_iterations(max_itr),
     VERBOSE(v), DEBUG(d) {}
@@ -356,8 +356,6 @@ private:
   size_t max_iterations;
   bool VERBOSE;
   bool DEBUG;
-
-  mutable size_t emission_correction_count;
 };
 
 #endif

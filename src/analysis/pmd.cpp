@@ -589,7 +589,7 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
 
 
 static void
-shuffle_cpgs_rep(const TwoStateHMMB &hmm,
+shuffle_cpgs_rep(const TwoStateHMM &hmm,
                  vector<vector<pair<double, double> > > meth,
                  vector<size_t> reset_points,
                  const vector<double> &start_trans,
@@ -1135,7 +1135,7 @@ main(int argc, const char **argv) {
     vector<double> start_trans(2, 0.5), end_trans(2, 1e-10);
     vector<vector<double> > trans(2, vector<double>(2, 0.01));
     trans[0][0] = trans[1][1] = 0.99;
-    const TwoStateHMMB hmm(min_prob, tolerance, max_iterations, VERBOSE, DEBUG);
+    const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE, DEBUG);
     vector<double> reps_fg_alpha(NREP, 0.05);
     vector<double> reps_fg_beta(NREP, 0.95);
     vector<double> reps_bg_alpha(NREP, 0.95);
