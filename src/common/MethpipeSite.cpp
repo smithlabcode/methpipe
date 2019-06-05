@@ -38,10 +38,10 @@ operator>>(std::istream &in, MSite &s) {
     string strand_tmp;
     if (!(iss >> s.chrom >> s.pos >> strand_tmp
           >> s.context >> s.meth >> s.n_reads))
-      throw runtime_error("bad methcounts file");
+      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
     s.strand = strand_tmp[0];
     if (s.strand != '-' && s.strand != '+')
-      throw runtime_error("bad methcounts file");
+      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
   }
   return in;
 }
