@@ -42,7 +42,7 @@
 #include "MethpipeFiles.hpp"
 #include "MethpipeSite.hpp"
 #include "LevelsCounter.hpp"
-
+#include "GZ.hpp"
 #include "bsutils.hpp"
 
 using std::string;
@@ -92,7 +92,7 @@ main(int argc, const char **argv) {
     const string meth_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    std::ifstream in(meth_file.c_str());
+    GZWrapper in(meth_file, "methcounts", "r");
     if (!in)
       throw std::runtime_error("bad input file: " + meth_file);
 
@@ -113,6 +113,7 @@ main(int argc, const char **argv) {
         if (VERBOSE)
           cerr << "PROCESSING:\t" << site.chrom << "\n";
       }
+      if (VERBOSE) cerr << site << "\n";
 
       if (site.is_cpg()) {
         cpg.update(site);

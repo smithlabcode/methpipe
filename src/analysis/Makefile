@@ -46,7 +46,7 @@ INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR) $(COMMON_PMD_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas
+LIBS = -lgsl -lgslcblas -lz
 
 all: $(PROGS)
 
@@ -58,7 +58,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
+bsrate methcounts methstates: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o)
 
 bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
@@ -72,11 +72,11 @@ pmd: $(addprefix $(COMMON_DIR)/, bsutils.o) \
 hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
 
-methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
-
 levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o MethpipeSite.o)
 
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
+
+levels methcounts bsrate: $(addprefix $(SMITHLAB_CPP)/, GZ.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)

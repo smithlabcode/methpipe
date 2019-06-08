@@ -26,6 +26,7 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
+#include "GZ.hpp"
 #include "bsutils.hpp"
 
 #include <string>
@@ -317,7 +318,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << all_chroms.size() << endl;
 
-    std::ifstream in(mapped_reads_file.c_str());
+    GZWrapper in(mapped_reads_file, "mappedread", "r");
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
