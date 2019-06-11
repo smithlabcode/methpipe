@@ -29,20 +29,22 @@
 using std::string;
 using std::runtime_error;
 
+MSite::MSite(const string &line) {
+  std::istringstream iss;
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  std::string strand_tmp;
+  if (!(iss >> chrom >> pos >> strand_tmp >> context >> meth >> n_reads))
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  strand = strand_tmp[0];
+  if (strand != '-' && strand != '+')
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+}
+
 std::istream &
 operator>>(std::istream &in, MSite &s) {
   string line;
-  if (getline(in, line)) {
-    std::istringstream iss;
-    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-    string strand_tmp;
-    if (!(iss >> s.chrom >> s.pos >> strand_tmp
-          >> s.context >> s.meth >> s.n_reads))
-      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
-    s.strand = strand_tmp[0];
-    if (s.strand != '-' && s.strand != '+')
-      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
-  }
+  if (getline(in, line))
+    s = MSite(line);
   return in;
 }
 

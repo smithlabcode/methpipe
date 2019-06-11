@@ -31,6 +31,17 @@ struct MSite {
   double meth;
   size_t n_reads;
 
+  MSite() {}
+  MSite(const std::string &_chrom,
+        const size_t _pos,
+        const char _strand,
+        const std::string &_context,
+        const double _meth,
+        const size_t _n_reads) :
+    chrom(_chrom), pos(_pos), strand(_strand),
+    context(_context), meth(_meth), n_reads(_n_reads) {}
+  explicit MSite(const std::string &line);
+
   size_t n_meth() const {return std::round(meth*n_reads);}
 
   //////////////////////////////////////////////////////////////
