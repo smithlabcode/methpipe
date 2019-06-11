@@ -23,12 +23,11 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = pmd methcounts bsrate hmr hypermr \
-	levels roimethstat  \
+PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 	methstates methentropy hmr_rep
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
+CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -58,10 +57,7 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o)
-
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
+bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o QualityScore.o)
 
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
@@ -75,6 +71,8 @@ hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 methstates: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o)
 
 levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o MethpipeSite.o)
+
+methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
 

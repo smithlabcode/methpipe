@@ -34,7 +34,7 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
-#include "MethpipeFiles.hpp"
+#include "MethpipeSite.hpp"
 
 #include "bsutils.hpp"
 
@@ -226,13 +226,13 @@ write_output(std::ostream &out,
         counts[i].unconverted_cytosine() : counts[i].unconverted_guanine();
       const double converted = is_cytosine(base) ?
         counts[i].converted_cytosine() : counts[i].converted_guanine();
-      const double meth = unconverted/(converted + unconverted);
+      const size_t tot = converted + unconverted;
+      const double meth = unconverted/std::max(1ul, tot);
       const string tag = get_methylation_context_tag_from_genome(chrom, i) +
         (has_mutated(base, counts[i]) ? "x" : "");
       if (!CPG_ONLY || is_cpg_site(chrom, i)) {
-        methpipe::write_site(out, chrom_name, i,
-                             (is_cytosine(base) ? "+" : "-"),
-                             tag, meth, converted + unconverted);
+        out << MSite(chrom_name, i, is_cytosine(base) ? '+' : '-',
+                     tag, meth, tot) << '\n';
       }
     }
   }
@@ -331,7 +331,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << chroms.size() << endl;
 
-    std::ifstream in(mapped_reads_file.c_str());
+    std::ifstream in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
