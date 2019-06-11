@@ -119,7 +119,6 @@ struct CountSet {
   count_type unconverted_guanine() const {return nC;}
   count_type converted_guanine() const {return nT;}
 
-  // using "int" here because it is smaller
   count_type pA, pC, pG, pT;
   count_type nA, nC, nG, nT;
   count_type N;
