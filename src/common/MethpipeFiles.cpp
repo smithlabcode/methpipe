@@ -410,7 +410,7 @@ methpipe::write_site(ostream &out,
                      const double &meth, const size_t &coverage) {
   return (out << chrom << "\t" << pos << "\t" << strand
           << "\t" << seq << "\t" << (coverage == 0 ? 0.0 : meth) << "\t"
-          << coverage << '\n');
+          << coverage << "\n");
 }
 
 
