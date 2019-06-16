@@ -69,7 +69,8 @@ contains(const GenomicRegion &r, const MSite &s) {
           (r.get_start() <= s.pos && s.pos < r.get_end()));
 }
 
-template <class T> static void
+template <class T>
+static void
 process_all_sites(const bool VERBOSE,
                  const string &sites_file,
                  const vector<GenomicRegion> &regions,

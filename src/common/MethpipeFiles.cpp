@@ -403,7 +403,7 @@ methpipe::read_site(std::istream &in, string &chrom, size_t &pos,
   return in;
 }
 
-ostream &
+ostream&
 methpipe::write_site(ostream &out,
                      const string &chrom, const size_t &pos,
                      const string &strand, const string &seq,

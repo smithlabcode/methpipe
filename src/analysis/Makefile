@@ -74,6 +74,8 @@ hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 
 levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o MethpipeSite.o)
 
+methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
 
 levels methcounts bsrate: $(addprefix $(SMITHLAB_CPP)/, GZ.o)
