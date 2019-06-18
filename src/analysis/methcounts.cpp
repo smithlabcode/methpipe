@@ -34,7 +34,6 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
-#include "MethpipeFiles.hpp"
 #include "MethpipeSite.hpp"
 #include "GZ.hpp"
 #include "bsutils.hpp"
@@ -257,7 +256,7 @@ get_chrom_id(const string &chrom_name,
 
 template <class T>
 static void
-process_reads(const bool VERBOSE, GZWrapper &in, T &out,
+process_reads(const bool VERBOSE, igzfstream &in, T &out,
               const unordered_map<string, size_t> &chrom_lookup,
               const vector<size_t> &chrom_sizes,
               const vector<string> &chrom_order,
@@ -418,11 +417,11 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << chroms.size() << endl;
 
-    GZWrapper in(mapped_reads_file, "mappedread", "r");
+    igzfstream in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
-    if (outfile.empty() || !is_gz(outfile)) {
+    if (outfile.empty() || !has_gz_ext(outfile)) {
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
       std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
@@ -431,7 +430,7 @@ main(int argc, const char **argv) {
          chroms, CPG_ONLY);
     }
     else {
-      GZWrapper out(outfile, "methcounts", "w");
+      ogzfstream out(outfile);
       process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
          chroms, CPG_ONLY);
     }

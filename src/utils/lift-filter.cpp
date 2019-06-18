@@ -99,13 +99,13 @@ main(int argc, const char **argv) {
       }
       else {
         if (!UNIQUE || site_is_unique)
-          out << curr_site << endl;
+          out << curr_site.tostring() << endl;
         site_is_unique = true;
         curr_site = next_site;
       }
     }
     if (!UNIQUE || site_is_unique)
-      out << curr_site << endl;
+      out << curr_site.tostring() << endl;
 
   }
   catch (const runtime_error &e) {

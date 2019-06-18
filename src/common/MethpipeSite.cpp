@@ -22,30 +22,23 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 
 using std::string;
 using std::runtime_error;
 
-std::istream &
-operator>>(std::istream &in, MSite &s) {
-  string line;
-  if (getline(in, line)) {
-    std::istringstream iss;
-    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-    string strand_tmp;
-    if (!(iss >> s.chrom >> s.pos >> strand_tmp
-          >> s.context >> s.meth >> s.n_reads))
-      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
-    s.strand = strand_tmp[0];
-    if (s.strand != '-' && s.strand != '+')
-      throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
-  }
-  return in;
+MSite::MSite(const string &line) {
+  std::istringstream iss;
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  string strand_tmp;
+  if (!(iss >> chrom >> pos >> strand_tmp
+        >> context >> meth >> n_reads))
+    throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
+  strand = strand_tmp[0];
+  if (strand != '-' && strand != '+')
+    throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
 }
-
 
 string
 MSite::tostring() const {
@@ -58,18 +51,6 @@ MSite::tostring() const {
       << n_reads;
   return oss.str();
 }
-
-
-std::ostream &
-operator<<(std::ostream &out, const MSite &s) {
-  return out << s.chrom << '\t'
-             << s.pos << '\t'
-             << s.strand << '\t'
-             << s.context << '\t'
-             << s.meth << '\t'
-             << s.n_reads;
-}
-
 
 size_t
 distance(const MSite &a, const MSite &b) {

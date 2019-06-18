@@ -76,7 +76,7 @@ process_all_sites(const bool VERBOSE,
                  const vector<GenomicRegion> &regions,
                  T &out) {
 
-  GZWrapper in(sites_file, "methcounts", "r");
+  igzfstream in(sites_file);
   if (!in)
     throw runtime_error("cannot open file: " + sites_file);
 
@@ -249,7 +249,7 @@ main(int argc, const char **argv) {
       cerr << "[number of regions merged due to overlap: "
            << n_orig_regions - regions.size() << "]" << endl;
 
-    if (outfile.empty() || !is_gz(outfile)) {
+    if (outfile.empty() || !has_gz_ext(outfile)) {
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
       std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
@@ -263,7 +263,7 @@ main(int argc, const char **argv) {
     }
     else {
       // not supporting search on disk for gz file
-      GZWrapper out(outfile, "methcounts", "w");
+      ogzfstream out(outfile);
       process_all_sites(VERBOSE, sites_file, regions, out);
     }
   }

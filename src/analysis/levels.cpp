@@ -92,7 +92,7 @@ main(int argc, const char **argv) {
     const string meth_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    GZWrapper in(meth_file, "methcounts", "r");
+    igzfstream in(meth_file);
     if (!in)
       throw std::runtime_error("bad input file: " + meth_file);
 

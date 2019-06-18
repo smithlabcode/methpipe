@@ -20,10 +20,20 @@
 #ifndef METHPIPE_SITE_HPP
 #define METHPIPE_SITE_HPP
 
-#include <string>
 #include <cmath>
+#include <string>
 
 struct MSite {
+  MSite () {}
+  MSite (const std::string &chr,
+         const size_t p,
+         const char s,
+         const std::string &ctxt,
+         const double m,
+         const size_t r) :
+    chrom(chr), pos(p), strand(s), context(ctxt), meth(m), n_reads(r) {}
+  explicit MSite (const std::string &line);
+
   std::string chrom;
   size_t pos;
   char strand;
@@ -83,11 +93,19 @@ struct MSite {
 
 };
 
-std::istream &
-operator>>(std::istream &in, MSite &s);
+template <class T> T&
+operator>>(T &in, MSite &s) {
+  std::string line;
+  if (getline(in, line)) {
+    s = MSite(line);
+  }
+  return in;
+}
 
-std::ostream &
-operator<<(std::ostream &out, const MSite &s);
+template <class T> T&
+operator<<(T &out, const MSite &s) {
+  return out << s.tostring();
+}
 
 size_t
 distance(const MSite &a, const MSite &b);

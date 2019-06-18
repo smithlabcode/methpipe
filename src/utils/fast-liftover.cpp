@@ -170,9 +170,9 @@ main(int argc, const char **argv) {
     MSite lifted, meth_site;
     while (in >> meth_site) {
       if (lift_site(index, meth_site))
-        out << meth_site << '\n';
+        out << meth_site.tostring() << '\n';
       else if (!unlifted_file.empty())
-        unlifted << meth_site << '\n';
+        unlifted << meth_site.tostring() << '\n';
     }
   }
   catch (const runtime_error &e) {

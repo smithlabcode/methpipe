@@ -318,7 +318,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << all_chroms.size() << endl;
 
-    GZWrapper in(mapped_reads_file, "mappedread", "r");
+    igzfstream in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
