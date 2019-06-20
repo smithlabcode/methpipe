@@ -40,14 +40,6 @@ MSite::MSite(const string &line) {
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
 }
 
-std::istream &
-operator>>(std::istream &in, MSite &s) {
-  string line;
-  if (getline(in, line))
-    s = MSite(line);
-  return in;
-}
-
 
 string
 MSite::tostring() const {
@@ -62,15 +54,15 @@ MSite::tostring() const {
 }
 
 
-std::ostream &
-operator<<(std::ostream &out, const MSite &s) {
-  return out << s.chrom << '\t'
-             << s.pos << '\t'
-             << s.strand << '\t'
-             << s.context << '\t'
-             << s.meth << '\t'
-             << s.n_reads;
-}
+// std::ostream &
+// operator<<(std::ostream &out, const MSite &s) {
+//   return out << s.chrom << '\t'
+//              << s.pos << '\t'
+//              << s.strand << '\t'
+//              << s.context << '\t'
+//              << s.meth << '\t'
+//              << s.n_reads;
+// }
 
 
 size_t

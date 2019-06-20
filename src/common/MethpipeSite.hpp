@@ -24,12 +24,6 @@
 #include <cmath>
 
 struct MSite {
-  std::string chrom;
-  size_t pos;
-  char strand;
-  std::string context;
-  double meth;
-  size_t n_reads;
 
   MSite() {}
   MSite(const std::string &_chrom,
@@ -41,6 +35,13 @@ struct MSite {
     chrom(_chrom), pos(_pos), strand(_strand),
     context(_context), meth(_meth), n_reads(_n_reads) {}
   explicit MSite(const std::string &line);
+
+  std::string chrom;
+  size_t pos;
+  char strand;
+  std::string context;
+  double meth;
+  size_t n_reads;
 
   size_t n_meth() const {return std::round(meth*n_reads);}
 
@@ -91,14 +92,21 @@ struct MSite {
   }
 
   std::string tostring() const;
-
 };
 
-std::istream &
-operator>>(std::istream &in, MSite &s);
+template <class T> T &
+operator>>(T &in, MSite &s) {
+  std::string line;
+  if (getline(in, line))
+    s = MSite(line);
+  return in;
+}
 
-std::ostream &
-operator<<(std::ostream &out, const MSite &s);
+template <class T> T &
+operator<<(T &out, const MSite &s) {
+  out << s.tostring(); // seems to be an issue returning this directly
+  return out;
+}
 
 size_t
 distance(const MSite &a, const MSite &b);
