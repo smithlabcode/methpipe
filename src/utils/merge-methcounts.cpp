@@ -66,7 +66,8 @@ is_valid(const MSite &s) {
 }
 
 static bool
-any_sites_unprocessed(const vector<std::ifstream*> &infiles,
+any_sites_unprocessed(const vector<string> &filenames,
+                      const vector<std::ifstream*> &infiles,
                       vector<bool> &outdated, vector<MSite> &sites) {
 
   const size_t n_files = sites.size();
@@ -75,7 +76,13 @@ any_sites_unprocessed(const vector<std::ifstream*> &infiles,
   for (size_t i = 0; i < n_files; ++i) {
     if (outdated[i]) {
       outdated[i] = false;
-      if (*infiles[i] >> sites[i]) sites_remain = true;
+      MSite tmp_site;
+      if (*infiles[i] >> tmp_site) {
+        if (precedes(tmp_site, sites[i]))
+          throw runtime_error("error: sites not sorted in " + filenames[i]);
+        sites_remain = true;
+        sites[i] = tmp_site;
+      }
       else set_invalid(sites[i]);
     }
     else if (is_valid(sites[i]))
@@ -269,8 +276,8 @@ main(int argc, const char **argv) {
     vector<bool> outdated(n_files, true);
     vector<bool> sites_to_print; // declared here to keep allocation
 
-    while (any_sites_unprocessed(infiles, outdated, sites)) {
-
+    while (any_sites_unprocessed(meth_files, infiles, outdated, sites)) {
+    	
       sites_to_print.clear();
       sites_to_print.resize(n_files, false);
 
