@@ -104,7 +104,7 @@ operator>>(T &in, MSite &s) {
 
 template <class T> T &
 operator<<(T &out, const MSite &s) {
-  out << s.tostring(); // seems to be an issue returning this directly
+  out << s.tostring(); // cannot be returned directly when templated
   return out;
 }
 
