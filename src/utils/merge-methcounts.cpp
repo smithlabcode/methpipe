@@ -31,6 +31,8 @@
 #include "smithlab_os.hpp"
 #include "MethpipeSite.hpp"
 
+#include "zlib_wrapper.hpp"
+
 using std::string;
 using std::vector;
 using std::cout;
@@ -66,7 +68,7 @@ is_valid(const MSite &s) {
 }
 
 static bool
-any_sites_unprocessed(const vector<std::ifstream*> &infiles,
+any_sites_unprocessed(const vector<igzfstream*> &infiles,
                       vector<bool> &outdated, vector<MSite> &sites) {
 
   const size_t n_files = sites.size();
@@ -75,7 +77,13 @@ any_sites_unprocessed(const vector<std::ifstream*> &infiles,
   for (size_t i = 0; i < n_files; ++i) {
     if (outdated[i]) {
       outdated[i] = false;
-      if (*infiles[i] >> sites[i]) sites_remain = true;
+      MSite tmp_site;
+      if (*infiles[i] >> tmp_site) {
+        if (precedes(tmp_site, sites[i]))
+          throw runtime_error("error: sites not sorted in " + filenames[i]);
+        sites_remain = true;
+        sites[i] = tmp_site;
+      }
       else set_invalid(sites[i]);
     }
     else if (is_valid(sites[i]))
@@ -170,14 +178,14 @@ write_line_for_merged_counts(std::ostream &out,
   if (min_site.is_mutated())
     unmutate_site(min_site);
 
-  size_t meth_sum = 0;
+  double meth_sum = 0;
   min_site.n_reads = 0;
   for (size_t i = 0; i < n_files; ++i)
     if (to_print[i]) {
       meth_sum += sites[i].n_meth();
       min_site.n_reads += sites[i].n_reads;
     }
-  min_site.meth = static_cast<double>(meth_sum)/min_site.n_reads;
+  min_site.meth = meth_sum/std::max(1ul, min_site.n_reads);
 
   out << min_site << '\n';
 }
@@ -241,9 +249,9 @@ main(int argc, const char **argv) {
 
     const size_t n_files = meth_files.size();
 
-    vector<std::ifstream*> infiles(n_files);
+    vector<igzfstream*> infiles(n_files);
     for (size_t i = 0; i < n_files; ++i) {
-      infiles[i] = new std::ifstream(meth_files[i]);
+      infiles[i] = new igzfstream(meth_files[i]);
       if (!(*infiles[i]))
         throw runtime_error("cannot open file: " + meth_files[i]);
     }
@@ -286,10 +294,8 @@ main(int argc, const char **argv) {
       swap(outdated, sites_to_print);
     }
 
-    for (size_t i = 0; i < n_files; ++i) {
-      infiles[i]->close();
+    for (size_t i = 0; i < n_files; ++i)
       delete infiles[i];
-    }
   }
   catch (const runtime_error &e)  {
     cerr << e.what() << endl;
