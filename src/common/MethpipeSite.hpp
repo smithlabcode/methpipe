@@ -20,19 +20,21 @@
 #ifndef METHPIPE_SITE_HPP
 #define METHPIPE_SITE_HPP
 
-#include <cmath>
 #include <string>
+#include <cmath>
 
 struct MSite {
-  MSite () {}
-  MSite (const std::string &chr,
-         const size_t p,
-         const char s,
-         const std::string &ctxt,
-         const double m,
-         const size_t r) :
-    chrom(chr), pos(p), strand(s), context(ctxt), meth(m), n_reads(r) {}
-  explicit MSite (const std::string &line);
+
+  MSite() {}
+  MSite(const std::string &_chrom,
+        const size_t _pos,
+        const char _strand,
+        const std::string &_context,
+        const double _meth,
+        const size_t _n_reads) :
+    chrom(_chrom), pos(_pos), strand(_strand),
+    context(_context), meth(_meth), n_reads(_n_reads) {}
+  explicit MSite(const std::string &line);
 
   std::string chrom;
   size_t pos;
@@ -90,21 +92,20 @@ struct MSite {
   }
 
   std::string tostring() const;
-
 };
 
-template <class T> T&
+template <class T> T &
 operator>>(T &in, MSite &s) {
   std::string line;
-  if (getline(in, line)) {
+  if (getline(in, line))
     s = MSite(line);
-  }
   return in;
 }
 
-template <class T> T&
+template <class T> T &
 operator<<(T &out, const MSite &s) {
-  return out << s.tostring();
+  out << s.tostring(); // seems to be an issue returning this directly
+  return out;
 }
 
 size_t

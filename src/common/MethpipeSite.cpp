@@ -22,6 +22,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 #include "smithlab_utils.hpp"
 
@@ -32,13 +33,13 @@ MSite::MSite(const string &line) {
   std::istringstream iss;
   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
   string strand_tmp;
-  if (!(iss >> chrom >> pos >> strand_tmp
-        >> context >> meth >> n_reads))
-    throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
+  if (!(iss >> chrom >> pos >> strand_tmp >> context >> meth >> n_reads))
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
   strand = strand_tmp[0];
   if (strand != '-' && strand != '+')
-    throw runtime_error("bad methcounts file [line: \"" + line + "\"]");
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
 }
+
 
 string
 MSite::tostring() const {
@@ -51,6 +52,7 @@ MSite::tostring() const {
       << n_reads;
   return oss.str();
 }
+
 
 size_t
 distance(const MSite &a, const MSite &b) {

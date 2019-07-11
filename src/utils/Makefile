@@ -79,8 +79,7 @@ fast-liftover: $(addprefix $(SMITHLAB_CPP)/, \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o MethpipeSite.o)
 
 fast-lift-filter: $(addprefix $(SMITHLAB_CPP)/, \
-	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)
 
 to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
