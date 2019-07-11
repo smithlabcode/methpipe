@@ -35,7 +35,7 @@
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 #include "MethpipeSite.hpp"
-#include "GZ.hpp"
+#include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
 using std::string;
@@ -261,8 +261,7 @@ process_reads(const bool VERBOSE, igzfstream &in, T &out,
               const vector<size_t> &chrom_sizes,
               const vector<string> &chrom_order,
               const vector<string> &chroms,
-              const bool CPG_ONLY
-              ) {
+              const bool CPG_ONLY) {
 
   size_t chrom_id = 0;
   size_t chrom_size = 0;
@@ -427,12 +426,12 @@ main(int argc, const char **argv) {
       std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
       process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
-         chroms, CPG_ONLY);
+                    chroms, CPG_ONLY);
     }
     else {
       ogzfstream out(outfile);
       process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
-         chroms, CPG_ONLY);
+                    chroms, CPG_ONLY);
     }
   }
   catch (const runtime_error &e) {
