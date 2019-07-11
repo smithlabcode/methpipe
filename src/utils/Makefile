@@ -101,7 +101,8 @@ to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
 
-selectsites: $(addprefix $(SMITHLAB_CPP)/, GZ.o)
+symmetric-cpgs merge-methcounts selectsites: \
+	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
