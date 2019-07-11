@@ -29,7 +29,7 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MethpipeSite.hpp"
-#include "GZ.hpp"
+#include "zlib_wrapper.hpp"
 
 using std::string;
 using std::vector;
