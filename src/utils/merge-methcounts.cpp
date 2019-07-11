@@ -68,7 +68,8 @@ is_valid(const MSite &s) {
 }
 
 static bool
-any_sites_unprocessed(const vector<igzfstream*> &infiles,
+any_sites_unprocessed(const vector<string> &filenames,
+                      const vector<igzfstream*> &infiles,
                       vector<bool> &outdated, vector<MSite> &sites) {
 
   const size_t n_files = sites.size();
@@ -277,7 +278,7 @@ main(int argc, const char **argv) {
     vector<bool> outdated(n_files, true);
     vector<bool> sites_to_print; // declared here to keep allocation
 
-    while (any_sites_unprocessed(infiles, outdated, sites)) {
+    while (any_sites_unprocessed(meth_files, infiles, outdated, sites)) {
 
       sites_to_print.clear();
       sites_to_print.resize(n_files, false);
