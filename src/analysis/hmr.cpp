@@ -51,7 +51,7 @@ as_gen_rgn(const MSite &s) {
   return GenomicRegion(s.chrom, s.pos, s.pos + 1);
 }
 
-ostatic string
+static string
 format_cpg_meth_tag(const pair<double, double> &m) {
   return "CpG:" + toa(static_cast<size_t>(m.first)) +
     ":" + toa(static_cast<size_t>(m.second));
@@ -503,7 +503,7 @@ main(int argc, const char **argv) {
       fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
 
     if (!params_out_file.empty()) {
-      std::ofstream out(params_out_file.c_str(), std::ios::app);
+      std::ofstream out(params_out_file, std::ios::app);
       out << "FDR_CUTOFF\t"
           << std::setprecision(30) << fdr_cutoff << endl;
       out.close();
@@ -548,7 +548,7 @@ main(int argc, const char **argv) {
       }
 
       if (!meth_post_outfile.empty()) {
-        std::ofstream out((meth_post_outfile);
+        std::ofstream out(meth_post_outfile);
         if (VERBOSE)
           cerr << "[WRITING " << meth_post_outfile
                << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
