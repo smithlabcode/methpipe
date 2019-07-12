@@ -206,7 +206,7 @@ main(int argc, const char **argv) {
     string outfile;
     bool VERBOSE;
     bool TABULAR = false;
-    bool FRAC = false;
+    bool write_fractional = false;
 
     string header_info;
 
@@ -221,7 +221,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
     opt_parse.add_opt("fractional", 'f', "output fractions (requires tabular)",
-                      false, FRAC);
+                      false, write_fractional);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -237,7 +237,7 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (FRAC && !TABULAR) {
+    if (write_fractional && !TABULAR) {
       cerr << "fractional output only available for tabular format" << endl;
       return EXIT_SUCCESS;
     }
@@ -288,7 +288,8 @@ main(int argc, const char **argv) {
 
       // output the appropriate sites' data
       if (TABULAR)
-        write_line_for_tabular(FRAC, out, sites_to_print, sites, sites[idx]);
+        write_line_for_tabular(write_fractional, out,
+                               sites_to_print, sites, sites[idx]);
       else
         write_line_for_merged_counts(out, sites_to_print, sites, sites[idx]);
 
