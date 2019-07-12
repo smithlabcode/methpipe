@@ -87,10 +87,10 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 
 selectsites lift-filter: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-duplicate-remover: \
-    $(addprefix $(SMITHLAB_CPP)/, RNG.o)
-
 merge-methcounts symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+
+merge-methcounts symmetric-cpgs selectsites duplicate-remover: \
+	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
 to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o smithlab_os.o smithlab_utils.o \
@@ -99,9 +99,6 @@ to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 
 to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
-
-symmetric-cpgs merge-methcounts selectsites: \
-	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
