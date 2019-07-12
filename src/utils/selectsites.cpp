@@ -72,9 +72,9 @@ contains(const GenomicRegion &r, const MSite &s) {
 template <class T>
 static void
 process_all_sites(const bool VERBOSE,
-                 const string &sites_file,
-                 const vector<GenomicRegion> &regions,
-                 T &out) {
+                  const string &sites_file,
+                  const vector<GenomicRegion> &regions,
+                  T &out) {
 
   igzfstream in(sites_file);
   if (!in)
