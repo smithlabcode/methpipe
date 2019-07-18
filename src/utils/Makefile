@@ -28,7 +28,7 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = lc_approx fast-liftover lift-filter \
-	to-mr2 merge-bsrate merge-methcounts \
+	to-mr merge-bsrate merge-methcounts \
 	duplicate-remover symmetric-cpgs \
 	clean-hairpins selectsites
 
