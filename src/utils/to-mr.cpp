@@ -2,7 +2,7 @@
  *    format.
  *    Currently supported mappers: bs_seeker, bismark.
  *
- *    Copyright (C) 2009-2012 University of Southern California and
+ *    Copyright (C) 2009-2019 University of Southern California and
  *                            Andrew D. Smith
  *
  *    Authors: Meng Zhou, Qiang Song, Andrew Smith
@@ -33,7 +33,7 @@
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
-#include "SAM.hpp"
+#include "htslib_wrapper.hpp"
 
 using std::string;
 using std::vector;
@@ -44,6 +44,8 @@ using std::ifstream;
 using std::max;
 using std::min;
 using std::runtime_error;
+using std::unordered_map;
+using std::swap;
 
 
 /********Below are functions for merging pair-end reads********/
@@ -145,12 +147,18 @@ revcomp(MappedRead &mr) {
 }
 /********Above are functions for merging pair-end reads********/
 
+static string
+get_read_name(const SAMRecord &aln, const size_t suffix_len) {
+  return aln.mr.r.get_name().substr(0, aln.mr.r.get_name().size() - suffix_len);
+}
+
 int
 main(int argc, const char **argv) {
   try {
     string outfile;
     string mapper;
-    size_t MAX_SEGMENT_LENGTH = 1000;
+    size_t max_frag_len = 1000;
+    size_t max_dangling = 500;
     size_t suffix_len = 1;
     bool VERBOSE = false;
 
@@ -167,7 +175,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
                       false, suffix_len);
     opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size",
-                      false, MAX_SEGMENT_LENGTH);
+                      false, max_frag_len);
     opt_parse.add_opt("verbose", 'v', "print more information",
                       false, VERBOSE);
 
@@ -197,78 +205,59 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
     if (VERBOSE)
-    {
-      cerr << "Input file: " << mapped_reads_file << endl
-           << "Output file: " << (outfile.empty() ? "stdout" : outfile) << endl;
-    }
+      cerr << "[input file: " << mapped_reads_file << "]" << endl
+           << "[output file: "
+           << (outfile.empty() ? "stdout" : outfile) << "]" << endl;
 
     SAMReader sam_reader(mapped_reads_file, mapper);
-    std::unordered_map<string, SAMRecord> dangling_mates;
+    unordered_map<string, SAMRecord> dangling_mates;
 
     size_t count = 0;
-    const size_t progress_step = 1000000;
-    SAMRecord samr;
+    SAMRecord aln;
 
-    while (sam_reader >> samr)
-    {
-      if (samr.is_mapping_paired)
-      {
-        const string read_name
-          = samr.mr.r.get_name().substr(
-            0, samr.mr.r.get_name().size() - suffix_len);
-        if (dangling_mates.find(read_name) != dangling_mates.end())
-        {
-          assert(same_read(suffix_len, samr.mr, dangling_mates[read_name].mr));
-          if (samr.is_Trich) std::swap(samr, dangling_mates[read_name]);
-          revcomp(samr.mr);
+    while (sam_reader >> aln) {
+      if (aln.is_mapping_paired) {
+        const string read_name(get_read_name(aln, suffix_len));
+        if (dangling_mates.find(read_name) != end(dangling_mates)) {
+          assert(same_read(suffix_len, aln.mr, dangling_mates[read_name].mr));
+          if (aln.is_Trich)
+            swap(aln, dangling_mates[read_name]);
+          revcomp(aln.mr);
 
           MappedRead merged;
           int len = 0;
-          merge_mates(suffix_len, MAX_SEGMENT_LENGTH,
-                      dangling_mates[read_name].mr, samr.mr, merged, len);
-          if (len <= static_cast<int>(MAX_SEGMENT_LENGTH))
+          merge_mates(suffix_len, max_frag_len,
+                      dangling_mates[read_name].mr, aln.mr, merged, len);
+          if (len <= static_cast<int>(max_frag_len))
             out << merged << endl;
           else if (len > 0)
-            out << dangling_mates[read_name].mr << endl << samr.mr << endl;
+            out << dangling_mates[read_name].mr << endl << aln.mr << endl;
           dangling_mates.erase(read_name);
         }
-        else
-        {
-          dangling_mates[read_name] = samr;
-        }
+        else dangling_mates[read_name] = aln;
 
         // flush dangling_mates
-        if (dangling_mates.size() > 500)
-        {
-          using std::unordered_map;
+        if (dangling_mates.size() > max_dangling) {
           unordered_map<string, SAMRecord> tmp;
-          for (unordered_map<string, SAMRecord>::iterator
-                 itr = dangling_mates.begin();
-               itr != dangling_mates.end(); ++itr)
-            if (itr->second.mr.r.get_chrom() < samr.mr.r.get_chrom()
-                || (itr->second.mr.r.get_chrom() == samr.mr.r.get_chrom()
-                    && itr->second.mr.r.get_end() + MAX_SEGMENT_LENGTH <
-                    samr.mr.r.get_start()))
-            {
-              if (!itr->second.is_Trich) revcomp(itr->second.mr);
-              out << itr->second.mr << endl;
+          for (auto &&mates : dangling_mates)
+            if (mates.second.mr.r.get_chrom() < aln.mr.r.get_chrom() ||
+                (mates.second.mr.r.get_chrom() == aln.mr.r.get_chrom() &&
+                 mates.second.mr.r.get_end() + max_frag_len < aln.mr.r.get_start())) {
+              if (!mates.second.is_Trich)
+                revcomp(mates.second.mr);
+              out << mates.second.mr << endl;
             }
-            else
-              tmp[itr->first] = itr->second;
-          std::swap(tmp, dangling_mates);
-          tmp.clear();
+            else tmp[mates.first] = mates.second;
+          swap(tmp, dangling_mates);
         }
       }
-      else
-      {
-        if (!samr.is_Trich) revcomp(samr.mr);
-        out << samr.mr << endl;
+      else {
+        if (!aln.is_Trich)
+          revcomp(aln.mr);
+        out << aln.mr << endl;
       }
       ++count;
-      if (VERBOSE && count % progress_step == 0)
-        cerr << "Processed " << count << " records" << endl;
     }
-
     // flushing dangling_mates
     while (!dangling_mates.empty()) {
       if (!dangling_mates.begin()->second.is_Trich)
@@ -276,9 +265,6 @@ main(int argc, const char **argv) {
       out << dangling_mates.begin()->second.mr << endl;
       dangling_mates.erase(dangling_mates.begin());
     }
-
-    if (VERBOSE)
-      cerr << "Done." << endl;
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;
