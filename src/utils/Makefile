@@ -100,12 +100,6 @@ to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
 
-<<<<<<< HEAD
-selectsites symmetric-cpgs: \
-	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
-
-=======
->>>>>>> 96478c20566667982b181311bd765ad60d922e2b
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 

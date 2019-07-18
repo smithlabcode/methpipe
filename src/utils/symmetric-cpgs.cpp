@@ -50,37 +50,6 @@ found_symmetric(const MSite &prev_cpg, const MSite &curr_cpg) {
 
 template <class T>
 static void
-process_cpgs(const bool VERBOSE,
-             const bool include_mutated,
-             const string &infile,
-             T &out) {
-
-  igzfstream in(infile);
-  if (!in)
-    throw std::runtime_error("could not open file: " + infile);
-
-  MSite prev_site, curr_site;
-  bool prev_is_good_cpg = false;
-  if (in >> prev_site)
-    if (prev_site.is_cpg() && (include_mutated || !prev_site.is_mutated()))
-      prev_is_good_cpg = true;
-
-  while (in >> curr_site) {
-    if (curr_site.is_cpg() && (include_mutated || !curr_site.is_mutated())) {
-      if (prev_is_good_cpg && found_symmetric(prev_site, curr_site)) {
-        prev_site.add(curr_site);
-        out << prev_site << '\n';
-      }
-      prev_is_good_cpg = true;
-    }
-    else prev_is_good_cpg = false;
-    std::swap(prev_site, curr_site);
-  }
-}
-
-
-template <class T>
-static void
 process_sites(const bool include_mutated, igzfstream &in, T &out) {
 
   MSite prev_site, curr_site;
@@ -144,19 +113,6 @@ main(int argc, const char **argv) {
     const string filename(leftover_args.front());
     /****************** END COMMAND LINE OPTIONS *****************/
 
-<<<<<<< HEAD
-    if (outfile.empty() || !has_gz_ext(outfile)) {
-      // open a regular output file or use standard out
-      std::ofstream of;
-      if (!outfile.empty()) of.open(outfile);
-      std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-      process_cpgs(VERBOSE, include_mutated, filename, out);
-    }
-    else {
-      // open a gzip file
-      ogzfstream out(outfile);
-      process_cpgs(VERBOSE, include_mutated, filename, out);
-=======
     igzfstream in(filename);
     if (!in)
       throw std::runtime_error("could not open file: " + filename);
@@ -170,7 +126,6 @@ main(int argc, const char **argv) {
     else {
       ogzfstream out(outfile);
       process_sites(include_mutated, in, out);
->>>>>>> 96478c20566667982b181311bd765ad60d922e2b
     }
   }
   catch (const std::runtime_error &e)  {

@@ -540,14 +540,8 @@ main(int argc, const char **argv) {
                << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
         std::ofstream out(hypo_post_outfile);
         for (size_t i = 0; i < cpgs.size(); ++i) {
-<<<<<<< HEAD
-          GenomicRegion cpg(cpgs[i]);
-          cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
-                       ":" + toa(static_cast<size_t>(meth[i].second)));
-=======
           GenomicRegion cpg(as_gen_rgn(cpgs[i]));
           cpg.set_name(format_cpg_meth_tag(meth[i]));
->>>>>>> 96478c20566667982b181311bd765ad60d922e2b
           cpg.set_score(scores[i]);
           out << cpg << '\n';
         }
@@ -559,14 +553,8 @@ main(int argc, const char **argv) {
           cerr << "[WRITING " << meth_post_outfile
                << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
         for (size_t i = 0; i < cpgs.size(); ++i) {
-<<<<<<< HEAD
-          GenomicRegion cpg(cpgs[i]);
-          cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
-                       ":" + toa(static_cast<size_t>(meth[i].second)));
-=======
           GenomicRegion cpg(as_gen_rgn(cpgs[i]));
           cpg.set_name(format_cpg_meth_tag(meth[i]));
->>>>>>> 96478c20566667982b181311bd765ad60d922e2b
           cpg.set_score(1.0 - scores[i]);
           out << cpg << '\n';
         }
