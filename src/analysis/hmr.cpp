@@ -30,8 +30,10 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
+#include "zlib_wrapper.hpp"
+
 #include "TwoStateHMM.hpp"
-#include "MethpipeFiles.hpp"
+#include "MethpipeSite.hpp"
 
 using std::string;
 using std::vector;
@@ -43,6 +45,17 @@ using std::max;
 using std::min;
 using std::pair;
 using std::runtime_error;
+
+static GenomicRegion
+as_gen_rgn(const MSite &s) {
+  return GenomicRegion(s.chrom, s.pos, s.pos + 1);
+}
+
+static string
+format_cpg_meth_tag(const pair<double, double> &m) {
+  return "CpG:" + toa(static_cast<size_t>(m.first)) +
+    ":" + toa(static_cast<size_t>(m.second));
+}
 
 double
 get_fdr_cutoff(const vector<double> &scores, const double fdr) {
@@ -92,7 +105,7 @@ get_domain_scores(const vector<bool> &classes,
 
 static void
 build_domains(const bool VERBOSE,
-              const vector<SimpleGenomicRegion> &cpgs,
+              const vector<MSite> &cpgs,
               const vector<double> &post_scores,
               const vector<size_t> &reset_points,
               const vector<bool> &classes,
@@ -115,7 +128,7 @@ build_domains(const bool VERBOSE,
     if (classes[i] == CLASS_ID) {
       if (!in_domain) {
         in_domain = true;
-        domains.push_back(GenomicRegion(cpgs[i]));
+        domains.push_back(as_gen_rgn(cpgs[i]));
         domains.back().set_name("HYPO" + toa(n_domains++));
       }
       ++n_cpgs;
@@ -128,7 +141,7 @@ build_domains(const bool VERBOSE,
       n_cpgs = 0;
       score = 0;
     }
-    prev_end = cpgs[i].get_end();
+    prev_end = cpgs[i].pos + 1;
   }
   if(in_domain){
     domains.back().set_end(prev_end);
@@ -137,9 +150,11 @@ build_domains(const bool VERBOSE,
 }
 
 
-template <class T, class U> static void
-separate_regions(const bool VERBOSE, const size_t desert_size,
-                 vector<SimpleGenomicRegion> &cpgs,
+template <class T, class U>
+static void
+separate_regions(const bool VERBOSE,
+                 const size_t desert_size,
+                 vector<MSite> &cpgs,
                  vector<T> &meth, vector<U> &reads,
                  vector<size_t> &reset_points) {
   if (VERBOSE)
@@ -153,27 +168,29 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
       reads[j] = reads[i];
       ++j;
     }
-  cpgs.erase(cpgs.begin() + j, cpgs.end());
-  meth.erase(meth.begin() + j, meth.end());
-  reads.erase(reads.begin() + j, reads.end());
+  cpgs.erase(begin(cpgs) + j, end(cpgs));
+  meth.erase(begin(meth) + j, end(meth));
+  reads.erase(begin(reads) + j, end(reads));
+
   double total_bases = 0;
   double bases_in_deserts = 0;
   // segregate cpgs
-  size_t prev_cpg = 0;
+  size_t prev_pos = 0;
   for (size_t i = 0; i < cpgs.size(); ++i) {
-    const size_t dist = (i > 0 && cpgs[i].same_chrom(cpgs[i - 1])) ?
-      cpgs[i].get_start() - prev_cpg : numeric_limits<size_t>::max();
+    const size_t dist = (i > 0 && cpgs[i].chrom == cpgs[i - 1].chrom) ?
+      cpgs[i].pos - prev_pos : numeric_limits<size_t>::max();
     if (dist > desert_size) {
       reset_points.push_back(i);
-      if(dist < numeric_limits<size_t>::max())
+      if (dist < numeric_limits<size_t>::max())
         bases_in_deserts += dist;
     }
-    if(dist<numeric_limits<size_t>::max())
+    if (dist<numeric_limits<size_t>::max())
       total_bases += dist;
 
-    prev_cpg = cpgs[i].get_start();
+    prev_pos = cpgs[i].pos;
   }
   reset_points.push_back(cpgs.size());
+
   if (VERBOSE)
     cerr << "CPGS RETAINED: " << cpgs.size() << endl
          << "DESERTS REMOVED: " << reset_points.size() - 2 << endl
@@ -189,13 +206,12 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
  */
 static void
 make_partial_meth(const vector<size_t> &reads,
-                  vector<pair<double, double> > &meths)
-{
+                  vector<pair<double, double> > &meth) {
   for (size_t i = 0; i < reads.size(); ++i) {
-    double m = meths[i].first / reads[i];
+    double m = meth[i].first / reads[i];
     m = m <= 0.5 ? (1.0 - 2*m) : (1.0 - 2*(1-m));
-    meths[i].first = static_cast<size_t>(reads[i] * m);
-    meths[i].second = static_cast<size_t>(reads[i] - meths[i].first);
+    meth[i].first = static_cast<size_t>(reads[i] * m);
+    meth[i].second = static_cast<size_t>(reads[i] - meth[i].first);
   }
 }
 
@@ -210,7 +226,6 @@ shuffle_cpgs(const size_t seed,
              const double fg_alpha, const double fg_beta,
              const double bg_alpha, const double bg_beta,
              vector<double> &domain_scores) {
-  //srand(time(0) + getpid());
   srand(seed);
   random_shuffle(meth.begin(), meth.end());
   vector<bool> classes;
@@ -307,6 +322,25 @@ write_params_file(const string &outfile,
     ;
 }
 
+static void
+load_cpgs(const string &cpgs_file,
+          vector<MSite> &cpgs,
+          vector<pair<double, double> > &meth,
+          vector<size_t> &reads) {
+
+  igzfstream in(cpgs_file);
+  if (!in)
+    throw runtime_error("failed opening file: " + cpgs_file);
+
+  MSite the_site;
+  while (in >> the_site) {
+    cpgs.push_back(the_site);
+    reads.push_back(the_site.n_reads);
+    const double m = reads.back()*the_site.meth;
+    meth.push_back(std::make_pair(m, reads.back() - m));
+  }
+}
+
 
 int
 main(int argc, const char **argv) {
@@ -386,20 +420,20 @@ main(int argc, const char **argv) {
     /****************** END COMMAND LINE OPTIONS *****************/
 
     // separate the regions by chrom and by desert
-    vector<SimpleGenomicRegion> cpgs;
-    // vector<double> meth;
+    vector<MSite> cpgs;
     vector<pair<double, double> > meth;
     vector<size_t> reads;
     if (VERBOSE)
       cerr << "[READING CPGS AND METH PROPS]" << endl;
+    load_cpgs(cpgs_file, cpgs, meth, reads);
 
-    methpipe::load_cpgs(cpgs_file, cpgs, meth, reads);
+    if (PARTIAL_METH)
+      make_partial_meth(reads, meth);
 
-    if (PARTIAL_METH) make_partial_meth(reads, meth);
     if (VERBOSE)
       cerr << "TOTAL CPGS: " << cpgs.size() << endl
            << "MEAN COVERAGE: "
-           << accumulate(reads.begin(), reads.end(), 0.0)/reads.size()
+           << accumulate(begin(reads), end(reads), 0.0)/reads.size()
            << endl << endl;
 
     // separate the regions by chrom and by desert, and eliminate
@@ -429,7 +463,7 @@ main(int argc, const char **argv) {
     }
     else {
       const double n_reads =
-        accumulate(reads.begin(), reads.end(), 0.0)/reads.size();
+        accumulate(begin(reads), end(reads), 0.0)/reads.size();
       fg_alpha = 0.33*n_reads;
       fg_beta = 0.67*n_reads;
       bg_alpha = 0.67*n_reads;
@@ -469,7 +503,7 @@ main(int argc, const char **argv) {
       fdr_cutoff = get_fdr_cutoff(p_values, 0.01);
 
     if (!params_out_file.empty()) {
-      std::ofstream out(params_out_file.c_str(), std::ios::app);
+      std::ofstream out(params_out_file, std::ios::app);
       out << "FDR_CUTOFF\t"
           << std::setprecision(30) << fdr_cutoff << endl;
       out.close();
@@ -504,29 +538,35 @@ main(int argc, const char **argv) {
         if (VERBOSE)
           cerr << "[WRITING " << hypo_post_outfile
                << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
-        std::ofstream of;
-        of.open(hypo_post_outfile.c_str());
-        std::ostream out(of.rdbuf());
+        std::ofstream out(hypo_post_outfile);
         for (size_t i = 0; i < cpgs.size(); ++i) {
+<<<<<<< HEAD
           GenomicRegion cpg(cpgs[i]);
           cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
                        ":" + toa(static_cast<size_t>(meth[i].second)));
+=======
+          GenomicRegion cpg(as_gen_rgn(cpgs[i]));
+          cpg.set_name(format_cpg_meth_tag(meth[i]));
+>>>>>>> 96478c20566667982b181311bd765ad60d922e2b
           cpg.set_score(scores[i]);
           out << cpg << '\n';
         }
       }
 
       if (!meth_post_outfile.empty()) {
-        std::ofstream of;
-        of.open(meth_post_outfile.c_str());
-        std::ostream out(of.rdbuf());
+        std::ofstream out(meth_post_outfile);
         if (VERBOSE)
           cerr << "[WRITING " << meth_post_outfile
                << " (4th field: CpG:<M_reads>:<U_reads>)]" << endl;
         for (size_t i = 0; i < cpgs.size(); ++i) {
+<<<<<<< HEAD
           GenomicRegion cpg(cpgs[i]);
           cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
                        ":" + toa(static_cast<size_t>(meth[i].second)));
+=======
+          GenomicRegion cpg(as_gen_rgn(cpgs[i]));
+          cpg.set_name(format_cpg_meth_tag(meth[i]));
+>>>>>>> 96478c20566667982b181311bd765ad60d922e2b
           cpg.set_score(1.0 - scores[i]);
           out << cpg << '\n';
         }

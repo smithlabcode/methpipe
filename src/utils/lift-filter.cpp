@@ -20,7 +20,6 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <iostream>
 #include <stdexcept>
 #include <algorithm>
 
@@ -31,7 +30,6 @@
 
 using std::string;
 using std::vector;
-using std::cout;
 using std::cerr;
 using std::endl;
 using std::runtime_error;
@@ -82,8 +80,9 @@ main(int argc, const char **argv) {
       throw runtime_error("cannot open input file: " + mfile);
 
     std::ofstream out(pfile);
-    if (!out)
-      throw runtime_error("cannot open output file: " + pfile);
+    //if (!of)
+    //  throw runtime_error("cannot open output file: " + pfile);
+    //std::ostream out(of.rdbuf());
 
     // read first site
     MSite curr_site;
@@ -99,13 +98,13 @@ main(int argc, const char **argv) {
       }
       else {
         if (!UNIQUE || site_is_unique)
-          out << curr_site.tostring() << endl;
+          out << curr_site << endl;
         site_is_unique = true;
         curr_site = next_site;
       }
     }
     if (!UNIQUE || site_is_unique)
-      out << curr_site.tostring() << endl;
+      out << curr_site << endl;
 
   }
   catch (const runtime_error &e) {

@@ -42,7 +42,7 @@
 #include "MethpipeFiles.hpp"
 #include "MethpipeSite.hpp"
 #include "LevelsCounter.hpp"
-#include "GZ.hpp"
+#include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
 using std::string;
@@ -113,7 +113,6 @@ main(int argc, const char **argv) {
         if (VERBOSE)
           cerr << "PROCESSING:\t" << site.chrom << "\n";
       }
-      if (VERBOSE) cerr << site << "\n";
 
       if (site.is_cpg()) {
         cpg.update(site);

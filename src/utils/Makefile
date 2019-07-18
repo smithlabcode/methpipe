@@ -79,8 +79,7 @@ fast-liftover: $(addprefix $(SMITHLAB_CPP)/, \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o MethpipeSite.o)
 
 fast-lift-filter: $(addprefix $(SMITHLAB_CPP)/, \
-	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)
 
 to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
@@ -88,10 +87,10 @@ to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
 
 selectsites lift-filter: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-duplicate-remover: \
-    $(addprefix $(SMITHLAB_CPP)/, RNG.o)
-
 merge-methcounts symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+
+merge-methcounts symmetric-cpgs selectsites duplicate-remover: \
+	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
 to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 	MappedRead.o smithlab_os.o smithlab_utils.o \
@@ -101,9 +100,12 @@ to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
 to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
 
+<<<<<<< HEAD
 selectsites symmetric-cpgs: \
 	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
+=======
+>>>>>>> 96478c20566667982b181311bd765ad60d922e2b
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 

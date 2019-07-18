@@ -26,7 +26,7 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
-#include "GZ.hpp"
+#include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
 #include <string>
