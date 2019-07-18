@@ -28,7 +28,7 @@ PROGS = pmd methcounts bsrate hmr hypermr \
 	methstates methentropy hmr_rep
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
+CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -41,8 +41,7 @@ CXXFLAGS += $(OPTFLAGS)
 endif
 
 COMMON_DIR = ../common
-COMMON_PMD_DIR = ../common-pmd
-INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR) $(COMMON_PMD_DIR)
+INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
@@ -54,32 +53,25 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
+
+levels hmr_rep hmr methcounts: \
+	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+
+pmd hypermr roimethstat: \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
-
-bsrate methcounts methstates: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o)
-
-bsrate methcounts: $(addprefix $(SMITHLAB_CPP)/, QualityScore.o)
 
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
-pmd: $(addprefix $(COMMON_DIR)/, bsutils.o) \
-	$(addprefix $(COMMON_PMD_DIR)/, \
+pmd: $(addprefix $(COMMON_DIR)/, bsutils.o \
 	TwoStateHMM_PMD.o EmissionDistribution.o)
 
 hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
 
-levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o MethpipeSite.o)
-
-hmr_rep hmr methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o)
 
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
-
-hmr hmr_rep levels methcounts bsrate: \
-	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
