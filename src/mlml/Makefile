@@ -2,17 +2,17 @@
 #                     and Andrew D. Smith and Benjamin E. Decato
 #
 #  Authors: Andrew D. Smith and Benjamin E. Decato
-# 
+#
 #  This is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-# 
+#
 #  This software is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-# 
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this software; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
@@ -26,9 +26,9 @@ endif
 PROGS = mlml
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
+CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
-DEBUGFLAGS = -g 
+DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -40,11 +40,9 @@ endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
-
-
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas
 
 all: $(PROGS)
 
@@ -52,8 +50,7 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 %.o: %.cpp %.hpp

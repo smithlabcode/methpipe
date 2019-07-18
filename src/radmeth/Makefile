@@ -19,9 +19,10 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = radmeth methdiff dmr
+OBJS= regression.o combine_pvals.o merge.o
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
+CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
 
@@ -35,7 +36,6 @@ endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
-
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas
@@ -46,11 +46,8 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
-
-OBJS= regression.o combine_pvals.o merge.o
 
 radmeth: radmeth.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
