@@ -510,7 +510,7 @@ main(int argc, const char **argv) {
         for (size_t i = 0; i < cpgs.size(); ++i) {
           GenomicRegion cpg(cpgs[i]);
           cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
-                     ":" + toa(static_cast<size_t>(meth[i].second)));
+                       ":" + toa(static_cast<size_t>(meth[i].second)));
           cpg.set_score(scores[i]);
           out << cpg << '\n';
         }
@@ -526,7 +526,7 @@ main(int argc, const char **argv) {
         for (size_t i = 0; i < cpgs.size(); ++i) {
           GenomicRegion cpg(cpgs[i]);
           cpg.set_name("CpG:" + toa(static_cast<size_t>(meth[i].first)) +
-                     ":" + toa(static_cast<size_t>(meth[i].second)));
+                       ":" + toa(static_cast<size_t>(meth[i].second)));
           cpg.set_score(1.0 - scores[i]);
           out << cpg << '\n';
         }
