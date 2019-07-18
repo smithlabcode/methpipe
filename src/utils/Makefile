@@ -28,25 +28,19 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = lc_approx fast-liftover lift-filter \
-	to-mr merge-bsrate merge-methcounts \
+	to-mr2 merge-bsrate merge-methcounts \
 	duplicate-remover symmetric-cpgs \
 	clean-hairpins selectsites
 
-# if SAMTOOLS location not set, try to set it
-ifndef SAMTOOLS_DIR
-SAMTOOLS_DIR = $(SRC_ROOT)/src/samtools
-endif
-
 COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR) $(SAMTOOLS_DIR)
-
+INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas -lz
+LIBS = -lgsl -lgslcblas -lz -lhts
 
 CC = gcc
 CXX = g++
-CFLAGS = -Wall -std=gnu89
+CFLAGS = -Wall
 CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O2
 DEBUGFLAGS = -g
@@ -65,40 +59,10 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o smithlab_os.o smithlab_utils.o \
-	GenomicRegion.o OptionParser.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-fastLiftOver: $(addprefix $(SMITHLAB_CPP)/, \
-	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
-
-fast-liftover: $(addprefix $(SMITHLAB_CPP)/, \
-	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o MethpipeSite.o)
-
-fast-lift-filter: $(addprefix $(SMITHLAB_CPP)/, \
-	OptionParser.o smithlab_os.o smithlab_utils.o GenomicRegion.o)
-
-to-mr: $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM.o) \
-	$(addprefix $(SAMTOOLS_DIR)/, sam.o bam.o bam_import.o bam_pileup.o \
-	faidx.o bam_aux.o kstring.o knetfile.o sam_header.o razf.o bgzf.o)
-
-selectsites lift-filter: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
-
-merge-methcounts symmetric-cpgs: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
-
-merge-methcounts symmetric-cpgs selectsites duplicate-remover: \
-	$(addprefix $(SMITHLAB_CPP)/, zlib_wrapper.o)
-
-to-mr2: $(addprefix $(SMITHLAB_CPP)/, \
-	MappedRead.o smithlab_os.o smithlab_utils.o \
-	GenomicRegion.o OptionParser.o) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
-
-to-mr2: to-mr2.cpp $(addprefix $(SMITHLAB_CPP)/, MappedRead.o SAM2.o)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS) -lhts
+merge-methcounts symmetric-cpgs selectsites lift-filter fast-liftover: \
+	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
