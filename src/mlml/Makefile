@@ -50,8 +50,9 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
+
+mlml: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
