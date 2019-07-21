@@ -43,6 +43,14 @@ struct MSite {
   double meth;
   size_t n_reads;
 
+  bool operator<(const MSite &other) const {
+    int r = chrom.compare(other.chrom);
+    return (r < 0 ||
+            (r == 0 &&
+             (pos < other.pos ||
+              (pos == other.pos && strand < other.strand))));
+  }
+
   size_t n_meth() const {return std::round(meth*n_reads);}
   size_t n_unmeth() const {return n_reads - n_meth();}
 
@@ -90,6 +98,15 @@ struct MSite {
   }
   bool is_mutated() const {
     return context.length() == 4 && context[3] == 'x';
+  }
+
+  void set_mutated() {
+    if (!is_mutated())
+      context += 'x';
+  }
+  void set_unmutated() {
+    if (is_mutated())
+      context.resize(context.length() - 1);
   }
 
   std::string tostring() const;
