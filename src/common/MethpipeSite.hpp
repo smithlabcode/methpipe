@@ -44,6 +44,7 @@ struct MSite {
   size_t n_reads;
 
   size_t n_meth() const {return std::round(meth*n_reads);}
+  size_t n_unmeth() const {return n_reads - n_meth();}
 
   //////////////////////////////////////////////////////////////
   /// FUNCTIONS BELOW ARE FOR MANIPULATING SYMMETRIC CPG SITES
