@@ -351,12 +351,15 @@ process_three_types(const double alpha,
   MSite r, s, o;
   while (h_in >> r && b_in >> s && o_in >> o) {
 
+    if (r.n_reads > 500) r.n_reads = 500;
     const size_t h = r.n_meth();
     const size_t g = r.n_unmeth();
 
+    if (s.n_reads > 500) s.n_reads = 500;
     const size_t t = s.n_meth();
     const size_t u = s.n_unmeth();
 
+    if (o.n_reads > 500) o.n_reads = 500;
     const size_t m = o.n_meth();
     const size_t l = o.n_unmeth();
 
@@ -497,10 +500,12 @@ process_two_types(const double alpha,
 
     assert(f.chrom == s.chrom && f.pos == s.pos);
 
+    if (f.n_reads > 500) f.n_reads = 500;
     size_t x = f.n_meth();
     size_t y = f.n_unmeth();
     if (f_rev) std::swap(x, y);
 
+    if (s.n_reads > 500) s.n_reads = 500;
     size_t z = s.n_meth();
     size_t w = s.n_unmeth();
     if (s_rev) std::swap(z, w);
@@ -618,7 +623,8 @@ main(int argc, const char **argv) {
     static double tolerance = 1e-10;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "", "");
+    OptionParser opt_parse(strip_path(argv[0]), "program to estimate "
+                      "methylation levels", "at least two input files");
     opt_parse.add_opt("output", 'o', "output file (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("bsseq", 'u', "input BS-seq methcounts file",
