@@ -80,14 +80,11 @@ merge_mates(const size_t suffix_len, const size_t range,
   len = pos_str ? (two_right - one_left) : (one_right - two_left);
 
   // assert(len > 0);
-  // if the above assertion fails, it usually means the mair is discordant (end1
-  // downstream of end2). Also it means the SAM flag of this pair of reads is
-  // not properly set. To avoid termination, currently this assertion is ignored
-  // but no output will be generated for discordant pairs.
-
-  // assert(one_left <= one_right && two_left <= two_right);
-  // assert(overlap_start >= overlap_end || static_cast<size_t>(len) ==
-  //    ((one_right - one_left) + (two_right - two_left) + (overlap_end - overlap_start)));
+  // if the above assertion fails, it usually means the mair is
+  // discordant (end1 downstream of end2). Also it means the SAM flag
+  // of this pair of reads is not properly set. To avoid termination,
+  // currently this assertion is ignored but no output will be
+  // generated for discordant pairs.
 
   if (len > 0) {
     string seq(len, 'N');
@@ -154,7 +151,9 @@ get_read_name(const SAMRecord &aln, const size_t suffix_len) {
 
 int
 main(int argc, const char **argv) {
+
   try {
+
     string outfile;
     string mapper;
     size_t max_frag_len = 1000;
