@@ -111,7 +111,7 @@ build_domains(const bool VERBOSE,
               const vector<bool> &classes,
               vector<GenomicRegion> &domains) {
   static const bool CLASS_ID = true;
-  size_t n_cpgs = 0, n_domains = 0, reset_idx = 1, prev_end = 0;
+  size_t n_cpgs = 0, reset_idx = 1, prev_end = 0;
   bool in_domain = false;
   double score = 0;
   for (size_t i = 0; i < classes.size(); ++i) {
@@ -129,7 +129,7 @@ build_domains(const bool VERBOSE,
       if (!in_domain) {
         in_domain = true;
         domains.push_back(as_gen_rgn(cpgs[i]));
-        domains.back().set_name("HYPO" + toa(n_domains++));
+        domains.back().set_name("HYPO" + toa(domains.size()));
       }
       ++n_cpgs;
       score += post_scores[i];
