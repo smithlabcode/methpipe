@@ -42,30 +42,10 @@ using std::runtime_error;
 using std::numeric_limits;
 
 static void
-unmutate_site(MSite &s) {
-  s.context.resize(s.context.size() - 1);
-}
+set_invalid(MSite &s) {s.pos = numeric_limits<size_t>::max();}
 
 static bool
-precedes(const MSite &a, const MSite &b) {
-  const int c = a.chrom.compare(b.chrom);
-  return (c < 0 || (c == 0 && a.pos < b.pos));
-}
-
-static bool
-same_location(const MSite &a, const MSite &b) {
-  return a.chrom == b.chrom && a.pos == b.pos;
-}
-
-static void
-set_invalid(MSite &s) {
-  s.pos = numeric_limits<size_t>::max();
-}
-
-static bool
-is_valid(const MSite &s) {
-  return s.pos != numeric_limits<size_t>::max();
-}
+is_valid(const MSite &s) {return s.pos != numeric_limits<size_t>::max();}
 
 static bool
 any_sites_unprocessed(const vector<string> &filenames,
@@ -80,7 +60,7 @@ any_sites_unprocessed(const vector<string> &filenames,
       outdated[i] = false;
       MSite tmp_site;
       if (*infiles[i] >> tmp_site) {
-        if (precedes(tmp_site, sites[i]))
+        if (tmp_site < sites[i])
           throw runtime_error("error: sites not sorted in " + filenames[i]);
         sites_remain = true;
         sites[i] = tmp_site;
@@ -92,7 +72,6 @@ any_sites_unprocessed(const vector<string> &filenames,
   }
   return sites_remain;
 }
-
 
 static size_t
 find_minimum_site(const vector<MSite> &sites, const vector<bool> &outdated) {
@@ -108,12 +87,16 @@ find_minimum_site(const vector<MSite> &sites, const vector<bool> &outdated) {
     throw runtime_error("failed in find_minimum_site");
 
   for (size_t i = 0; i < n_files; ++i)
-    if (!outdated[i] && is_valid(sites[i]) && precedes(sites[i], sites[ms_id]))
+    if (!outdated[i] && is_valid(sites[i]) && sites[i] < sites[ms_id])
       ms_id = i;
 
   return ms_id;
 }
 
+static bool
+same_location(const MSite &a, const MSite &b) {
+  return a.chrom == b.chrom && a.pos == b.pos;
+}
 
 static size_t
 collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
@@ -131,7 +114,6 @@ collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
   return min_site_idx;
 }
 
-
 static void
 write_line_for_tabular(const bool write_fractional,
                        std::ostream &out,
@@ -141,8 +123,7 @@ write_line_for_tabular(const bool write_fractional,
 
   const size_t n_files = sites.size();
 
-  if (min_site.is_mutated())
-    unmutate_site(min_site);
+  min_site.set_unmutated();
 
   out << min_site.chrom << ':'
       << min_site.pos << ':'
@@ -151,20 +132,16 @@ write_line_for_tabular(const bool write_fractional,
 
   if (write_fractional) {
     for (size_t i = 0; i < n_files; ++i) {
-      if (to_print[i])
-        out << '\t' << sites[i].meth;
-      else
-        out << '\t' << 0;
+      if (to_print[i]) out << '\t' << sites[i].meth;
+      else out << '\t' << 0;
     }
   }
-  else {
+  else
     for (size_t i = 0; i < n_files; ++i) {
       if (to_print[i])
         out << '\t' << sites[i].n_reads << '\t' << sites[i].n_meth();
-      else
-        out << '\t' << 0 << '\t'<< 0;
+      else out << '\t' << 0 << '\t'<< 0;
     }
-  }
   out << '\n';
 }
 
@@ -176,8 +153,7 @@ write_line_for_merged_counts(std::ostream &out,
 
   const size_t n_files = sites.size();
 
-  if (min_site.is_mutated())
-    unmutate_site(min_site);
+  min_site.set_unmutated();
 
   double meth_sum = 0;
   min_site.n_reads = 0;
@@ -205,7 +181,7 @@ main(int argc, const char **argv) {
 
     string outfile;
     bool VERBOSE;
-    bool TABULAR = false;
+    bool write_tabular_format = false;
     bool write_fractional = false;
 
     string header_info;
@@ -219,7 +195,8 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("header", 'h',"header to print (ignored for tabular)",
                       false, header_info);
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
-    opt_parse.add_opt("tabular", 't', "output as table", false, TABULAR);
+    opt_parse.add_opt("tabular", 't', "output as table",
+                      false, write_tabular_format);
     opt_parse.add_opt("fractional", 'f', "output fractions (requires tabular)",
                       false, write_fractional);
     vector<string> leftover_args;
@@ -237,7 +214,7 @@ main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (write_fractional && !TABULAR) {
+    if (write_fractional && !write_tabular_format) {
       cerr << "fractional output only available for tabular format" << endl;
       return EXIT_SUCCESS;
     }
@@ -262,7 +239,7 @@ main(int argc, const char **argv) {
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     // print header if user specifies or if tabular output format
-    if (TABULAR) {
+    if (write_tabular_format) {
       // tabular format header does not include '#' character
       vector<string> colnames;
       for (auto &&i : meth_files)
@@ -287,7 +264,7 @@ main(int argc, const char **argv) {
       const size_t idx = collect_sites_to_print(sites, outdated, sites_to_print);
 
       // output the appropriate sites' data
-      if (TABULAR)
+      if (write_tabular_format)
         write_line_for_tabular(write_fractional, out,
                                sites_to_print, sites, sites[idx]);
       else
