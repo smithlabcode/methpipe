@@ -27,15 +27,17 @@
 #include <stdexcept>
 
 #include <unistd.h>
-
 #include <gsl/gsl_sf.h>
-#include "bsutils.hpp"
+
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
+#include "zlib_wrapper.hpp"
+#include "bsutils.hpp"
+
 #include "TwoStateHMM_PMD.hpp"
-#include "MethpipeFiles.hpp"
+#include "MethpipeSite.hpp"
 
 using std::string;
 using std::vector;
@@ -48,6 +50,127 @@ using std::min;
 using std::make_pair;
 using std::pair;
 using std::runtime_error;
+
+
+template <class T> T &
+methpipe_skip_header(T &in, string &line) {
+  do {getline(in, line);}
+  while (line[0] == '#');
+  return in;
+}
+
+bool
+is_methpipe_file_single(const string &file) {
+
+  igzfstream in(file);
+  if (!in)
+    throw runtime_error("could not open file: " + file);
+
+  string line;
+  methpipe_skip_header(in, line);
+  std::istringstream iss(line);
+
+  string chrom, strand, name;
+  size_t pos = 0, coverage = 0;
+  double meth = 0.0;
+  iss >> chrom >> pos >> strand >> name >> meth >> coverage;
+
+  if (strand != "+" && strand != "-") return false;
+
+  if (meth < 0.0 || meth > 1.0) return false;
+
+  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
+    return false;
+
+  return true;
+}
+
+
+bool
+is_methpipe_file_array(const string &file) {
+
+  igzfstream in(file);
+  if (!in)
+    throw runtime_error("could not open file: " + file);
+
+  string line;
+  methpipe_skip_header(in, line);
+  std::istringstream iss(line);
+
+  string chrom, strand, name;
+  size_t pos = 0;
+  double meth = 0.0;
+  iss >> chrom >> pos >> strand >> name >> meth;
+
+  if (strand != "+" && strand != "-") return false;
+
+  if (meth < 0.0 || meth > 1.0) return false;
+
+  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
+    return false;
+
+  return true;
+}
+
+
+static void
+parse_site(const string &line, string &chrom, size_t &pos,
+           string &strand, string &seq,
+           double &meth, size_t &coverage) {
+  std::istringstream iss;
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  if (!(iss >> chrom >> pos >> strand >> seq >> meth >> coverage))
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  strand.resize(1);
+  if (strand[0] != '-' && strand[0] != '+')
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+}
+
+template <class T> T &
+methpipe_read_site(T &in, string &chrom, size_t &pos,
+                   string &strand, string &seq,
+                   double &meth, size_t &coverage) {
+  string line;
+  methpipe_skip_header(in, line);
+  if (in)
+    parse_site(line, chrom, pos, strand, seq, meth, coverage);
+  return in;
+}
+
+template <class T> T &
+methpipe_read_site(T &in, string &chrom, size_t &pos,
+                   char &strand, string &seq,
+                   double &meth, size_t &coverage) {
+  string line;
+  methpipe_skip_header(in, line);
+  if (in) {
+    string strand_tmp;
+    parse_site(line, chrom, pos, strand_tmp, seq, meth, coverage);
+    strand = strand_tmp[0];
+  }
+  return in;
+}
+
+template <class T> T &
+methpipe_read_site(T &in, string &chrom, size_t &pos,
+                   string &strand, string &seq, double &meth,
+                   size_t &coverage, bool &is_array_data) {
+  string line;
+  methpipe_skip_header(in, line);
+  std::istringstream iss;
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  if (!(iss >> chrom >> pos >> strand >> seq >> meth))
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  strand.resize(1);
+  if (strand[0] != '-' && strand[0] != '+')
+    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  if (is_array_data)
+    coverage = 1;
+  else
+    iss >> coverage;
+  return in;
+}
+
 
 static void
 get_adjacent_distances(const vector<GenomicRegion> &pmds,
@@ -205,9 +328,9 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
                                        // CONTRIBUTION TO BOUNDARY OBSERVATIONS
 
-  vector<std::ifstream> in(cpgs_file.size());
+  vector<igzfstream *> in(cpgs_file.size());
   for (size_t i = 0; i < cpgs_file.size(); ++i)
-    in[i].open(cpgs_file[i]);
+    in[i] = new igzfstream(cpgs_file[i]);
 
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
   string chrom, site_name, strand;
@@ -218,7 +341,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
 
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe::read_site(in[i], chrom, position,
+      while (methpipe_read_site(*in[i], chrom, position,
                                  strand, site_name, meth_level, coverage)
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
@@ -297,7 +420,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   }
 
   for (size_t i = 0; i < cpgs_file.size(); ++i)
-    in[i].close();
+    delete in[i];
 }
 
 
@@ -314,10 +437,10 @@ find_exact_boundaries(const vector<string> &cpgs_file,
   double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
                                        // CONTRIBUTION TO BOUNDARY OBSERVATIONS
 
-  vector<std::ifstream> in(cpgs_file.size());
-  for(size_t i=0; i<cpgs_file.size(); ++i) {
-    in[i].open(cpgs_file[i].c_str());
-  }
+  vector<igzfstream*> in(cpgs_file.size());
+  for (size_t i = 0; i < cpgs_file.size(); ++i)
+    in[i] = new igzfstream(cpgs_file[i]);
+
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
   string chrom, site_name, strand;
   double meth_level;
@@ -326,8 +449,8 @@ find_exact_boundaries(const vector<string> &cpgs_file,
   for(; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for(size_t i = 0; i<in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe::read_site(in[i], chrom, position,
-                                 strand, site_name, meth_level, coverage)
+      while (methpipe_read_site(*in[i], chrom, position,
+                                strand, site_name, meth_level, coverage)
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
         if(!precedes(chrom, position, bounds[bound_idx])) {
@@ -362,6 +485,8 @@ find_exact_boundaries(const vector<string> &cpgs_file,
                                          bg_alpha_reps, bg_beta_reps));
     pos_meth_tot.clear();
   }
+  for (size_t i = 0; i < in.size(); ++i)
+    delete in[i];
 }
 
 
@@ -603,7 +728,6 @@ shuffle_cpgs_rep(const TwoStateHMM &hmm,
                  vector<double> &domain_scores,
                  vector<bool> &array_status) {
 
-  srand(time(0) + getpid());
   size_t NREP = meth.size();
 
   for (size_t r =0 ; r < NREP; ++r)
@@ -724,7 +848,7 @@ write_params_file(const string &outfile,
 
 static bool
 check_if_array_data(const string &infile) {
-  std::ifstream in(infile.c_str());
+  igzfstream in(infile);
   if (!in)
     throw std::runtime_error("bad file: " + infile);
 
@@ -742,7 +866,7 @@ load_array_data(const size_t bin_size,
                 vector<SimpleGenomicRegion> &intervals,
                 vector<pair<double, double> > &meth,
                 vector<size_t> &reads) {
-  std::ifstream in(cpgs_file.c_str());
+  igzfstream in(cpgs_file);
   bool is_array_data = true;
   string curr_chrom;
   size_t prev_pos = 0ul, curr_pos = 0ul;
@@ -752,9 +876,9 @@ load_array_data(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul;
 
-  while (methpipe::read_site(in, chrom, position, strand, site_name,
-                             meth_level, coverage, is_array_data)) {
-    if(meth_level != -1 ) { // its covered by a probe
+  while (methpipe_read_site(in, chrom, position, strand, site_name,
+                            meth_level, coverage, is_array_data)) {
+    if (meth_level != -1 ) { // its covered by a probe
       ++num_probes_in_bin;
       if(meth_level < 1e-2)
         array_meth_bin += 1e-2;
@@ -816,7 +940,9 @@ load_array_data(const size_t bin_size,
     intervals.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                                             prev_pos + 1));
     meth.push_back(make_pair(array_meth_bin, num_probes_in_bin));
-    (num_probes_in_bin > 0) ? reads.push_back(1) : reads.push_back(0);
+    if (num_probes_in_bin > 0)
+      reads.push_back(1);
+    else reads.push_back(0);
   }
 }
 
@@ -828,7 +954,7 @@ load_wgbs_data(const size_t bin_size,
                vector<pair<double, double> > &meth,
                vector<size_t> &reads) {
 
-  std::ifstream in(cpgs_file.c_str());
+  igzfstream in(cpgs_file);
 
   string curr_chrom;
   size_t prev_pos = 0ul, curr_pos = 0ul;
@@ -837,8 +963,8 @@ load_wgbs_data(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
-  while (methpipe::read_site(in, chrom, position,
-                             strand, site_name, meth_level, coverage)) {
+  while (methpipe_read_site(in, chrom, position,
+                            strand, site_name, meth_level, coverage)) {
 
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
@@ -904,8 +1030,7 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
                   const bool &VERBOSE){
   if(VERBOSE)
     cerr << "evaluating bin size " << bin_size << endl;
-  std::ifstream in(cpgs_file.c_str());
-  string first_chrom;
+  igzfstream in(cpgs_file);
   size_t curr_pos = 0ul;
   size_t n_meth_bin = 0ul, n_unmeth_bin = 0ul;
   string chrom, site_name, strand;
@@ -913,20 +1038,17 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
   vector<size_t> reads;
+  string first_chrom;
 
-  methpipe::read_site(in,chrom,position,strand,site_name,meth_level,coverage);
-  first_chrom = chrom;
-  in.seekg(0,std::ios::beg);
-
-  while(methpipe::read_site(in, chrom, position, strand, site_name,
-                            meth_level, coverage) && first_chrom == chrom){
+  while (methpipe_read_site(in, chrom, position, strand, site_name,
+                            meth_level, coverage) &&
+         (first_chrom.empty() || first_chrom == chrom)) {
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
 
-    if (curr_pos > position){
+    if (curr_pos > position)
       throw std::runtime_error("CpGs not sorted in file \""
                                + cpgs_file + "\"");
-    }
     else if (position > curr_pos + bin_size) {
       reads.push_back(n_meth_bin + n_unmeth_bin);
       n_meth_bin = 0ul;
@@ -939,6 +1061,7 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
     }
     n_meth_bin += n_meth;
     n_unmeth_bin += n_unmeth;
+    swap(chrom, first_chrom);
   }
 
   size_t total_passed = 0, total_covered = 0;
@@ -997,6 +1120,8 @@ main(int argc, const char **argv) {
     const char* sep = ",";
     string outfile;
 
+    size_t rng_seed = 408;
+
     bool DEBUG = false;
     size_t desert_size = 5000;
     size_t bin_size = 1000;
@@ -1030,9 +1155,12 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("params-in", 'P', "HMM parameter files for "
                       "individual methylomes (separated with comma)",
                       false, params_in_files);
-    opt_parse.add_opt("posteriors-out",'r',"write out posterior probabilities in methcounts format",false, posteriors_out_prefix);
+    opt_parse.add_opt("posteriors-out", 'r',
+                      "write out posterior probabilities in methcounts format",
+                      false, posteriors_out_prefix);
     opt_parse.add_opt("params-out", 'p', "write HMM parameters to this file",
                       false, params_out_file);
+    opt_parse.add_opt("seed", 's', "specify random seed", false, rng_seed);
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -1054,6 +1182,8 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     /****************** END COMMAND LINE OPTIONS *****************/
+
+    srand(rng_seed);
 
     vector<string> cpgs_file = leftover_args;
     vector<string> params_in_file;
@@ -1079,9 +1209,9 @@ main(int argc, const char **argv) {
       double prop_accept = 0.80;
       for(size_t i = 0; i < NREP; ++i) {
         const bool arrayData = check_if_array_data(cpgs_file[i]);
-        bool goodInput = arrayData ?
-          methpipe::is_methpipe_file_array(cpgs_file[i])
-          : methpipe::is_methpipe_file_single(cpgs_file[i]);
+        bool goodInput = (arrayData ?
+                          is_methpipe_file_array(cpgs_file[i]) :
+                          is_methpipe_file_single(cpgs_file[i]));
         if(!goodInput)
           throw runtime_error("Data not proper input format");
         if(!arrayData)

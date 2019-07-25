@@ -31,7 +31,9 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "OptionParser.hpp"
-#include "MethpipeFiles.hpp"
+#include "zlib_wrapper.hpp"
+
+#include "MethpipeSite.hpp"
 
 #include <gsl/gsl_sf_gamma.h>
 
@@ -84,6 +86,46 @@ test_greater_population(size_t meth_a, size_t unmeth_a,
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
+static void
+load_cpgs(const string &cpgs_file,
+          vector<MSite> &cpgs,
+          vector<pair<double, double> > &meth,
+          vector<size_t> &reads) {
+
+  igzfstream in(cpgs_file);
+  if (!in)
+    throw runtime_error("failed opening file: " + cpgs_file);
+
+  MSite the_site;
+  while (in >> the_site) {
+    cpgs.push_back(the_site);
+    reads.push_back(the_site.n_reads);
+    const double m = reads.back()*the_site.meth;
+    meth.push_back(std::make_pair(m, reads.back() - m));
+  }
+}
+
+
+template <class T> T&
+write_methdiff_site(T &out, const std::string &chrom,
+                    const size_t pos, const std::string &strand,
+                    const std::string &seq, const double diffscore,
+                    const size_t meth_a, const size_t unmeth_a,
+                    const size_t meth_b, const size_t unmeth_b) {
+
+  std::ostringstream oss;
+  oss << chrom << "\t" << pos << "\t" << strand << "\t" << seq << "\t"
+      << diffscore << "\t" << meth_a << "\t" << unmeth_a << "\t"
+      << meth_b << "\t" << unmeth_b << '\n';
+  out << oss.str();
+  return out;
+}
+
+
+static bool
+same_chrom(const MSite &a, const MSite &b) {
+  return a.chrom == b.chrom;
+}
 
 int
 main(int argc, const char **argv) {
@@ -133,44 +175,43 @@ main(int argc, const char **argv) {
     const string cpgs_file_b = leftover_args[1];
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    vector<GenomicRegion> cpgs_a;
+    vector<MSite> cpgs_a;
     vector<pair<double, double> > meth_unmeth_a;
     vector<size_t> reads_a;
     if (VERBOSE)
       cerr << "[READING METH FILE] " << cpgs_file_a << endl;
-    methpipe::load_cpgs(cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
+    load_cpgs(cpgs_file_a, cpgs_a, meth_unmeth_a, reads_a);
     if (VERBOSE)
       cerr << "TOTAL CPGS: " << cpgs_a.size() << endl;
 
-    vector<GenomicRegion> cpgs_b;
+    vector<MSite> cpgs_b;
     vector<pair<double, double> > meth_unmeth_b;
     vector<size_t> reads_b;
     if (VERBOSE)
       cerr << "[READING METH FILE] " << cpgs_file_b << endl;
-    methpipe::load_cpgs(cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
+    load_cpgs(cpgs_file_b, cpgs_b, meth_unmeth_b, reads_b);
 
     if (VERBOSE)
       cerr << "TOTAL CPGS: " << cpgs_b.size() << endl;
 
     std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
+    if (!outfile.empty()) of.open(outfile);
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
     size_t j = 0;
     for (size_t i = 0; i < cpgs_a.size(); ++i) {
-      const size_t meth_a(static_cast<size_t>(meth_unmeth_a[i].first));
-      const size_t unmeth_a(static_cast<size_t>(meth_unmeth_a[i].second));
+      const size_t meth_a = meth_unmeth_a[i].first;
+      const size_t unmeth_a = meth_unmeth_a[i].second;
 
-      if (VERBOSE && (i == 0 || !cpgs_a[i - 1].same_chrom(cpgs_a[i])))
-        cerr << "[PROCESSING] " << cpgs_a[i].get_chrom() << endl;
+      if (VERBOSE && (i == 0 || !same_chrom(cpgs_a[i - 1], cpgs_a[i])))
+        cerr << "[PROCESSING] " << cpgs_a[i].chrom << endl;
 
       while (j < cpgs_b.size() && cpgs_b[j] < cpgs_a[i]) ++j;
 
-      if (cpgs_a[i].same_chrom(cpgs_b[j]) &&
-          cpgs_a[i].get_start() == cpgs_b[j].get_start()) {
+      if (same_chrom(cpgs_a[i], cpgs_b[j]) && cpgs_a[i].pos == cpgs_b[j].pos) {
 
-        const size_t meth_b(static_cast<size_t>(meth_unmeth_b[j].first));
-        const size_t unmeth_b(static_cast<size_t>(meth_unmeth_b[j].second));
+        const size_t meth_b = meth_unmeth_b[j].first;
+        const size_t unmeth_b = meth_unmeth_b[j].second;
 
         if (meth_a + unmeth_a > 0.0 && meth_b + unmeth_b > 0.0) {
           const double diffscore = test_greater_population(meth_b + pseudocount,
@@ -178,13 +219,12 @@ main(int argc, const char **argv) {
                                                            meth_a + pseudocount,
                                                            unmeth_a + pseudocount);
 
-          const string name(cpgs_a[i].get_name());
-          methpipe::write_methdiff_site(out, cpgs_a[i].get_chrom(),
-                                        cpgs_a[i].get_start(),
-                                        string(1, cpgs_a[i].get_strand()),
-                                        name.substr(0, name.find_first_of(':')),
-                                        diffscore, meth_a, unmeth_a,
-                                        meth_b, unmeth_b);
+          const string name(cpgs_a[i].context);
+          write_methdiff_site(out, cpgs_a[i].chrom, cpgs_a[i].pos,
+                              string(1, cpgs_a[i].strand),
+                              name.substr(0, name.find_first_of(':')),
+                              diffscore, meth_a, unmeth_a,
+                              meth_b, unmeth_b);
         }
         else if (!ONLY_HIGH_COVERAGE_LOCI) {
           const double diffscore =
@@ -193,13 +233,13 @@ main(int argc, const char **argv) {
                                     meth_a + pseudocount,
                                     unmeth_a + pseudocount);
 
-          const string name(cpgs_a[i].get_name());
-          methpipe::write_methdiff_site(out, cpgs_a[i].get_chrom(),
-                                        cpgs_a[i].get_start(),
-                                        string(1, cpgs_a[i].get_strand()),
-                                        name.substr(0, name.find_first_of(':')),
-                                        diffscore, meth_a, unmeth_a,
-                                        meth_b, unmeth_b);
+          const string name(cpgs_a[i].context);
+          write_methdiff_site(out, cpgs_a[i].chrom,
+                              cpgs_a[i].pos,
+                              string(1, cpgs_a[i].strand),
+                              name.substr(0, name.find_first_of(':')),
+                              diffscore, meth_a, unmeth_a,
+                              meth_b, unmeth_b);
         }
       }
     }
