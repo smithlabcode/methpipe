@@ -162,11 +162,11 @@ write_params_file(const string &params_file,
 }
 
 
-static void
-assign_name(GenomicRegion &domain,
-            const STATE_LABELS &state, const size_t n_cpgs) {
-  domain.set_name((state == hypo ? "hypo:" : "hyper:") + to_string(n_cpgs));
-}
+// static void
+// assign_name(GenomicRegion &domain,
+//             const STATE_LABELS &state, const size_t n_cpgs) {
+//   domain.set_name((state == hypo ? "hypo:" : "hyper:") + to_string(n_cpgs));
+// }
 
 
 static void
