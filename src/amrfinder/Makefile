@@ -42,7 +42,7 @@ COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas
+LIBS = -lgsl -lgslcblas -lz
 
 all: $(PROGS)
 
@@ -50,8 +50,7 @@ install: $(PROGS)
 	@mkdir -p $(SRC_ROOT)/bin
 	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
-$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a) \
-	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
+$(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
 amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
 

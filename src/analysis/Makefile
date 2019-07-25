@@ -55,10 +55,8 @@ install: $(PROGS)
 
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-levels hmr_rep hmr methcounts roimethstat hypermr: \
+levels hmr_rep hmr methcounts roimethstat hypermr pmd: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
-
-pmd: $(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
