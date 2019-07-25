@@ -37,7 +37,7 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MethpipeFiles.hpp"
+
 #include "Epiread.hpp"
 
 using std::string;
@@ -288,7 +288,9 @@ main(int argc, const char **argv) {
     string outfile;
     string chroms_dir;
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "computes probability of allele-specific methylation at each tuple of CpGs", "<epireads>");
+    OptionParser opt_parse(strip_path(argv[0]),
+                           "computes probability of allele-specific "
+                           "methylation at each tuple of CpGs", "<epireads>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
