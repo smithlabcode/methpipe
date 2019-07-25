@@ -31,7 +31,6 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MethpipeFiles.hpp"
 
 using std::string;
 using std::vector;
@@ -43,6 +42,25 @@ using std::max;
 using std::ifstream;
 using std::runtime_error;
 
+template <class T> T&
+read_methdiff_site(T &in, std::string &chrom,
+                   size_t &pos, std::string &strand,
+                   std::string &seq, double &diffscore,
+                   size_t &meth_a, size_t &unmeth_a,
+                   size_t &meth_b, size_t &unmeth_b) {
+  string line;
+  getline(in, line);
+  if (in) {
+    std::istringstream iss;
+    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+    if (!(iss >> chrom >> pos >> strand >> seq >>
+          diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b))
+      throw runtime_error("bad methdiff line: " + line);
+  }
+  return in;
+}
+
+
 static void
 read_diffs_file(const string &diffs_file,
                 vector<GenomicRegion> &cpgs, const bool VERBOSE) {
@@ -51,8 +69,8 @@ read_diffs_file(const string &diffs_file,
   double diffscore;
   size_t pos, meth_a, unmeth_a, meth_b, unmeth_b;
   int n = 0;
-  while (methpipe::read_methdiff_site(in, chrom, pos, strand, seq, diffscore,
-                                      meth_a, unmeth_a, meth_b, unmeth_b)) {
+  while (read_methdiff_site(in, chrom, pos, strand, seq, diffscore,
+                            meth_a, unmeth_a, meth_b, unmeth_b)) {
     ++n;
     cpgs.push_back(GenomicRegion(chrom, pos, pos + 1,
                                  seq, diffscore, strand[0]));
