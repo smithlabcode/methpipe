@@ -1,0 +1,67 @@
+dnl This file is part of methpipe
+dnl
+dnl Copyright (C) 2019: Andrew D. Smith
+dnl
+dnl Authors: Andrew D. Smith
+dnl
+dnl This is free software: you can redistribute it and/or modify it
+dnl under the terms of the GNU General Public License as published by
+dnl the Free Software Foundation, either version 3 of the License, or
+dnl (at your option) any later version.
+dnl
+dnl This software is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+dnl General Public License for more details.
+
+AC_INIT([methpipe], [4.0], [andrewds@usc.edu],
+        [methpipe], [https://github.com/smithlabcode/methpipe])
+dnl the config.h is not currently #included in the source, and only
+dnl used to keep command lines short.
+AC_CONFIG_HEADERS([config.h])
+AM_INIT_AUTOMAKE([subdir-objects foreign])
+
+dnl Less output to the terminal. Use "--disable-silent-rules" when
+dnl running ./configure to reverse this.
+AM_SILENT_RULES([yes])
+
+AC_CONFIG_MACRO_DIR([m4])
+AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+AC_PROG_RANLIB
+
+dnl check for HTSLib if requested
+hts_fail_msg="
+
+Failed to locate HTSLib on your system. Please use the LDFLAGS and
+CPPFLAGS variables to specify the directories where the HTSLib library
+and headers can be found.
+"
+AC_ARG_ENABLE([hts],
+  [AS_HELP_STRING([--enable-hts], [Enable HTSLib @<:@yes@:>@])],
+  [enable_hts=yes], [enable_hts=no])
+AS_IF([test "x$enable_hts" = "xyes"],
+  [AC_CHECK_LIB([hts], [hts_version], [], [AC_MSG_FAILURE([$hts_fail_msg])])]
+  [AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
+  [AC_MSG_FAILURE([smithlab_cpp library built without HTSLib support])])]
+)
+AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
+
+dnl check for the smithlab_cpp library
+AC_CHECK_LIB([smithlab_cpp],[main]) dnl nothing else to check
+AS_IF([test "x$enable_hts" = "xyes"],
+  [AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
+  [AC_MSG_FAILURE([
+
+HTSLib enabled but smithlab_cpp library built without HTSLib support
+])])])
+
+dnl check for required libraries
+AC_CHECK_LIB([z],[zlibVersion])
+AC_CHECK_LIB([gslcblas],[cblas_dgemm])
+AC_CHECK_LIB([gsl],[gsl_blas_dgemm])
+
+AC_CONFIG_FILES([
+  Makefile
+])
+AC_OUTPUT
