@@ -42,7 +42,7 @@ AC_ARG_ENABLE([hts],
   [AS_HELP_STRING([--enable-hts], [Enable HTSLib @<:@yes@:>@])],
   [enable_hts=yes], [enable_hts=no])
 AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_CHECK_LIB([hts], [hts_version], [ ], dnl space needed in 3rd arg
+  [AC_CHECK_LIB([hts], [hts_version], [],
   [AC_MSG_FAILURE([$hts_fail_msg])])]
 )
 AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
