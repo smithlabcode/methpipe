@@ -59,93 +59,46 @@ methpipe_skip_header(T &in, string &line) {
   return in;
 }
 
-bool
-is_methpipe_file_single(const string &file) {
-
-  igzfstream in(file);
-  if (!in)
-    throw runtime_error("could not open file: " + file);
-
-  string line;
-  methpipe_skip_header(in, line);
-  std::istringstream iss(line);
-
-  string chrom, strand, name;
-  size_t pos = 0, coverage = 0;
-  double meth = 0.0;
-  iss >> chrom >> pos >> strand >> name >> meth >> coverage;
-
-  if (strand != "+" && strand != "-") return false;
-
-  if (meth < 0.0 || meth > 1.0) return false;
-
-  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
-    return false;
-
-  return true;
-}
-
-
-bool
-is_methpipe_file_array(const string &file) {
-
-  igzfstream in(file);
-  if (!in)
-    throw runtime_error("could not open file: " + file);
-
-  string line;
-  methpipe_skip_header(in, line);
-  std::istringstream iss(line);
-
-  string chrom, strand, name;
-  size_t pos = 0;
-  double meth = 0.0;
-  iss >> chrom >> pos >> strand >> name >> meth;
-
-  if (strand != "+" && strand != "-") return false;
-
-  if (meth < 0.0 || meth > 1.0) return false;
-
-  if (name.find_first_not_of("ACGTacgtpHXx") != string::npos)
-    return false;
-
-  return true;
-}
-
-
 static void
 parse_site(const string &line, string &chrom, size_t &pos,
            string &strand, string &seq,
-           double &meth, size_t &coverage) {
+           double &meth, size_t &coverage, const bool is_array_data) {
   std::istringstream iss;
   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-  if (!(iss >> chrom >> pos >> strand >> seq >> meth >> coverage))
+  if (!(iss >> chrom >> pos >> strand >> seq >> meth))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  if (is_array_data)
+    coverage = 1;
+  else
+    iss >> coverage;
   strand.resize(1);
   if (strand[0] != '-' && strand[0] != '+')
-    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+    throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
+                             line + "\"");
 }
 
 template <class T> T &
 methpipe_read_site(T &in, string &chrom, size_t &pos,
                    string &strand, string &seq,
-                   double &meth, size_t &coverage) {
+                   double &meth, size_t &coverage,
+                   const bool is_array_data) {
   string line;
   methpipe_skip_header(in, line);
   if (in)
-    parse_site(line, chrom, pos, strand, seq, meth, coverage);
+    parse_site(line, chrom, pos, strand, seq, meth, coverage, is_array_data);
   return in;
 }
 
 template <class T> T &
 methpipe_read_site(T &in, string &chrom, size_t &pos,
                    char &strand, string &seq,
-                   double &meth, size_t &coverage) {
+                   double &meth, size_t &coverage,
+                   const bool is_array_data) {
   string line;
   methpipe_skip_header(in, line);
   if (in) {
     string strand_tmp;
-    parse_site(line, chrom, pos, strand_tmp, seq, meth, coverage);
+    parse_site(line, chrom, pos, strand_tmp, seq, meth, coverage, is_array_data);
     strand = strand_tmp[0];
   }
   return in;
@@ -159,11 +112,14 @@ methpipe_read_site(T &in, string &chrom, size_t &pos,
   methpipe_skip_header(in, line);
   std::istringstream iss;
   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  iss >> chrom >> pos >> strand >> seq >> meth;
   if (!(iss >> chrom >> pos >> strand >> seq >> meth))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
   strand.resize(1);
-  if (strand[0] != '-' && strand[0] != '+')
-    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+  if (strand[0] != '-' && strand[0] != '+') {
+    throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
+                             line + "\"");
+  }
   if (is_array_data)
     coverage = 1;
   else
@@ -328,7 +284,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
                                        // CONTRIBUTION TO BOUNDARY OBSERVATIONS
 
-  vector<igzfstream *> in(cpgs_file.size());
+  vector<igzfstream*> in(cpgs_file.size());
   for (size_t i = 0; i < cpgs_file.size(); ++i)
     in[i] = new igzfstream(cpgs_file[i]);
 
@@ -338,11 +294,11 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
   for(; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
-
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
       while (methpipe_read_site(*in[i], chrom, position,
-                                 strand, site_name, meth_level, coverage)
+                                strand, site_name, meth_level, coverage,
+                                array_status[i])
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
         if (!precedes(chrom, position, bounds[bound_idx])) {
@@ -447,15 +403,16 @@ find_exact_boundaries(const vector<string> &cpgs_file,
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
   for(; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
-    for(size_t i = 0; i<in.size(); ++i) {
+    for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
       while (methpipe_read_site(*in[i], chrom, position,
-                                strand, site_name, meth_level, coverage)
+                                strand, site_name, meth_level, coverage,
+                                array_status[i])
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
-        if(!precedes(chrom, position, bounds[bound_idx])) {
-          if(array_status[i]){
-            if(meth_level != -1) {
+        if (!precedes(chrom, position, bounds[bound_idx])) {
+          if (array_status[i]) {
+            if (meth_level != -1) {
               n_meth = round(meth_level*ARRAY_COVERAGE_CONSTANT);
               n_unmeth = ARRAY_COVERAGE_CONSTANT - n_meth;
             }
@@ -867,7 +824,6 @@ load_array_data(const size_t bin_size,
                 vector<pair<double, double> > &meth,
                 vector<size_t> &reads) {
   igzfstream in(cpgs_file);
-  bool is_array_data = true;
   string curr_chrom;
   size_t prev_pos = 0ul, curr_pos = 0ul;
   double array_meth_bin = 0.0;
@@ -877,7 +833,7 @@ load_array_data(const size_t bin_size,
   size_t position = 0ul, coverage = 0ul;
 
   while (methpipe_read_site(in, chrom, position, strand, site_name,
-                            meth_level, coverage, is_array_data)) {
+                            meth_level, coverage, true)) {
     if (meth_level != -1 ) { // its covered by a probe
       ++num_probes_in_bin;
       if(meth_level < 1e-2)
@@ -964,7 +920,7 @@ load_wgbs_data(const size_t bin_size,
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
   while (methpipe_read_site(in, chrom, position,
-                            strand, site_name, meth_level, coverage)) {
+                            strand, site_name, meth_level, coverage, false)) {
 
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
@@ -1041,7 +997,7 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
   string first_chrom;
 
   while (methpipe_read_site(in, chrom, position, strand, site_name,
-                            meth_level, coverage) &&
+                            meth_level, coverage, false) &&
          (first_chrom.empty() || first_chrom == chrom)) {
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
@@ -1209,18 +1165,18 @@ main(int argc, const char **argv) {
       double prop_accept = 0.80;
       for(size_t i = 0; i < NREP; ++i) {
         const bool arrayData = check_if_array_data(cpgs_file[i]);
-        bool goodInput = (arrayData ?
-                          is_methpipe_file_array(cpgs_file[i]) :
-                          is_methpipe_file_single(cpgs_file[i]));
-        if(!goodInput)
-          throw runtime_error("Data not proper input format");
-        if(!arrayData)
+        if(!arrayData) {
           bin_size=binsize_selection(bin_size, cpgs_file[i],
                                      confidence_interval, prop_accept, VERBOSE);
+          desert_size = 5*bin_size; // TODO: explore extrapolation number
+        }
+        else {
+          // same as the parameters below
+          bin_size = 1000;
+          desert_size = 200000;
+        }
       }
     }
-
-    desert_size = 5*bin_size; // TODO: explore extrapolation number
 
     if(ARRAY_MODE) {
       bin_size = 1000;    // MAGIC NUMBERS FROM PAPER
