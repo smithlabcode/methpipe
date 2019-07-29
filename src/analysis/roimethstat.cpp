@@ -1,4 +1,4 @@
-/*    roimethstat2: average methylation in each of a set of regions
+/*    roimethstat: average methylation in each of a set of regions
  *
  *    Copyright (C) 2014 Andrew D. Smith
  *
@@ -32,7 +32,9 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MethpipeFiles.hpp"
+#include "zlib_wrapper.hpp"
+
+#include "MethpipeSite.hpp"
 
 #include "bsutils.hpp"
 
@@ -42,9 +44,10 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::pair;
+using std::make_pair;
 using std::ios_base;
 using std::runtime_error;
-
+using std::ifstream;
 
 static pair<bool, bool>
 meth_unmeth_calls(const size_t n_meth, const size_t n_unmeth) {
@@ -54,104 +57,76 @@ meth_unmeth_calls(const size_t n_meth, const size_t n_unmeth) {
   const size_t total = n_meth + n_unmeth;
   wilson_ci_for_binomial(alpha, total,
                          static_cast<double>(n_meth)/total, lower, upper);
-  return std::make_pair(lower > 0.5, upper < 0.5);
+  return make_pair(lower > 0.5, upper < 0.5);
 }
-
 
 
 static std::pair<size_t, size_t>
-region_bounds(const vector<SimpleGenomicRegion> &sites,
-              const GenomicRegion &region) {
-  SimpleGenomicRegion a(region);
-  a.set_end(a.get_start() + 1);
-  vector<SimpleGenomicRegion>::const_iterator a_insert =
-    lower_bound(sites.begin(), sites.end(), a);
+region_bounds(const vector<MSite> &sites, const GenomicRegion &region) {
+  const string chrom(region.get_chrom());
+  const char strand(region.get_strand());
 
-  SimpleGenomicRegion b(region);
-  b.set_start(b.get_end());
-  b.set_end(b.get_end() + 1);
-  vector<SimpleGenomicRegion>::const_iterator b_insert =
-    lower_bound(sites.begin(), sites.end(), b);
+  const MSite a(chrom, region.get_start(), strand, "", 0, 0);
+  vector<MSite>::const_iterator a_ins(lower_bound(begin(sites), end(sites), a));
 
-  return std::make_pair(a_insert - sites.begin(),
-                        b_insert - sites.begin());
+  const MSite b(chrom, region.get_end(), strand, "", 0, 0);
+  vector<MSite>::const_iterator b_ins(lower_bound(begin(sites), end(sites), b));
+
+  return make_pair(a_ins - begin(sites), b_ins - begin(sites));
 }
 
 
-
 static void
-not_methpipe_load_cpgs(const string &cpgs_file,
-                       vector<SimpleGenomicRegion> &cpgs,
-                       vector<pair<double, double> > &meths,
-                       vector<size_t> &reads) {
-
-  vector<GenomicRegion> cpgs_in;
-  ReadBEDFile(cpgs_file, cpgs_in);
-  if (!check_sorted(cpgs_in))
-    throw runtime_error("CpGs not sorted in file: " + cpgs_file);
-
-  for (size_t i = 0; i < cpgs_in.size(); ++i) {
-    cpgs.push_back(SimpleGenomicRegion(cpgs_in[i]));
-    const string name(cpgs_in[i].get_name());
-    const size_t total = atoi(smithlab::split(name, ":").back().c_str());
-    const double meth_freq = cpgs_in[i].get_score();
-    const size_t n_meth = roundf(meth_freq*total);
-    const size_t n_unmeth = roundf((1.0 - meth_freq)*total);
-    assert(n_meth + n_unmeth == total);
-    reads.push_back(total);
-    meths.push_back(std::make_pair(n_meth, n_unmeth));
-  }
-}
-
-static void
-process_with_cpgs_loaded(const bool METHPIPE_FORMAT,
-                         const bool VERBOSE,
+process_with_cpgs_loaded(const bool VERBOSE,
                          const bool PRINT_NAN,
                          const bool PRINT_ADDITIONAL_LEVELS,
                          const string &cpgs_file,
                          vector<GenomicRegion> &regions,
                          std::ostream &out) {
 
-  vector<SimpleGenomicRegion> cpgs;
-  vector<pair<double, double> > meths;
-  vector<size_t> reads;
-  if (METHPIPE_FORMAT)
-    methpipe::load_cpgs(cpgs_file, cpgs, meths, reads);
-  else
-    not_methpipe_load_cpgs(cpgs_file, cpgs, meths, reads);
+  igzfstream in(cpgs_file);
+  if (!in)
+    throw runtime_error("cannot open file: " + cpgs_file);
 
-  if(VERBOSE)
-    cerr << meths.size() << " CpG sites read" << endl;
+  vector<MSite> cpgs;
+  MSite the_cpg;
+  while (in >> the_cpg)
+    cpgs.push_back(the_cpg);
+
+  if (VERBOSE)
+    cerr << "[n_cpgs=" << cpgs.size() << "]" << endl;
 
   for (size_t i = 0; i < regions.size(); ++i) {
 
-    const std::pair<size_t, size_t> bounds(region_bounds(cpgs, regions[i]));
+    const pair<size_t, size_t> bounds(region_bounds(cpgs, regions[i]));
 
-    size_t meth = 0, read = 0;
+    size_t total_meth = 0, total_reads = 0;
     size_t cpgs_with_reads = 0;
     size_t called_total = 0, called_meth = 0;
     double mean_meth = 0.0;
 
     for (size_t j = bounds.first; j < bounds.second; ++j) {
-      if (reads[j] > 0) {
-        meth += static_cast<size_t>(meths[j].first);
-        read += reads[j];
+      if (cpgs[j].n_reads > 0) {
+        total_meth += cpgs[j].n_meth();
+        total_reads += cpgs[j].n_reads;
         ++cpgs_with_reads;
 
-        const pair<bool, bool> calls =
-          meth_unmeth_calls(meths[j].first, meths[j].second);
+        auto calls = meth_unmeth_calls(cpgs[j].n_meth(), cpgs[j].n_unmeth());
         called_total += (calls.first || calls.second);
         called_meth += calls.first;
 
-        mean_meth += static_cast<double>(meths[j].first)/reads[j];
+        mean_meth += cpgs[j].meth;
       }
     }
 
-    const string name = regions[i].get_name() + ":" +
-      toa(bounds.second - bounds.first) + ":" +
-      toa(cpgs_with_reads) + ":" + toa(meth) + ":" + toa(read);
+    const string name = regions[i].get_name() +
+      ":" + toa(bounds.second - bounds.first) +
+      ":" + toa(cpgs_with_reads) +
+      ":" + toa(total_meth) +
+      ":" + toa(total_reads);
     regions[i].set_name(name);
-    regions[i].set_score(static_cast<double>(meth)/read);
+
+    regions[i].set_score(static_cast<double>(total_meth)/total_reads);
     if (PRINT_NAN || std::isfinite(regions[i].get_score())) {
       out << regions[i];
       if (PRINT_ADDITIONAL_LEVELS)
@@ -164,17 +139,13 @@ process_with_cpgs_loaded(const bool METHPIPE_FORMAT,
 }
 
 
-
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ///
 ///  CODE BELOW HERE IS FOR SEARCHING ON DISK
 ///
 
 static void
-move_to_start_of_line(std::ifstream &in) {
+move_to_start_of_line(ifstream &in) {
   char next;
   while (in.good() && in.get(next) && next != '\n') {
     in.unget();
@@ -185,9 +156,8 @@ move_to_start_of_line(std::ifstream &in) {
     in.clear();
 }
 
-
 static void
-find_start_line(const string &chr, const size_t idx, std::ifstream &cpg_in) {
+find_start_line(const string &chr, const size_t idx, ifstream &cpg_in) {
 
   cpg_in.seekg(0, ios_base::beg);
   const size_t begin_pos = cpg_in.tellg();
@@ -236,67 +206,41 @@ find_start_line(const string &chr, const size_t idx, std::ifstream &cpg_in) {
 }
 
 
-
-static std::ifstream &
-load_cpg(const bool METHPIPE_FORMAT, std::ifstream &cpg_in,
-         GenomicRegion &cpg) {
-
-  if (METHPIPE_FORMAT) {
-    string chrom, seq, strand;
-    size_t pos = 0, coverage = 0;
-    double meth = 0.0;
-    methpipe::read_site(cpg_in, chrom, pos, strand, seq, meth, coverage);
-    cpg = GenomicRegion(chrom, pos, pos + 1, seq + ":" + toa(coverage),
-                        meth, strand[0]);
-  }
-  else {
-    cpg_in >> cpg;
-  }
-
-  return cpg_in;
-}
-
-
 static bool
 cpg_not_past_region(const GenomicRegion &region, const size_t end_pos,
-                    const GenomicRegion &cpg) {
-  return (cpg.same_chrom(region) && cpg.get_end() <= end_pos) ||
-    cpg.get_chrom() < region.get_chrom();
+                    const MSite &cpg) {
+  return (cpg.chrom == region.get_chrom() && cpg.pos < end_pos) ||
+    cpg.chrom < region.get_chrom();
 }
 
 
 static void
-get_cpg_stats(const bool METHPIPE_FORMAT,
-              std::ifstream &cpg_in, const GenomicRegion region,
-              size_t &meth, size_t &reads, size_t &total_cpgs,
-              size_t &cpgs_with_reads,
+get_cpg_stats(ifstream &cpg_in, const GenomicRegion region,
+              size_t &total_meth, size_t &total_reads,
+              size_t &total_cpgs, size_t &cpgs_with_reads,
               size_t &called_total, size_t &called_meth,
               double &mean_meth) {
 
-  string chrom(region.get_chrom());
+  const string chrom(region.get_chrom());
   const size_t start_pos = region.get_start();
   const size_t end_pos = region.get_end();
   find_start_line(chrom, start_pos, cpg_in);
 
-  GenomicRegion cpg;
-  while (load_cpg(METHPIPE_FORMAT, cpg_in, cpg) &&
-         (cpg_not_past_region(region, end_pos, cpg))) {
-    if (start_pos <= cpg.get_start() && cpg.same_chrom(region)) {
+  MSite cpg;
+  while (cpg_in >> cpg && cpg_not_past_region(region, end_pos, cpg)) {
+    if (start_pos <= cpg.pos && cpg.chrom == chrom) {
       ++total_cpgs;
-      const size_t n_reads = atoi(smithlab::split(cpg.get_name(), ":").back().c_str());
-      if (n_reads > 0) {
-        const double meth_freq = cpg.get_score();
-        const size_t n_meth = roundf(meth_freq*n_reads);
-        const size_t n_unmeth = roundf((1.0 - meth_freq)*n_reads);
-        meth += n_meth;
-        reads += n_reads;
+      if (cpg.n_reads > 0) {
+
+        total_meth += cpg.n_meth();
+        total_reads += cpg.n_reads;
         ++cpgs_with_reads;
 
-        const pair<bool, bool> calls = meth_unmeth_calls(n_meth, n_unmeth);
+        auto calls = meth_unmeth_calls(cpg.n_meth(), cpg.n_unmeth());
         called_total += (calls.first || calls.second);
         called_meth += calls.first;
 
-        mean_meth += static_cast<double>(n_meth)/n_reads;
+        mean_meth += cpg.meth;
       }
     }
   }
@@ -305,14 +249,13 @@ get_cpg_stats(const bool METHPIPE_FORMAT,
 
 
 static void
-process_with_cpgs_on_disk(const bool METHPIPE_FORMAT,
-                          const bool PRINT_NAN,
+process_with_cpgs_on_disk(const bool PRINT_NAN,
                           const bool PRINT_ADDITIONAL_LEVELS,
                           const string &cpgs_file,
                           vector<GenomicRegion> &regions,
                           std::ostream &out) {
 
-  std::ifstream in(cpgs_file.c_str());
+  ifstream in(cpgs_file);
   for (size_t i = 0; i < regions.size() && in; ++i) {
 
     size_t meth = 0, read = 0;
@@ -321,8 +264,7 @@ process_with_cpgs_on_disk(const bool METHPIPE_FORMAT,
     size_t total_cpgs = 0;
     double mean_meth = 0.0;
 
-    get_cpg_stats(METHPIPE_FORMAT,
-                  in, regions[i], meth, read, total_cpgs, cpgs_with_reads,
+    get_cpg_stats(in, regions[i], meth, read, total_cpgs, cpgs_with_reads,
                   called_total, called_meth, mean_meth);
 
     const string name = regions[i].get_name() + ":" +
@@ -341,17 +283,10 @@ process_with_cpgs_on_disk(const bool METHPIPE_FORMAT,
     }
   }
 }
-
-
 ///
 ///  END OF CODE FOR SEARCHING ON DISK
 ///
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-
-
 
 int
 main(int argc, const char **argv) {
@@ -410,24 +345,18 @@ main(int argc, const char **argv) {
     if (!check_sorted(regions))
       throw runtime_error("regions not sorted in file: " + regions_file);
 
+    if (VERBOSE)
+      cerr << "[n_regions=" << regions.size() << "]" << endl;
+
     std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
+    if (!outfile.empty()) of.open(outfile);
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
-    const bool METHPIPE_FORMAT =
-      methpipe::is_methpipe_file_single(cpgs_file);
-
-    if (VERBOSE)
-      cerr << "CPG FILE FORMAT: "
-           << (METHPIPE_FORMAT ? "METHPIPE" : "BED") << endl;
-
     if (LOAD_ENTIRE_FILE)
-      process_with_cpgs_loaded(METHPIPE_FORMAT, VERBOSE, PRINT_NAN,
-                               PRINT_ADDITIONAL_LEVELS,
+      process_with_cpgs_loaded(VERBOSE, PRINT_NAN, PRINT_ADDITIONAL_LEVELS,
                                cpgs_file, regions, out);
     else
-      process_with_cpgs_on_disk(METHPIPE_FORMAT, PRINT_NAN,
-                                PRINT_ADDITIONAL_LEVELS,
+      process_with_cpgs_on_disk(PRINT_NAN, PRINT_ADDITIONAL_LEVELS,
                                 cpgs_file, regions, out);
   }
   catch (const runtime_error &e) {

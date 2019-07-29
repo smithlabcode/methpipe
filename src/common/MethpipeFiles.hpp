@@ -70,7 +70,7 @@ namespace methpipe {
             std::string &strand, std::string &seq,
             double &meth, size_t &coverage, bool &is_array_data);
 
-  std::ostream &
+  std::ostream&
   write_site(std::ostream &out, const std::string &chrom, const size_t &pos,
              const std::string &strand, const std::string &seq,
              const double &meth, const size_t &coverage);

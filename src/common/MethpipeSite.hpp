@@ -43,7 +43,16 @@ struct MSite {
   double meth;
   size_t n_reads;
 
+  bool operator<(const MSite &other) const {
+    int r = chrom.compare(other.chrom);
+    return (r < 0 ||
+            (r == 0 &&
+             (pos < other.pos ||
+              (pos == other.pos && strand < other.strand))));
+  }
+
   size_t n_meth() const {return std::round(meth*n_reads);}
+  size_t n_unmeth() const {return n_reads - n_meth();}
 
   //////////////////////////////////////////////////////////////
   /// FUNCTIONS BELOW ARE FOR MANIPULATING SYMMETRIC CPG SITES
@@ -104,7 +113,7 @@ operator>>(T &in, MSite &s) {
 
 template <class T> T &
 operator<<(T &out, const MSite &s) {
-  out << s.tostring(); // cannot be returned directly when templated
+  out << s.tostring(); // seems to be an issue returning this directly
   return out;
 }
 

@@ -35,7 +35,7 @@
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 #include "MethpipeSite.hpp"
-
+#include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
 using std::string;
@@ -211,9 +211,9 @@ is_cpg_site(const string &s, const size_t pos) {
            (pos > 0 && is_cytosine(s[pos - 1])) : false));
 }
 
-template <class count_type>
+template <class count_type, class output_type>
 static void
-write_output(std::ostream &out,
+write_output(output_type &out,
              const string &chrom_name, const string &chrom,
              const vector<CountSet<count_type> > &counts,
              bool CPG_ONLY) {
@@ -221,18 +221,21 @@ write_output(std::ostream &out,
   for (size_t i = 0; i < counts.size(); ++i) {
     const char base = chrom[i];
     if (is_cytosine(base) || is_guanine(base)) {
+      MSite the_site;
+      the_site.chrom = chrom_name;
+      the_site.pos = i;
+      the_site.strand = is_cytosine(base) ? '+' : '-';
       const double unconverted = is_cytosine(base) ?
         counts[i].unconverted_cytosine() : counts[i].unconverted_guanine();
       const double converted = is_cytosine(base) ?
         counts[i].converted_cytosine() : counts[i].converted_guanine();
-      const size_t tot = converted + unconverted;
-      const double meth = unconverted/std::max(1ul, tot);
-      const string tag = get_methylation_context_tag_from_genome(chrom, i) +
+      the_site.n_reads = unconverted + converted;
+      the_site.meth = the_site.n_reads > 0 ?
+        unconverted/(converted + unconverted) : 0.0;
+      the_site.context = get_methylation_context_tag_from_genome(chrom, i) +
         (has_mutated(base, counts[i]) ? "x" : "");
-      if (!CPG_ONLY || is_cpg_site(chrom, i)) {
-        out << MSite(chrom_name, i, is_cytosine(base) ? '+' : '-',
-                     tag, meth, tot) << '\n';
-      }
+      if (!CPG_ONLY || is_cpg_site(chrom, i))
+        out << the_site << "\n";
     }
   }
 }
@@ -248,6 +251,88 @@ get_chrom_id(const string &chrom_name,
     throw runtime_error("could not find chrom: " + chrom_name);
 
   return the_chrom->second;
+}
+
+template <class T>
+static void
+process_reads(const bool VERBOSE, igzfstream &in, T &out,
+              const unordered_map<string, size_t> &chrom_lookup,
+              const vector<size_t> &chrom_sizes,
+              const vector<string> &chrom_order,
+              const vector<string> &chroms,
+              const bool CPG_ONLY) {
+
+  size_t chrom_id = 0;
+  size_t chrom_size = 0;
+  GenomicRegion chrom_region; // holds chrom name for fast comparisons
+  MappedRead mr;
+
+  // this is where all the counts are accumulated
+  vector<CountSet<unsigned short> > counts;
+
+  size_t j = 0; // current chromosome
+
+  while (in >> mr) {
+
+    // if chrom changes, output previous results, get new one
+    if (counts.empty() || !mr.r.same_chrom(chrom_region)) {
+
+      // make sure all reads from same chrom are contiguous in the file
+      if (mr.r.get_chrom() < chrom_region.get_chrom())
+        throw runtime_error("chroms out of order in mapped reads file");
+
+      if (!counts.empty()) {// should be true after first iteration
+        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+        ++j;
+      }
+      while (j < chrom_order.size() && chrom_order[j] != mr.r.get_chrom()) {
+        if (VERBOSE)
+          cerr << "NO_READS:\t" << chrom_order[j] << endl;
+        chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+        chrom_size = chrom_sizes[chrom_id];
+        chrom_region.set_chrom(chrom_order[j]);
+        counts.clear();
+        counts.resize(chrom_size);
+        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+        ++j;
+      }
+
+      if (j == chrom_order.size() || chrom_order[j] != mr.r.get_chrom())
+        throw runtime_error("problem with chrom order in mapped reads");
+
+      // move to the current chromosome
+      chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+      chrom_size = chrom_sizes[chrom_id];
+      chrom_region.set_chrom(chrom_order[j]);
+      // reset the counts
+      counts.clear();
+      counts.resize(chrom_size);
+
+      if (VERBOSE)
+        cerr << "PROCESSING:\t" << chrom_order[j] << endl;
+    }
+
+    // do the work for this mapped read, depending on strand
+    if (mr.r.pos_strand())
+      count_states_pos(mr, counts);
+    else count_states_neg(mr, counts);
+
+  }
+  if (!counts.empty()) {// should be true after first iteration
+    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+    ++j;
+  }
+  while (j < chrom_order.size()) {
+    if (VERBOSE)
+      cerr << "NO_READS:\t" << chrom_order[j] << endl;
+    chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+    chrom_size = chrom_sizes[chrom_id];
+    chrom_region.set_chrom(chrom_order[j]);
+    counts.clear();
+    counts.resize(chrom_size);
+    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
+    ++j;
+  }
 }
 
 int
@@ -330,84 +415,22 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << chroms.size() << endl;
 
-    std::ifstream in(mapped_reads_file);
+    igzfstream in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+    if (outfile.empty() || !has_gz_ext(outfile)) {
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+      std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
-    size_t chrom_id = 0;
-    size_t chrom_size = 0;
-    GenomicRegion chrom_region; // holds chrom name for fast comparisons
-    MappedRead mr;
-
-    // this is where all the counts are accumulated
-    vector<CountSet<unsigned short> > counts;
-
-    size_t j = 0; // current chromosome
-
-    while (in >> mr) {
-
-      // if chrom changes, output previous results, get new one
-      if (counts.empty() || !mr.r.same_chrom(chrom_region)) {
-
-        // make sure all reads from same chrom are contiguous in the file
-        if (mr.r.get_chrom() < chrom_region.get_chrom())
-          throw runtime_error("chroms out of order: " + mapped_reads_file);
-
-        if (!counts.empty()) {// should be true after first iteration
-          write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-          ++j;
-        }
-        while (j < chrom_order.size() && chrom_order[j] != mr.r.get_chrom()) {
-          if (VERBOSE)
-            cerr << "NO_READS:\t" << chrom_order[j] << endl;
-          chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-          chrom_size = chrom_sizes[chrom_id];
-          chrom_region.set_chrom(chrom_order[j]);
-          counts.clear();
-          counts.resize(chrom_size);
-          write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-          ++j;
-        }
-
-        if (j == chrom_order.size() || chrom_order[j] != mr.r.get_chrom())
-          throw runtime_error("problem with chrom order in mapped reads");
-
-        // move to the current chromosome
-        chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-        chrom_size = chrom_sizes[chrom_id];
-        chrom_region.set_chrom(chrom_order[j]);
-        // reset the counts
-        counts.clear();
-        counts.resize(chrom_size);
-
-        if (VERBOSE)
-          cerr << "PROCESSING:\t" << chrom_order[j] << endl;
-      }
-
-      // do the work for this mapped read, depending on strand
-      if (mr.r.pos_strand())
-        count_states_pos(mr, counts);
-      else count_states_neg(mr, counts);
-
+      process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
+                    chroms, CPG_ONLY);
     }
-    if (!counts.empty()) {// should be true after first iteration
-      write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-      ++j;
-    }
-    while (j < chrom_order.size()) {
-      if (VERBOSE)
-        cerr << "NO_READS:\t" << chrom_order[j] << endl;
-      chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-      chrom_size = chrom_sizes[chrom_id];
-      chrom_region.set_chrom(chrom_order[j]);
-      counts.clear();
-      counts.resize(chrom_size);
-      write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-      ++j;
+    else {
+      ogzfstream out(outfile);
+      process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
+                    chroms, CPG_ONLY);
     }
   }
   catch (const runtime_error &e) {

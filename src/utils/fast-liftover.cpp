@@ -37,7 +37,6 @@
 #include "smithlab_os.hpp"
 #include "OptionParser.hpp"
 #include "GenomicRegion.hpp"
-#include "MethpipeFiles.hpp"
 #include "MethpipeSite.hpp"
 
 using std::string;
@@ -170,9 +169,9 @@ main(int argc, const char **argv) {
     MSite lifted, meth_site;
     while (in >> meth_site) {
       if (lift_site(index, meth_site))
-        out << meth_site << '\n';
+        out << meth_site << endl;
       else if (!unlifted_file.empty())
-        unlifted << meth_site << '\n';
+        unlifted << meth_site << endl;
     }
   }
   catch (const runtime_error &e) {

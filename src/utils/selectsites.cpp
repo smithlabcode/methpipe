@@ -29,6 +29,7 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MethpipeSite.hpp"
+#include "zlib_wrapper.hpp"
 
 using std::string;
 using std::vector;
@@ -68,14 +69,14 @@ contains(const GenomicRegion &r, const MSite &s) {
           (r.get_start() <= s.pos && s.pos < r.get_end()));
 }
 
-
+template <class T>
 static void
 process_all_sites(const bool VERBOSE,
-                 const string &sites_file,
-                 vector<GenomicRegion> &regions,
-                 std::ostream &out) {
+                  const string &sites_file,
+                  const vector<GenomicRegion> &regions,
+                  T &out) {
 
-  ifstream in(sites_file);
+  igzfstream in(sites_file);
   if (!in)
     throw runtime_error("cannot open file: " + sites_file);
 
@@ -86,7 +87,7 @@ process_all_sites(const bool VERBOSE,
       ++i;
 
     if (contains(regions[i], the_site))
-      out << the_site << '\n';
+      out << the_site << "\n";
   }
 }
 
@@ -248,20 +249,23 @@ main(int argc, const char **argv) {
       cerr << "[number of regions merged due to overlap: "
            << n_orig_regions - regions.size() << "]" << endl;
 
-    ifstream in(sites_file);
-    if (!in)
-      throw runtime_error("cannot open file: " + sites_file);
+    if (outfile.empty() || !has_gz_ext(outfile)) {
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+      std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+      if (!outfile.empty() && !out)
+        throw runtime_error("failed to open output file: " + outfile);
 
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    if (!outfile.empty() && !out)
-      throw runtime_error("failed to open output file: " + outfile);
-
-    if (LOAD_ENTIRE_FILE)
+      if (LOAD_ENTIRE_FILE)
+        process_all_sites(VERBOSE, sites_file, regions, out);
+      else
+        process_with_sites_on_disk(sites_file, regions, out);
+    }
+    else {
+      // not supporting search on disk for gz file
+      ogzfstream out(outfile);
       process_all_sites(VERBOSE, sites_file, regions, out);
-    else
-      process_with_sites_on_disk(sites_file, regions, out);
+    }
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;

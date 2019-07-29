@@ -22,6 +22,7 @@
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
 #include "bsutils.hpp"
+#include "zlib_wrapper.hpp"
 
 #include <string>
 #include <vector>
@@ -120,6 +121,96 @@ get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
 }
 
 
+template <class T>
+static void
+duplicate_remover(const bool VERBOSE,
+                  const bool USE_SEQUENCE,
+                  const bool ALL_C,
+                  const bool DISABLE_SORT_TEST,
+                  const string &infile,
+                  const string &statfile,
+                  T &out) {
+
+  igzfstream in(infile);
+
+  MappedRead mr;
+  if (!(in >> mr))
+    throw runtime_error("error reading file: " + infile);
+
+  size_t reads_in = 1;
+  size_t reads_out = 0;
+  size_t good_bases_in = mr.seq.length();
+  size_t good_bases_out = 0;
+  size_t reads_with_duplicates = 0;
+
+  vector<MappedRead> buffer(1, mr);
+  while (in >> mr) {
+    ++reads_in;
+    good_bases_in += mr.seq.length();
+    if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
+      throw runtime_error("input not properly sorted:\n" +
+                          toa(buffer.front()) + "\n" + toa(mr));
+    if (!equivalent(buffer.front(), mr)) {
+      if (USE_SEQUENCE) {
+        const size_t orig_buffer_size = buffer.size();
+        get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
+        for (auto && r : buffer)
+          out << r << "\n";
+        reads_out += buffer.size();
+        good_bases_out += buffer.size() * buffer[0].seq.length();
+        reads_with_duplicates += (buffer.size() < orig_buffer_size);
+      }
+      else {
+        const size_t selected = rand() % buffer.size();
+        out << buffer[selected] << "\n";
+        good_bases_out += buffer[selected].seq.length();
+        ++reads_out;
+        reads_with_duplicates += (buffer.size() > 1);
+      }
+      buffer.clear();
+    }
+    buffer.push_back(mr);
+  }
+
+  if (USE_SEQUENCE) {
+    const size_t orig_buffer_size = buffer.size();
+    get_meth_patterns(ALL_C, buffer);
+    for (auto && r : buffer)
+      out << r << "\n";
+    reads_out += buffer.size();
+    reads_with_duplicates += (buffer.size() < orig_buffer_size);
+    good_bases_out += buffer.size() * buffer[0].seq.length();
+  }
+  else {
+    const size_t selected = rand() % buffer.size();
+    out << buffer[selected] << "\n";
+    good_bases_out += buffer[selected].seq.length();
+    ++reads_out;
+    reads_with_duplicates += (buffer.size() > 1);
+  }
+
+  if (!statfile.empty()) {
+
+    const size_t reads_removed = reads_in - reads_out;
+    const double non_dup_fraction =
+      static_cast<double>(reads_out - reads_with_duplicates)/reads_in;
+    const double duplication_rate =
+      static_cast<double>(reads_removed + reads_with_duplicates)/
+      reads_with_duplicates;
+
+    std::ofstream out_stat(statfile.c_str());
+    out_stat << "total_reads: " << reads_in << endl
+             << "total_bases: " << good_bases_in << endl
+             << "unique_reads: " << reads_out << endl
+             << "unique_read_bases: " << good_bases_out << endl
+             << "non_duplicate_fraction: " << non_dup_fraction << endl
+             << "duplicate_reads: " << reads_with_duplicates << endl
+             << "reads_removed: " << reads_removed << endl
+             << "duplication_rate: "
+             << duplication_rate << endl;
+  }
+}
+
 int main(int argc, const char **argv) {
 
   try {
@@ -129,6 +220,7 @@ int main(int argc, const char **argv) {
     bool DISABLE_SORT_TEST = false;
     bool INPUT_FROM_STDIN = false;
 
+    size_t the_seed = 408;
     string outfile;
     string statfile;
 
@@ -146,7 +238,9 @@ int main(int argc, const char **argv) {
                       false, ALL_C);
     opt_parse.add_opt("disable", 'D', "disable sort test",
                       false, DISABLE_SORT_TEST);
+    opt_parse.add_opt("seed", 's', "specify random seed", false, the_seed);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.set_show_defaults();
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -173,92 +267,21 @@ int main(int argc, const char **argv) {
       infile = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    srand(time(0) + getpid());
+    srand(the_seed);
 
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-
-    std::ifstream ifs;
-    if (!infile.empty()) ifs.open(infile.c_str());
-    std::istream in(infile.empty() ? cin.rdbuf() : ifs.rdbuf());
-
-    MappedRead mr;
-    if (!(in >> mr))
-      throw runtime_error("error reading file: " + infile);
-
-
-    size_t reads_in = 1;
-    size_t reads_out = 0;
-    size_t good_bases_in = mr.seq.length();
-    size_t good_bases_out = 0;
-    size_t reads_with_duplicates = 0;
-
-    vector<MappedRead> buffer(1, mr);
-    while (in >> mr) {
-      ++reads_in;
-      good_bases_in += mr.seq.length();
-      if (!DISABLE_SORT_TEST && precedes(mr, buffer.front()))
-        throw runtime_error("input not properly sorted:\n" +
-                            toa(buffer.front()) + "\n" + toa(mr));
-      if (!equivalent(buffer.front(), mr)) {
-        if (USE_SEQUENCE) {
-          const size_t orig_buffer_size = buffer.size();
-          get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
-          copy(buffer.begin(), buffer.end(),
-               std::ostream_iterator<MappedRead>(out, "\n"));
-          reads_out += buffer.size();
-          good_bases_out += buffer.size() * buffer[0].seq.length();
-          reads_with_duplicates += (buffer.size() < orig_buffer_size);
-        }
-        else {
-          const size_t selected = rand() % buffer.size();
-          out << buffer[selected] << "\n";
-          good_bases_out += buffer[selected].seq.length();
-          ++reads_out;
-          reads_with_duplicates += (buffer.size() > 1);
-        }
-        buffer.clear();
-      }
-      buffer.push_back(mr);
-    }
-
-    if (USE_SEQUENCE) {
-      const size_t orig_buffer_size = buffer.size();
-      get_meth_patterns(ALL_C, buffer);
-      copy(buffer.begin(), buffer.end(),
-           std::ostream_iterator<MappedRead>(out, "\n"));
-      reads_out += buffer.size();
-      reads_with_duplicates += (buffer.size() < orig_buffer_size);
-      good_bases_out += buffer.size() * buffer[0].seq.length();
+    if (outfile.empty() || !has_gz_ext(outfile)) {
+      std::ofstream of;
+      if (!outfile.empty()) of.open(outfile.c_str());
+      std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+      if (!outfile.empty() && !out)
+        throw runtime_error("failed to open output file: " + outfile);
+      duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
+                        infile, statfile, out);
     }
     else {
-      const size_t selected = rand() % buffer.size();
-      out << buffer[selected] << "\n";
-      good_bases_out += buffer[selected].seq.length();
-      ++reads_out;
-      reads_with_duplicates += (buffer.size() > 1);
-    }
-
-    if (!statfile.empty()) {
-
-      const size_t reads_removed = reads_in - reads_out;
-      const double non_dup_fraction =
-        static_cast<double>(reads_out - reads_with_duplicates)/reads_in;
-      const double duplication_rate =
-        static_cast<double>(reads_removed + reads_with_duplicates)/
-        reads_with_duplicates;
-
-      std::ofstream out_stat(statfile.c_str());
-      out_stat << "total_reads: " << reads_in << endl
-               << "total_bases: " << good_bases_in << endl
-               << "unique_reads: " << reads_out << endl
-               << "unique_read_bases: " << good_bases_out << endl
-               << "non_duplicate_fraction: " << non_dup_fraction << endl
-               << "duplicate_reads: " << reads_with_duplicates << endl
-               << "reads_removed: " << reads_removed << endl
-               << "duplication_rate: "
-               << duplication_rate << endl;
+      ogzfstream out(outfile);
+      duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
+                        infile, statfile, out);
     }
   }
   catch (const std::runtime_error &e) {

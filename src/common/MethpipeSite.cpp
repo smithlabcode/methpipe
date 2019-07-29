@@ -32,7 +32,7 @@ using std::runtime_error;
 MSite::MSite(const string &line) {
   std::istringstream iss;
   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-  std::string strand_tmp;
+  string strand_tmp;
   if (!(iss >> chrom >> pos >> strand_tmp >> context >> meth >> n_reads))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
   strand = strand_tmp[0];
@@ -52,17 +52,6 @@ MSite::tostring() const {
       << n_reads;
   return oss.str();
 }
-
-
-// std::ostream &
-// operator<<(std::ostream &out, const MSite &s) {
-//   return out << s.chrom << '\t'
-//              << s.pos << '\t'
-//              << s.strand << '\t'
-//              << s.context << '\t'
-//              << s.meth << '\t'
-//              << s.n_reads;
-// }
 
 
 size_t

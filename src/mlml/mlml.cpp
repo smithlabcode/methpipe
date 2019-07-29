@@ -18,10 +18,13 @@
 #include <vector>
 #include <iostream>
 #include <stdexcept>
+#include <fstream>
+#include <cassert>
+#include <sstream>
 
 #include "OptionParser.hpp"
 #include "smithlab_os.hpp"
-#include "MethpipeFiles.hpp"
+#include "MethpipeSite.hpp"
 
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_cdf.h>
@@ -35,6 +38,8 @@ using std::endl;
 using std::max;
 using std::min;
 using std::round;
+using std::ofstream;
+using std::ifstream;
 
 static void
 wilson_ci_for_binomial(const double alpha, const double n,
@@ -306,7 +311,8 @@ expectation_maximization(const bool DEBUG,
     q = max(tolerance, min(q, 1-tolerance-p));
     delta = max(fabs(p_old - p), fabs(q_old - q));
     iter ++;
-  } while (delta > tolerance && iter <= 500);
+  }
+  while (delta > tolerance && iter <= 500);
 
   if (DEBUG) {
     cerr << iter << '\t'
@@ -317,26 +323,287 @@ expectation_maximization(const bool DEBUG,
 }
 
 
-//////////////////////////
-//  common           /////
-//////////////////////////
 static void
-parse_line(const bool REV, const string &line,
-           size_t &a, size_t &b, string &chr, size_t &pos) {
+process_three_types(const double alpha,
+                    const double tolerance,
+                    const bool FLAG,
+                    const string &hydroxy_file,
+                    const string &bs_seq_file,
+                    const string &oxbs_file,
+                    const string &outfile,
+                    const string &out_methcount_pseudo_h,
+                    const string &out_methcount_pseudo_m,
+                    size_t &total_sites,
+                    size_t &overshoot_sites,
+                    size_t &conflict_sites) {
 
-  std::istringstream is(line);
-  double level = 0.0;
-  string dummy, str_count;
-  size_t count;
-  is >> chr >> pos >> dummy >> str_count >> level >> count;
+  ifstream h_in(hydroxy_file);
+  ifstream b_in(bs_seq_file);
+  ifstream o_in(oxbs_file);
 
-  if (count > 500) count = 500;
+  ofstream out(outfile);
+  ofstream out_m, out_h;
+  if (!out_methcount_pseudo_m.empty())
+    out_m.open(out_methcount_pseudo_m);
+  if (!out_methcount_pseudo_h.empty())
+    out_h.open(out_methcount_pseudo_h);
 
-  a = round(count*level);
-  b = count - a;
-  if (REV) std::swap(a, b);
+  MSite r, s, o;
+  while (h_in >> r && b_in >> s && o_in >> o) {
+
+    if (r.n_reads > 500) r.n_reads = 500;
+    const size_t h = r.n_meth();
+    const size_t g = r.n_unmeth();
+
+    if (s.n_reads > 500) s.n_reads = 500;
+    const size_t t = s.n_meth();
+    const size_t u = s.n_unmeth();
+
+    if (o.n_reads > 500) o.n_reads = 500;
+    const size_t m = o.n_meth();
+    const size_t l = o.n_unmeth();
+
+    assert(r.chrom == s.chrom && r.chrom == o.chrom &&
+           r.pos == o.pos && r.pos == s.pos);
+
+    total_sites++;
+    double p_m, p_h, p_u;
+    int CONFLICT = 0, cflt_m, cflt_h, cflt_u;
+    double p_m_hat, p_h_hat, p_u_hat;
+
+    size_t x = 0, y = 0, z = 0, w = 0, a = 0, b= 0;
+
+    if ((h + g > 0 && u + t > 0) ||
+        (h + g > 0 && m + l > 0) ||
+        (m + l > 0 && u + t > 0)) {
+
+      x = g; y = h;
+      z = m; w = l;
+      a = t; b = u;
+
+      p_h_hat = static_cast<double>(y)/(x + y);
+      p_m_hat = static_cast<double>(z)/(z + w);
+      p_u_hat = static_cast<double>(b)/(a + b);
+
+      // use frequent method result if no overshoot
+      if (p_h_hat + p_m_hat + p_u_hat == 1.0) {
+        out << r.chrom << '\t' << r.pos << '\t'
+            << r.pos + 1 << '\t' <<p_m_hat << '\t'
+            << p_h_hat << '\t' << p_u_hat << "\t0" << endl;
+
+        // write out pseudo methcount files for mC and hmC
+        if (!out_methcount_pseudo_m.empty())
+          out_m << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+                << p_m_hat << "\t" << a+b+x+y+z+w << endl;
+        if (!out_methcount_pseudo_h.empty())
+          out_h << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+                << p_h_hat << "\t" << a+b+x+y+z+w << endl;
+      }
+      else {
+        overshoot_sites++;
+        get_start_point(t, u, m, l, h, g, tolerance, p_m, p_h);
+        expectation_maximization(false, x, y, z, w, a, b, tolerance, p_m, p_h);
+
+        p_u = 1 - p_m - p_h;
+        if (p_h <= 2.0*tolerance) p_h = 0.0;
+        if (p_m <= 2.0*tolerance) p_m = 0.0;
+        if (p_u <= 2.0*tolerance) p_u = 0.0;
+        if (p_m >= 1.0-2.0*tolerance) p_m = 1.0;
+        if (p_h >= 1.0-2.0*tolerance) p_h = 1.0;
+        if (p_u >= 1.0-2.0*tolerance) p_u = 1.0;
+
+        if (p_h_hat + p_m_hat + p_u_hat != 1 && FLAG) {
+          cflt_h = binom_null(alpha, static_cast<double>(x+y), p_h_hat, p_h);
+          cflt_m = binom_null(alpha, static_cast<double>(z+w), p_m_hat, p_m);
+          cflt_u = binom_null(alpha, static_cast<double>(a+b), p_u_hat, p_u);
+          CONFLICT = cflt_m + cflt_u + cflt_h;
+        }
+
+        out << r.chrom << '\t' << r.pos << '\t'
+            << r.pos + 1 << '\t' << p_m << '\t'
+            << p_h << "\t" << p_u << "\t" << CONFLICT << endl;
+
+        if (CONFLICT > 1)
+          conflict_sites++;
+
+        // write out pseudo methcount files for mC and hmC
+        if (!out_methcount_pseudo_m.empty())
+          out_m << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+                << p_m << '\t' << a+b+x+y+z+w << endl;
+        if (!out_methcount_pseudo_h.empty())
+          out_h << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+                << p_h << '\t' << a+b+x+y+z+w << endl;
+      }
+    }
+    else { //observation from only one experiment
+      out << r.chrom << '\t' << r.pos << '\t'
+          << r.pos +1 << '\t' << "nan\tnan\tnan\tnan" << endl;
+
+      // write out pseudo methcount files for mC and hmC
+      if (!out_methcount_pseudo_m.empty()) {
+        int coverage = m + l;
+        const double level = coverage > 0 ? static_cast<double>(m)/coverage : 0.0;
+        out_m << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+              << level << "\t" << coverage << endl;
+      }
+      if (!out_methcount_pseudo_h.empty()) {
+        int coverage = h + g;
+        double level = coverage > 0 ? static_cast<double>(h)/coverage : 0.0;
+        out_h << r.chrom << '\t' << r.pos << "\t+\tCpG\t"
+              << level << "\t" << coverage << endl;
+      }
+    }
+  }
 }
 
+
+static void
+process_two_types(const double alpha,
+                  const double tolerance,
+                  const bool FLAG,
+                  const string &hydroxy_file,
+                  const string &bs_seq_file,
+                  const string &oxbs_file,
+                  const string &outfile,
+                  const string &out_methcount_pseudo_h,
+                  const string &out_methcount_pseudo_m,
+                  size_t &total_sites,
+                  size_t &overshoot_sites,
+                  size_t &conflict_sites) {
+
+  ofstream out(outfile);
+  ofstream out_m, out_h;
+  if (!out_methcount_pseudo_m.empty())
+    out_m.open(out_methcount_pseudo_m);
+  if (!out_methcount_pseudo_h.empty())
+    out_h.open(out_methcount_pseudo_h);
+
+  std::ifstream f_in, s_in;
+  bool f_rev = false, s_rev = false;
+  if (oxbs_file.empty()) {
+    s_rev = true;
+    f_in.open(hydroxy_file);
+    s_in.open(bs_seq_file);
+  }
+  else if (hydroxy_file.empty()) {
+    f_rev = true;
+    f_in.open(bs_seq_file);
+    s_in.open(oxbs_file);
+  }
+  else {
+    f_in.open(oxbs_file);
+    s_in.open(hydroxy_file);
+  }
+
+  MSite f, s;
+  while (f_in >> f && s_in >> s) {
+
+    assert(f.chrom == s.chrom && f.pos == s.pos);
+
+    if (f.n_reads > 500) f.n_reads = 500;
+    size_t x = f.n_meth();
+    size_t y = f.n_unmeth();
+    if (f_rev) std::swap(x, y);
+
+    if (s.n_reads > 500) s.n_reads = 500;
+    size_t z = s.n_meth();
+    size_t w = s.n_unmeth();
+    if (s_rev) std::swap(z, w);
+
+    total_sites++;
+    double p = 0.0, q = 0.0, r = 0.0;
+    int CONFLICT = 0, cflt1, cflt2;
+    if (x + y > 0 && z + w > 0) {
+      if (static_cast<double>(x)/(x+y) +
+          static_cast<double>(z)/(z+w) <= 1.0) {
+        p = static_cast<double>(x)/(x+y);
+        q = static_cast<double>(z)/(z+w);
+        r = 1.0 - p - q;
+      }
+      else {
+        overshoot_sites++;
+        get_start_point(x, y, z, w, tolerance, p, q);
+        expectation_maximization(false, x, y, z, w, tolerance, p, q);
+        r = 1.0 - p - q;
+        if (p <= 2.0*tolerance) p = 0.0;
+        if (q <= 2.0*tolerance) q = 0.0;
+        if (r <= 2.0*tolerance) r = 0.0;
+        if (p >= 1.0 - 2.0*tolerance) p = 1.0;
+        if (q >= 1.0 - 2.0*tolerance) q = 1.0;
+        if (r >= 1.0 - 2.0*tolerance) r = 1.0;
+        if (FLAG) {
+          const double p_hat1 = static_cast<double>(x)/(x+y);
+          cflt1 = binom_null(alpha, static_cast<double>(x+y), p_hat1, p);
+          const double p_hat2 = static_cast<double>(z)/(z+w);
+          cflt2 = binom_null(alpha, static_cast<double>(z+w), p_hat2, q);
+          CONFLICT = cflt1 + cflt2;
+        }
+      }
+
+      out << f.chrom << '\t' << f.pos << '\t' << f.pos + 1 << '\t';
+      if (oxbs_file.empty()) out << r << '\t' << p << '\t' << q << '\t';
+      else if (hydroxy_file.empty()) out << q << '\t' << r << '\t' << p << '\t';
+      else out << p << '\t' << q << '\t' << r << '\t';
+      out << CONFLICT << endl;
+
+      if (CONFLICT > 1)
+        conflict_sites++;
+
+      // write out pseudo methcount files for mC and hmC
+      if (!out_methcount_pseudo_h.empty()) {
+        out_h << f.chrom << '\t' << f.pos << "\t+\tCpG\t";
+        if (oxbs_file.empty()) out_h << p;
+        else if (hydroxy_file.empty()) out_h << r;
+        else out_h << q;
+        out_h << '\t' << x + y + z+ w << endl;
+      }
+
+      if (!out_methcount_pseudo_m.empty()) {
+        out_m << f.chrom << '\t' << f.pos << "\t+\tCpG\t";
+        if (oxbs_file.empty()) out_m << r;
+        else if (hydroxy_file.empty()) out_m << q;
+        else out_m << p;
+        out_m << '\t' << x + y + z+ w << endl;
+      }
+    }
+    else { // only one input file has non-zero coverage
+
+      out << f.chrom << '\t' << f.pos << '\t'
+          << f.pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
+
+      // write out pseudo methcount files for mC and hmC
+      if (!out_methcount_pseudo_h.empty()) {
+        int coverage = 0;
+        double level = 0.0;
+        if (oxbs_file.empty() && x+y > 0) {
+          coverage = x + y;
+          level = static_cast<double>(x)/(coverage);
+        }
+        else if (bs_seq_file.empty() && z+w > 0) {
+          coverage = z + w;
+          level = static_cast<double>(z)/(coverage);
+        }
+        out_h << s.chrom << '\t' << s.pos << "\t+\tCpG\t"
+              << level << '\t' << coverage << endl;
+      }
+
+      if (!out_methcount_pseudo_m.empty()) {
+        int coverage = 0;
+        double level = 0.0;
+        if (bs_seq_file.empty() && x + y > 0) {
+          coverage = x + y;
+          level = static_cast<double>(x)/(coverage);
+        }
+        else if (hydroxy_file.empty() && z + w > 0) {
+          coverage = z + w;
+          level = static_cast<double>(z)/(coverage);
+        }
+        out_m << s.chrom << '\t' << s.pos << "\t+\tCpG\t"
+              << level << '\t' << coverage << endl;
+      }
+    }
+  }
+}
 
 
 int
@@ -346,7 +613,7 @@ main(int argc, const char **argv) {
 
     bool VERBOSE = false;
     bool FLAG = true;
-    string oxbs_seq_file;
+    string oxbs_file;
     string hydroxy_file;
     string bs_seq_file;
     string outfile;
@@ -356,26 +623,31 @@ main(int argc, const char **argv) {
     static double tolerance = 1e-10;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "", "");
-    opt_parse.add_opt("output", 'o', "Name of output file (default: stdout)",
+    OptionParser opt_parse(strip_path(argv[0]), "program to estimate "
+                      "methylation levels", "at least two input files");
+    opt_parse.add_opt("output", 'o', "output file (default: stdout)",
                       false, outfile);
-    opt_parse.add_opt("bsseq", 'u', "Name of input BS-Seq methcounts file",
+    opt_parse.add_opt("bsseq", 'u', "input BS-seq methcounts file",
                       false , bs_seq_file);
-    opt_parse.add_opt("tabseq", 'h', "Name of input TAB-Seq methcounts file",
+    opt_parse.add_opt("tabseq", 'h', "input TAB-seq methcounts file",
                       false , hydroxy_file);
-    opt_parse.add_opt("oxbsseq", 'm', "Name of input oxBS-Seq methcounts file",
-                      false , oxbs_seq_file);
-    opt_parse.add_opt("tolerance", 't', "EM convergence threshold. Default 1e-10",
+    opt_parse.add_opt("oxbsseq", 'm', "input oxBS-seq methcounts file",
+                      false , oxbs_file);
+    opt_parse.add_opt("tolerance", 't', "EM convergence threshold",
                       false , tolerance);
-    opt_parse.add_opt("alpha", 'a', "significance level of binomial test for each site. Default 0.05",
+    opt_parse.add_opt("alpha", 'a',
+                      "significance level of binomial test for each site",
                       false, alpha);
-    opt_parse.add_opt("outh", 'H', "hmC pseudo methcount output file (default: null)",
+    opt_parse.add_opt("outh", 'H',
+                      "hmC pseudo methcount output file (default: null)",
                       false, out_methcount_pseudo_h);
-    opt_parse.add_opt("outm", 'M', "mC pseudo methcount output file (default: null)",
+    opt_parse.add_opt("outm", 'M',
+                      "mC pseudo methcount output file (default: null)",
                       false, out_methcount_pseudo_m);
     opt_parse.add_opt("verbose", 'v', "print run statistics", false, VERBOSE);
-    vector<string> leftover_args;
+    opt_parse.set_show_defaults();
 
+    vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
@@ -398,269 +670,34 @@ main(int argc, const char **argv) {
       cerr << "Please specify a value in (0, 1) for -a option." << endl;
       return EXIT_SUCCESS;
     }
-    if ((oxbs_seq_file.empty() && hydroxy_file.empty()) ||
-        (oxbs_seq_file.empty() && bs_seq_file.empty()) ||
+    if ((oxbs_file.empty() && hydroxy_file.empty()) ||
+        (oxbs_file.empty() && bs_seq_file.empty()) ||
         (bs_seq_file.empty() && hydroxy_file.empty())) {
       cerr << "Please specify at least 2 bed files as input" << endl;
       return EXIT_SUCCESS;
     }
     tolerance = max(1e-15, min(tolerance, 0.1));
-
     /****************** END COMMAND LINE OPTIONS *****************/
-    std::ofstream out(outfile.empty() ? "/dev/stdout" : outfile.c_str());
-
-    std::ofstream out_m, out_h;
-    if (!out_methcount_pseudo_m.empty())
-      out_m.open(out_methcount_pseudo_m, std::ofstream::out);
-    if (!out_methcount_pseudo_h.empty())
-      out_h.open(out_methcount_pseudo_h, std::ofstream::out);
-
-    size_t h = 0, g = 0;
-    size_t m = 0, l = 0;
-    size_t u = 0, t = 0;
-    size_t x = 0, y = 0, z = 0, w = 0, a = 0, b= 0;
-    size_t total_sites = 0, overshoot_sites = 0, conflict_sites = 0;
 
     if (VERBOSE)
       cerr << "Output format:" << endl
            << "chrom    start   end     pm      "
            << "ph      pu      #_of_conflict" << endl;
 
-    if (!hydroxy_file.empty() &&
-        !bs_seq_file.empty() && !oxbs_seq_file.empty()) {
-      std::ifstream h_in(hydroxy_file.c_str());
-      std::ifstream b_in(bs_seq_file.c_str());
-      std::ifstream o_in(oxbs_seq_file.c_str());
+    size_t total_sites = 0;
+    size_t overshoot_sites = 0;
+    size_t conflict_sites = 0;
 
-      string hydroxy_line, bs_line, oxbs_line;
-      string h_chr, b_chr, o_chr;
-      size_t h_pos = 0, b_pos = 0, o_pos = 0;
-
-      hydroxy_line = methpipe::skip_header(h_in);
-      bs_line = methpipe::skip_header(b_in);
-      oxbs_line = methpipe::skip_header(o_in);
-      do {
-
-        parse_line(false, hydroxy_line, h, g, h_chr, h_pos);
-        parse_line(false, bs_line, t, u, b_chr, b_pos);
-        parse_line(false, oxbs_line, m, l, o_chr, o_pos);
-
-        assert(h_chr == b_chr && h_chr == o_chr &&
-               h_pos == o_pos && h_pos == b_pos);
-
-        total_sites++;
-        double p_m, p_h, p_u;
-        int CONFLICT = 0, cflt_m, cflt_h, cflt_u;
-        double p_m_hat, p_h_hat, p_u_hat;
-        if ((h + g > 0 && u + t > 0) ||
-            (h + g > 0 && m + l > 0) ||
-            (m + l > 0 && u + t > 0)) {
-          x = g; y = h;
-          z = m; w = l;
-          a = t; b = u;
-          p_h_hat = static_cast<double>(y)/(x+y);
-          p_m_hat = static_cast<double>(z)/(z+w);
-          p_u_hat = static_cast<double>(b)/(a+b);
-
-          // use frequent method result if no overshoot
-          if (p_h_hat + p_m_hat + p_u_hat == 1.0) {
-            out << h_chr << '\t' << h_pos << '\t'
-                << h_pos + 1 << '\t' <<p_m_hat << '\t'
-                << p_h_hat << '\t' << p_u_hat << "\t0" << endl;
-
-            // write out pseudo methcount files for mC and hmC
-            if (!out_methcount_pseudo_m.empty())
-              out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                    << p_m_hat << "\t" << a+b+x+y+z+w << endl;
-            if (!out_methcount_pseudo_h.empty())
-              out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                    << p_h_hat << "\t" << a+b+x+y+z+w << endl;
-          } else {
-            overshoot_sites++;
-            get_start_point(t, u, m, l, h, g, tolerance, p_m, p_h);
-            expectation_maximization(false, x, y, z, w, a, b, tolerance, p_m, p_h);
-
-            p_u = 1 - p_m - p_h;
-            if (p_h <= 2.0*tolerance) p_h = 0.0;
-            if (p_m <= 2.0*tolerance) p_m = 0.0;
-            if (p_u <= 2.0*tolerance) p_u = 0.0;
-            if (p_m >= 1.0-2.0*tolerance) p_m = 1.0;
-            if (p_h >= 1.0-2.0*tolerance) p_h = 1.0;
-            if (p_u >= 1.0-2.0*tolerance) p_u = 1.0;
-
-            if (p_h_hat+p_m_hat+p_u_hat != 1 && FLAG) {
-              cflt_h = binom_null(alpha, static_cast<double>(x+y), p_h_hat, p_h);
-              cflt_m = binom_null(alpha, static_cast<double>(z+w), p_m_hat, p_m);
-              cflt_u = binom_null(alpha, static_cast<double>(a+b), p_u_hat, p_u);
-              //CONFLICT = (cflt_m && cflt_h) || (cflt_u && cflt_h) || (cflt_m && cflt_u);
-              CONFLICT = cflt_m + cflt_u + cflt_h;
-            }
-
-            out << h_chr << '\t' << h_pos << '\t'
-                << h_pos + 1 << '\t' << p_m << '\t'
-                << p_h << "\t" << p_u << "\t" << CONFLICT << endl;
-
-            if (CONFLICT > 1)
-              conflict_sites++;
-
-            // write out pseudo methcount files for mC and hmC
-            if (!out_methcount_pseudo_m.empty())
-              out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                    << p_m << '\t' << a+b+x+y+z+w << endl;
-            if (!out_methcount_pseudo_h.empty())
-              out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                    << p_h << '\t' << a+b+x+y+z+w << endl;
-          }
-        } else { //observation from only one experiment
-          out << h_chr << '\t' << h_pos << '\t'
-              << h_pos +1 << '\t' << "nan\tnan\tnan\tnan" << endl;
-
-          // write out pseudo methcount files for mC and hmC
-          if (!out_methcount_pseudo_m.empty()) {
-            int coverage = m + l;
-            double level = coverage > 0 ? static_cast<double>(m)/(coverage) : 0.0;
-            out_m << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                  << level << "\t" << coverage << endl;
-          }
-          if (!out_methcount_pseudo_h.empty()) {
-            int coverage = h + g;
-            double level = coverage > 0 ? static_cast<double>(h)/(coverage) : 0.0;
-            out_h << h_chr << '\t' << h_pos << "\t+\tCpG\t"
-                  << level << "\t" << coverage << endl;
-          }
-        }
-      } while (getline(h_in, hydroxy_line) &&
-               getline(b_in, bs_line) &&
-               getline(o_in, oxbs_line));
-    } else {
-      std::ifstream f_in, s_in;
-      string f_line, s_line, f_chr, s_chr;
-      size_t f_pos = 0, s_pos = 0;
-      bool f_rev = false, s_rev = false;
-      size_t x = 0, y = 0, z = 0, w = 0;
-      if (oxbs_seq_file.empty()) {
-        s_rev = true;
-        f_in.open(hydroxy_file.c_str());
-        s_in.open(bs_seq_file.c_str());
-      } else if (hydroxy_file.empty()) {
-        f_rev = true;
-        f_in.open(bs_seq_file.c_str());
-        s_in.open(oxbs_seq_file.c_str());
-      } else {
-        f_in.open(oxbs_seq_file.c_str());
-        s_in.open(hydroxy_file.c_str());
-      }
-
-      f_line = methpipe::skip_header(f_in);
-      s_line = methpipe::skip_header(s_in);
-
-      do {
-        parse_line(f_rev, f_line, x, y, f_chr, f_pos);
-        parse_line(s_rev, s_line, z, w, s_chr, s_pos);
-
-        assert(f_chr == s_chr && f_pos == s_pos);
-
-        total_sites++;
-        double p = 0.0, q = 0.0, r = 0.0;
-        int CONFLICT=0, cflt1, cflt2;
-        if (x + y > 0 && z + w > 0) {
-          if (static_cast<double>(x)/(x+y) +
-              static_cast<double>(z)/(z+w) <= 1.0) {
-            p = static_cast<double>(x)/(x+y);
-            q = static_cast<double>(z)/(z+w);
-            r = 1.0 - p - q;
-          } else {
-            overshoot_sites++;
-            get_start_point(x, y, z, w, tolerance, p, q);
-            expectation_maximization(false, x, y, z, w, tolerance, p, q);
-            r = 1.0 - p - q;
-            if (p <= 2.0*tolerance) p = 0.0;
-            if (q <= 2.0*tolerance) q = 0.0;
-            if (r <= 2.0*tolerance) r = 0.0;
-            if (p >= 1.0 - 2.0*tolerance) p = 1.0;
-            if (q >= 1.0 - 2.0*tolerance) q = 1.0;
-            if (r >= 1.0 - 2.0*tolerance) r = 1.0;
-            if (FLAG) {
-              const double p_hat1 = static_cast<double>(x)/(x+y);
-              cflt1 = binom_null(alpha, static_cast<double>(x+y), p_hat1, p);
-              const double p_hat2 = static_cast<double>(z)/(z+w);
-              cflt2 = binom_null(alpha, static_cast<double>(z+w), p_hat2, q);
-              CONFLICT = cflt1 + cflt2;
-            }
-          }
-
-          out << f_chr << '\t' << f_pos << '\t'
-              << f_pos + 1 << '\t';
-
-          if (oxbs_seq_file.empty()) {
-            out << r << '\t' << p << '\t' << q << '\t';
-          } else if (hydroxy_file.empty()) {
-            out << q << '\t' << r << '\t' << p << '\t';
-          } else {
-            out << p << '\t' << q << '\t' << r << '\t';
-          }
-          out << CONFLICT << endl;
-          if (CONFLICT > 1)
-            conflict_sites++;
-
-          // write out pseudo methcount files for mC and hmC
-          if (!out_methcount_pseudo_h.empty()) {
-            out_h << f_chr << '\t' << f_pos << "\t+\tCpG\t";
-            if (oxbs_seq_file.empty()) {
-              out_h << p;
-            } else if (hydroxy_file.empty()) {
-              out_h << r;
-            } else {
-              out_h << q;
-            }
-            out_h << '\t' << x + y + z+ w << endl;
-          }
-          if (!out_methcount_pseudo_m.empty()) {
-            out_m << f_chr << '\t' << f_pos << "\t+\tCpG\t";
-            if (oxbs_seq_file.empty()) {
-              out_m << r;
-            } else if (hydroxy_file.empty()) {
-              out_m << q;
-            } else {
-              out_m << p;
-            }
-            out_m << '\t' << x + y + z+ w << endl;
-          }
-        } else { // only one input file has non-zero coverage
-          out << f_chr << '\t' << f_pos << '\t'
-              << f_pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
-
-          // write out pseudo methcount files for mC and hmC
-          if (!out_methcount_pseudo_h.empty()) {
-            int coverage = 0;
-            double level = 0.0;
-            if (oxbs_seq_file.empty() && x+y > 0) {
-              coverage = x + y;
-              level = static_cast<double>(x)/(coverage);
-            } else if (bs_seq_file.empty() && z+w > 0) {
-              coverage = z + w;
-              level = static_cast<double>(z)/(coverage);
-            }
-            out_h << s_chr << '\t' << s_pos << "\t+\tCpG\t"
-                  << level << '\t' << coverage << endl;
-          }
-
-          if (!out_methcount_pseudo_m.empty()) {
-            int coverage = 0;
-            double level = 0.0;
-            if (bs_seq_file.empty() && x + y > 0) {
-              coverage = x + y;
-              level = static_cast<double>(x)/(coverage);
-            } else if (hydroxy_file.empty() && z + w > 0) {
-              coverage = z + w;
-              level = static_cast<double>(z)/(coverage);
-            }
-            out_m << s_chr << '\t' << s_pos << "\t+\tCpG\t"
-                  << level << '\t' << coverage << endl;
-          }
-        }
-      } while (getline(f_in, f_line) && getline(s_in, s_line));
-    }
+    if (!hydroxy_file.empty() && !bs_seq_file.empty() && !oxbs_file.empty())
+      process_three_types(alpha, tolerance, FLAG,
+                          hydroxy_file, bs_seq_file, oxbs_file, outfile,
+                          out_methcount_pseudo_h, out_methcount_pseudo_m,
+                          total_sites, overshoot_sites, conflict_sites);
+    else
+      process_two_types(alpha, tolerance, FLAG,
+                        hydroxy_file, bs_seq_file, oxbs_file, outfile,
+                        out_methcount_pseudo_h, out_methcount_pseudo_m,
+                        total_sites, overshoot_sites, conflict_sites);
 
     if (VERBOSE)
       cerr << "total sites: " << total_sites << endl

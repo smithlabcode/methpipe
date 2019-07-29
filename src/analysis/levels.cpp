@@ -39,10 +39,9 @@
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
-#include "MethpipeFiles.hpp"
 #include "MethpipeSite.hpp"
 #include "LevelsCounter.hpp"
-
+#include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
 using std::string;
@@ -92,7 +91,7 @@ main(int argc, const char **argv) {
     const string meth_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    std::ifstream in(meth_file.c_str());
+    igzfstream in(meth_file);
     if (!in)
       throw std::runtime_error("bad input file: " + meth_file);
 
