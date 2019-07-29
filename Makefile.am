@@ -73,6 +73,7 @@ bin_PROGRAMS += lc_approx fast-liftover lift-filter merge-bsrate \
 
 if ENABLE_HTS
 bin_PROGRAMS += to-mr
+to_mr_LDFLAGS = -lhts
 endif
 
 clean_hairpins_SOURCES = src/utils/clean-hairpins.cpp
