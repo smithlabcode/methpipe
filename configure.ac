@@ -42,19 +42,19 @@ AC_ARG_ENABLE([hts],
   [AS_HELP_STRING([--enable-hts], [Enable HTSLib @<:@yes@:>@])],
   [enable_hts=yes], [enable_hts=no])
 AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_SEARCH_LIBS([hts_version], [hts], [],
+  [AC_CHECK_LIB([hts], [hts_version], [ ], dnl space needed in 3rd arg
   [AC_MSG_FAILURE([$hts_fail_msg])])]
 )
 AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
 
 dnl check for the smithlab_cpp library
-AC_SEARCH_LIBS([main], [smithlab_cpp]) dnl nothing else to check
 AS_IF([test "x$enable_hts" = "xyes"],
   [AC_SEARCH_LIBS([check_htslib_wrapper], [smithlab_cpp], [],
   [AC_MSG_FAILURE([
 
 HTSLib enabled but smithlab_cpp library built without HTSLib support
-])])])
+])], [-lhts])],
+[AC_SEARCH_LIBS([have_smithlab_cpp], [smithlab_cpp])])
 
 dnl check for required libraries
 AC_SEARCH_LIBS([zlibVersion], [z])
