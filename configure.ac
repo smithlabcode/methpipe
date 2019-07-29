@@ -26,6 +26,7 @@ dnl running ./configure to reverse this.
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_MACRO_DIR([m4])
+AC_LANG(C++)
 AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 AC_PROG_RANLIB
@@ -41,25 +42,24 @@ AC_ARG_ENABLE([hts],
   [AS_HELP_STRING([--enable-hts], [Enable HTSLib @<:@yes@:>@])],
   [enable_hts=yes], [enable_hts=no])
 AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_CHECK_LIB([hts], [hts_version], [], [AC_MSG_FAILURE([$hts_fail_msg])])]
-  [AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
-  [AC_MSG_FAILURE([smithlab_cpp library built without HTSLib support])])]
+  [AC_SEARCH_LIBS([hts_version], [hts], [],
+  [AC_MSG_FAILURE([$hts_fail_msg])])]
 )
 AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
 
 dnl check for the smithlab_cpp library
-AC_CHECK_LIB([smithlab_cpp],[main]) dnl nothing else to check
+AC_SEARCH_LIBS([main], [smithlab_cpp]) dnl nothing else to check
 AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
+  [AC_SEARCH_LIBS([check_htslib_wrapper], [smithlab_cpp], [],
   [AC_MSG_FAILURE([
 
 HTSLib enabled but smithlab_cpp library built without HTSLib support
 ])])])
 
 dnl check for required libraries
-AC_CHECK_LIB([z],[zlibVersion])
-AC_CHECK_LIB([gslcblas],[cblas_dgemm])
-AC_CHECK_LIB([gsl],[gsl_blas_dgemm])
+AC_SEARCH_LIBS([zlibVersion], [z])
+AC_SEARCH_LIBS([cblas_dgemm], [gslcblas])
+AC_SEARCH_LIBS([gsl_blas_dgemm], [gsl])
 
 AC_CONFIG_FILES([
   Makefile
