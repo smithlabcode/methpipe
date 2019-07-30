@@ -100,6 +100,15 @@ struct MSite {
     return context.length() == 4 && context[3] == 'x';
   }
 
+  void set_mutated() {
+    if (!is_mutated())
+      context += 'x';
+  }
+  void set_unmutated() {
+    if (is_mutated())
+      context.resize(context.length() - 1);
+  }
+
   std::string tostring() const;
 };
 
