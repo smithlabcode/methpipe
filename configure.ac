@@ -48,13 +48,24 @@ AS_IF([test "x$enable_hts" = "xyes"],
 AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
 
 dnl check for the smithlab_cpp library
+smithlab_fail_msg="
+
+Failed to locate smithlab_cpp on your system. Please use the LDFLAGS
+and CPPFLAGS variables to specify the directories where the
+smithlab_cpp library and headers can be found.
+"
 AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_SEARCH_LIBS([check_htslib_wrapper], [smithlab_cpp], [],
-  [AC_MSG_FAILURE([
+  [
+  AC_CHECK_LIB([smithlab_cpp], [have_smithlab_cpp],
+    [ ], dnl space in [ ] to the left on purpose
+    [AC_MSG_FAILURE([$smithlab_fail_msg])])
+  AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
+    [AC_MSG_FAILURE([
 
 HTSLib enabled but smithlab_cpp library built without HTSLib support
 ])], [-lhts])],
-[AC_SEARCH_LIBS([have_smithlab_cpp], [smithlab_cpp])])
+[AC_CHECK_LIB([smithlab_cpp], [have_smithlab_cpp], [],
+  [AC_MSG_FAILURE([$smithlab_fail_msg])])])
 
 dnl check for required libraries
 AC_SEARCH_LIBS([zlibVersion], [z])
