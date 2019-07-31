@@ -43,7 +43,7 @@ releases are below.
 
 ### Configuration
 
-1. Dowload methpipe-4.0.0.tar.gz [here](https://github.com/smithlabcode/methpipe).
+1. Download methpipe-4.0.0.tar.gz [here](https://github.com/smithlabcode/methpipe).
 2. Unpack the archive:
 ```
 $ tar -zxvf methpipe-4.0.0.tar.gz
