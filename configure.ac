@@ -14,7 +14,7 @@ dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl General Public License for more details.
 
-AC_INIT([methpipe], [4.0], [andrewds@usc.edu],
+AC_INIT([methpipe], [4.0.0], [andrewds@usc.edu],
         [methpipe], [https://github.com/smithlabcode/methpipe])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
