@@ -59,7 +59,7 @@ any_sites_unprocessed(const vector<string> &filenames,
     if (outdated[i]) {
       outdated[i] = false;
       MSite tmp_site;
-      if (*infiles[i] >> tmp_site) {
+      if ((*infiles[i]) >> tmp_site) {
         if (tmp_site < sites[i])
           throw runtime_error("error: sites not sorted in " + filenames[i]);
         sites_remain = true;
