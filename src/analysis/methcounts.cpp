@@ -421,7 +421,7 @@ main(int argc, const char **argv) {
 
     if (outfile.empty() || !has_gz_ext(outfile)) {
       std::ofstream of;
-      if (!outfile.empty()) of.open(outfile.c_str());
+      if (!outfile.empty()) of.open(outfile);
       std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
       process_reads(VERBOSE, in, out, chrom_lookup, chrom_sizes, chrom_order,
