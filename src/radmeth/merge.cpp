@@ -31,6 +31,8 @@ using std::ostringstream;
 using std::stringstream;
 using std::ostream;
 using std::istream;
+using std::endl;
+using std::cerr;
 
 // Attemps to find the next significant CpG site. Returns true if one was found
 // and flase otherwise.
@@ -70,17 +72,25 @@ read_next_significant_cpg(istream &cpg_stream, GenomicRegion &cpg,
 
 void
 merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
-  bool skipped_last_cpg, sig_raw;
+
   GenomicRegion dmr;
   dmr.set_name("dmr");
-  size_t dmr_test_cov = 0; size_t dmr_test_meth = 0;
-  size_t dmr_rest_cov = 0; size_t dmr_rest_meth = 0;
-  size_t test_cov = 0; size_t test_meth = 0;
-  size_t rest_cov = 0; size_t rest_meth = 0;
+
+  size_t dmr_test_cov = 0;
+  size_t dmr_test_meth = 0;
+  size_t dmr_rest_cov = 0;
+  size_t dmr_rest_meth = 0;
+
+  size_t test_cov = 0;
+  size_t test_meth = 0;
+  size_t rest_cov = 0;
+  size_t rest_meth = 0;
 
   // Find the first significant CpG, or terminate the function if none exist.
+  bool skipped_last_cpg, sig_raw;
   if (!read_next_significant_cpg(cpg_stream, dmr, cutoff, skipped_last_cpg,
-                            sig_raw, test_cov, test_meth, rest_cov, rest_meth))
+                                 sig_raw, test_cov, test_meth,
+                                 rest_cov, rest_meth))
     return;
 
   dmr.set_score(sig_raw);
@@ -92,8 +102,9 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
   GenomicRegion cpg;
   cpg.set_name("dmr");
 
-  while(read_next_significant_cpg(cpg_stream, cpg, cutoff, skipped_last_cpg,
-                          sig_raw, test_cov, test_meth, rest_cov, rest_meth)) {
+  while (read_next_significant_cpg(cpg_stream, cpg, cutoff, skipped_last_cpg,
+                                   sig_raw, test_cov, test_meth,
+                                   rest_cov, rest_meth)) {
 
     if (skipped_last_cpg || cpg.get_chrom() != dmr.get_chrom()) {
       if (dmr.get_score() != 0)
@@ -103,14 +114,15 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
                    << dmr.get_name()  << '\t'
                    << dmr.get_score() << '\t'
                    << double(dmr_test_meth)/dmr_test_cov -
-                      double(dmr_rest_meth)/dmr_rest_cov << std::endl;
+          double(dmr_rest_meth)/dmr_rest_cov << endl;
       dmr = cpg;
       dmr.set_score(sig_raw);
       dmr_test_cov = test_cov;
       dmr_test_meth = test_meth;
       dmr_rest_cov = rest_cov;
       dmr_rest_meth = rest_meth;
-    } else {
+    }
+    else {
       dmr.set_end(cpg.get_end());
       dmr.set_score(dmr.get_score() + sig_raw);
       dmr_test_cov += test_cov;
@@ -119,8 +131,8 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
       dmr_rest_meth += rest_meth;
     }
   }
-  if(dmr.get_score() != 0) {
-      std::cerr << dmr.get_score() << std::endl;
-      dmr_stream << dmr << std::endl;
+  if (dmr.get_score() != 0) {
+    cerr << dmr.get_score() << endl;
+    dmr_stream << dmr << endl;
   }
 }
