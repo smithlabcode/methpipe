@@ -31,8 +31,8 @@
 #include <unordered_set>
 #include <stdexcept>
 
-#include <sys/types.h>
-#include <unistd.h>
+// #include <sys/types.h>
+// #include <unistd.h>
 
 using std::string;
 using std::vector;
@@ -43,6 +43,7 @@ using std::endl;
 using std::ifstream;
 using std::ofstream;
 using std::unordered_map;
+using std::unordered_set;
 using std::runtime_error;
 
 
@@ -92,7 +93,8 @@ get_cytosines(const vector<MappedRead> &mr, vector<size_t> &c_pos) {
 
 
 static void
-get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
+get_meth_patterns(const bool ALL_C,
+                  vector<MappedRead> &mr, vector<size_t> &hist) {
 
   vector<size_t> sites;
   if (ALL_C)
@@ -107,17 +109,22 @@ get_meth_patterns(const bool ALL_C, vector<MappedRead> &mr) {
     patterns[s].push_back(i);
   }
 
-  std::unordered_set<size_t> keepers;
-  for (auto i(patterns.begin()); i != patterns.end(); ++i)
-    keepers.insert(i->second[rand() % i->second.size()]);
+  unordered_set<size_t> keepers;
+  for (auto i(patterns.begin()); i != end(patterns); ++i) {
+    const size_t n_dups = i->second.size();
+    keepers.insert(i->second[rand() % n_dups]);
+    if (hist.size() <= n_dups)
+      hist.resize(n_dups + 1);
+    hist[n_dups]++;
+  }
 
   size_t j = 0;
   for (size_t i = 0; i < mr.size(); ++i)
-    if (keepers.find(i) != keepers.end()) {
+    if (keepers.find(i) != end(keepers)) {
       mr[j] = mr[i];
       ++j;
     }
-  mr.erase(mr.begin() + j, mr.end());
+  mr.erase(begin(mr) + j, end(mr));
 }
 
 
@@ -129,7 +136,11 @@ duplicate_remover(const bool VERBOSE,
                   const bool DISABLE_SORT_TEST,
                   const string &infile,
                   const string &statfile,
+                  const string &histfile,
                   T &out) {
+
+  // histogram is tabulated whether or not user requests it
+  vector<size_t> hist;
 
   igzfstream in(infile);
 
@@ -153,16 +164,19 @@ duplicate_remover(const bool VERBOSE,
     if (!equivalent(buffer.front(), mr)) {
       if (USE_SEQUENCE) {
         const size_t orig_buffer_size = buffer.size();
-        get_meth_patterns(ALL_C, buffer); // get the CpGs for the buffer
+        get_meth_patterns(ALL_C, buffer, hist); // select within buffer
         for (auto && r : buffer)
           out << r << "\n";
         reads_out += buffer.size();
-        good_bases_out += buffer.size() * buffer[0].seq.length();
+        good_bases_out += buffer.size()*buffer[0].seq.length();
         reads_with_duplicates += (buffer.size() < orig_buffer_size);
       }
       else {
         const size_t selected = rand() % buffer.size();
         out << buffer[selected] << "\n";
+        if (hist.size() <= buffer.size())
+          hist.resize(buffer.size() + 1);
+        hist[buffer.size()]++;
         good_bases_out += buffer[selected].seq.length();
         ++reads_out;
         reads_with_duplicates += (buffer.size() > 1);
@@ -174,16 +188,19 @@ duplicate_remover(const bool VERBOSE,
 
   if (USE_SEQUENCE) {
     const size_t orig_buffer_size = buffer.size();
-    get_meth_patterns(ALL_C, buffer);
+    get_meth_patterns(ALL_C, buffer, hist);
     for (auto && r : buffer)
       out << r << "\n";
     reads_out += buffer.size();
+    good_bases_out += buffer.size()*buffer[0].seq.length();
     reads_with_duplicates += (buffer.size() < orig_buffer_size);
-    good_bases_out += buffer.size() * buffer[0].seq.length();
   }
   else {
     const size_t selected = rand() % buffer.size();
     out << buffer[selected] << "\n";
+    if (hist.size() <= buffer.size())
+      hist.resize(buffer.size() + 1);
+    hist[buffer.size()]++;
     good_bases_out += buffer[selected].seq.length();
     ++reads_out;
     reads_with_duplicates += (buffer.size() > 1);
@@ -198,7 +215,7 @@ duplicate_remover(const bool VERBOSE,
       static_cast<double>(reads_removed + reads_with_duplicates)/
       reads_with_duplicates;
 
-    std::ofstream out_stat(statfile.c_str());
+    ofstream out_stat(statfile);
     out_stat << "total_reads: " << reads_in << endl
              << "total_bases: " << good_bases_in << endl
              << "unique_reads: " << reads_out << endl
@@ -208,6 +225,12 @@ duplicate_remover(const bool VERBOSE,
              << "reads_removed: " << reads_removed << endl
              << "duplication_rate: "
              << duplication_rate << endl;
+  }
+  if (!histfile.empty()) {
+    ofstream out_hist(histfile);
+    for (size_t i = 0; i < hist.size(); ++i)
+      if (hist[i] > 0)
+        out_hist << i << '\t' << hist[i] << '\n';
   }
 }
 
@@ -223,6 +246,7 @@ int main(int argc, const char **argv) {
     size_t the_seed = 408;
     string outfile;
     string statfile;
+    string histfile;
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
@@ -233,6 +257,8 @@ int main(int argc, const char **argv) {
     opt_parse.add_opt("stdin", '\0', "take input from stdin",
                       false, INPUT_FROM_STDIN);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
+    opt_parse.add_opt("hist", '\0', "histogram output file for library"
+                      " complexity analysis", false, histfile);
     opt_parse.add_opt("seq", 's', "use sequence info", false, USE_SEQUENCE);
     opt_parse.add_opt("all-cytosines", 'A', "use all cytosines (default: CpG)",
                       false, ALL_C);
@@ -270,21 +296,21 @@ int main(int argc, const char **argv) {
     srand(the_seed);
 
     if (outfile.empty() || !has_gz_ext(outfile)) {
-      std::ofstream of;
-      if (!outfile.empty()) of.open(outfile.c_str());
+      ofstream of;
+      if (!outfile.empty()) of.open(outfile);
       std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
       if (!outfile.empty() && !out)
         throw runtime_error("failed to open output file: " + outfile);
       duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
-                        infile, statfile, out);
+                        infile, statfile, histfile, out);
     }
     else {
       ogzfstream out(outfile);
       duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
-                        infile, statfile, out);
+                        infile, statfile, histfile, out);
     }
   }
-  catch (const std::runtime_error &e) {
+  catch (const runtime_error &e) {
     cerr << e.what() << endl;
     return EXIT_FAILURE;
   }
