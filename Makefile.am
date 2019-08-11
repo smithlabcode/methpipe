@@ -103,8 +103,7 @@ methdiff_SOURCES = src/radmeth/methdiff.cpp
 radmeth_SOURCES = \
 	src/radmeth/radmeth.cpp \
 	src/radmeth/regression.cpp \
-	src/radmeth/combine_pvals.cpp \
-	src/radmeth/merge.cpp
+	src/radmeth/combine_pvals.cpp
 radmeth_SOURCES += \
 	src/radmeth/regression.hpp \
 	src/radmeth/combine_pvals.hpp \

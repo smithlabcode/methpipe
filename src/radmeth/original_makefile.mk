@@ -19,7 +19,7 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = radmeth methdiff dmr
-OBJS= regression.o combine_pvals.o merge.o
+OBJS= regression.o combine_pvals.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
