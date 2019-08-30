@@ -55,7 +55,7 @@ LDADD = libmethpipe.a
 
 ### ANALYSIS SUBDIR
 bin_PROGRAMS = pmd methcounts bsrate hmr hypermr levels roimethstat \
-	methstates methentropy hmr_rep
+	methstates methentropy hmr_rep multimethstat
 
 pmd_SOURCES = src/analysis/pmd.cpp
 methstates_SOURCES =  src/analysis/methstates.cpp
@@ -63,6 +63,7 @@ bsrate_SOURCES = src/analysis/bsrate.cpp
 methentropy_SOURCES = src/analysis/methentropy.cpp
 methcounts_SOURCES = src/analysis/methcounts.cpp
 roimethstat_SOURCES = src/analysis/roimethstat.cpp
+multimethstat_SOURCES = src/analysis/multimethstat.cpp
 hmr_SOURCES = src/analysis/hmr.cpp
 hmr_rep_SOURCES = src/analysis/hmr_rep.cpp
 levels_SOURCES = src/analysis/levels.cpp
