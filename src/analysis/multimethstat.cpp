@@ -311,11 +311,6 @@ main(int argc, const char **argv) {
       feature_values.push_back(vector<double>());
       feature_values.back().swap(tmp);
     }
-    if (report_progress && in.tellg() < st.st_size - 1) {
-      cerr << in.tellg() << endl;
-      cerr << st.st_size << endl;
-      progress.report(cerr, st.st_size);
-    }
     if (VERBOSE)
       cerr << "[samples read: " << lines_read << "]" << endl;
 
