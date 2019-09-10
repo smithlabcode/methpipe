@@ -28,6 +28,7 @@
 #include <vector>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <fstream>
 
 #include "OptionParser.hpp"
@@ -36,6 +37,8 @@
 #include "GenomicRegion.hpp"
 
 #include <sys/stat.h>
+
+
 
 using std::string;
 using std::vector;
@@ -46,6 +49,7 @@ using std::endl;
 using std::unordered_map;
 using std::istringstream;
 using std::numeric_limits;
+using std::unordered_set;
 
 using std::begin;
 using std::end;
@@ -106,13 +110,11 @@ follows(const GenomicRegion &a, const GenomicRegion &b) {
   return (b.get_chrom() < a.get_chrom() ||
           (b.same_chrom(a) && b.get_end() < a.get_start()));
 }
-
 static bool
 precedes(const GenomicRegion &a, const GenomicRegion &b) {
   return (a.get_chrom() < b.get_chrom() ||
           (a.same_chrom(b) && a.get_end() <= b.get_start()));
 }
-
 
 static void
 build_probe_to_feature(const vector<GenomicRegion> &probes,
@@ -159,6 +161,38 @@ build_probe_to_feature(const vector<GenomicRegion> &probes,
   for (auto &&i : probe_to_feature)
     if (i != numeric_limits<size_t>::max())
       ++n_probes_per_feature[i];
+}
+
+
+static bool
+any_overlap(const vector<GenomicRegion> &features) {
+  string prev_chrom = features.front().get_chrom();
+  for (size_t i = 1; i < features.size(); ++i) {
+    // the check below assumes the features are already sorted by
+    // start coordinate
+    if (prev_chrom == features[i].get_chrom()) {
+      if (features[i].get_start() < features[i-1].get_end()) {
+        cerr << features[i] << endl
+             << features[i-1] << endl;
+        return true;
+      }
+    }
+    else prev_chrom = features[i].get_chrom();
+  }
+  return false;
+}
+
+
+static bool
+all_names_unique(const vector<GenomicRegion> &regions) {
+  unordered_set<string> names_seen;
+  for (size_t i = 0; i < regions.size(); ++i) {
+    auto idx = names_seen.find(regions[i].get_name());
+    if (idx == end(names_seen))
+      names_seen.insert(regions[i].get_name());
+    else return false;
+  }
+  return true;
 }
 
 
@@ -230,6 +264,12 @@ main(int argc, const char **argv) {
 
     if (!check_sorted(features))
       throw runtime_error("features not sorted in: " + features_file);
+
+    if (any_overlap(features))
+      throw runtime_error("overlapping intervals found in: " + features_file);
+
+    if (!all_names_unique(features))
+      throw runtime_error("duplicate feature names in: " + features_file);
 
     const size_t n_features = features.size();
 
