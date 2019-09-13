@@ -60,7 +60,7 @@ using std::make_pair;
 using std::greater;
 using std::runtime_error;
 
-static void
+/*static void
 parse_table_row_faster(const string &row, vector<double> &values) {
   const char* a = &row[row.find_first_of(" \t")];
   char* b;
@@ -73,9 +73,9 @@ parse_table_row_faster(const string &row, vector<double> &values) {
     a = b;
     values[i++] = strtod(a, &b);
   }
-}
+}*/
 
-/*
+
 static void
 parse_table_row(const string &row, vector<double> &values) {
   std::istringstream is;
@@ -90,7 +90,7 @@ parse_table_row(const string &row, vector<double> &values) {
   while (is >> val)
     values.push_back(val);
 }
-*/
+
 
 
 static void
@@ -273,6 +273,9 @@ main(int argc, const char **argv) {
 
     const size_t n_features = features.size();
 
+    if (VERBOSE)
+      cerr << "[n regions to summarize: " << n_features << "]" << endl;
+
     // read the probe locations
     if (VERBOSE)
       cerr << "[reading probe locations]" << endl;
@@ -308,6 +311,9 @@ main(int argc, const char **argv) {
     vector<string> colnames;
     parse_header(header, colnames);
 
+    if (VERBOSE)
+      cerr << "[n columns in data matrix: " << colnames.size() << "]" << endl;
+
     // for each feature, get an index for the corresponding column
     vector<size_t> probe_to_feature;
     vector<double> n_probes_per_feature;
@@ -335,7 +341,11 @@ main(int argc, const char **argv) {
 
       sample_names.push_back(line.substr(0, line.find_first_of(" \t")));
 
-      parse_table_row_faster(line, probe_values);
+      parse_table_row(line, probe_values);
+
+      if (probe_values.size() != colnames.size())
+        throw runtime_error("wrong number of values in row: " +
+                            std::to_string(lines_read + 1));
 
       vector<double> tmp(n_features, 0.0);
       for (size_t i = 0; i < probe_values.size(); ++i) {
