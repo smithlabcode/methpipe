@@ -30,6 +30,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <fstream>
+#include <iterator>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -37,8 +38,6 @@
 #include "GenomicRegion.hpp"
 
 #include <sys/stat.h>
-
-
 
 using std::string;
 using std::vector;
@@ -75,32 +74,29 @@ parse_table_row_faster(const string &row, vector<double> &values) {
   }
 }*/
 
-
 static void
 parse_table_row(const string &row, vector<double> &values) {
-  std::istringstream is;
-  // use the buffer inside the "row" for the stream to parse
-  is.rdbuf()->pubsetbuf(const_cast<char*>(row.c_str()), row.size());
 
-  string dummy;
-  is >> dummy; // throw away the row name
+  if (row.empty() || !isalnum(row[0]))
+    throw runtime_error("rownames must begin with alphanumeric");
 
-  values.clear();
-  double val = 0.0;
-  while (is >> val)
+  values.clear(); // keep the reserve, but use push_back
+
+  const char* a = &row[row.find_first_of(" \t")];
+  char* b = 0;
+  double val = strtod(a, &b);
+
+  while (a != b) {
     values.push_back(val);
+    a = b;
+    val = strtod(a, &b);
+  }
 }
-
-
 
 static void
 parse_header(const string &header, vector<string> &colnames) {
-  std::istringstream is;
-  is.rdbuf()->pubsetbuf(const_cast<char*>(header.c_str()), header.size());
-
-  string x;
-  while (is >> x)
-    colnames.push_back(x);
+  std::istringstream h(header);
+  colnames = {std::istream_iterator<string>{h}, {}};
 }
 
 // precedes and follows functions are not like > and !<= since they
@@ -193,6 +189,19 @@ all_names_unique(const vector<GenomicRegion> &regions) {
     else return false;
   }
   return true;
+}
+
+
+static string
+wrong_n_vals(const size_t lines_read,
+             const vector<double> &probe_values,
+             const vector<string> &colnames) {
+  std::ostringstream oss;
+  oss << "wrong number of values "
+      << "(row=" << (lines_read + 1) << ", "
+      << "n_vals=" << probe_values.size() << ", "
+      << "expect=" << colnames.size() << ")";
+  return oss.str();
 }
 
 
@@ -344,12 +353,13 @@ main(int argc, const char **argv) {
       parse_table_row(line, probe_values);
 
       if (probe_values.size() != colnames.size())
-        throw runtime_error("wrong number of values in row: " +
-                            std::to_string(lines_read + 1));
+        throw runtime_error(wrong_n_vals(lines_read, probe_values, colnames));
 
       vector<double> tmp(n_features, 0.0);
       for (size_t i = 0; i < probe_values.size(); ++i) {
+        // get the feature that the i-th probe maps to
         const size_t curr_feature = probe_to_feature[i];
+        // if it has a valid feature mapping, then add it's value
         if (curr_feature != numeric_limits<size_t>::max())
           tmp[curr_feature] += probe_values[i];
       }
