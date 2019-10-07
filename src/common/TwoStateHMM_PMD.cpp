@@ -554,8 +554,8 @@ TwoStateHMM::BaumWelchTraining_rep(
 
     if (VERBOSE) {
       cerr << setw(5) << i + 1
-           << setw(10) << p_fb_est
-           << setw(10) << p_bf_est
+           << setw(10) << 1/p_fb_est
+           << setw(10) << 1/p_bf_est
            << setw(14) << total
            << setw(14) << prev_total
            << setw(14) << total - prev_total
