@@ -1,26 +1,21 @@
 /*
-  Copyright (C) 2008 Cold Spring Harbor Laboratory
-  Authors: Andrew D. Smith
+  Copyright (C) 2019 Andrew D. Smith
+  Author: Andrew D. Smith
 
-  This file is part of methpipe.
-
-  methpipe is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
+  This is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by
   the Free Software Foundation; either version 2 of the License, or
   (at your option) any later version.
 
-  methpipe is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with methpipe; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+  This software is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
 */
 
 #include "TwoStateHMM.hpp"
 
+#include <memory>
 #include <iomanip>
 #include <numeric>
 #include <limits>
@@ -29,25 +24,28 @@
 #include <gsl/gsl_sf_psi.h>
 #include <gsl/gsl_sf_gamma.h>
 
+#include "smithlab_utils.hpp"
+
 using std::vector;
 using std::pair;
 using std::setw;
 using std::max;
 using std::min;
+using std::abs;
 using std::cerr;
 using std::endl;
 using std::string;
 using std::setprecision;
 using std::isfinite;
+using std::make_pair;
 
-
+using smithlab::log_sum_log_vec;
 
 struct betabin {
   betabin(const double a, const double b) :
     alpha(a), beta(b), lnbeta_helper(gsl_sf_lnbeta(a, b)) {}
   double operator()(const pair<double, double> &val) const;
-  void fit(const vector<double> &vals_a,
-           const vector<double> &vals_b,
+  void fit(const vector<double> &vals_a, const vector<double> &vals_b,
            const vector<double> &p);
   string tostring() const;
   double alpha;
@@ -58,7 +56,8 @@ struct betabin {
 string
 betabin::tostring() const {
   std::ostringstream os;
-  os << setprecision(4) << alpha << " " << setprecision(4) << beta;
+  os << std::fixed << setprecision(3) << alpha << " "
+     << std::fixed << setprecision(3) << beta;
   return os.str();
 }
 
@@ -86,7 +85,7 @@ invpsi(const double tolerance, const double x) {
   return Y;
 }
 
-static double
+inline static double
 movement(const double curr, const double prev) {
   return std::abs(curr - prev)/max(std::abs(curr), std::abs(prev));
 }
@@ -94,11 +93,13 @@ movement(const double curr, const double prev) {
 void
 betabin::fit(const vector<double> &vals_a, const vector<double> &vals_b,
              const vector<double> &p) {
-  const double p_total = std::accumulate(p.begin(), p.end(), 0.0);
-  const double alpha_rhs = inner_product(vals_a.begin(), vals_a.end(),
-                                         p.begin(), 0.0)/p_total;
-  const double beta_rhs = inner_product(vals_b.begin(), vals_b.end(),
-                                        p.begin(), 0.0)/p_total;
+  const double p_total = std::accumulate(begin(p), end(p), 0.0);
+
+  const double alpha_rhs =
+    inner_product(begin(vals_a), end(vals_a), begin(p), 0.0)/p_total;
+  const double beta_rhs =
+    inner_product(begin(vals_b), end(vals_b), begin(p), 0.0)/p_total;
+
   double prev_alpha = 0.0, prev_beta = 0.0;
   alpha = beta = 0.01;
   while (movement(alpha, prev_alpha) > tolerance &&
@@ -111,133 +112,205 @@ betabin::fit(const vector<double> &vals_a, const vector<double> &vals_b,
   lnbeta_helper = gsl_sf_lnbeta(alpha, beta);
 }
 
-
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-
 
 inline double
-TwoStateHMM::log_sum_log(const double p, const double q) const {
-  if (p == 0) {return q;}
-  else if (q == 0) {return p;}
+log_sum_log(const double p, const double q) {
+  if (p == 0.0) {return q;}
+  else if (q == 0.0) {return p;}
   const double larger = (p > q) ? p : q;
   const double smaller = (p > q) ? q : p;
   return larger + log(1.0 + exp(smaller - larger));
 }
 
-
-double
-TwoStateHMM::log_sum_log_vec(const vector<double> &vals, size_t limit) const {
-  const vector<double>::const_iterator x =
-    std::max_element(vals.begin(), vals.begin() + limit);
+static double
+log_sum_log_vec(const vector<double> &vals, size_t a, size_t b) {
+  auto x = std::max_element(begin(vals) + a, begin(vals) + b);
   const double max_val = *x;
-  const size_t max_idx = x - vals.begin();
+  const size_t max_idx = x - begin(vals);
   double sum = 1.0;
-  for (size_t i = 0; i < limit; ++i) {
-    if (i != max_idx) {
+  for (size_t i = a; i < b; ++i) {
+    if (i != max_idx)
       sum += exp(vals[i] - max_val);
-#ifdef DEBUG
-      assert(isfinite(sum));
-#endif
-    }
   }
   return max_val + log(sum);
 }
 
+static double
+log_sum_log_vec(const vector<double> &vals, const vector<size_t> &resets) {
+  vector<double> w(resets.size() - 1);
+  for (size_t i = 0; i < resets.size() - 1; ++i)
+    w[i] = log_sum_log_vec(vals, resets[i], resets[i+1] - 1);
+  return log_sum_log_vec(w, w.size());
+}
+
+
+////////////////////////////////////////////////////////////////////////
+/////////// WRAPPER FUNCTIONS
+////////////////////////////////////////////////////////////////////////
+
+double
+TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
+                             const vector<size_t> &reset_points,
+                             const double p_fb, const double p_bf,
+                             const double fg_alpha, const double fg_beta,
+                             const double bg_alpha, const double bg_beta,
+                             vector<bool> &classes) const {
+
+  const betabin fg_distro(fg_alpha, fg_beta);
+  const betabin bg_distro(bg_alpha, bg_beta);
+
+  return ViterbiDecoding(values, reset_points, p_fb, p_bf,
+                         fg_distro, bg_distro, classes);
+}
 
 
 double
-TwoStateHMM::forward_algorithm(const vector<pair<double, double> > &vals,
-                               const size_t start, const size_t end,
-                               const double lp_sf, const double lp_sb,
-                               const double lp_ff, const double lp_fb,
-                               const double lp_ft,
-                               const double lp_bf, const double lp_bb,
-                               const double lp_bt,
-                               const betabin &fg_distro,
-                               const betabin &bg_distro,
-                               vector<pair<double, double> > &f) const {
-  f[start].first = fg_distro(vals[start]) + lp_sf;
-  f[start].second = bg_distro(vals[start]) + lp_sb;
-  for (size_t i = start + 1; i < end; ++i) {
-    const size_t k = i - 1;
-    f[i].first = (fg_distro(vals[i]) +
-                  log_sum_log(f[k].first + lp_ff, f[k].second + lp_bf));
-    f[i].second = (bg_distro(vals[i]) +
-                   log_sum_log(f[k].first + lp_fb, f[k].second + lp_bb));
-  }
-  return log_sum_log(f[end - 1].first + lp_ft, f[end - 1].second + lp_bt);
+TwoStateHMM::PosteriorDecoding(const vector<pair<double, double> > &values,
+                               const vector<size_t> &reset_points,
+                               const double p_fb, const double p_bf,
+                               const double fg_alpha, const double fg_beta,
+                               const double bg_alpha, const double bg_beta,
+                               vector<bool> &classes,
+                               vector<double> &posteriors) const {
+
+  const betabin fg_distro(fg_alpha, fg_beta);
+  const betabin bg_distro(bg_alpha, bg_beta);
+
+  return PosteriorDecoding(values, reset_points, p_fb, p_bf,
+                           fg_distro, bg_distro, classes, posteriors);
+}
+
+void
+TwoStateHMM::PosteriorScores(const vector<pair<double, double> > &values,
+                             const vector<size_t> &reset_points,
+                             const double p_fb, const double p_bf,
+                             const double fg_alpha, const double fg_beta,
+                             const double bg_alpha, const double bg_beta,
+                             const bool fg_class,
+                             vector<double> &posteriors) const {
+
+  const betabin fg_distro(fg_alpha, fg_beta);
+  const betabin bg_distro(bg_alpha, bg_beta);
+
+  PosteriorScores(values, reset_points, p_fb, p_bf,
+                  fg_distro, bg_distro, fg_class, posteriors);
 }
 
 double
-TwoStateHMM::backward_algorithm(const vector<pair<double, double> > &vals,
-                                const size_t start, const size_t end,
-                                const double lp_sf, const double lp_sb,
-                                const double lp_ff, const double lp_fb,
-                                const double lp_ft,
-                                const double lp_bf, const double lp_bb,
-                                const double lp_bt,
-                                const betabin &fg_distro,
-                                const betabin &bg_distro,
-                                vector<pair<double, double> > &b) const {
-  b[end - 1].first = lp_ft;
-  b[end - 1].second = lp_bt;
+TwoStateHMM::BaumWelchTraining(const std::vector<pair<double, double> > &values,
+                               const std::vector<size_t> &reset_points,
+                               double &p_fb, double &p_bf,
+                               double &fg_alpha, double &fg_beta,
+                               double &bg_alpha, double &bg_beta) const {
+
+  betabin fg_distro(fg_alpha, fg_beta);
+  betabin bg_distro(bg_alpha, bg_beta);
+
+  const double score = BaumWelchTraining(values, reset_points, p_fb, p_bf,
+                                         fg_distro, bg_distro);
+  fg_alpha = fg_distro.alpha;
+  fg_beta = fg_distro.beta;
+  bg_alpha = bg_distro.alpha;
+  bg_beta = bg_distro.beta;
+
+  return score;
+}
+
+////////////////////////////////////////////////////////////////////////
+/////////// INTERNAL FUNCTIONS
+////////////////////////////////////////////////////////////////////////
+
+static void
+get_emissions(vector<pair<double, double> >::const_iterator v,
+              const vector<pair<double, double> >::const_iterator v_end,
+              vector<double>::iterator emit, const betabin &distr) {
+  while (v != v_end)
+    *emit++ = distr(*v++);
+}
+
+
+double
+forward_algorithm(const size_t start, const size_t end,
+                  const double lp_sf, const double lp_sb,
+                  const double lp_ff, const double lp_fb,
+                  const double lp_bf, const double lp_bb,
+                  const vector<double> &fg_emit, const vector<double> &bg_emit,
+                  vector<pair<double, double> > &f) {
+  f[start].first = fg_emit[start] + lp_sf;
+  f[start].second = bg_emit[start] + lp_sb;
+  for (size_t i = start + 1; i < end; ++i) {
+    const size_t k = i - 1;
+    f[i].first = fg_emit[i] + log_sum_log(f[k].first + lp_ff,
+                                          f[k].second + lp_bf);
+    f[i].second = bg_emit[i] + log_sum_log(f[k].first + lp_fb,
+                                           f[k].second + lp_bb);
+  }
+  return log_sum_log(f[end - 1].first, f[end - 1].second);
+}
+
+double
+backward_algorithm(const size_t start, const size_t end,
+                   const double lp_sf, const double lp_sb,
+                   const double lp_ff, const double lp_fb,
+                   const double lp_bf, const double lp_bb,
+                   const vector<double> &fg_emit,
+                   const vector<double> &bg_emit,
+                   vector<pair<double, double> > &b) {
+  b[end - 1].first = 0;
+  b[end - 1].second = 0;
   for (size_t k = end - 1; k > start; --k) {
     size_t i = k - 1;
-    const double fg_a = fg_distro(vals[k]) + b[k].first;
-    const double bg_a = bg_distro(vals[k]) + b[k].second;
+    const double fg_a = fg_emit[k] + b[k].first;
+    const double bg_a = bg_emit[k] + b[k].second;
     b[i].first = log_sum_log(fg_a + lp_ff, bg_a + lp_fb);
     b[i].second = log_sum_log(fg_a + lp_bf, bg_a + lp_bb);
   }
-  return log_sum_log(b[start].first + fg_distro(vals[start]) + lp_sf,
-                     b[start].second + bg_distro(vals[start]) + lp_sb);
+  return log_sum_log(b[start].first + fg_emit[start] + lp_sf,
+                     b[start].second + bg_emit[start] + lp_sb);
+}
+
+
+template <class T> void
+one_minus(T a, const T a_end, T b) {
+  while (a != a_end)
+    *b++ = 1.0 - *a++;
+}
+
+inline static double
+get_posterior(const pair<double, double> &f, const pair<double, double> &b) {
+  const double fg = f.first + b.first;
+  return exp(fg - log_sum_log(fg, f.second + b.second));
+}
+
+inline static void
+get_posteriors(const vector<pair<double, double> > &forward,
+               const vector<pair<double, double> > &backward,
+               vector<double> &posteriors) {
+  posteriors.resize(forward.size());
+  for (size_t i = 0; i < forward.size(); ++i)
+    posteriors[i] = get_posterior(forward[i], backward[i]);
 }
 
 
 void
-TwoStateHMM::estimate_emissions(const vector<pair<double, double> > &f,
-                                const vector<pair<double, double> > &b,
-                                vector<double> &fg_probs,
-                                vector<double> &bg_probs) const {
-  for (size_t i = 0; i < b.size(); ++i) {
-    const double fg = (f[i].first + b[i].first);
-    const double bg = (f[i].second + b[i].second);
-    const double denom = log_sum_log(fg, bg);
-    fg_probs[i] = exp(fg - denom);
-    bg_probs[i] = exp(bg - denom);
-  }
-}
+summarize_transitions(const size_t start, const size_t end,
+                      const vector<pair<double, double> > &f,
+                      const vector<pair<double, double> > &b,
+                      const double total,
+                      const vector<double> &fg_emit, const vector<double> &bg_emit,
+                      const double lp_ff, const double lp_fb,
+                      const double lp_bf, const double lp_bb,
+                      vector<double> &ff_vals, vector<double> &fb_vals,
+                      vector<double> &bf_vals, vector<double> &bb_vals) {
 
-
-
-void
-TwoStateHMM::estimate_transitions(const vector<pair<double, double> > &vals,
-                                  const size_t start, const size_t end,
-                                  const vector<pair<double, double> > &f,
-                                  const vector<pair<double, double> > &b,
-                                  const double total,
-                                  const betabin &fg_distro,
-                                  const betabin &bg_distro,
-                                  const double lp_ff, const double lp_fb,
-                                  const double lp_bf, const double lp_bb,
-                                  const double lp_ft, const double lp_bt,
-                                  vector<double> &ff_vals,
-                                  vector<double> &fb_vals,
-                                  vector<double> &bf_vals,
-                                  vector<double> &bb_vals) const {
   for (size_t i = start + 1; i < end; ++i) {
-    const size_t k = i - 1;
-    const double b_first = b[i].first + fg_distro(vals[i]) - total;
-    const double b_second = b[i].second + bg_distro(vals[i]) - total;
+    const double b_first = b[i].first + fg_emit[i] - total;
+    const double b_second = b[i].second + bg_emit[i] - total;
 
+    const size_t k = i - 1;
     const double ff = f[k].first;
     const double bb = f[k].second;
 
@@ -250,563 +323,328 @@ TwoStateHMM::estimate_transitions(const vector<pair<double, double> > &vals,
 }
 
 
-
 double
-TwoStateHMM::single_iteration(const vector<pair<double, double> > &values,
-                              const vector<double> &vals_a,
-                              const vector<double> &vals_b,
-                              const vector<size_t> &reset_points,
-                              vector<pair<double, double> > &forward,
-                              vector<pair<double, double> > &backward,
-                              double &p_sf, double &p_sb,
-                              double &p_ff, double &p_fb, double &p_ft,
-                              double &p_bf, double &p_bb, double &p_bt,
-                              betabin &fg_distro,
-                              betabin &bg_distro) const {
+single_iteration(const vector<pair<double, double> > &values,
+                 const vector<double> &vals_a, const vector<double> &vals_b,
+                 const vector<size_t> &reset_points,
+                 vector<pair<double, double> > &forward,
+                 vector<pair<double, double> > &backward,
+                 double &p_fb, double &p_bf,
+                 betabin &fg_distro, betabin &bg_distro,
+                 vector<double> &fg_emit, vector<double> &bg_emit,
+                 vector<double> &ff_vals, vector<double> &fb_vals,
+                 vector<double> &bf_vals, vector<double> &bb_vals) {
 
-  vector<double> log_fg_expected;
-  vector<double> log_bg_expected;
-
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
+  const double lp_bb = log(1.0 - p_bf);
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && isfinite(lp_ff) &&
+         isfinite(lp_fb) && isfinite(lp_bf) && isfinite(lp_bb));
 
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  get_emissions(begin(values), end(values), begin(fg_emit), fg_distro);
+  get_emissions(begin(values), end(values), begin(bg_emit), bg_distro);
 
-  // for estimating transitions
-  vector<double> ff_vals(values.size(), 0);
-  vector<double> fb_vals(values.size(), 0);
-  vector<double> bf_vals(values.size(), 0);
-  vector<double> bb_vals(values.size(), 0);
-
-
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm(values,
-                                           reset_points[i],
-                                           reset_points[i + 1],
-                                           lp_sf, lp_sb,
-                                           lp_ff, lp_fb, lp_ft,
-                                           lp_bf, lp_bb, lp_bt,
-                                           fg_distro, bg_distro, forward);
+
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
+
     const double backward_score =
-      backward_algorithm(values,
-                         reset_points[i],
-                         reset_points[i + 1],
-                         lp_sf, lp_sb,
-                         lp_ff, lp_fb, lp_ft,
-                         lp_bf, lp_bb, lp_bt,
-                         fg_distro, bg_distro, backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
 
-    estimate_transitions(values,
-                         reset_points[i],
-                         reset_points[i + 1],
-                         forward, backward,
-                         score,
-                         fg_distro, bg_distro,
-                         lp_ff, lp_fb, lp_bf,
-                         lp_bb, lp_ft, lp_bt,
-                         ff_vals, fb_vals,
-                         bf_vals, bb_vals);
+    summarize_transitions(reset_points[i], reset_points[i + 1],
+                          forward, backward, score, fg_emit, bg_emit,
+                          lp_ff, lp_fb, lp_bf, lp_bb,
+                          ff_vals, fb_vals, bf_vals, bb_vals);
 
-    total_score += score;
+    total_loglik += score;
   }
 
-  // Subtracting 1 from the limit of the summation because the final
-  // term has no meaning since there is no transition to be counted
-  // from the final observation (they all must go to terminal state)
-  const size_t n_terms = values.size() - 1;
-  const double p_ff_new_estimate = exp(log_sum_log_vec(ff_vals, n_terms));
-  const double p_fb_new_estimate = exp(log_sum_log_vec(fb_vals, n_terms));
-  const double p_bf_new_estimate = exp(log_sum_log_vec(bf_vals, n_terms));
-  const double p_bb_new_estimate = exp(log_sum_log_vec(bb_vals, n_terms));
+  const double p_ff_update = exp(log_sum_log_vec(ff_vals, reset_points));
+  const double p_fb_update = exp(log_sum_log_vec(fb_vals, reset_points));
+  const double f_denom = p_ff_update + p_fb_update;
+  assert(p_fb_update/f_denom > tolerance);
+  p_fb = p_fb_update/f_denom;
 
-  double denom = (p_ff_new_estimate + p_fb_new_estimate);
-  p_ff = p_ff_new_estimate/denom - p_ft/2.0;
-  p_fb = p_fb_new_estimate/denom - p_ft/2.0;
+  const double p_bf_update = exp(log_sum_log_vec(bf_vals, reset_points));
+  const double p_bb_update = exp(log_sum_log_vec(bb_vals, reset_points));
+  const double b_denom = p_bb_update + p_bf_update;
+  assert(p_bf_update/b_denom > tolerance);
+  p_bf = p_bf_update/b_denom;
 
-  if (p_ff < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_ff < MIN_PROB" << endl;
-    p_ff = MIN_PROB;
-  }
+  vector<double> posteriors;
+  get_posteriors(forward, backward, posteriors);
+  fg_distro.fit(vals_a, vals_b, posteriors);
 
-  if (p_fb < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_fb < MIN_PROB" << endl;
-    p_fb = MIN_PROB;
-  }
+  one_minus(begin(posteriors), end(posteriors), begin(posteriors));
+  bg_distro.fit(vals_a, vals_b, posteriors);
 
-  denom = (p_bf_new_estimate + p_bb_new_estimate);
-  p_bf = p_bf_new_estimate/denom - p_bt/2.0;
-  p_bb = p_bb_new_estimate/denom - p_bt/2.0;
-
-  if (p_bf < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_bf < MIN_PROB" << endl;
-    p_bf = MIN_PROB;
-  }
-
-  if (p_bb < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_bb < MIN_PROB" << endl;
-    p_bb = MIN_PROB;
-  }
-
-  p_sb = (p_bb + p_fb)/2.0;
-  p_sf = (p_bf + p_ff)/2.0;
-
-  // for estimating emissions
-  vector<double> fg_probs(values.size());
-  vector<double> bg_probs(values.size());
-  estimate_emissions(forward, backward, fg_probs, bg_probs);
-
-  fg_distro.fit(vals_a, vals_b, fg_probs);
-  bg_distro.fit(vals_a, vals_b, bg_probs);
-
-  return total_score;
+  return total_loglik;
 }
 
 
-
-double
-TwoStateHMM::BaumWelchTraining(const std::vector<pair<double, double> > &values,
-                               const std::vector<size_t> &reset_points,
-                               vector<double> &start_trans,
-                               vector<vector<double> > &trans,
-                               vector<double> &end_trans,
-                               double &fg_alpha, double &fg_beta,
-                               double &bg_alpha, double &bg_beta) const {
-
-  betabin fg_distro(fg_alpha, fg_beta);
-  betabin bg_distro(bg_alpha, bg_beta);
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  const double score = BaumWelchTraining(values, reset_points,
-                                         start_trans[0], start_trans[1],
-                                         trans[0][0], trans[0][1], end_trans[0],
-                                         trans[1][0], trans[1][1], end_trans[1],
-                                         fg_distro, bg_distro);
-
-  fg_alpha = fg_distro.alpha;
-  fg_beta = fg_distro.beta;
-
-  bg_alpha = bg_distro.alpha;
-  bg_beta = bg_distro.beta;
-
-  return score;
+static void
+report_param_header_for_verbose() {
+  cerr << setw(3) << "ITR"
+       << setw(8) << "F size"
+       << setw(8) << "B size"
+       << setw(14) << "F PARAMS"
+       << setw(14) << "B PARAMS"
+       << setw(11) << "DELTA"
+       << endl;
 }
 
+inline double
+get_delta(const double a, const double b) {
+  return (b - a)/max(abs(a), abs(b));
+}
+
+
+static void
+report_params_for_verbose(const size_t i,
+                          const double p_fb_est,
+                          const double p_bf_est,
+                          const betabin &fg_distro,
+                          const betabin &bg_distro,
+                          const double total,
+                          const double prev_total) {
+  std::ios_base::fmtflags orig_flags(cerr.flags());
+  cerr.precision(2);
+  cerr << setw(3) << i + 1
+       << setw(8) << std::fixed << 1/p_fb_est
+       << setw(8) << std::fixed << 1/p_bf_est
+       << setw(14) << fg_distro.tostring()
+       << setw(14) << bg_distro.tostring()
+       << setw(11) << std::scientific
+       << abs(get_delta(prev_total, total))
+       << endl;
+  cerr.flags(orig_flags);
+}
+
+
+static void
+extract_fractional_values(const vector<pair<double, double> > &values,
+                          vector<double> &vals_a, vector<double> &vals_b) {
+
+  const size_t n_vals = values.size();
+  vals_a.resize(n_vals);
+  vals_b.resize(n_vals);
+
+  static const double epsilon = 1e-2;
+  // const double pseudocount = 1.0;
+  for (size_t i = 0; i < n_vals; ++i) {
+    // const double a = values[i].first + pseudocount;
+    // const double b = values[i].second + pseudocount;
+    // const double val = a/(a + b);
+    const double val = values[i].first/(values[i].first + values[i].second);
+    const double adjusted_val = min(max(val, epsilon), 1 - epsilon);
+    vals_a[i] = log(adjusted_val);
+    vals_b[i] = log(1.0 - adjusted_val);
+  }
+}
 
 
 double
 TwoStateHMM::BaumWelchTraining(const vector<pair<double, double> > &values,
                                const vector<size_t> &reset_points,
-                               double &p_sf, double &p_sb,
-                               double &p_ff, double &p_fb, double &p_ft,
-                               double &p_bf, double &p_bb, double &p_bt,
-                               betabin &fg_distro,
-                               betabin &bg_distro) const {
+                               double &p_fb, double &p_bf,
+                               betabin &fg_distro, betabin &bg_distro) const {
+
+  vector<double> vals_a, vals_b;
+  extract_fractional_values(values, vals_a, vals_b);
 
   const size_t n_vals = values.size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
+
+  vector<double> ff_vals(n_vals), fb_vals(n_vals); // for estimating transitions
+  vector<double> bf_vals(n_vals), bb_vals(n_vals);
+  vector<double> fg_emit(n_vals), bg_emit(n_vals); // avoid recomp of emissions
 
   if (VERBOSE)
-    cerr << setw(5)  << "ITR"
-         << setw(10) << "F size"
-         << setw(10) << "B size"
-         << setw(18) << "F PARAMS"
-         << setw(18) << "B PARAMS"
-         << setw(14) << "DELTA"
-         << endl;
+    report_param_header_for_verbose();
 
   double prev_total = -std::numeric_limits<double>::max();
+  bool converged = false;
+  for (size_t i = 0; i < max_iterations && !converged; ++i) {
 
-  vector<double> vals_a(n_vals), vals_b(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double denom = values[i].first + values[i].second;
-    vals_a[i] = // values[i].first;
-      log(min(max(values[i].first/denom, 1e-2), 1.0 - 1e-2));
-    vals_b[i] = // values[i].second;
-      log(1 - min(max(values[i].first/denom, 1e-2), 1.0 - 1e-2));
-  }
+    double p_fb_est = p_fb, p_bf_est = p_bf;
 
-  for (size_t i = 0; i < max_iterations; ++i) {
+    const double total =
+      single_iteration(values, vals_a, vals_b, reset_points, forward, backward,
+                       p_fb_est, p_bf_est, fg_distro, bg_distro,
+                       ff_vals, fb_vals, bf_vals, bb_vals, fg_emit, bg_emit);
 
-    double p_sf_est = p_sf;
-    double p_sb_est = p_sb;
-    double p_ff_est = p_ff;
-    double p_fb_est = p_fb;
-    double p_bf_est = p_bf;
-    double p_bb_est = p_bb;
-    double p_ft_est = p_ft;
-    double p_bt_est = p_bt;
+    if (VERBOSE)
+      report_params_for_verbose(i, p_fb_est, p_bf_est,
+                                fg_distro, bg_distro, total, prev_total);
 
-    double total = single_iteration(values,
-                                    vals_a, vals_b,
-                                    reset_points,
-                                    forward, backward,
-                                    p_sf_est, p_sb_est,
-                                    p_ff_est, p_fb_est, p_ft_est,
-                                    p_bf_est, p_bb_est, p_bt_est,
-                                    fg_distro, bg_distro);
+    converged = (get_delta(prev_total, total) < tolerance);
 
-    if (VERBOSE) {
-      cerr << setw(5) << i + 1
-           << setw(10) << 1/p_fb_est
-           << setw(10) << 1/p_bf_est
-           << setw(18) << fg_distro.tostring()
-           << setw(18) << bg_distro.tostring()
-           << setw(14) << total
-           << setw(14) << prev_total
-           << setw(14) << (total - prev_total)/std::fabs(total)
-           << endl;
-    }
-    if ((total - prev_total) < tolerance) {
+    if (converged) {
       if (VERBOSE)
-        cerr << "CONVERGED" << endl << endl;
-      break;
+        cerr << "CONVERGED" << endl;
     }
-
-    p_sf = p_sf_est;
-    p_sb = p_sb_est;
-    p_ff = p_ff_est;
-    p_fb = p_fb_est;
-    p_bf = p_bf_est;
-    p_bb = p_bb_est;
-    p_ft = p_ft_est;
-    p_bt = p_bt_est;
-
-    prev_total = total;
+    else {
+      p_fb = p_fb_est;
+      p_bf = p_bf_est;
+      prev_total = total;
+    }
   }
   return prev_total;
 }
 
 
-
 void
 TwoStateHMM::PosteriorScores(const vector<pair<double, double> > &values,
                              const vector<size_t> &reset_points,
-                             const vector<double> &start_trans,
-                             const vector<vector<double> > &trans,
-                             const vector<double> &end_trans,
-                             const double fg_alpha, const double fg_beta,
-                             const double bg_alpha, const double bg_beta,
-                             const vector<bool> &classes,
-                             vector<double> &llr_scores) const {
+                             const double p_fb, const double p_bf,
+                             const betabin &fg_distro, const betabin &bg_distro,
+                             const bool fg_class,
+                             vector<double> &posteriors) const {
 
-  const betabin fg_distro(fg_alpha, fg_beta);
-  const betabin bg_distro(bg_alpha, bg_beta);
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return PosteriorScores(values, reset_points,
-                         start_trans[0], start_trans[1],
-                         trans[0][0], trans[0][1], end_trans[0],
-                         trans[1][0], trans[1][1], end_trans[1],
-                         fg_distro, bg_distro, classes, llr_scores);
-}
-
-
-
-void
-TwoStateHMM::PosteriorScores(const vector<pair<double, double> > &values,
-                             const vector<size_t> &reset_points,
-                             const double p_sf, const double p_sb,
-                             const double p_ff, const double p_fb,
-                             const double p_ft, const double p_bf,
-                             const double p_bb, const double p_bt,
-                             const betabin &fg_distro,
-                             const betabin &bg_distro,
-                             const vector<bool> &classes,
-                             vector<double> &llr_scores) const {
-
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
+  const double lp_bb = log(1.0 - p_bf);
 
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  assert(isfinite(lp_sf) && isfinite(lp_sb) && isfinite(lp_ff) &&
+         isfinite(lp_fb) && isfinite(lp_bf) && isfinite(lp_bb));
 
   const size_t n_vals = values.size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
 
-  for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm(values,
-                                           reset_points[i],
-                                           reset_points[i + 1],
-                                           lp_sf, lp_sb,
-                                           lp_ff, lp_fb, lp_ft,
-                                           lp_bf, lp_bb, lp_bt,
-                                           fg_distro, bg_distro, forward);
+  vector<double> fg_emit(n_vals), bg_emit(n_vals);
+  get_emissions(begin(values), end(values), begin(fg_emit), fg_distro);
+  get_emissions(begin(values), end(values), begin(bg_emit), bg_distro);
 
-    const double backward_score =
-      backward_algorithm(values,
-                         reset_points[i],
-                         reset_points[i + 1],
-                         lp_sf, lp_sb,
-                         lp_ff, lp_fb, lp_ft,
-                         lp_bf, lp_bb, lp_bt,
-                         fg_distro, bg_distro, backward);
-
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
-
-    total_score += score;
-  }
-
-  llr_scores.resize(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double fg_state = forward[i].first + backward[i].first;
-    const double bg_state = forward[i].second + backward[i].second;
-    if (classes[i])
-      llr_scores[i] = (fg_state - bg_state);
-    else
-      llr_scores[i] = (bg_state - fg_state);
-  }
-}
-
-
-
-void
-TwoStateHMM::PosteriorScores(const vector<pair<double, double> > &values,
-                             const vector<size_t> &reset_points,
-                             const vector<double> &start_trans,
-                             const vector<vector<double> > &trans,
-                             const vector<double> &end_trans,
-                             const double fg_alpha, const double fg_beta,
-                             const double bg_alpha, const double bg_beta,
-                             const bool fg_class,
-                             vector<double> &llr_scores) const {
-
-  const betabin fg_distro(fg_alpha, fg_beta);
-  const betabin bg_distro(bg_alpha, bg_beta);
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return PosteriorScores(values, reset_points,
-                         start_trans[0], start_trans[1],
-                         trans[0][0], trans[0][1], end_trans[0],
-                         trans[1][0], trans[1][1], end_trans[1],
-                         fg_distro, bg_distro, fg_class, llr_scores);
-}
-
-
-
-
-void
-TwoStateHMM::PosteriorScores(const vector<pair<double, double> > &values,
-                             const vector<size_t> &reset_points,
-                             const double p_sf, const double p_sb,
-                             const double p_ff, const double p_fb,
-                             const double p_ft, const double p_bf,
-                             const double p_bb, const double p_bt,
-                             const betabin &fg_distro,
-                             const betabin &bg_distro,
-                             const bool fg_class,
-                             vector<double> &llr_scores) const {
-
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
-  const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
-  const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
-
-  const size_t n_vals = values.size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
-
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
     const double score =
-      forward_algorithm(values, reset_points[i], reset_points[i + 1],
-                        lp_sf, lp_sb, lp_ff, lp_fb, lp_ft, lp_bf, lp_bb, lp_bt,
-                        fg_distro, bg_distro, forward);
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
 
     const double backward_score =
-      backward_algorithm(values, reset_points[i], reset_points[i + 1],
-                         lp_sf, lp_sb, lp_ff, lp_fb, lp_ft,
-                         lp_bf, lp_bb, lp_bt,
-                         fg_distro, bg_distro, backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
-    total_score += score;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
+
+    total_loglik += score;
   }
 
-  llr_scores.resize(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double fg_state = forward[i].first + backward[i].first;
-    const double bg_state = forward[i].second + backward[i].second;
-    if (fg_class)
-      llr_scores[i] = exp(fg_state - log_sum_log(fg_state, bg_state));
-    else
-      llr_scores[i] = exp(bg_state - log_sum_log(fg_state, bg_state));
-  }
+  get_posteriors(forward, backward, posteriors);
+  if (!fg_class)
+    one_minus(begin(posteriors), end(posteriors), begin(posteriors));
 }
-
-
-
 
 
 void
 TwoStateHMM::TransitionPosteriors(const vector<pair<double, double> > &values,
                                   const vector<size_t> &reset_points,
-                                  const vector<double> &start_trans,
-                                  const vector<vector<double> > &trans,
-                                  const vector<double> &end_trans,
+                                  const double p_fb, const double p_bf,
                                   const double fg_alpha, const double fg_beta,
                                   const double bg_alpha, const double bg_beta,
                                   const size_t transition,
-                                  vector<double> &llr_scores) const {
+                                  vector<double> &posteriors) const {
 
   const betabin fg_distro(fg_alpha, fg_beta);
   const betabin bg_distro(bg_alpha, bg_beta);
 
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
+  return TransitionPosteriors(values, reset_points, p_fb, p_bf,
+                              fg_distro, bg_distro, transition, posteriors);
+}
 
-  return TransitionPosteriors(values, reset_points,
-                              start_trans[0], start_trans[1],
-                              trans[0][0], trans[0][1], end_trans[0],
-                              trans[1][0], trans[1][1], end_trans[1],
-                              fg_distro, bg_distro, transition, llr_scores);
+
+static void
+get_joint_posteriors(const pair<double, double> &forward,
+                     const pair<double, double> &backward,
+                     const double fg_emit, const double bg_emit,
+                     const double lp_ff, const double lp_fb,
+                     const double lp_bf, const double lp_bb,
+                     double &ff_c, double &fb_c, double &bf_c, double &bb_c) {
+  // (forward val) + transition + emission + (backward val offset by 1)
+  ff_c = forward.first + lp_ff + fg_emit + backward.first;
+  fb_c = forward.first + lp_fb + bg_emit + backward.second;
+  bf_c = forward.second + lp_bf + fg_emit + backward.first;
+  bb_c = forward.second + lp_bb + bg_emit + backward.second;
 }
 
 
 void
 TwoStateHMM::TransitionPosteriors(const vector<pair<double, double> > &values,
                                   const vector<size_t> &reset_points,
-                                  const double p_sf, const double p_sb,
-                                  const double p_ff, const double p_fb,
-                                  const double p_ft, const double p_bf,
-                                  const double p_bb, const double p_bt,
+                                  const double p_fb, const double p_bf,
                                   const betabin &fg_distro,
                                   const betabin &bg_distro,
                                   const size_t transition,
                                   vector<double> &scores) const {
 
+  assert(transition < 4);
 
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  const double lp_bb = log(1.0 - p_bf);
 
   const size_t n_vals = values.size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
 
+  vector<double> fg_emit(n_vals), bg_emit(n_vals);
+  get_emissions(begin(values), end(values), begin(fg_emit), fg_distro);
+  get_emissions(begin(values), end(values), begin(bg_emit), bg_distro);
+
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm(values,
-                                           reset_points[i],
-                                           reset_points[i + 1],
-                                           lp_sf, lp_sb,
-                                           lp_ff, lp_fb, lp_ft,
-                                           lp_bf, lp_bb, lp_bt,
-                                           fg_distro, bg_distro, forward);
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
 
     const double backward_score =
-      backward_algorithm(values, reset_points[i], reset_points[i + 1],
-                         lp_sf, lp_sb, lp_ff, lp_fb, lp_ft,
-                         lp_bf, lp_bb, lp_bt,
-                         fg_distro, bg_distro, backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
 
-    total_score += score;
+    total_loglik += score;
   }
 
-  scores.resize(values.size());
+  scores.clear();
+  scores.resize(n_vals, 0.0);
   size_t j = 0;
-  for (size_t i = 0; i < values.size(); ++i) {
-    if (i == reset_points[j]) {
+  for (size_t i = 0; i < n_vals; ++i) {
+    if (i == reset_points[j])
       ++j;
-      scores[i] = 0;
-    }
     else {
-      const double fg_to_fg_state = forward[i - 1].first + lp_ff + // transition
-        // emission for value i + 1
-        fg_distro(values[i]) + backward[i].first;
-      const double fg_to_bg_state = forward[i - 1].first + lp_fb +
-        bg_distro(values[i]) + backward[i].second;
-      const double bg_to_fg_state = forward[i - 1].second + lp_bf +
-        fg_distro(values[i]) + backward[i].first;
-      const double bg_to_bg_state = forward[i - 1].second + lp_bb +
-        bg_distro(values[i]) + backward[i].second;
-      const double denom =
-        log_sum_log(log_sum_log(fg_to_fg_state, fg_to_bg_state),
-                    log_sum_log(bg_to_fg_state, bg_to_bg_state));
-      double numerator = fg_to_fg_state;
-      if (transition == 1)
-        numerator = fg_to_bg_state;
-      if (transition == 2)
-        numerator = bg_to_fg_state;
-      if (transition == 3)
-        numerator = bg_to_bg_state;
+      double ff_c, fb_c, bf_c, bb_c;
+      get_joint_posteriors(forward[i - 1], backward[i], fg_emit[i], bg_emit[i],
+                           lp_ff, lp_fb, lp_bf, lp_bb, ff_c, fb_c, bf_c, bb_c);
+      double numerator = ff_c;
+      if (transition == 1) numerator = fb_c;
+      if (transition == 2) numerator = bf_c;
+      if (transition == 3) numerator = bb_c;
+      const double denom = log_sum_log(log_sum_log(ff_c, fb_c),
+                                       log_sum_log(bf_c, bb_c));
       scores[i] = exp(numerator - denom);
     }
   }
@@ -816,173 +654,84 @@ TwoStateHMM::TransitionPosteriors(const vector<pair<double, double> > &values,
 double
 TwoStateHMM::PosteriorDecoding(const vector<pair<double, double> > &values,
                                const vector<size_t> &reset_points,
-                               const vector<double> &start_trans,
-                               const vector<vector<double> > &trans,
-                               const vector<double> &end_trans,
-                               const double fg_alpha, const double fg_beta,
-                               const double bg_alpha, const double bg_beta,
-                               vector<bool> &classes,
-                               vector<double> &llr_scores) const {
-
-
-  const betabin fg_distro(fg_alpha, fg_beta);
-  const betabin bg_distro(bg_alpha, bg_beta);
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return PosteriorDecoding(values, reset_points,
-                           start_trans[0], start_trans[1],
-                           trans[0][0], trans[0][1], end_trans[0],
-                           trans[1][0], trans[1][1], end_trans[1],
-                           fg_distro, bg_distro, classes, llr_scores);
-}
-
-
-double
-TwoStateHMM::PosteriorDecoding(const vector<pair<double, double> > &values,
-                               const vector<size_t> &reset_points,
-                               const double p_sf, const double p_sb,
-                               const double p_ff, const double p_fb,
-                               const double p_ft, const double p_bf,
-                               const double p_bb, const double p_bt,
+                               const double p_fb, const double p_bf,
                                const betabin &fg_distro,
                                const betabin &bg_distro,
                                vector<bool> &classes,
-                               vector<double> &llr_scores) const {
+                               vector<double> &posteriors) const {
 
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  const double lp_bb = log(1.0 - p_bf);
 
   const size_t n_vals = values.size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
 
+  vector<double> fg_emit(n_vals), bg_emit(n_vals);
+  get_emissions(begin(values), end(values), begin(fg_emit), fg_distro);
+  get_emissions(begin(values), end(values), begin(bg_emit), bg_distro);
+
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm(values,
-                                           reset_points[i],
-                                           reset_points[i + 1],
-                                           lp_sf, lp_sb,
-                                           lp_ff, lp_fb, lp_ft,
-                                           lp_bf, lp_bb, lp_bt,
-                                           fg_distro, bg_distro, forward);
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
 
     const double backward_score =
-      backward_algorithm(values,
-                         reset_points[i],
-                         reset_points[i + 1],
-                         lp_sf, lp_sb,
-                         lp_ff, lp_fb, lp_ft,
-                         lp_bf, lp_bb, lp_bt,
-                         fg_distro, bg_distro, backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
 
-    total_score += score;
+    total_loglik += score;
   }
+
+  get_posteriors(forward, backward, posteriors);
 
   classes.resize(n_vals);
+  for (size_t i = 0; i < n_vals; ++i)
+    classes[i] = (posteriors[i] > 0.5);
 
-  llr_scores.resize(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double fg_state = forward[i].first + backward[i].first;
-    const double bg_state = forward[i].second + backward[i].second;
-    classes[i] = static_cast<bool>(fg_state > bg_state);
-    llr_scores[i] = exp(fg_state - log_sum_log(fg_state, bg_state));
-  }
-
-  return total_score;
-}
-
-
-/*************************************************************
- *
- * Functions for Viterbi training and decoding.
- *
- *************************************************************/
-
-
-double
-TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
-                             const vector<size_t> &reset_points,
-                             const vector<double> &start_trans,
-                             const vector<vector<double> > &trans,
-                             const vector<double> &end_trans,
-                             const double fg_alpha, const double fg_beta,
-                             const double bg_alpha, const double bg_beta,
-                             vector<bool> &classes) const {
-
-  const betabin fg_distro(fg_alpha, fg_beta);
-  const betabin bg_distro(bg_alpha, bg_beta);
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return ViterbiDecoding(values, reset_points,
-                         start_trans[0], start_trans[1],
-                         trans[0][0], trans[0][1], end_trans[0],
-                         trans[1][0], trans[1][1], end_trans[1],
-                         fg_distro, bg_distro, classes);
+  return total_loglik;
 }
 
 
 double
 TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
                              const vector<size_t> &reset_points,
-                             const double p_sf, const double p_sb,
-                             const double p_ff, const double p_fb,
-                             const double p_ft, const double p_bf,
-                             const double p_bb, const double p_bt,
-                             const betabin &fg_distro,
-                             const betabin &bg_distro,
+                             const double p_fb, const double p_bf,
+                             const betabin &fg_distro, const betabin &bg_distro,
                              vector<bool> &ml_classes) const {
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
+  const double lp_bb = log(1.0 - p_bf);
 
   double total = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
 
     const size_t lim = reset_points[i + 1] - reset_points[i];
 
-    vector<pair<double, double> > v(lim, pair<double, double>(0, 0));
-    vector<pair<size_t, size_t> > trace(lim, pair<size_t, size_t>(0, 0));
+    vector<pair<double, double> > v(lim, make_pair(0.0, 0.0));
+    vector<pair<size_t, size_t> > trace(lim, make_pair(0ul, 0ul));
 
-    v.front().first = fg_distro(values[reset_points[i]]) + lp_sf;
-    v.front().second = bg_distro(values[reset_points[i]]) + lp_sb;
+    v[0].first = fg_distro(values[reset_points[i]]) + lp_sf;
+    v[0].second = bg_distro(values[reset_points[i]]) + lp_sb;
 
     for (size_t j = 1; j < lim; ++j) {
 
       const double ff = v[j - 1].first + lp_ff;
       const double bf = v[j - 1].second + lp_bf;
-      const double fg_log_emmit =
-        fg_distro(values[reset_points[i] + j]);
+      const double fg_log_emmit = fg_distro(values[reset_points[i] + j]);
       if (ff > bf) {
         v[j].first = fg_log_emmit + ff;
         trace[j].first = 0;
@@ -994,8 +743,7 @@ TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
 
       const double fb = v[j - 1].first + lp_fb;
       const double bb = v[j - 1].second + lp_bb;
-      const double bg_log_emmit =
-        bg_distro(values[reset_points[i] + j]);
+      const double bg_log_emmit = bg_distro(values[reset_points[i] + j]);
       if (fb > bb) {
         v[j].second = bg_log_emmit + fb;
         trace[j].second = 0;
@@ -1005,8 +753,6 @@ TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
         trace[j].second = 1;
       }
     }
-    v.back().first += lp_ft;
-    v.back().second += lp_bt;
 
     vector<bool> inner_ml_classes;
 
@@ -1032,9 +778,9 @@ TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
         prev = trace[k].second;
       }
     }
-    reverse(inner_ml_classes.begin(), inner_ml_classes.end());
-    ml_classes.insert(ml_classes.end(), inner_ml_classes.begin(),
-                      inner_ml_classes.end());
+    reverse(begin(inner_ml_classes), end(inner_ml_classes));
+    ml_classes.insert(end(ml_classes),
+                      begin(inner_ml_classes), end(inner_ml_classes));
 
     total += max(v.back().first, v.back().second);
   }
@@ -1043,655 +789,343 @@ TwoStateHMM::ViterbiDecoding(const vector<pair<double, double> > &values,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-///////////////   For multiple replicates       ////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-double
-TwoStateHMM::forward_algorithm_rep(const vector<vector<pair<double, double> > > &vals,
-                                   const size_t start, const size_t end,
-                                   const double lp_sf, const double lp_sb,
-                                   const double lp_ff, const double lp_fb,
-                                   const double lp_ft, const double lp_bf,
-                                   const double lp_bb, const double lp_bt,
-                                   const vector<betabin> &fg_distro,
-                                   const vector<betabin> &bg_distro,
-                                   vector<pair<double, double> > &f) const {
-  const size_t n_reps = vals.size();
-  f[start].first = lp_sf;
-  f[start].second = lp_sb;
+///////////////  FOR MULTIPLE REPLICATES
 
-  for (size_t r = 0; r < n_reps; ++r) {
-    if (vals[r][start].first + vals[r][start].second  >= 1) {
-      f[start].first += fg_distro[r](vals[r][start]);
-      f[start].second += bg_distro[r](vals[r][start]);
-    }
-  }
-  for (size_t i = start + 1; i < end; ++i) {
-    const size_t k = i - 1;
-    f[i].first = log_sum_log(f[k].first + lp_ff, f[k].second + lp_bf);
-    f[i].second = log_sum_log(f[k].first + lp_fb, f[k].second + lp_bb);
-
-    for (size_t r = 0; r < n_reps; ++r) {
-      if(vals[r][i].first + vals[r][i].second >= 1) {
-        f[i].first += fg_distro[r](vals[r][i]);
-        f[i].second += bg_distro[r](vals[r][i]);
-      }
-    }
-  }
-  return log_sum_log(f[end - 1].first + lp_ft, f[end - 1].second + lp_bt);
-}
-
-
-//for multiple replicates
-double
-TwoStateHMM::backward_algorithm_rep(const vector<vector<pair<double, double> > > &vals,
-                                    const size_t start, const size_t end,
-                                    const double lp_sf, const double lp_sb,
-                                    const double lp_ff, const double lp_fb,
-                                    const double lp_ft, const double lp_bf,
-                                    const double lp_bb, const double lp_bt,
-                                    const vector<betabin> &fg_distro,
-                                    const vector<betabin> &bg_distro,
-                                    vector<pair<double, double> > &b) const {
-  const size_t n_reps = vals.size();
-  b[end - 1].first = lp_ft;
-  b[end - 1].second = lp_bt;
-
-  for (size_t k = end - 1; k > start; --k) {
-    size_t i = k - 1;
-    double fg_a = b[k].first;
-    double bg_a = b[k].second;
-
-    for (size_t r = 0; r < n_reps; ++r) {
-      if (vals[r][k].first + vals[r][k].second >= 1) {
-        fg_a += fg_distro[r](vals[r][k]);
-        bg_a += bg_distro[r](vals[r][k]);
-      }
-    }
-    b[i].first = log_sum_log(fg_a + lp_ff, bg_a + lp_fb);
-    b[i].second = log_sum_log(fg_a + lp_bf, bg_a + lp_bb);
-
-  }
-
-  double emission_t1_b = 0;
-  double emission_t1_f = 0;
-
-  for (size_t r = 0; r < n_reps; ++r) {
-    if (vals[r][start].first + vals[r][start].second >= 1) {
-      emission_t1_b += bg_distro[r](vals[r][start]);
-      emission_t1_f += fg_distro[r](vals[r][start]);
-    }
-  }
-  return log_sum_log(b[start].first + emission_t1_f + lp_sf,
-                     b[start].second + emission_t1_b + lp_sb);
-}
-
-
-//ff_vals: ksi_t(1,1), where 1 is the S_1, i.e. posterior prob of transitions
-void
-TwoStateHMM::estimate_transitions_rep(const vector<vector<pair<double, double> > > &vals,
-                                      const size_t start, const size_t end,
-                                      const vector<pair<double, double> > &f,
-                                      const vector<pair<double, double> > &b,
-                                      const double total,
-                                      const vector<betabin> &fg_distro,
-                                      const vector<betabin> &bg_distro,
-                                      const double lp_ff, const double lp_fb,
-                                      const double lp_bf, const double lp_bb,
-                                      const double lp_ft, const double lp_bt,
-                                      vector<double> &ff_vals,
-                                      vector<double> &fb_vals,
-                                      vector<double> &bf_vals,
-                                      vector<double> &bb_vals) const {
-
-  const size_t n_reps = vals.size();
-  for (size_t i = start + 1; i < end; ++i) {
-    const size_t k = i - 1;
-    double b_first = b[i].first - total;
-    double b_second = b[i].second - total;
-
-    for (size_t r = 0; r < n_reps; ++r) {
-      if(vals[r][i].first + vals[r][i].second >= 1) {
-        b_first += fg_distro[r](vals[r][i]);
-        b_second += bg_distro[r](vals[r][i]);
-      }
-    }
-
-    const double ff = f[k].first;
-    const double bb = f[k].second;
-
-    ff_vals[k] = ff + lp_ff + b_first;
-    fb_vals[k] = ff + lp_fb + b_second;
-
-    bf_vals[k] = bb + lp_bf + b_first;
-    bb_vals[k] = bb + lp_bb + b_second;
-  }
-}
-
+// WRAPPER FUNCTIONS
 
 double
-TwoStateHMM::single_iteration_rep(const vector<vector<pair<double, double> > > &values,
-                                  const vector<vector<double> > &vals_a_reps,
-                                  const vector<vector<double> > &vals_b_reps,
-                                  const vector<size_t> &reset_points,
-                                  vector<pair<double, double> > &forward,
-                                  vector<pair<double, double> > &backward,
-                                  double &p_sf, double &p_sb,
-                                  double &p_ff, double &p_fb, double &p_ft,
-                                  double &p_bf, double &p_bb, double &p_bt,
-                                  vector<betabin> &fg_distro,
-                                  vector<betabin> &bg_distro) const {
-
-  const size_t n_reps= values.size();
-  vector<double> log_fg_expected;
-  vector<double> log_bg_expected;
-
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
-  const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
-  const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
-
-  // for estimating transitions
-  vector<double> ff_vals(values[0].size(), 0);
-  vector<double> fb_vals(values[0].size(), 0);
-  vector<double> bf_vals(values[0].size(), 0);
-  vector<double> bb_vals(values[0].size(), 0);
-
-  // #pragma omp parallel
-  for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score =
-      forward_algorithm_rep(values,
-                            reset_points[i],
-                            reset_points[i + 1],
-                            lp_sf, lp_sb,
-                            lp_ff, lp_fb, lp_ft,
-                            lp_bf, lp_bb, lp_bt,
-                            fg_distro, bg_distro,
-                            forward);
-
-    const double backward_score =
-      backward_algorithm_rep(values,
-                             reset_points[i],
-                             reset_points[i + 1],
-                             lp_sf, lp_sb,
-                             lp_ff, lp_fb, lp_ft,
-                             lp_bf, lp_bb, lp_bt,
-                             fg_distro, bg_distro,
-                             backward);
-
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10) {
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
-    }
-
-    estimate_transitions_rep(values, reset_points[i], reset_points[i + 1],
-                             forward, backward, score, fg_distro, bg_distro,
-                             lp_ff, lp_fb, lp_bf, lp_bb, lp_ft, lp_bt,
-                             ff_vals, fb_vals, bf_vals, bb_vals);
-
-    total_score += score;
+TwoStateHMM::BaumWelchTraining(const vector<vector<pair<double, double> > > &values,
+                               const vector<size_t> &reset_points,
+                               double &p_fb, double &p_bf,
+                               vector<double> &fg_alpha,
+                               vector<double> &fg_beta,
+                               vector<double> &bg_alpha,
+                               vector<double> &bg_beta) const {
+  vector<betabin> fg_distro, bg_distro;
+  for (size_t i = 0; i < values.size(); ++i) {
+    fg_distro.push_back(betabin(fg_alpha[i], fg_beta[i]));
+    bg_distro.push_back(betabin(bg_alpha[i], bg_beta[i]));
   }
 
-  // Subtracting 1 from the limit of the summation
-  // to eliminate the last term in the last block
-  // And subtracting  (#blocks-1) from the sum
-  // because the final term in each block has no
-  // meaning since there is no transition to be counted
-  // from the final observation (they all must go to terminal state)
-  size_t NBLOCKS= reset_points.size()-1; //should equal to #deserts+1
-  const double p_ff_new_estimate =
-    exp(log_sum_log_vec(ff_vals, values[0].size() - 1)) - (NBLOCKS - 1);
-  const double p_fb_new_estimate =
-    exp(log_sum_log_vec(fb_vals, values[0].size() - 1)) - (NBLOCKS - 1);
-  const double p_bf_new_estimate =
-    exp(log_sum_log_vec(bf_vals, values[0].size() - 1)) - (NBLOCKS - 1);
-  const double p_bb_new_estimate =
-    exp(log_sum_log_vec(bb_vals, values[0].size() - 1)) - (NBLOCKS - 1);
-
-  double denom = p_ff_new_estimate + p_fb_new_estimate;
-  p_ff = (p_ff_new_estimate)/denom - p_ft/2.0;
-  p_fb = (p_fb_new_estimate)/denom - p_ft/2.0;
-
-  if (p_ff < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_ff < MIN_PROB" << endl;
-    p_ff = MIN_PROB;
-  }
-
-  if (p_fb < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_fb < MIN_PROB" << endl;
-    p_fb = MIN_PROB;
-  }
-
-  denom = p_bf_new_estimate + p_bb_new_estimate;
-  p_bf = p_bf_new_estimate/denom - p_bt/2.0;
-  p_bb = p_bb_new_estimate/denom - p_bt/2.0;
-
-  if (p_bf < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_bf < MIN_PROB" << endl;
-    p_bf = MIN_PROB;
-  }
-
-  if (p_bb < MIN_PROB) {
-    if (DEBUG)
-      cerr << "p_bb < MIN_PROB" << endl;
-    p_bb = MIN_PROB;
-  }
-
-  p_sb = (p_bb + p_fb)/2.0;
-  p_sf = (p_bf + p_ff)/2.0;
-
-  vector<double> fg_probs(values[0].size(), 0);
-  vector<double> bg_probs(values[0].size(), 0);
-  estimate_emissions(forward, backward, fg_probs, bg_probs);
-
-  vector<double> vals_a, vals_b;
-  vector<double> fg_prob, bg_prob;
-  for (size_t r = 0; r < n_reps; ++r) {
-    //individual replicate may have 0 coverage at some sites
-    //remove these sites before fitting
-    vals_a.clear();
-    vals_b.clear();
-    fg_prob.clear();
-    bg_prob.clear();
-    for (size_t i = 0; i < values[0].size(); ++i) {
-      if (values[r][i].first + values[r][i].second >= 1) {
-        vals_a.push_back(vals_a_reps[r][i]);
-        vals_b.push_back(vals_b_reps[r][i]);
-        fg_prob.push_back(fg_probs[i]); // use the common posterior prob
-        bg_prob.push_back(bg_probs[i]);
-      }
-    }
-    fg_distro[r].fit(vals_a, vals_b, fg_prob);
-    bg_distro[r].fit(vals_a, vals_b, bg_prob);
-  }
-  return total_score;
-}
-
-double
-TwoStateHMM::BaumWelchTraining_rep(const vector<vector<pair<double, double> > > &values,
-                                   const vector<size_t> &reset_points,
-                                   vector<double> &start_trans,
-                                   vector<vector<double> > &trans,
-                                   vector<double> &end_trans,
-                                   vector<double> &fg_alpha,
-                                   vector<double> &fg_beta,
-                                   vector<double> &bg_alpha,
-                                   vector<double> &bg_beta) const {
-
-  vector<betabin> fg_distro;
-  vector<betabin> bg_distro;
-
-  const size_t n_reps = values.size();
-  for (size_t i = 0; i < n_reps; ++i) {
-    betabin fgtmp(fg_alpha[i], fg_beta[i]);
-    fg_distro.push_back(fgtmp);
-    betabin bgtmp(bg_alpha[i], bg_beta[i]);
-    bg_distro.push_back(bgtmp);
-  }
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  const double score =
-    BaumWelchTraining_rep(values, reset_points,
-                          start_trans[0], start_trans[1],
-                          trans[0][0], trans[0][1], end_trans[0],
-                          trans[1][0], trans[1][1], end_trans[1],
-                          fg_distro, bg_distro);
-
-  for (size_t r = 0; r < n_reps; ++r) {
+  const double score = BaumWelchTraining(values, reset_points,
+                                         p_fb, p_bf, fg_distro, bg_distro);
+  for (size_t r = 0; r < values.size(); ++r) {
     fg_alpha[r] = fg_distro[r].alpha;
     fg_beta[r] = fg_distro[r].beta;
     bg_alpha[r] = bg_distro[r].alpha;
     bg_beta[r] = bg_distro[r].beta;
   }
-
   return score;
 }
 
 double
-TwoStateHMM::BaumWelchTraining_rep(const vector<vector<pair<double, double> > > &values,
-                                   const vector<size_t> &reset_points,
-                                   double &p_sf, double &p_sb,
-                                   double &p_ff, double &p_fb, double &p_ft,
-                                   double &p_bf, double &p_bb, double &p_bt,
-                                   vector<betabin> &fg_distro,
-                                   vector<betabin> &bg_distro) const {
+TwoStateHMM::PosteriorDecoding(const vector<vector<pair<double, double> > > &values,
+                               const vector<size_t> &reset_points,
+                               const double p_fb, const double p_bf,
+                               const vector<double> &fg_alpha,
+                               const vector<double> &fg_beta,
+                               const vector<double> &bg_alpha,
+                               const vector<double> &bg_beta,
+                               vector<bool> &classes,
+                               vector<double> &posteriors) const {
+
+  vector<betabin> fg_distro, bg_distro;
+  for (size_t i = 0; i < values.size(); ++i) {
+    fg_distro.push_back(betabin(fg_alpha[i], fg_beta[i]));
+    bg_distro.push_back(betabin(bg_alpha[i], bg_beta[i]));
+  }
+  return PosteriorDecoding(values, reset_points, p_fb, p_bf,
+                           fg_distro, bg_distro, classes, posteriors);
+}
+
+
+void
+TwoStateHMM::PosteriorScores(const vector<vector<pair<double, double> > > &values,
+                             const vector<size_t> &reset_points,
+                             const double p_fb, const double p_bf,
+                             const vector<double> &fg_alpha,
+                             const vector<double> &fg_beta,
+                             const vector<double> &bg_alpha,
+                             const vector<double> &bg_beta,
+                             const bool &fg_class,
+                             vector<double> &posteriors) const {
+
+  vector<betabin> fg_distro, bg_distro;
+  for (size_t i = 0; i < values.size(); ++i) {
+    fg_distro.push_back(betabin(fg_alpha[i], fg_beta[i]));
+    bg_distro.push_back(betabin(bg_alpha[i], bg_beta[i]));
+  }
+  return PosteriorScores(values, reset_points, p_fb, p_bf,
+                         fg_distro, bg_distro, fg_class, posteriors);
+}
+
+// INTERNAL FUNCTIONS (FOR REPLICATES)
+
+inline bool
+has_data(const pair<double, double> &p) {
+  return p.first + p.second >= 1.0;
+}
+
+static void
+get_emissions_rep(const vector<vector<pair<double, double> > > &v,
+                  vector<double> &emit, const vector<betabin> &distr) {
+  fill(begin(emit), end(emit), 0.0);
+  for (size_t r = 0; r < v.size(); ++r)
+    for (size_t i = 0; i < v[r].size(); ++i)
+      if (has_data(v[r][i]))
+        emit[i] += distr[r](v[r][i]);
+}
+
+
+static void
+fit_distro_rep(betabin &distro, const vector<pair<double, double> > &values,
+               const vector<double> &vals_a, const vector<double> &vals_b,
+               const vector<double> &posteriors,
+               vector<double> &tmp_a, vector<double> &tmp_b,
+               vector<double> &tmp_p) {
+  tmp_a.clear();
+  tmp_b.clear();
+  tmp_p.clear();
+  for (size_t i = 0; i < values.size(); ++i)
+    if (has_data(values[i])) {
+      tmp_a.push_back(vals_a[i]);
+      tmp_b.push_back(vals_b[i]);
+      tmp_p.push_back(posteriors[i]);
+    }
+  distro.fit(tmp_a, tmp_b, tmp_p);
+}
+
+
+double
+single_iteration_rep(const vector<vector<pair<double, double> > > &values,
+                     const vector<vector<double> > &vals_a,
+                     const vector<vector<double> > &vals_b,
+                     const vector<size_t> &reset_points,
+                     vector<pair<double, double> > &forward,
+                     vector<pair<double, double> > &backward,
+                     double &p_fb, double &p_bf,
+                     vector<betabin> &fg_distro, vector<betabin> &bg_distro,
+                     vector<double> &fg_emit, vector<double> &bg_emit,
+                     vector<double> &ff_vals, vector<double> &fb_vals,
+                     vector<double> &bf_vals, vector<double> &bb_vals) {
+
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
+  const double lp_fb = log(p_fb);
+  const double lp_bf = log(p_bf);
+  const double lp_bb = log(1.0 - p_bf);
+
+  get_emissions_rep(values, fg_emit, fg_distro);
+  get_emissions_rep(values, bg_emit, bg_distro);
+
+  double total_loglik = 0;
+  for (size_t i = 0; i < reset_points.size() - 1; ++i) {
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
+
+    const double backward_score =
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
+
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
+
+    summarize_transitions(reset_points[i], reset_points[i + 1],
+                          forward, backward, score, fg_emit, bg_emit,
+                          lp_ff, lp_fb, lp_bf, lp_bb,
+                          ff_vals, fb_vals, bf_vals, bb_vals);
+
+    total_loglik += score;
+  }
+
+  const double p_ff_update = exp(log_sum_log_vec(ff_vals, reset_points));
+  const double p_fb_update = exp(log_sum_log_vec(fb_vals, reset_points));
+  const double f_denom = p_ff_update + p_fb_update;
+  assert(p_fb_update/f_denom > tolerance);
+  p_fb = p_fb_update/f_denom;
+
+  const double p_bf_update = exp(log_sum_log_vec(bf_vals, reset_points));
+  const double p_bb_update = exp(log_sum_log_vec(bb_vals, reset_points));
+  const double b_denom = p_bb_update + p_bf_update;
+  assert(p_bf_update/b_denom > tolerance);
+  p_bf = p_bf_update/b_denom;
+
+  vector<double> posteriors;
+  get_posteriors(forward, backward, posteriors);
 
   const size_t n_reps = values.size();
   const size_t n_vals = values[0].size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
 
-  if (VERBOSE) {
-    cerr << "MAX_ITER=" << max_iterations << "\tTOLERANCE=" << tolerance << endl
-         << setw(5)  << "ITR"
-         << setw(10) << "F size"
-         << setw(10) << "B size"
-         << setw(14) << "DELTA"
-         << endl;
-  }
+  vector<double> tmp_a, tmp_b, tmp_p;
+  tmp_a.reserve(n_vals);
+  tmp_b.reserve(n_vals);
+  tmp_p.reserve(n_vals);
+  for (size_t r = 0; r < n_reps; ++r)
+    fit_distro_rep(fg_distro[r], values[r],
+                   vals_a[r], vals_b[r], posteriors, tmp_a, tmp_b, tmp_p);
+
+  one_minus(begin(posteriors), end(posteriors), begin(posteriors));
+  for (size_t r = 0; r < n_reps; ++r)
+    fit_distro_rep(bg_distro[r], values[r],
+                   vals_a[r], vals_b[r], posteriors, tmp_a, tmp_b, tmp_p);
+
+  return total_loglik;
+}
+
+
+
+double
+TwoStateHMM::BaumWelchTraining(const vector<vector<pair<double, double> > > &values,
+                               const vector<size_t> &reset_points,
+                               double &p_fb, double &p_bf,
+                               vector<betabin> &fg_distro,
+                               vector<betabin> &bg_distro) const {
+
+  // extract the fractional values (both fraction meth and unmeth)
+  const size_t n_reps = values.size();
+  vector<vector<double> > vals_a(n_reps), vals_b(n_reps);
+  for (size_t r = 0; r < n_reps; ++r)
+    extract_fractional_values(values[r], vals_a[r], vals_b[r]);
+
+  const size_t n_vals = values[0].size();
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
+
+  vector<double> ff_vals(n_vals), fb_vals(n_vals); // for estimating transitions
+  vector<double> bf_vals(n_vals), bb_vals(n_vals);
+  vector<double> fg_emit(n_vals), bg_emit(n_vals); // avoid recomp of emissions
+
+  if (VERBOSE)
+    report_param_header_for_verbose();
 
   double prev_total = -std::numeric_limits<double>::max();
+  bool converged = false;
+  for (size_t i = 0; i < max_iterations && !converged; ++i) {
 
-  vector<vector<double> > vals_a_reps(n_reps, vector<double>(n_vals, 0));
-  vector<vector<double> > vals_b_reps(n_reps, vector<double>(n_vals, 0));
-  for (size_t r = 0; r < n_reps; ++r) {
-    for (size_t i = 0; i < n_vals; ++i) {
-      if (values[r][i].first + values[r][i].second >= 1) {
-        const double denom = values[r][i].first + values[r][i].second;
-        vals_a_reps[r][i] =
-          log(min(max(values[r][i].first/denom, 1e-2), 1.0 - 1e-2));
-        vals_b_reps[r][i] =
-          log(1 - min(max(values[r][i].first/denom, 1e-2), 1.0 - 1e-2));
-      }
-    }
-  }
+    double p_fb_est = p_fb, p_bf_est = p_bf;
 
-  for (size_t i = 0; i < max_iterations; ++i) {
+    const double total =
+      single_iteration_rep(values, vals_a, vals_b, reset_points, forward, backward,
+                           p_fb_est, p_bf_est, fg_distro, bg_distro,
+                           ff_vals, fb_vals, bf_vals, bb_vals, fg_emit, bg_emit);
 
-    double p_sf_est = p_sf;
-    double p_sb_est = p_sb;
-    double p_ff_est = p_ff;
-    double p_fb_est = p_fb;
-    double p_bf_est = p_bf;
-    double p_bb_est = p_bb;
-    double p_ft_est = p_ft;
-    double p_bt_est = p_bt;
+    if (VERBOSE) // reporting for first replicate
+      report_params_for_verbose(i, p_fb_est, p_bf_est,
+                                fg_distro[0], bg_distro[0], total, prev_total);
 
-    double total = single_iteration_rep(values, vals_a_reps, vals_b_reps,
-                                        reset_points,
-                                        forward, backward,
-                                        p_sf_est, p_sb_est,
-                                        p_ff_est, p_fb_est, p_ft_est,
-                                        p_bf_est, p_bb_est, p_bt_est,
-                                        fg_distro, bg_distro);
+    converged = (get_delta(prev_total, total) < tolerance);
 
-    if (DEBUG) {
-      cerr << "S_F" << p_sf_est << endl
-           << "S_B" << p_sb_est << endl
-           << "F_F" << p_ff_est << endl
-           << "F_B" << p_fb_est << endl
-           << "B_F" << p_bf_est << endl
-           << "B_B" << p_bb_est << endl
-           << "F_E" << p_ft_est << endl
-           << "B_E" << p_bt_est << endl
-           << endl;
-      for (size_t r = 0; r < n_reps; ++r)
-        cerr << "Emission parameters for Rep" << r+1
-             << setw(14) << fg_distro[r].alpha
-             << setw(14) << fg_distro[r].beta
-             << setw(14) << bg_distro[r].alpha
-             << setw(14) << bg_distro[r].beta <<endl;
-    }
-
-    if (VERBOSE) {
-      cerr << setw(5) << i + 1
-           << setw(10) << 1/p_fb_est
-           << setw(10) << 1/p_bf_est
-           << setw(14) << total
-           << setw(14) << prev_total
-           << setw(14) << total - prev_total
-           << setw(14) << (total - prev_total)/std::fabs(total)
-           << endl;
-    }
-    if (total - prev_total < tolerance) {
+    if (converged) {
       if (VERBOSE)
-        cerr << "CONVERGED" << "\t"
-             << std::abs(total - prev_total) << "\t"
-             << tolerance  << endl << endl;
-      break;
+        cerr << "CONVERGED" << endl;
     }
-
-    p_sf = p_sf_est;
-    p_sb = p_sb_est;
-    p_ff = p_ff_est;
-    p_fb = p_fb_est;
-    p_bf = p_bf_est;
-    p_bb = p_bb_est;
-    p_ft = p_ft_est;
-    p_bt = p_bt_est;
-
-    prev_total = total;
+    else {
+      p_fb = p_fb_est;
+      p_bf = p_bf_est;
+      prev_total = total;
+    }
   }
   return prev_total;
 }
 
 
-
 void
-TwoStateHMM::PosteriorScores_rep(const vector<vector<pair<double, double> > > &values,
-                                 const vector<size_t> &reset_points,
-                                 const vector<double> &start_trans,
-                                 const vector<vector<double> > &trans,
-                                 const vector<double> &end_trans,
-                                 const vector<double> &fg_alpha,
-                                 const vector<double> &fg_beta,
-                                 const vector<double> &bg_alpha,
-                                 const vector<double> &bg_beta,
-                                 const bool &fg_class,
-                                 vector<double> &llr_scores) const {
+TwoStateHMM::PosteriorScores(const vector<vector<pair<double, double> > > &values,
+                             const vector<size_t> &reset_points,
+                             const double p_fb, const double p_bf,
+                             const vector<betabin> &fg_distro,
+                             const vector<betabin> &bg_distro,
+                             const bool fg_class,
+                             vector<double> &posteriors) const {
 
-  vector<betabin> fg_distro;
-  vector<betabin> bg_distro;
-
-  const size_t n_reps = values.size();
-  for (size_t i = 0; i < n_reps; ++i) {
-    betabin fgtmp(fg_alpha[i], fg_beta[i]);
-    fg_distro.push_back(fgtmp);
-    betabin bgtmp(bg_alpha[i], bg_beta[i]);
-    bg_distro.push_back(bgtmp);
-  }
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return PosteriorScores_rep(values, reset_points,
-                             start_trans[0], start_trans[1],
-                             trans[0][0], trans[0][1], end_trans[0],
-                             trans[1][0], trans[1][1], end_trans[1],
-                             fg_distro, bg_distro, fg_class, llr_scores);
-}
-
-
-void
-TwoStateHMM::PosteriorScores_rep(const vector<vector<pair<double, double> > > &values,
-                                 const vector<size_t> &reset_points,
-                                 const double p_sf, const double p_sb,
-                                 const double p_ff, const double p_fb,
-                                 const double p_ft, const double p_bf,
-                                 const double p_bb, const double p_bt,
-                                 const vector<betabin> &fg_distro,
-                                 const vector<betabin> &bg_distro,
-                                 const bool fg_class,
-                                 vector<double> &llr_scores) const {
-
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  const double lp_bb = log(1.0 - p_bf);
 
   const size_t n_vals = values[0].size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
 
+  vector<double> fg_emit(n_vals), bg_emit(n_vals);
+  get_emissions_rep(values, fg_emit, fg_distro);
+  get_emissions_rep(values, bg_emit, bg_distro);
+
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm_rep(values,
-                                               reset_points[i],
-                                               reset_points[i + 1],
-                                               lp_sf, lp_sb,
-                                               lp_ff, lp_fb, lp_ft,
-                                               lp_bf, lp_bb, lp_bt,
-                                               fg_distro, bg_distro,
-                                               forward);
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
 
     const double backward_score =
-      backward_algorithm_rep(values,
-                             reset_points[i],
-                             reset_points[i + 1],
-                             lp_sf, lp_sb,
-                             lp_ff, lp_fb, lp_ft,
-                             lp_bf, lp_bb, lp_bt,
-                             fg_distro, bg_distro,
-                             backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
 
-    total_score += score;
+    total_loglik += score;
   }
 
-  llr_scores.resize(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double fg_state = forward[i].first + backward[i].first;
-    const double bg_state = forward[i].second + backward[i].second;
-    if (fg_class)
-      llr_scores[i] = (fg_state - bg_state);
-    else
-      llr_scores[i] = (bg_state - fg_state);
-  }
+  get_posteriors(forward, backward, posteriors);
+  if (!fg_class)
+    one_minus(begin(posteriors), end(posteriors), begin(posteriors));
 }
-
 
 
 double
-TwoStateHMM::PosteriorDecoding_rep(const vector<vector<pair<double, double> > > &values,
-                                   const vector<size_t> &reset_points,
-                                   const vector<double> &start_trans,
-                                   const vector<vector<double> > &trans,
-                                   const vector<double> &end_trans,
-                                   const vector<double> &fg_alpha,
-                                   const vector<double> &fg_beta,
-                                   const vector<double> &bg_alpha,
-                                   const vector<double> &bg_beta,
-                                   vector<bool> &classes,
-                                   vector<double> &llr_scores) const {
+TwoStateHMM::PosteriorDecoding(const vector<vector<pair<double, double> > > &values,
+                               const vector<size_t> &reset_points,
+                               const double p_fb, const double p_bf,
+                               const vector<betabin> &fg_distro,
+                               const vector<betabin> &bg_distro,
+                               vector<bool> &classes,
+                               vector<double> &posteriors) const {
 
-  vector<betabin> fg_distro;
-  vector<betabin> bg_distro;
-
-  const size_t n_reps = values.size();
-  for (size_t i = 0; i < n_reps; ++i) {
-    betabin fgtmp(fg_alpha[i], fg_beta[i]);
-    fg_distro.push_back(fgtmp);
-    betabin bgtmp(bg_alpha[i], bg_beta[i]);
-    bg_distro.push_back(bgtmp);
-  }
-
-  assert(start_trans.size() >= 2);
-  assert(end_trans.size() >= 2);
-  assert(trans.size() >= 2);
-  for (size_t i = 0; i < trans.size(); ++i)
-    assert(trans[i].size() >= 2);
-
-  return PosteriorDecoding_rep(values, reset_points,
-                               start_trans[0], start_trans[1],
-                               trans[0][0], trans[0][1], end_trans[0],
-                               trans[1][0], trans[1][1], end_trans[1],
-                               fg_distro, bg_distro, classes, llr_scores);
-}
-
-double
-TwoStateHMM::PosteriorDecoding_rep(const vector<vector<pair<double, double> > > &values,
-                                   const vector<size_t> &reset_points,
-                                   double p_sf, double p_sb,
-                                   double p_ff, double p_fb, double p_ft,
-                                   double p_bf, double p_bb, double p_bt,
-                                   const vector<betabin> &fg_distro,
-                                   const vector<betabin> &bg_distro,
-                                   vector<bool> &classes,
-                                   vector<double> &llr_scores) const {
-  double total_score = 0;
-
-  const double lp_sf = log(p_sf);
-  const double lp_sb = log(p_sb);
-  const double lp_ff = log(p_ff);
+  const double lp_sf = log(p_bf/(p_bf + p_fb));
+  const double lp_sb = log(p_fb/(p_bf + p_fb));
+  const double lp_ff = log(1.0 - p_fb);
   const double lp_fb = log(p_fb);
-  const double lp_ft = log(p_ft);
   const double lp_bf = log(p_bf);
-  const double lp_bb = log(p_bb);
-  const double lp_bt = log(p_bt);
-
-  assert(isfinite(lp_sf) && isfinite(lp_sb) &&
-         isfinite(lp_ff) && isfinite(lp_fb) && isfinite(lp_ft) &&
-         isfinite(lp_bf) && isfinite(lp_bb) && isfinite(lp_bt));
+  const double lp_bb = log(1.0 - p_bf);
 
   const size_t n_vals = values[0].size();
-  vector<pair<double, double> > forward(n_vals, pair<double, double>(0, 0));
-  vector<pair<double, double> > backward(n_vals, pair<double, double>(0, 0));
+  vector<pair<double, double> > forward(n_vals, make_pair(0.0, 0.0));
+  vector<pair<double, double> > backward(n_vals, make_pair(0.0, 0.0));
+
+  vector<double> fg_emit(n_vals), bg_emit(n_vals);
+  get_emissions_rep(values, fg_emit, fg_distro);
+  get_emissions_rep(values, bg_emit, bg_distro);
+
+  double total_loglik = 0;
   for (size_t i = 0; i < reset_points.size() - 1; ++i) {
-    const double score = forward_algorithm_rep(values,
-                                               reset_points[i],
-                                               reset_points[i + 1],
-                                               lp_sf, lp_sb,
-                                               lp_ff, lp_fb, lp_ft,
-                                               lp_bf, lp_bb, lp_bt,
-                                               fg_distro, bg_distro,
-                                               forward);
+
+    const double score =
+      forward_algorithm(reset_points[i], reset_points[i + 1],
+                        lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                        fg_emit, bg_emit, forward);
 
     const double backward_score =
-      backward_algorithm_rep(values,
-                             reset_points[i],
-                             reset_points[i + 1],
-                             lp_sf, lp_sb,
-                             lp_ff, lp_fb, lp_ft,
-                             lp_bf, lp_bb, lp_bt,
-                             fg_distro, bg_distro,
-                             backward);
+      backward_algorithm(reset_points[i], reset_points[i + 1],
+                         lp_sf, lp_sb, lp_ff, lp_fb, lp_bf, lp_bb,
+                         fg_emit, bg_emit, backward);
 
-    if (DEBUG && (fabs(score - backward_score)/
-                  max(score, backward_score)) > 1e-10)
-      cerr << "fabs(score - backward_score)/"
-           << "max(score, backward_score) > 1e-10" << endl;
+    assert(fabs(score - backward_score)/max(score, backward_score) < tolerance);
 
-    total_score += score;
+    total_loglik += score;
   }
+
+  get_posteriors(forward, backward, posteriors);
 
   classes.resize(n_vals);
+  for (size_t i = 0; i < n_vals; ++i)
+    classes[i] = (posteriors[i] > 0.5);
 
-  llr_scores.resize(n_vals);
-  for (size_t i = 0; i < n_vals; ++i) {
-    const double fg_state = forward[i].first + backward[i].first;
-    const double bg_state = forward[i].second + backward[i].second;
-    classes[i] = static_cast<bool>(fg_state > bg_state);
-    llr_scores[i] = exp(fg_state - log_sum_log(fg_state, bg_state));
-  }
-
-  return total_score;
+  return total_loglik;
 }
-
-/***********End of functions for multiple replicates**************/
-////////////////////////////////////////////////////////////////////////////////
