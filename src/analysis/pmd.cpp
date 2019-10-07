@@ -225,7 +225,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         const double p_hi = static_cast<double>(k_hi)/N_hi;
         const double p_low = static_cast<double>(k_low)/N_low;
 
-        for(size_t j = 0; j < fg_alpha_reps.size(); ++j) {
+        for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
           score += (((fg_alpha_reps[j]-1.0)*log(p_low) +
                      ((fg_beta_reps[j]-1.0)*log(1.0-p_low)))
                     - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]))
@@ -293,7 +293,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
-  for(; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
+  for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
       while (methpipe_read_site(*in[i], chrom, position,
@@ -333,9 +333,9 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     size_t boundary_position = bounds[bound_idx].get_start()
       + (bounds[bound_idx].get_end()-bounds[bound_idx].get_start())/2;
     size_t N_low = 0, k_low = 0, N_hi = 0, k_hi = 0;
-    for(std::map<size_t, pair<size_t,size_t> >::iterator it =
-          pos_meth_tot.begin(); it != pos_meth_tot.end(); ++it) {
-      if(it->first<boundary_position) {
+    for (std::map<size_t, pair<size_t,size_t> >::iterator it =
+           pos_meth_tot.begin(); it != pos_meth_tot.end(); ++it) {
+      if (it->first<boundary_position) {
         N_low += it->second.second;
         k_low += it->second.first;
       }
@@ -350,7 +350,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     const double p_low = static_cast<double>(k_low)/N_low;
 
     if (bound_idx %2 ) { // its a right boundary, p_low should go with fg
-      for(size_t j = 0; j < fg_alpha_reps.size(); ++j) {
+      for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
         score += (((fg_alpha_reps[j]-1.0)*log(p_low) +
                    ((fg_beta_reps[j]-1.0)*log(1.0-p_low)))
                   - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]))
@@ -360,7 +360,7 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
       }
     }
     else { // its a left boundary, p_low should go with bg
-      for(size_t j = 0; j < fg_alpha_reps.size(); ++j) {
+      for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
         score +=  (((bg_alpha_reps[j]-1.0)*log(p_low) +
                     ((bg_beta_reps[j]-1.0)*log(1.0-p_low)))
                    - gsl_sf_lnbeta(bg_alpha_reps[j],bg_beta_reps[j]))
@@ -402,7 +402,7 @@ find_exact_boundaries(const vector<string> &cpgs_file,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
-  for(; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
+  for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
       while (methpipe_read_site(*in[i], chrom, position,
@@ -427,7 +427,7 @@ find_exact_boundaries(const vector<string> &cpgs_file,
           }
           std::map<size_t,pair<size_t, size_t> >::const_iterator it
             = pos_meth_tot.find(position);
-          if(it==pos_meth_tot.end()) {// does not exist in map
+          if (it==pos_meth_tot.end()) {// does not exist in map
             pos_meth_tot.emplace(position, make_pair(n_meth,n_meth+n_unmeth));
           }
           else { // add this file's contribution to the CpG's methylation
@@ -762,12 +762,12 @@ write_posteriors_file(const string &posteriors_file,
                       const vector<vector<SimpleGenomicRegion> > &cpgs,
                       const vector<double> &scores) {
   std::ofstream of;
-  if(!posteriors_file.empty()) of.open(posteriors_file.c_str());
+  if (!posteriors_file.empty()) of.open(posteriors_file.c_str());
   std::ostream out(posteriors_file.empty() ? std::cout.rdbuf() : of.rdbuf());
 
   out.precision(10);
 
-  for(size_t r=0; r<scores.size(); ++r) {
+  for (size_t r=0; r<scores.size(); ++r) {
     out << cpgs[0][r] << '\t' << scores[r] << endl;
   }
 }
@@ -836,9 +836,9 @@ load_array_data(const size_t bin_size,
                             meth_level, coverage, true)) {
     if (meth_level != -1 ) { // its covered by a probe
       ++num_probes_in_bin;
-      if(meth_level < 1e-2)
+      if (meth_level < 1e-2)
         array_meth_bin += 1e-2;
-      else if(meth_level > 1.0-1e-2)
+      else if (meth_level > 1.0-1e-2)
         array_meth_bin += (1.0-1e-2);
       else
         array_meth_bin += meth_level;
@@ -846,7 +846,7 @@ load_array_data(const size_t bin_size,
 
     if (curr_chrom != chrom) {
       if (!curr_chrom.empty()) {
-        if(chrom < curr_chrom)
+        if (chrom < curr_chrom)
           throw runtime_error("CpGs not sorted in file \""
                               + cpgs_file + "\"");
         intervals.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
@@ -882,11 +882,11 @@ load_array_data(const size_t bin_size,
     }
   }
 
-  if(meth_level != -1 ) { // its covered by a probe
+  if (meth_level != -1 ) { // its covered by a probe
     ++num_probes_in_bin;
-    if(meth_level < 1e-2)
+    if (meth_level < 1e-2)
       array_meth_bin += 1e-2;
-    else if(meth_level > 1.0-1e-2)
+    else if (meth_level > 1.0-1e-2)
       array_meth_bin += (1.0-1e-2);
     else
       array_meth_bin += meth_level;
@@ -928,7 +928,7 @@ load_wgbs_data(const size_t bin_size,
     // no range, or no chrom
     if (curr_chrom != chrom) {
       if (!curr_chrom.empty()) {
-        if(chrom < curr_chrom)
+        if (chrom < curr_chrom)
           throw std::runtime_error("CpGs not sorted in file \""
                                    + cpgs_file + "\"");
         intervals.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
@@ -984,7 +984,7 @@ static double
 binsize_selection(size_t &bin_size, const string &cpgs_file,
                   double &conf_level, double &ACCEPT_THRESHOLD,
                   const bool &VERBOSE){
-  if(VERBOSE)
+  if (VERBOSE)
     cerr << "evaluating bin size " << bin_size << endl;
   igzfstream in(cpgs_file);
   size_t curr_pos = 0ul;
@@ -1024,14 +1024,14 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
   size_t total = 0;
   double fixed_phat = 0.5;
   size_t min_cov_to_pass = numeric_limits<size_t>::max();
-  for(size_t i = 0; i < reads.size(); ++i) {
-    if(reads[i]>0) {
+  for (size_t i = 0; i < reads.size(); ++i) {
+    if (reads[i]>0) {
       ++total_covered;
       double lower = 0.0, upper = 0.0;
       wilson_ci_for_binomial(1.0-conf_level, reads[i], fixed_phat,
                              lower, upper);
-      if((upper-lower)<(1.0-conf_level)) {
-        if(reads[i]<min_cov_to_pass)
+      if ((upper-lower)<(1.0-conf_level)) {
+        if (reads[i]<min_cov_to_pass)
           min_cov_to_pass=reads[i];
         ++total_passed;
       }
@@ -1043,7 +1043,7 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
   if ((double)total_passed/total>ACCEPT_THRESHOLD)
     return bin_size;
   else {
-    if(VERBOSE)
+    if (VERBOSE)
       cerr << "% bins passed: " << (double)total_passed/total << endl;
     bin_size += 500;
     return binsize_selection(bin_size, cpgs_file,
@@ -1143,7 +1143,7 @@ main(int argc, const char **argv) {
 
     vector<string> cpgs_file = leftover_args;
     vector<string> params_in_file;
-    if(!params_in_files.empty()) {
+    if (!params_in_files.empty()) {
       params_in_file = smithlab::split(params_in_files, sep, false);
       assert(cpgs_file.size() == params_in_file.size());
     }
@@ -1158,14 +1158,14 @@ main(int argc, const char **argv) {
 
     // Sanity checks input file format and dynamically selects bin
     // size from WGBS samples.
-    if(!FIXED_BIN && !ARRAY_MODE) {
-      if(VERBOSE)
+    if (!FIXED_BIN && !ARRAY_MODE) {
+      if (VERBOSE)
         cerr << "[DYNAMICALLY SELECTING BIN SIZE]" << endl;
       double confidence_interval = 0.80;
       double prop_accept = 0.80;
-      for(size_t i = 0; i < NREP; ++i) {
+      for (size_t i = 0; i < NREP; ++i) {
         const bool arrayData = check_if_array_data(cpgs_file[i]);
-        if(!arrayData) {
+        if (!arrayData) {
           bin_size=binsize_selection(bin_size, cpgs_file[i],
                                      confidence_interval, prop_accept, VERBOSE);
           desert_size = 5*bin_size; // TODO: explore extrapolation number
@@ -1178,11 +1178,11 @@ main(int argc, const char **argv) {
       }
     }
 
-    if(ARRAY_MODE) {
+    if (ARRAY_MODE) {
       bin_size = 1000;    // MAGIC NUMBERS FROM PAPER
       desert_size = 200000; // PERFORM WITH HIGHEST JACCARD INDEX TO WGBS
     }
-    if(VERBOSE)
+    if (VERBOSE)
       cerr << "[READING IN AT BIN SIZE " << bin_size << "]" << endl;
 
 
@@ -1260,7 +1260,7 @@ main(int argc, const char **argv) {
 
     vector<double> into_scores;
     vector<double> outof_scores;
-    if(!posteriors_out_prefix.empty()){
+    if (!posteriors_out_prefix.empty()){
       hmm.TransitionPosteriors_rep(meth, reset_points, start_trans, trans,
                                    end_trans, reps_fg_alpha, reps_fg_beta,
                                    reps_bg_alpha, reps_bg_beta, array_status,
@@ -1282,7 +1282,7 @@ main(int argc, const char **argv) {
                               reps_bg_alpha, reps_bg_beta, classes,
                               scores, array_status);
 
-    if(!posteriors_out_prefix.empty()){
+    if (!posteriors_out_prefix.empty()){
       write_posteriors_file(posteriors_out_prefix+".emissions", cpgs, scores);
     }
 
@@ -1290,7 +1290,7 @@ main(int argc, const char **argv) {
     vector<double> domain_scores;
     get_domain_scores_rep(classes, meth, reset_points, domain_scores);
 
-    if(VERBOSE)
+    if (VERBOSE)
       cerr << "[RANDOMIZING SCORES FOR FDR]" << endl;
 
     vector<double> random_scores;
