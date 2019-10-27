@@ -54,8 +54,8 @@ fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start,
              const size_t end, const size_t offset, string &seq, string &scr) {
   const size_t a = pos_str ? (start - mr.r.get_start()) : (mr.r.get_end() - end);
   const size_t b = pos_str ? (end -  mr.r.get_start()) : (mr.r.get_end() - start);
-  copy(mr.seq.begin() + a, mr.seq.begin() + b, seq.begin() + offset);
-  copy(mr.scr.begin() + a, mr.scr.begin() + b, scr.begin() + offset);
+  copy(begin(mr.seq) + a, begin(mr.seq) + b, begin(seq) + offset);
+  copy(begin(mr.scr) + a, begin(mr.scr) + b, begin(scr) + offset);
 }
 
 static void
@@ -215,47 +215,49 @@ main(int argc, const char **argv) {
     SAMRecord aln;
 
     while (sam_reader >> aln) {
-      if (aln.is_mapping_paired) {
-        const string read_name(get_read_name(aln, suffix_len));
-        if (dangling_mates.find(read_name) != end(dangling_mates)) {
-          assert(same_read(suffix_len, aln.mr, dangling_mates[read_name].mr));
-          if (aln.is_Trich)
-            swap(aln, dangling_mates[read_name]);
-          revcomp(aln.mr);
+      if (aln.is_mapped && aln.is_primary) {
+        if (aln.is_mapping_paired) {
+          const string read_name(get_read_name(aln, suffix_len));
+          if (dangling_mates.find(read_name) != end(dangling_mates)) {
+            assert(same_read(suffix_len, aln.mr, dangling_mates[read_name].mr));
+            if (aln.is_Trich)
+              swap(aln, dangling_mates[read_name]);
+            revcomp(aln.mr);
 
-          MappedRead merged;
-          int len = 0;
-          merge_mates(suffix_len, max_frag_len,
-                      dangling_mates[read_name].mr, aln.mr, merged, len);
-          if (len <= static_cast<int>(max_frag_len))
-            out << merged << endl;
-          else if (len > 0)
-            out << dangling_mates[read_name].mr << endl << aln.mr << endl;
-          dangling_mates.erase(read_name);
-        }
-        else dangling_mates[read_name] = aln;
+            MappedRead merged;
+            int len = 0;
+            merge_mates(suffix_len, max_frag_len,
+                        dangling_mates[read_name].mr, aln.mr, merged, len);
+            if (len <= static_cast<int>(max_frag_len))
+              out << merged << endl;
+            else if (len > 0)
+              out << dangling_mates[read_name].mr << endl << aln.mr << endl;
+            dangling_mates.erase(read_name);
+          }
+          else dangling_mates[read_name] = aln;
 
-        // flush dangling_mates
-        if (dangling_mates.size() > max_dangling) {
-          unordered_map<string, SAMRecord> tmp;
-          for (auto &&mates : dangling_mates)
-            if (mates.second.mr.r.get_chrom() < aln.mr.r.get_chrom() ||
-                (mates.second.mr.r.get_chrom() == aln.mr.r.get_chrom() &&
-                 mates.second.mr.r.get_end() + max_frag_len < aln.mr.r.get_start())) {
-              if (!mates.second.is_Trich)
-                revcomp(mates.second.mr);
-              out << mates.second.mr << endl;
-            }
-            else tmp[mates.first] = mates.second;
-          swap(tmp, dangling_mates);
+          // flush dangling_mates
+          if (dangling_mates.size() > max_dangling) {
+            unordered_map<string, SAMRecord> tmp;
+            for (auto &&mates : dangling_mates)
+              if (mates.second.mr.r.get_chrom() < aln.mr.r.get_chrom() ||
+                  (mates.second.mr.r.get_chrom() == aln.mr.r.get_chrom() &&
+                   mates.second.mr.r.get_end() + max_frag_len < aln.mr.r.get_start())) {
+                if (!mates.second.is_Trich)
+                  revcomp(mates.second.mr);
+                out << mates.second.mr << endl;
+              }
+              else tmp[mates.first] = mates.second;
+            swap(tmp, dangling_mates);
+          }
         }
+        else {
+          if (!aln.is_Trich)
+            revcomp(aln.mr);
+          out << aln.mr << endl;
+        }
+        ++count;
       }
-      else {
-        if (!aln.is_Trich)
-          revcomp(aln.mr);
-        out << aln.mr << endl;
-      }
-      ++count;
     }
     // flushing dangling_mates
     while (!dangling_mates.empty()) {
