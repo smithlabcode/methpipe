@@ -408,10 +408,9 @@ main(int argc, const char **argv) {
       make_partial_meth(reads, meth);
 
     if (VERBOSE)
-      if (VERBOSE)
-        cerr << "[total_cpgs=" << cpgs.size() << "]" << endl
-             << "[mean_coverage="
-             << get_mean(begin(reads), end(reads)) << "]" << endl;
+      cerr << "[total_cpgs=" << cpgs.size() << "]" << endl
+           << "[mean_coverage="
+           << get_mean(begin(reads), end(reads)) << "]" << endl;
 
     // separate the regions by chrom and by desert, and eliminate
     // those isolated CpGs
