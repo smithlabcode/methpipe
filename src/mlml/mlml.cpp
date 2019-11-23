@@ -21,6 +21,7 @@
 #include <fstream>
 #include <cassert>
 #include <sstream>
+#include <cmath>
 
 #include "OptionParser.hpp"
 #include "smithlab_os.hpp"
@@ -28,7 +29,6 @@
 
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_cdf.h>
-#include <cmath>
 
 using std::string;
 using std::vector;
@@ -40,6 +40,7 @@ using std::min;
 using std::round;
 using std::ofstream;
 using std::ifstream;
+using std::runtime_error;
 
 static void
 wilson_ci_for_binomial(const double alpha, const double n,
@@ -498,9 +499,8 @@ process_two_types(const double alpha,
   MSite f, s;
   while (f_in >> f && s_in >> s) {
 
-    //assert(f.chrom == s.chrom && f.pos == s.pos);
-    if (f.chrom != s.chrom || f.pos != s.pos) 
-	throw runtime_exception("error: chrom or pos do not match in both files");
+    if (f.chrom != s.chrom || f.pos != s.pos)
+        throw runtime_error("error: chrom or pos mismatch in both files");
 
     if (f.n_reads > 500) f.n_reads = 500;
     size_t x = f.n_meth();
