@@ -498,7 +498,9 @@ process_two_types(const double alpha,
   MSite f, s;
   while (f_in >> f && s_in >> s) {
 
-    assert(f.chrom == s.chrom && f.pos == s.pos);
+    //assert(f.chrom == s.chrom && f.pos == s.pos);
+    if (f.chrom != s.chrom || f.pos != s.pos) 
+	throw runtime_exception("error: chrom or pos do not match in both files");
 
     if (f.n_reads > 500) f.n_reads = 500;
     size_t x = f.n_meth();
