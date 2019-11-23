@@ -309,9 +309,11 @@ load_cpgs(const string &cpgs_file, vector<MSite> &cpgs,
 
   MSite the_site;
   while (in >> the_site) {
-    cpgs.push_back(the_site);
-    reads.push_back(the_site.n_reads);
-    meth.push_back(make_pair(the_site.n_meth(), the_site.n_unmeth()));
+    if (the_site.is_cpg()) {
+      cpgs.push_back(the_site);
+      reads.push_back(the_site.n_reads);
+      meth.push_back(make_pair(the_site.n_meth(), the_site.n_unmeth()));
+    }
   }
 }
 
