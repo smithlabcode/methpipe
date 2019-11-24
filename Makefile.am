@@ -19,6 +19,8 @@ EXTRA_DIST = README.md
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src/common
 
+CXXFLAGS = -O3 # default has optimization on
+
 noinst_LIBRARIES = libmethpipe.a
 libmethpipe_a_SOURCES = \
 	src/common/BetaBin.cpp \
