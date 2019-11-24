@@ -307,13 +307,14 @@ load_cpgs(const string &cpgs_file, vector<MSite> &cpgs,
   if (!in)
     throw runtime_error("failed opening file: " + cpgs_file);
 
-  MSite the_site;
+  MSite prev_site, the_site;
   while (in >> the_site) {
-    if (the_site.is_cpg()) {
-      cpgs.push_back(the_site);
-      reads.push_back(the_site.n_reads);
-      meth.push_back(make_pair(the_site.n_meth(), the_site.n_unmeth()));
-    }
+    if (!the_site.is_cpg() || distance(prev_site, the_site) < 2)
+      throw runtime_error("error: input is not symmetric-CpGs: " + cpgs_file);
+    cpgs.push_back(the_site);
+    reads.push_back(the_site.n_reads);
+    meth.push_back(make_pair(the_site.n_meth(), the_site.n_unmeth()));
+    prev_site = the_site;
   }
 }
 
@@ -405,6 +406,9 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[reading methylation levels]" << endl;
     load_cpgs(cpgs_file, cpgs, meth, reads);
+
+    if (!std::is_sorted(begin(cpgs), end(cpgs)))
+      throw runtime_error("error: input is not properly sorted: " + cpgs_file);
 
     if (PARTIAL_METH)
       make_partial_meth(reads, meth);
