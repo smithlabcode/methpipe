@@ -382,12 +382,15 @@ main(int argc, const char **argv) {
     std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
     // write the header line for the output file
+    bool write_tab = false;
     for (size_t i = 0; i < n_features; ++i)
       if (report_empty_intervals || n_probes_per_feature[i] > 0) {
-        if (name_by_interval)
-          out << assemble_region_name(features[i]) << '\t';
-        else
-          out << features[i].get_name() << '\t';
+        if (write_tab)
+          out << '\t';
+        out << (name_by_interval ?
+                assemble_region_name(features[i]) :
+                features[i].get_name());
+        write_tab = true;
       }
     out << endl;
 
