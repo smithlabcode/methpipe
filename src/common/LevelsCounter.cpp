@@ -64,10 +64,10 @@ LevelsCounter::tostring() const {
   oss << indent << "coverage: " << coverage() << '\n'
       << indent << "sites_covered_fraction: "
       << static_cast<double>(sites_covered)/total_sites << '\n'
-    << indent << "mean_depth: "
-    << static_cast<double>(coverage())/total_sites << '\n'
-    << indent << "mean_depth_covered: "
-    << static_cast<double>(coverage())/sites_covered << '\n'
+      << indent << "mean_depth: "
+      << static_cast<double>(coverage())/total_sites << '\n'
+      << indent << "mean_depth_covered: "
+      << static_cast<double>(coverage())/sites_covered << '\n'
       << indent << "mean_meth: "
       << (good ? to_string(mean_meth()) : "NA")  << '\n'
       << indent << "mean_meth_weighted: "
