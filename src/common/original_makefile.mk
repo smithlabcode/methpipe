@@ -31,9 +31,7 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 

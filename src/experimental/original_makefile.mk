@@ -2,17 +2,17 @@
 #                     and Andrew D. Smith
 #
 #  Authors: Andrew D. Smith
-# 
+#
 #  This is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-# 
+#
 #  This software is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-# 
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this software; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
@@ -26,15 +26,13 @@ endif
 PROGS = dmr-hdhmm
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
-OPTFLAGS = -O2
+CXXFLAGS = -std=c++11 -Wall
+OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 
@@ -44,7 +42,7 @@ INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR) $(EXPERIMENTAL_DIR)
 
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas 
+LIBS = -lgsl -lgslcblas
 
 all: $(PROGS)
 
@@ -56,7 +54,10 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, \
 	smithlab_os.o smithlab_utils.o GenomicRegion.o OptionParser.o) \
 	$(addprefix $(COMMON_DIR)/, MethpipeFiles.o)
 
-dmr-hdhmm: $(addprefix $(SMITHLAB_CPP)/, RNG.o) $(addprefix $(EXPERIMENTAL_DIR)/, ThreeStateHDHMM.o false_discovery_rate.o contingency-table.o nonparametric-test.o) $(addprefix $(COMMON_DIR)/, Smoothing.o Distro.o BetaBin.o)
+dmr-hdhmm: $(addprefix $(SMITHLAB_CPP)/, RNG.o) \
+	$(addprefix $(EXPERIMENTAL_DIR)/, ThreeStateHDHMM.o \
+	false_discovery_rate.o contingency-table.o nonparametric-test.o) \
+	$(addprefix $(COMMON_DIR)/, Smoothing.o Distro.o BetaBin.o)
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
