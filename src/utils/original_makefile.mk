@@ -30,7 +30,7 @@ endif
 PROGS = lc_approx fast-liftover lift-filter \
 	to-mr merge-bsrate merge-methcounts \
 	duplicate-remover symmetric-cpgs \
-	clean-hairpins selectsites
+	clean-hairpins selectsites guessprotocol
 
 COMMON_DIR = $(SRC_ROOT)/src/common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
@@ -47,9 +47,7 @@ DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 
@@ -61,7 +59,8 @@ install: $(PROGS)
 
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-merge-methcounts symmetric-cpgs selectsites lift-filter fast-liftover: \
+merge-methcounts symmetric-cpgs selectsites lift-filter \
+fast-liftover guessprotocol: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
