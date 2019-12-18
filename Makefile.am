@@ -17,11 +17,11 @@
 EXTRA_DIST = README.md
 
 ACLOCAL_AMFLAGS = -I m4
-AM_CPPFLAGS = -I $(top_srcdir)/src/common
+AM_CPPFLAGS = -I $(top_srcdir)/src/common -I $(top_srcdir)/src/smithlab_cpp
 
 CXXFLAGS = -O3 # default has optimization on
 
-noinst_LIBRARIES = libmethpipe.a
+noinst_LIBRARIES = libmethpipe.a libsmithlab_cpp.a
 libmethpipe_a_SOURCES = \
 	src/common/BetaBin.cpp \
 	src/common/Distro.cpp \
@@ -53,7 +53,38 @@ libmethpipe_a_SOURCES += \
 	src/common/bsutils.hpp \
 	src/common/numerical_utils.hpp
 
-LDADD = libmethpipe.a
+libsmithlab_cpp_a_SOURCES = \
+	src/smithlab_cpp/GenomicRegion.cpp \
+	src/smithlab_cpp/MappedRead.cpp \
+	src/smithlab_cpp/OptionParser.cpp \
+	src/smithlab_cpp/QualityScore.cpp \
+	src/smithlab_cpp/RNG.cpp \
+	src/smithlab_cpp/bisulfite_utils.cpp \
+	src/smithlab_cpp/chromosome_utils.cpp \
+	src/smithlab_cpp/sim_utils.cpp \
+	src/smithlab_cpp/smithlab_os.cpp \
+	src/smithlab_cpp/smithlab_utils.cpp \
+	src/smithlab_cpp/zlib_wrapper.cpp
+
+libsmithlab_cpp_a_SOURCES += \
+	src/smithlab_cpp/GenomicRegion.hpp \
+	src/smithlab_cpp/MappedRead.hpp \
+	src/smithlab_cpp/OptionParser.hpp \
+	src/smithlab_cpp/QualityScore.hpp \
+	src/smithlab_cpp/RNG.hpp \
+	src/smithlab_cpp/bisulfite_utils.hpp \
+	src/smithlab_cpp/chromosome_utils.hpp \
+	src/smithlab_cpp/sim_utils.hpp \
+	src/smithlab_cpp/smithlab_os.hpp \
+	src/smithlab_cpp/smithlab_utils.hpp \
+	src/smithlab_cpp/zlib_wrapper.hpp
+
+if ENABLE_HTS
+libsmithlab_cpp_a_SOURCES += src/smithlab_cpp/htslib_wrapper.cpp
+libsmithlab_cpp_a_SOURCES += src/smithlab_cpp/htslib_wrapper.hpp
+endif
+
+LDADD = libmethpipe.a libsmithlab_cpp.a
 
 ### ANALYSIS SUBDIR
 bin_PROGRAMS = pmd methcounts bsrate hmr hypermr levels roimethstat \
@@ -74,13 +105,14 @@ hypermr_SOURCES = src/analysis/hypermr.cpp
 ### UTILS SUBDIR
 bin_PROGRAMS += lc_approx fast-liftover lift-filter merge-bsrate \
 	merge-methcounts duplicate-remover symmetric-cpgs \
-	clean-hairpins selectsites
+	clean-hairpins selectsites guessprotocol
 
 if ENABLE_HTS
 bin_PROGRAMS += to-mr
 endif
 
 clean_hairpins_SOURCES = src/utils/clean-hairpins.cpp
+guessprotocol_SOURCES = src/utils/guessprotocol.cpp
 duplicate_remover_SOURCES = src/utils/duplicate-remover.cpp
 merge_bsrate_SOURCES = src/utils/merge-bsrate.cpp
 to_mr_SOURCES = src/utils/to-mr.cpp
