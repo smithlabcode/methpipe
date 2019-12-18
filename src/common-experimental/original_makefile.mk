@@ -22,8 +22,8 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 CXX = g++
-CXXFLAGS = -Wall -fmessage-length=50 -std=c++11
-OPTFLAGS = -O2
+CXXFLAGS = -std=c++11 -Wall
+OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
 INCLUDEDIRS =  $(SMITHLAB_CPP)/ ../common/
@@ -31,15 +31,13 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
 
-clean: 
+clean:
 	@-rm -f *.o *~
 .PHONY: clean

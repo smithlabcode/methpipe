@@ -32,9 +32,7 @@ DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 

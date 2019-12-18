@@ -22,10 +22,10 @@
 METHPIPE_ROOT = $(shell pwd)
 
 all:
-	@make -C src -f original_makefile.mk METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=1
+	@make -C src -f original_makefile.mk METHPIPE_ROOT=$(METHPIPE_ROOT)
 
 install:
-	@make -C src -f original_makefile.mk METHPIPE_ROOT=$(METHPIPE_ROOT) OPT=1 install
+	@make -C src -f original_makefile.mk METHPIPE_ROOT=$(METHPIPE_ROOT) install
 
 clean:
 	@make -C src -f original_makefile.mk METHPIPE_ROOT=$(METHPIPE_ROOT) clean

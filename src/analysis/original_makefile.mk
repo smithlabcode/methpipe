@@ -28,14 +28,12 @@ PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
-OPTFLAGS = -O2
+OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
-endif
-
-ifdef OPT
+else
 CXXFLAGS += $(OPTFLAGS)
 endif
 

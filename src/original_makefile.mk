@@ -38,14 +38,14 @@ all:
 	@for i in $(app_subdirs); do \
 		make -C $${i} -f original_makefile.mk \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
-			SRC_ROOT=$(METHPIPE_ROOT) OPT=1; \
+			SRC_ROOT=$(METHPIPE_ROOT); \
 	done;
 
 install:
 	@for i in $(app_subdirs); do \
 		make -C $${i} -f original_makefile.mk \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
-			SRC_ROOT=$(METHPIPE_ROOT) OPT=1 install; \
+			SRC_ROOT=$(METHPIPE_ROOT) install; \
 	done;
 
 clean:
