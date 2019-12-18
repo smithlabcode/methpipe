@@ -14,7 +14,7 @@ dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl General Public License for more details.
 
-AC_INIT([methpipe], [4.0.0], [andrewds@usc.edu],
+AC_INIT([methpipe], [4.1.0], [andrewds@usc.edu],
         [methpipe], [https://github.com/smithlabcode/methpipe])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
@@ -46,26 +46,6 @@ AS_IF([test "x$enable_hts" = "xyes"],
   [AC_MSG_FAILURE([$hts_fail_msg])])]
 )
 AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
-
-dnl check for the smithlab_cpp library
-smithlab_fail_msg="
-
-Failed to locate smithlab_cpp on your system. Please use the LDFLAGS
-and CPPFLAGS variables to specify the directories where the
-smithlab_cpp library and headers can be found.
-"
-AS_IF([test "x$enable_hts" = "xyes"],
-  [
-  AC_CHECK_LIB([smithlab_cpp], [have_smithlab_cpp],
-    [ ], dnl space in [ ] to the left on purpose
-    [AC_MSG_FAILURE([$smithlab_fail_msg])])
-  AC_CHECK_LIB([smithlab_cpp], [check_htslib_wrapper], [],
-    [AC_MSG_FAILURE([
-
-HTSLib enabled but smithlab_cpp library built without HTSLib support
-])], [-lhts])],
-[AC_CHECK_LIB([smithlab_cpp], [have_smithlab_cpp], [],
-  [AC_MSG_FAILURE([$smithlab_fail_msg])])])
 
 dnl check for required libraries
 AC_SEARCH_LIBS([zlibVersion], [z])
