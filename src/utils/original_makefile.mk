@@ -19,6 +19,11 @@
 #  02110-1301 USA
 #
 
+CXX = g++
+CXXFLAGS = -Wall -std=c++11
+OPTFLAGS = -O3
+DEBUGFLAGS = -g
+
 ifndef SRC_ROOT
 SRC_ROOT=../..
 endif
@@ -32,18 +37,11 @@ PROGS = lc_approx fast-liftover lift-filter \
 	duplicate-remover symmetric-cpgs \
 	clean-hairpins selectsites guessprotocol
 
-COMMON_DIR = $(SRC_ROOT)/src/common
-INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
+COMMON_DIR = ../common
+INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas -lz -lhts
-
-CC = gcc
-CXX = g++
-CFLAGS = -Wall
-CXXFLAGS = -Wall -std=c++11
-OPTFLAGS = -O2
-DEBUGFLAGS = -g
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -68,9 +66,6 @@ fast-liftover guessprotocol: \
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $^ $(INCLUDEARGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
