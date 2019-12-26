@@ -23,7 +23,7 @@ OBJS= regression.o combine_pvals.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
-OPTFLAGS = -O2
+OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
 ifdef DEBUG

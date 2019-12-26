@@ -36,21 +36,21 @@ endif
 
 all:
 	@for i in $(app_subdirs); do \
-		make -C $${i} -f original_makefile.mk \
+		make -C $${i} \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT); \
 	done;
 
 install:
 	@for i in $(app_subdirs); do \
-		make -C $${i} -f original_makefile.mk \
+		make -C $${i} \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) install; \
 	done;
 
 clean:
 	@for i in $(all_subdirs); do \
-		make -C $${i} -f original_makefile.mk \
+		make -C $${i} \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) clean; \
 	done;

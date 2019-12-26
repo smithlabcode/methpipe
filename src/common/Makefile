@@ -23,7 +23,7 @@ endif
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
-OPTFLAGS = -O2
+OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
 INCLUDEDIRS =  $(SMITHLAB_CPP)/
