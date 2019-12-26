@@ -17,11 +17,6 @@
 #  along with this software; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301 USA
-#
-
-ifndef SMITHLAB_CPP
-$(error SMITHLAB_CPP variable undefined)
-endif
 
 PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 	methstates methentropy hmr_rep multimethstat
@@ -31,6 +26,14 @@ CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
+ifndef SRC_ROOT
+SRC_ROOT=../..
+endif
+
+ifndef SMITHLAB_CPP
+$(error SMITHLAB_CPP variable undefined)
+endif
+
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
 else
@@ -39,7 +42,6 @@ endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
-
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas -lz
