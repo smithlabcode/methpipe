@@ -51,6 +51,9 @@ using std::make_pair;
 using std::pair;
 using std::runtime_error;
 
+using std::ostream;
+using std::ofstream;
+using std::to_string;
 
 template <class T> T &
 methpipe_skip_header(T &in, string &line) {
@@ -157,26 +160,14 @@ merge_nearby_pmd(const size_t max_merge, vector<GenomicRegion> &pmds) {
   size_t j = 0;
   for (size_t i = 1; i < pmds.size(); ++i) {
     if (pmds[j].same_chrom(pmds[i]) &&
-        pmds[i].get_start() - pmds[j].get_end() <= max_merge){
+        pmds[i].get_start() - pmds[j].get_end() <= max_merge) {
       pmds[j].set_end(pmds[i].get_end());
-      string newname = pmds[j].get_name()+pmds[i].get_name();
-      pmds[j].set_name(newname);
+      const string combined_name(pmds[j].get_name() + pmds[i].get_name());
+      pmds[j].set_name(combined_name);
     }
     else pmds[++j] = pmds[i];
   }
-  pmds.erase(pmds.begin() + j, pmds.end());
-}
-
-
-static void
-copy_map_to_vectors(std::map<size_t, pair<size_t, size_t> > &pos_meth_tot,
-                    vector<size_t> &positions,
-                    vector<pair<size_t, size_t> > &meth_tot) {
-  for (std::map<size_t, pair<size_t, size_t> >::iterator
-         it=pos_meth_tot.begin(); it != pos_meth_tot.end(); ++it) {
-    positions.push_back(it->first);
-    meth_tot.push_back(it->second);
-  }
+  pmds.resize(j);
 }
 
 
@@ -190,7 +181,11 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
 
   vector<pair<size_t,size_t> > meth_tot;
   vector<size_t> positions;
-  copy_map_to_vectors(pos_meth_tot, positions, meth_tot); //hacky for now
+  for (auto &&it : pos_meth_tot) {
+    positions.push_back(it.first);
+    meth_tot.push_back(it.second);
+  }
+
   vector<size_t> cumu_left_meth(meth_tot.size(), 0);
   vector<size_t> cumu_left_tot(meth_tot.size(), 0);
   vector<size_t> cumu_right_meth(meth_tot.size(), 0);
@@ -214,7 +209,8 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         k_low = cumu_right_meth[i] + meth_tot[i].first;
         N_hi = cumu_left_tot[i];
         k_hi = cumu_left_meth[i];
-      } else {
+      }
+      else {
         N_low = cumu_left_tot[i] + meth_tot[i].second;
         k_low = cumu_left_meth[i] + meth_tot[i].first;
         N_hi = cumu_right_tot[i];
@@ -227,19 +223,13 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
 
         for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
           score += (((fg_alpha_reps[j]-1.0)*log(p_low) +
-                     ((fg_beta_reps[j]-1.0)*log(1.0-p_low)))
+                     ((fg_beta_reps[j]-1.0)*log(1.0 - p_low)))
                     - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]))
             + (((bg_alpha_reps[j]-1.0)*log(p_hi) +
-                ((bg_beta_reps[j]-1.0)*log(1.0-p_hi)))
+                ((bg_beta_reps[j]-1.0)*log(1.0 - p_hi)))
                - gsl_sf_lnbeta(bg_alpha_reps[j],bg_beta_reps[j]));
         } // beta max likelihood using learned emissions
         score /= fg_alpha_reps.size();
-        /*std::abs(p_hi-p_low); // max difference between partitions */
-        /*(gsl_sf_lnchoose(N_hi, k_hi) +
-          k_hi*log(p_hi) + (N_hi - k_hi)*log(1.0 - p_hi)) +
-          (gsl_sf_lnchoose(N_low, k_low) +
-          k_low*log(p_low) + (N_low - k_low)*log(1.0 - p_low));
-          // best combined fit of binomial distributions */
         if (p_hi > p_low && score > best_score) {
           best_idx = i;
           best_score = score;
@@ -258,14 +248,14 @@ pull_out_boundary_positions(vector<GenomicRegion> &bounds,
   for (size_t i = 0; i < pmds.size(); ++i) {
     bounds.push_back(pmds[i]);
     pmds[i].get_start() > bin_size ?
-      bounds.back().set_start(pmds[i].get_start() - bin_size)
-      : bounds.back().set_start(0);
+      bounds.back().set_start(pmds[i].get_start() - bin_size) :
+      bounds.back().set_start(0);
     bounds.back().set_end(pmds[i].get_start() + bin_size);
 
     bounds.push_back(pmds[i]);
     pmds[i].get_end() > bin_size ?
-      bounds.back().set_start(pmds[i].get_end() - bin_size)
-      : bounds.back().set_start(0);
+      bounds.back().set_start(pmds[i].get_end() - bin_size) :
+      bounds.back().set_start(0);
     bounds.back().set_end(pmds[i].get_end() + bin_size);
   }
 }
@@ -316,10 +306,9 @@ compute_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
             n_meth = round(meth_level*coverage);
             n_unmeth = coverage - n_meth;
           }
-          std::map<size_t, pair<size_t, size_t> >::const_iterator it
-            = pos_meth_tot.find(position);
-          if (it == pos_meth_tot.end()) {// does not exist in map
-            pos_meth_tot.emplace(position, make_pair(n_meth, n_meth+n_unmeth));
+          auto it(pos_meth_tot.find(position));
+          if (it == end(pos_meth_tot)) {// does not exist in map
+            pos_meth_tot[position] = make_pair(n_meth, n_meth+n_unmeth);
           }
           else { // add this file's contribution to the CpG's methylation
             pos_meth_tot[position].first += n_meth;
@@ -516,10 +505,10 @@ optimize_boundaries(const size_t bin_size,
   // Add the boundary scores to the PMD names
   for (size_t i = 0; i < pmds.size(); ++i)
     pmds[i].set_name(pmds[i].get_name()
-                     + ":" + std::to_string(boundary_scores[2*i])
-                     + ":" + std::to_string(boundary_certainties[2*i])
-                     + ":" + std::to_string(boundary_scores[2*i+1])
-                     + ":" + std::to_string(boundary_certainties[2*i+1]));
+                     + ":" + to_string(boundary_scores[2*i])
+                     + ":" + to_string(boundary_certainties[2*i])
+                     + ":" + to_string(boundary_scores[2*i+1])
+                     + ":" + to_string(boundary_certainties[2*i+1]));
 }
 
 
@@ -538,37 +527,41 @@ get_score_cutoff_for_fdr(const vector<double> &scores, const double fdr) {
 }
 
 
+static inline double
+score_contribution(const pair<double, double> &m) {
+  const double denom = m.first + m.second;
+  return (denom > 0) ? 1.0 - m.first/denom : 0.0;
+}
+
+
 static void
 get_domain_scores_rep(const vector<bool> &classes,
                       const vector<vector<pair<double, double> > > &meth,
                       const vector<size_t> &reset_points,
                       vector<double> &scores) {
-  size_t NREP = meth.size();
-  static const bool CLASS_ID = true;
+
+  const size_t n_replicates = meth.size();
   size_t reset_idx = 1;
   bool in_domain = false;
   double score = 0;
   for (size_t i = 0; i < classes.size(); ++i) {
     if (reset_points[reset_idx] == i) {
       if (in_domain) {
-        in_domain = false;
         scores.push_back(score);
         score = 0;
+        in_domain = false;
       }
       ++reset_idx;
     }
-    if (classes[i] == CLASS_ID) {
+    if (classes[i]) {
+      for (size_t r = 0; r < n_replicates ; ++r)
+        score += score_contribution(meth[r][i]);
       in_domain = true;
-      for (size_t r = 0; r < NREP ; ++r) {
-        if (meth[r][i].first + meth[r][i].second >= 1) {
-          score += 1.0 - (meth[r][i].first/(meth[r][i].first +
-                                            meth[r][i].second));
-        }
-      }
-    } else if (in_domain) {
-      in_domain = false;
+    }
+    else if (in_domain) {
       scores.push_back(score);
       score = 0;
+      in_domain = false;
     }
   }
 }
@@ -582,35 +575,35 @@ build_domains(const bool VERBOSE,
               const vector<bool> &classes,
               const vector<size_t> &dists_btwn_cpgs,
               vector<GenomicRegion> &domains) {
-  static const bool CLASS_ID = true;
-  size_t n_cpgs = 0, n_domains = 0, reset_idx = 1, prev_end = 0;
+
+  size_t n_cpgs = 0, reset_idx = 1, prev_end = 0;
   bool in_domain = false;
   double score = 0;
   for (size_t i = 0; i < classes.size(); ++i) {
     if (reset_points[reset_idx] == i) {
       if (in_domain) {
-        in_domain = false;
         domains.back().set_end(prev_end);
         domains.back().set_score(n_cpgs);
         n_cpgs = 0;
         score = 0;
+        in_domain = false;
       }
       ++reset_idx;
     }
-    if (classes[i] == CLASS_ID) {
+    if (classes[i]) {
       if (!in_domain) {
-        in_domain = true;
         domains.push_back(GenomicRegion(cpgs[i]));
-        domains.back().set_name("HYPO" + toa(n_domains++));
+        in_domain = true;
       }
       ++n_cpgs;
       score += post_scores[i];
-    } else if (in_domain) {
-      in_domain = false;
+    }
+    else if (in_domain) {
       domains.back().set_end(prev_end);
       domains.back().set_score(n_cpgs);
       n_cpgs = 0;
       score = 0;
+      in_domain = false;
     }
     prev_end = cpgs[i].get_end();
   }
@@ -626,23 +619,22 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
                  vector<size_t> &dists_btwn_cpgs) {
   if (VERBOSE)
     cerr << "[SEPARATING BY CPG DESERT]" << endl;
-  // eliminate the zero-read cpg sites if no coverage in any replicates
-  size_t NREP = cpgs.size();
-  size_t j = 0;
-  bool all_empty;
-  size_t rep_idx;
+  const size_t n_replicates = cpgs.size();
+
+  // eliminate the zero-read cpg sites if no coverage in any rep
   size_t end_coord_of_prev = 0;
+  size_t j = 0;
   for (size_t i = 0; i < cpgs[0].size(); ++i) {
-    all_empty = true;
-    rep_idx = 0;
-    while (all_empty && rep_idx < NREP) {
-      if (reads[rep_idx][i]==0) ++rep_idx;
+    bool all_empty = true;
+    size_t rep_idx = 0;
+    while (all_empty && rep_idx < n_replicates) {
+      if (reads[rep_idx][i] == 0) ++rep_idx;
       else all_empty = false;
     }
     if (!all_empty) {
       dists_btwn_cpgs.push_back(cpgs[0][i].get_start() - end_coord_of_prev);
       end_coord_of_prev = cpgs[0][i].get_end();
-      for (size_t r = 0; r < NREP; ++r) {
+      for (size_t r = 0; r < n_replicates; ++r) {
         cpgs[r][j] = cpgs[r][i];
         meth[r][j] = meth[r][i];
         reads[r][j] = reads[r][i];
@@ -650,10 +642,11 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
       ++j;
     }
   }
-  for (size_t r = 0; r < NREP; ++r) {
-    cpgs[r].erase(cpgs[r].begin() + j, cpgs[r].end());
-    meth[r].erase(meth[r].begin() + j, meth[r].end());
-    reads[r].erase(reads[r].begin() + j, reads[r].end());
+
+  for (size_t r = 0; r < n_replicates; ++r) {
+    cpgs[r].resize(j);
+    meth[r].resize(j);
+    reads[r].resize(j);
   }
 
   // segregate cpgs
@@ -676,18 +669,18 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
 static void
 shuffle_cpgs_rep(const TwoStateHMM &hmm,
                  vector<vector<pair<double, double> > > meth,
-                 vector<size_t> reset_points,
+                 const vector<size_t> &reset_points,
                  const vector<double> &start_trans,
                  const vector<vector<double> > &trans,
                  const vector<double> &end_trans,
-                 const vector<double> fg_alpha, const vector<double> fg_beta,
-                 const vector<double> bg_alpha, const vector<double> bg_beta,
+                 const vector<double> &fg_alpha, const vector<double> &fg_beta,
+                 const vector<double> &bg_alpha, const vector<double> &bg_beta,
                  vector<double> &domain_scores,
                  vector<bool> &array_status) {
 
-  size_t NREP = meth.size();
+  size_t n_replicates = meth.size();
 
-  for (size_t r =0 ; r < NREP; ++r)
+  for (size_t r =0 ; r < n_replicates; ++r)
     random_shuffle(meth[r].begin(), meth[r].end());
   vector<bool> classes;
   vector<double> scores;
@@ -761,31 +754,23 @@ static void
 write_posteriors_file(const string &posteriors_file,
                       const vector<vector<SimpleGenomicRegion> > &cpgs,
                       const vector<double> &scores) {
-  std::ofstream of;
-  if (!posteriors_file.empty()) of.open(posteriors_file.c_str());
-  std::ostream out(posteriors_file.empty() ? std::cout.rdbuf() : of.rdbuf());
-
+  ofstream out(posteriors_file);
   out.precision(10);
-
-  for (size_t r=0; r<scores.size(); ++r) {
+  for (size_t r = 0; r < scores.size(); ++r)
     out << cpgs[0][r] << '\t' << scores[r] << endl;
-  }
 }
 
 static void
 write_params_file(const string &outfile,
-                  const vector<double> fg_alpha,
-                  const vector<double> fg_beta,
-                  const vector<double> bg_alpha,
-                  const vector<double> bg_beta,
+                  const vector<double> &fg_alpha,
+                  const vector<double> &fg_beta,
+                  const vector<double> &bg_alpha,
+                  const vector<double> &bg_beta,
                   const vector<double> &start_trans,
                   const vector<vector<double> > &trans,
                   const vector<double> &end_trans) {
 
-  std::ofstream of;
-  if (!outfile.empty()) of.open(outfile);
-  std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
-
+  ofstream out(outfile);
   out.precision(30);
   for (size_t r =0; r < fg_alpha.size(); ++r)
     out << "FG_ALPHA_" << r+1 << "\t" << std::setw(14) << fg_alpha[r] << "\t"
@@ -859,7 +844,7 @@ load_array_data(const size_t bin_size,
       array_meth_bin = 0.0;
       num_probes_in_bin = 0.0;
     }
-    else if (curr_pos > position){
+    else if (curr_pos > position) {
       cerr << curr_pos << "\t" << position << endl;
       throw std::runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
@@ -941,7 +926,7 @@ load_wgbs_data(const size_t bin_size,
       n_meth_bin = 0ul;
       n_unmeth_bin = 0ul;
     }
-    else if (curr_pos > position){
+    else if (curr_pos > position) {
       throw std::runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     else if (position > curr_pos + bin_size) {
@@ -981,9 +966,9 @@ load_wgbs_data(const size_t bin_size,
  * level in the bin.
  */
 static double
-binsize_selection(size_t &bin_size, const string &cpgs_file,
-                  double &conf_level, double &ACCEPT_THRESHOLD,
-                  const bool &VERBOSE){
+binsize_selection(const bool &VERBOSE,
+                  size_t &bin_size, const string &cpgs_file,
+                  double &conf_level, double &ACCEPT_THRESHOLD) {
   if (VERBOSE)
     cerr << "evaluating bin size " << bin_size << endl;
   igzfstream in(cpgs_file);
@@ -1046,8 +1031,8 @@ binsize_selection(size_t &bin_size, const string &cpgs_file,
     if (VERBOSE)
       cerr << "% bins passed: " << (double)total_passed/total << endl;
     bin_size += 500;
-    return binsize_selection(bin_size, cpgs_file,
-                             conf_level, ACCEPT_THRESHOLD, VERBOSE);
+    return binsize_selection(VERBOSE, bin_size, cpgs_file,
+                             conf_level, ACCEPT_THRESHOLD);
   }
 }
 
@@ -1085,7 +1070,7 @@ main(int argc, const char **argv) {
     // run mode flags
     bool VERBOSE = false;
     bool ARRAY_MODE = false;
-    bool FIXED_BIN = false;
+    bool fixed_bin_size = false;
     // corrections for small values (not parameters):
     double tolerance = 1e-5;
     double min_prob  = 1e-10;
@@ -1093,16 +1078,25 @@ main(int argc, const char **argv) {
     string params_in_files;
     string params_out_file;
     string posteriors_out_prefix;
+
+
+    const string description =
+      "Identify PMDs in methylomes. Methylation must be provided in the \
+      methcounts file format (chrom, position, strand, context, \
+      methylation, reads). See the methcounts documentation for \
+      details. This program assumes only data at CpG sites and that \
+      strands are collapsed so only the positive site appears in the \
+      file, but reads counts are from both strands.";
+
+
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "Program for identifying "
-                           "PMDs from methylomes of replicates ",
+    OptionParser opt_parse(strip_path(argv[0]), description,
                            "<methcount-files>");
     opt_parse.add_opt("out", 'o', "output file (default: stdout)",
                       false, outfile);
-    opt_parse.add_opt("desert", 'd', "max dist btwn bins with observations in PMD",
+    opt_parse.add_opt("desert", 'd', "max dist between bins with data in PMD",
                       false, desert_size);
-    opt_parse.add_opt("fixedbin", 'f', "Fixed bin size",
-                      false, FIXED_BIN);
+    opt_parse.add_opt("fixedbin", 'f', "Fixed bin size", false, fixed_bin_size);
     opt_parse.add_opt("bin", 'b', "Starting bin size", false, bin_size);
     opt_parse.add_opt("arraymode",'a', "All samples are array", false, ARRAY_MODE);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
@@ -1148,7 +1142,7 @@ main(int argc, const char **argv) {
       assert(cpgs_file.size() == params_in_file.size());
     }
 
-    size_t NREP = cpgs_file.size();
+    size_t n_replicates = cpgs_file.size();
 
     // separate the regions by chrom and by desert
     vector<vector<SimpleGenomicRegion> > cpgs;
@@ -1158,16 +1152,16 @@ main(int argc, const char **argv) {
 
     // Sanity checks input file format and dynamically selects bin
     // size from WGBS samples.
-    if (!FIXED_BIN && !ARRAY_MODE) {
+    if (!fixed_bin_size && !ARRAY_MODE) {
       if (VERBOSE)
         cerr << "[DYNAMICALLY SELECTING BIN SIZE]" << endl;
       double confidence_interval = 0.80;
       double prop_accept = 0.80;
-      for (size_t i = 0; i < NREP; ++i) {
+      for (size_t i = 0; i < n_replicates; ++i) {
         const bool arrayData = check_if_array_data(cpgs_file[i]);
         if (!arrayData) {
-          bin_size=binsize_selection(bin_size, cpgs_file[i],
-                                     confidence_interval, prop_accept, VERBOSE);
+          bin_size = binsize_selection(VERBOSE, bin_size, cpgs_file[i],
+                                       confidence_interval, prop_accept);
           desert_size = 5*bin_size; // TODO: explore extrapolation number
         }
         else {
@@ -1185,8 +1179,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING IN AT BIN SIZE " << bin_size << "]" << endl;
 
-
-    for (size_t i = 0; i < NREP; ++i) {
+    for (size_t i = 0; i < n_replicates; ++i) {
       vector<SimpleGenomicRegion> cpgs_rep;
       vector<pair<double, double> > meth_rep;
       vector<size_t> reads_rep;
@@ -1202,21 +1195,17 @@ main(int argc, const char **argv) {
       if (VERBOSE)
         cerr << "TOTAL CPGS: " << cpgs[i].size() << endl
              << "MEAN COVERAGE: "
-             << accumulate(reads[i].begin(), reads[i].end(),
-                           0.0)/reads[i].size()
+             << accumulate(begin(reads[i]), end(reads[i]), 0.0)/reads[i].size()
              << endl;
     }
 
-    bool aligned = true;
-    size_t rep_idx = 0;
-    for (; aligned && rep_idx < NREP; ++rep_idx) {
-      aligned = (cpgs[rep_idx].size() == cpgs[0].size());
-    }
-    if (rep_idx < NREP)
-      throw runtime_error("Inputs contain different number of sites");
+    // ensure replicates have same number of sites
+    const size_t n_sites = cpgs[0].size();
+    for (size_t i = 0; i < n_replicates; ++i)
+      if (cpgs[i].size() != n_sites)
+        throw runtime_error("inputs contain different number of sites");
 
-    // separate the regions by chrom and by desert, and eliminate
-    // those isolated CpGs
+    // separate regions by chrom and desert; eliminate isolated CpGs
     vector<size_t> reset_points;
     vector<size_t> dists_btwn_cpgs;
     separate_regions(VERBOSE, desert_size, cpgs, meth, reads,
@@ -1227,21 +1216,21 @@ main(int argc, const char **argv) {
     vector<vector<double> > trans(2, vector<double>(2, 0.01));
     trans[0][0] = trans[1][1] = 0.99;
     const TwoStateHMM hmm(min_prob, tolerance, max_iterations, VERBOSE, DEBUG);
-    vector<double> reps_fg_alpha(NREP, 0.05);
-    vector<double> reps_fg_beta(NREP, 0.95);
-    vector<double> reps_bg_alpha(NREP, 0.95);
-    vector<double> reps_bg_beta(NREP, 0.05);
+    vector<double> reps_fg_alpha(n_replicates, 0.05);
+    vector<double> reps_fg_beta(n_replicates, 0.95);
+    vector<double> reps_bg_alpha(n_replicates, 0.95);
+    vector<double> reps_bg_beta(n_replicates, 0.05);
     double score_cutoff_for_fdr = std::numeric_limits<double>::max();
 
     if (!params_in_file.empty()) {
-      // READ THE PARAMETERS FILES
-      for (size_t i= 0; i< NREP; ++i) {
+      // read parameters files
+      for (size_t i= 0; i< n_replicates; ++i)
         read_params_file(VERBOSE, params_in_file[i], reps_fg_alpha[i],
                          reps_fg_beta[i], reps_bg_alpha[i], reps_bg_beta[i],
                          start_trans, trans, end_trans, score_cutoff_for_fdr);
-      }
     }
 
+    // train model (default behavior; not done when params supplied)
     if (max_iterations > 0)
       hmm.BaumWelchTraining_rep(meth, reset_points,
                                 start_trans, trans, end_trans,
@@ -1249,7 +1238,7 @@ main(int argc, const char **argv) {
                                 reps_bg_alpha, reps_bg_beta, array_status);
 
     if (!params_out_file.empty()) {
-      // WRITE ALL THE HMM PARAMETERS:
+      // write all the HMM parameters
       write_params_file(params_out_file,
                         reps_fg_alpha, reps_fg_beta,
                         reps_bg_alpha, reps_bg_beta,
@@ -1258,20 +1247,20 @@ main(int argc, const char **argv) {
 
     /***********************************/
 
-    vector<double> into_scores;
-    vector<double> outof_scores;
-    if (!posteriors_out_prefix.empty()){
+    if (!posteriors_out_prefix.empty()) {
+      vector<double> into_scores;
       hmm.TransitionPosteriors_rep(meth, reset_points, start_trans, trans,
                                    end_trans, reps_fg_alpha, reps_fg_beta,
                                    reps_bg_alpha, reps_bg_beta, array_status,
                                    2, into_scores);
-      write_posteriors_file(posteriors_out_prefix+".intoTrans",cpgs,
+      write_posteriors_file(posteriors_out_prefix + ".intoTrans", cpgs,
                             into_scores);
+      vector<double> outof_scores;
       hmm.TransitionPosteriors_rep(meth, reset_points, start_trans, trans,
                                    end_trans, reps_fg_alpha, reps_fg_beta,
                                    reps_bg_alpha, reps_bg_beta, array_status,
                                    1, outof_scores);
-      write_posteriors_file(posteriors_out_prefix+".outofTrans",cpgs,
+      write_posteriors_file(posteriors_out_prefix + ".outofTrans", cpgs,
                             outof_scores);
     }
 
@@ -1282,10 +1271,9 @@ main(int argc, const char **argv) {
                               reps_bg_alpha, reps_bg_beta, classes,
                               scores, array_status);
 
-    if (!posteriors_out_prefix.empty()){
-      write_posteriors_file(posteriors_out_prefix+".emissions", cpgs, scores);
+    if (!posteriors_out_prefix.empty()) {
+      write_posteriors_file(posteriors_out_prefix + ".emissions", cpgs, scores);
     }
-
 
     vector<double> domain_scores;
     get_domain_scores_rep(classes, meth, reset_points, domain_scores);
@@ -1301,36 +1289,34 @@ main(int argc, const char **argv) {
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
 
-    if (score_cutoff_for_fdr == numeric_limits<double>::max()
-        && !p_values.empty())
+    if (score_cutoff_for_fdr == numeric_limits<double>::max() &&
+        !p_values.empty())
       score_cutoff_for_fdr = get_score_cutoff_for_fdr(p_values, 0.01);
+
     if (!params_out_file.empty()) {
-      std::ofstream out(params_out_file.c_str(), std::ios::app);
+      ofstream out(params_out_file, std::ios::app);
       out << "FDR_CUTOFF\t"
           << std::setprecision(30) << score_cutoff_for_fdr << endl;
-      out.close();
     }
 
     vector<GenomicRegion> domains;
-
     build_domains(VERBOSE, cpgs[0], scores, reset_points, classes,
                   dists_btwn_cpgs, domains);
 
     size_t good_pmd_count = 0;
     vector<GenomicRegion> good_domains;
-    for (size_t i = 0; i < domains.size(); ++i) {
+    for (size_t i = 0; i < domains.size(); ++i)
       if (p_values[i] < score_cutoff_for_fdr) {
         good_domains.push_back(domains[i]);
-        good_domains.back().set_name("PMD" + smithlab::toa(good_pmd_count++));
+        good_domains.back().set_name("PMD" + to_string(good_pmd_count++));
       }
-    }
 
     optimize_boundaries(bin_size, cpgs_file, good_domains, array_status,
                         reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta);
 
-    std::ofstream of;
+    ofstream of;
     if (!outfile.empty()) of.open(outfile);
-    std::ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
+    ostream out(outfile.empty() ? std::cout.rdbuf() : of.rdbuf());
 
     copy(begin(good_domains), end(good_domains),
          std::ostream_iterator<GenomicRegion>(out, "\n"));
