@@ -340,7 +340,6 @@ main(int argc, const char **argv) {
     bool use_this_chrom = sequence_to_use.empty();
 
     while (in >> mr) {
-      mr.apply_cigar(); // aligns mr read to reference genome
       if (A_RICH_READS)
         revcomp(mr);
 
