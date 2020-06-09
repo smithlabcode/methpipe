@@ -771,21 +771,19 @@ domains (LAD), which are usually hypermethylated in normal
 tissues. Partially methylated domains (PMDs) are not homogeneously
 hypomethylated as in the case of HMRs, and contain focal
 hypermethylation at specific sites. PMDs are large domains with sizes
-ranging from $10$kb to over $1$Mb.  Hidden Markov Models can also
+ranging from $10$kb to over $1$Mb. Hidden Markov Models can also
 identify these larger domains. The program \prog{pmd} is provided for
 their identification, and can be run as follows:
 
 \begin{verbatim}
-$ pmd -i 1000 -o Human_ESC.pmd Human_ESC.meth
+$ pmd -i 1000 -o Human_ColonCancer.pmd Human_ColonCancer.meth
 \end{verbatim}
 
-The program calculates in nonoverlapping bins the total methylated and
-unmethylated read counts.
 The underlying Hidden Markov Model for PMD identification is very
 similar to that of HMR identification, with a few key differences. Because
 PMDs are large, megabase-scale regions of methylation loss with
 individual CpGs exhibiting high methylation variance, each step in
-the HMM should be the average methylation level in a genomic region
+the HMM is the weighted average methylation level for a genomic region
 rather than a single CpG site. For samples with high sequencing coverage
 and depth, a bin size of $1000$bp suffices most of the time. The PMD
 program has a built-in bin-size selection method that chooses the smallest
