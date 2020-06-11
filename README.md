@@ -68,7 +68,7 @@ then you likely did the same thing when installing `smithlab_cpp`. If
 so, you must configure as follows:
 ```
 $ ../configure --prefix=/some/reasonable/place \
-    CPPFLAGS='-I /path/to/smithlab_cpp/headers' \
+    CPPFLAGS='-I /path/to/smithlab_cpp/include' \
     LDFLAGS='-L/path/to/smithlab_cpp/lib'
 ```
 Notice that the argment to `LDFLAGS` does not have a space after the
@@ -100,6 +100,26 @@ installed system-wide, then you might need to udpate your library
 path:
 ```
 $ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/path/to/htslib/lib
+```
+
+### Building and installing from source
+
+We strongly recommend using methpipe through the latest stable release
+under the releases section on GitHub. However, developers who wish to
+work on the latest commits, which are potentially unstable, can
+compile the cloned repository using the `Makefile` available in the
+repository. To compile without programs that require HTSlib, simply
+run:
+
+```
+make
+```
+
+If HTSlib is available and users which to compile all programs,
+including `to-mr`, run:
+
+```
+make HAVE_HTSLIB=1
 ```
 
 Previous releases of Methpipe
