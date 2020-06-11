@@ -26,24 +26,28 @@ app_subdirs=analysis utils amrfinder mlml radmeth
 # check if a global copy of smithlab_cpp cannot be found and try to
 # use a copy that is in the current directory
 ifndef SMITHLAB_CPP
-SMITHLAB_CPP=$(abspath $(dir $(MAKEFILE_LIST)))/smithlab_cpp
-ifeq ("$(wildcard $(SMITHLAB_CPP))","")
-$(error SMITHLAB_CPP not set and smithlab_cpp not found)
-endif
-all_subdirs += $(SMITHLAB_CPP)
-lib_subdirs += $(SMITHLAB_CPP)
+  SMITHLAB_CPP=$(abspath $(dir $(MAKEFILE_LIST)))/smithlab_cpp
+  ifeq ("$(wildcard $(SMITHLAB_CPP))","")
+    $(error SMITHLAB_CPP not set and smithlab_cpp not found)
+  endif
+  all_subdirs += $(SMITHLAB_CPP)
+  lib_subdirs += $(SMITHLAB_CPP)
 endif
 
 all:
+	make -C $(SMITHLAB_CPP) all
 	@for i in $(app_subdirs); do \
 		make -C $${i} \
+			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT); \
 	done;
 
 install:
+	make -C $(SMITHLAB_CPP) install
 	@for i in $(app_subdirs); do \
 		make -C $${i} \
+			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) install; \
 	done;
@@ -51,6 +55,7 @@ install:
 clean:
 	@for i in $(all_subdirs); do \
 		make -C $${i} \
+			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) clean; \
 	done;

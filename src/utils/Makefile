@@ -33,9 +33,13 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = lc_approx fast-liftover lift-filter \
-	to-mr merge-bsrate merge-methcounts \
+	merge-bsrate merge-methcounts \
 	duplicate-remover symmetric-cpgs \
 	clean-hairpins selectsites guessprotocol
+
+ifdef HAVE_HTSLIB
+	PROGS += to-mr
+endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
