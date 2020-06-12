@@ -71,7 +71,6 @@ libsmithlab_cpp_a_SOURCES += \
 	src/smithlab_cpp/MappedRead.hpp \
 	src/smithlab_cpp/OptionParser.hpp \
 	src/smithlab_cpp/QualityScore.hpp \
-	src/smithlab_cpp/RNG.hpp \
 	src/smithlab_cpp/bisulfite_utils.hpp \
 	src/smithlab_cpp/chromosome_utils.hpp \
 	src/smithlab_cpp/sim_utils.hpp \
