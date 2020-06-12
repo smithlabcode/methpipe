@@ -31,6 +31,9 @@ AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 AC_PROG_RANLIB
 
+dnl recursively configure smithlab_cpp
+AC_CONFIG_SUBDIRS([src/smithlab_cpp])
+
 dnl check for HTSLib if requested
 hts_fail_msg="
 

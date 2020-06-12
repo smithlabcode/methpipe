@@ -15,8 +15,9 @@
 # General Public License for more details.
 
 EXTRA_DIST = README.md
-
 ACLOCAL_AMFLAGS = -I m4
+
+SUBDIRS = src/smithlab_cpp
 AM_CPPFLAGS = -I $(top_srcdir)/src/common -I $(top_srcdir)/src/smithlab_cpp
 
 CXXFLAGS = -O3 # default has optimization on
@@ -58,7 +59,6 @@ libsmithlab_cpp_a_SOURCES = \
 	src/smithlab_cpp/MappedRead.cpp \
 	src/smithlab_cpp/OptionParser.cpp \
 	src/smithlab_cpp/QualityScore.cpp \
-	src/smithlab_cpp/RNG.cpp \
 	src/smithlab_cpp/bisulfite_utils.cpp \
 	src/smithlab_cpp/chromosome_utils.cpp \
 	src/smithlab_cpp/sim_utils.cpp \
