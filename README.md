@@ -7,7 +7,7 @@ methylation features, such as hypo-methylated regions (HMR), partially
 methylated domains (PMD), hyper-methylated regions (HyperMR), and
 allele-specific methylated regions (AMR).
 
-Major release 4.1.0
+Release 4.1.0
 ===================
 
 This release should be more stable than 4.0.0 and should be easier to
