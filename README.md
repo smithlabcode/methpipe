@@ -27,9 +27,7 @@ build and install.
 * Optional: The HTSlib library, which can be installed through `brew`
   on macOS, through `apt` on Linux, or from source downloadable
   [here](https://github.com/samtools/htslib). This is only required
-  for using the `to-mr` tool, but it you plan to build `methpipe` with
-  HTSlib support, then make sure you also build `smithlab_cpp` with
-  HTSlib support.
+  for using the `to-mr` tool.
 
 ### Configuration
 
