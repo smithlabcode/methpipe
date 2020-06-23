@@ -59,21 +59,6 @@ using std::make_pair;
 using std::greater;
 using std::runtime_error;
 
-/*static void
-parse_table_row_faster(const string &row, vector<double> &values) {
-  const char* a = &row[row.find_first_of(" \t")];
-  char* b;
-  int err = 0;
-  size_t i = 0;
-  const size_t n_columns = values.size();
-
-  values[i++] = strtod(a, &b);
-  while (err == 0 && a != b && i < n_columns) {
-    a = b;
-    values[i++] = strtod(a, &b);
-  }
-}*/
-
 static void
 parse_table_row(const string &row, vector<double> &values) {
 
@@ -113,28 +98,24 @@ precedes(const GenomicRegion &a, const GenomicRegion &b) {
 }
 
 static void
-build_probe_to_feature(const vector<GenomicRegion> &probes,
-                       const unordered_map<string, size_t> &probe_names,
-                       const vector<string> &colnames,
-                       const vector<GenomicRegion> &features,
-                       vector<size_t> &probe_to_feature,
-                       vector<double> &n_probes_per_feature) {
+build_probe_to_frag(const vector<GenomicRegion> &probes,
+                    const unordered_map<string, size_t> &probe_names,
+                    const vector<string> &colnames,
+                    const vector<GenomicRegion> &frags,
+                    vector<size_t> &probe_to_frag,
+                    vector<double> &n_probes_per_frag) {
 
   const size_t n_probes = probes.size();
-  probe_to_feature = vector<size_t>(n_probes, numeric_limits<size_t>::max());
+  probe_to_frag = vector<size_t>(n_probes, numeric_limits<size_t>::max());
 
-  const size_t n_features = features.size();
+  const size_t n_frags = frags.size();
 
-  size_t curr_feature = 0;
+  size_t curr_frag = 0;
   for (size_t i = 0; i < n_probes; ++i) {
-
-    while (curr_feature < n_features &&
-           precedes(features[curr_feature], probes[i]))
-      ++curr_feature;
-
-    if (curr_feature < n_features &&
-        !follows(features[curr_feature], probes[i]))
-      probe_to_feature[i] = curr_feature;
+    while (curr_frag < n_frags && precedes(frags[curr_frag], probes[i]))
+      ++curr_frag;
+    if (curr_frag < n_frags && !follows(frags[curr_frag], probes[i]))
+      probe_to_frag[i] = curr_frag;
   }
 
   const size_t n_colnames = colnames.size();
@@ -143,7 +124,7 @@ build_probe_to_feature(const vector<GenomicRegion> &probes,
   for (size_t i = 0; i < n_colnames; ++i) {
     auto idx(probe_names.find(colnames[i]));
     if (idx != end(probe_names))
-      tmp[i] = probe_to_feature[idx->second];
+      tmp[i] = probe_to_frag[idx->second];
     /* ADS: the line below is commented out because there are "probes"
      * in some data sets that have no associated genomic location in
      * various files kicking around for mapping probes to genome
@@ -151,31 +132,12 @@ build_probe_to_feature(const vector<GenomicRegion> &probes,
      */
     // else throw runtime_error("cannot find column: " + colnames[i]);
   }
-  probe_to_feature.swap(tmp);
+  probe_to_frag.swap(tmp);
 
-  n_probes_per_feature = vector<double>(n_features, 0);
-  for (auto &&i : probe_to_feature)
+  n_probes_per_frag = vector<double>(n_frags, 0);
+  for (auto &&i : probe_to_frag)
     if (i != numeric_limits<size_t>::max())
-      ++n_probes_per_feature[i];
-}
-
-
-static bool
-any_overlap(const vector<GenomicRegion> &features) {
-  string prev_chrom = features.front().get_chrom();
-  for (size_t i = 1; i < features.size(); ++i) {
-    // the check below assumes the features are already sorted by
-    // start coordinate
-    if (prev_chrom == features[i].get_chrom()) {
-      if (features[i].get_start() < features[i-1].get_end()) {
-        cerr << features[i] << endl
-             << features[i-1] << endl;
-        return true;
-      }
-    }
-    else prev_chrom = features[i].get_chrom();
-  }
-  return false;
+      ++n_probes_per_frag[i];
 }
 
 
@@ -202,6 +164,68 @@ wrong_n_vals(const size_t lines_read,
       << "n_vals=" << probe_values.size() << ", "
       << "expect=" << colnames.size() << ")";
   return oss.str();
+}
+
+
+struct end_point {
+  end_point(const string c, const size_t s, const bool isf) :
+    chr(c), start(s), is_first(isf) {}
+  bool operator<(const end_point &other) const {
+    return (chr < other.chr ||
+            (chr == other.chr &&
+             (start < other.start ||
+              (start == other.start &&
+               is_first < other.is_first))));
+  }
+  string chr;
+  size_t start;
+  bool is_first;
+};
+
+
+static void
+get_frags(const vector<GenomicRegion> &features,
+          vector<GenomicRegion> &frags) {
+
+  vector<end_point> end_points;
+  for (auto &&f : features) {
+    end_points.push_back(end_point(f.get_chrom(), f.get_start(), true));
+    end_points.push_back(end_point(f.get_chrom(), f.get_end(), false));
+  }
+  sort(begin(end_points), end(end_points));
+
+  size_t count = 0;
+  GenomicRegion region;
+  for (size_t i = 0; i < end_points.size() - 1; ++i) {
+    if (end_points[i].is_first) count++;
+    else count--;
+    if (count > 0) {
+      region.set_chrom(end_points[i].chr);
+      region.set_start(end_points[i].start);
+      region.set_end(end_points[i + 1].start);
+      if (region.get_width() > 0)
+        frags.push_back(region);
+    }
+  }
+}
+
+
+static void
+get_frag_to_feature(const vector<GenomicRegion> &features,
+                    const vector<GenomicRegion> &frags,
+                    vector<vector<size_t> > &frag_to_feature) {
+
+  const size_t n_frags = frags.size();
+  frag_to_feature.resize(n_frags);
+
+  size_t j = 0;
+  for (size_t i = 0; i < features.size(); ++i) {
+
+    while (j < n_frags && precedes(frags[j], features[i])) ++j;
+
+    for (size_t k = j; k < n_frags && !precedes(features[i], frags[k]); ++k)
+      frag_to_feature[k].push_back(i);
+  }
 }
 
 
@@ -274,10 +298,7 @@ main(int argc, const char **argv) {
     if (!check_sorted(features))
       throw runtime_error("features not sorted in: " + features_file);
 
-    if (any_overlap(features))
-      throw runtime_error("overlapping intervals found in: " + features_file);
-
-    if (!all_names_unique(features))
+    if (!name_by_interval && !all_names_unique(features))
       throw runtime_error("duplicate feature names in: " + features_file);
 
     const size_t n_features = features.size();
@@ -323,14 +344,26 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[n columns in data matrix: " << colnames.size() << "]" << endl;
 
+    // vector<GenomicRegion> features,
+    vector<GenomicRegion> frags;
+    get_frags(features, frags);
+
+    vector<vector<size_t> > frag_to_feature;
+    get_frag_to_feature(features, frags, frag_to_feature);
+
     // for each feature, get an index for the corresponding column
-    vector<size_t> probe_to_feature;
-    vector<double> n_probes_per_feature;
-    build_probe_to_feature(probes, probe_names, colnames, features,
-                           probe_to_feature, n_probes_per_feature);
+    vector<size_t> probe_to_frag;
+    vector<double> n_probes_per_frag;
+    build_probe_to_frag(probes, probe_names, colnames, frags,
+                        probe_to_frag, n_probes_per_frag);
+
+    vector<double> n_probes_per_feature(features.size(), 0.0);
+    for (size_t i = 0; i < frag_to_feature.size(); ++i)
+      for (size_t j = 0; j < frag_to_feature[i].size(); ++j)
+        n_probes_per_feature[frag_to_feature[i][j]] += n_probes_per_frag[i];
 
     if (VERBOSE)
-      cerr << "[processing table by sample]" << endl;
+       cerr << "[processing table by sample]" << endl;
     vector<vector<double> > feature_values;
 
     // get file size for reporting progress reading file
@@ -357,11 +390,12 @@ main(int argc, const char **argv) {
 
       vector<double> tmp(n_features, 0.0);
       for (size_t i = 0; i < probe_values.size(); ++i) {
-        // get the feature that the i-th probe maps to
-        const size_t curr_feature = probe_to_feature[i];
+        // get the frag that the i-th probe maps to
+        const size_t curr_frag = probe_to_frag[i];
         // if it has a valid feature mapping, then add it's value
-        if (curr_feature != numeric_limits<size_t>::max())
-          tmp[curr_feature] += probe_values[i];
+        if (curr_frag != numeric_limits<size_t>::max())
+          for (auto &&j : frag_to_feature[curr_frag])
+            tmp[j] += probe_values[i];
       }
 
       ++lines_read;
