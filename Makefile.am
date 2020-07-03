@@ -22,7 +22,7 @@ AM_CPPFLAGS = -I $(top_srcdir)/src/common -I $(top_srcdir)/src/smithlab_cpp
 
 CXXFLAGS = -O3 # default has optimization on
 
-noinst_LIBRARIES = libmethpipe.a libsmithlab_cpp.a
+noinst_LIBRARIES = libmethpipe.a
 libmethpipe_a_SOURCES = \
 	src/common/BetaBin.cpp \
 	src/common/Distro.cpp \
@@ -53,35 +53,6 @@ libmethpipe_a_SOURCES += \
 	src/common/TwoStateHMM_PMD.hpp \
 	src/common/bsutils.hpp \
 	src/common/numerical_utils.hpp
-
-libsmithlab_cpp_a_SOURCES = \
-	src/smithlab_cpp/GenomicRegion.cpp \
-	src/smithlab_cpp/MappedRead.cpp \
-	src/smithlab_cpp/OptionParser.cpp \
-	src/smithlab_cpp/QualityScore.cpp \
-	src/smithlab_cpp/bisulfite_utils.cpp \
-	src/smithlab_cpp/chromosome_utils.cpp \
-	src/smithlab_cpp/sim_utils.cpp \
-	src/smithlab_cpp/smithlab_os.cpp \
-	src/smithlab_cpp/smithlab_utils.cpp \
-	src/smithlab_cpp/zlib_wrapper.cpp
-
-libsmithlab_cpp_a_SOURCES += \
-	src/smithlab_cpp/GenomicRegion.hpp \
-	src/smithlab_cpp/MappedRead.hpp \
-	src/smithlab_cpp/OptionParser.hpp \
-	src/smithlab_cpp/QualityScore.hpp \
-	src/smithlab_cpp/bisulfite_utils.hpp \
-	src/smithlab_cpp/chromosome_utils.hpp \
-	src/smithlab_cpp/sim_utils.hpp \
-	src/smithlab_cpp/smithlab_os.hpp \
-	src/smithlab_cpp/smithlab_utils.hpp \
-	src/smithlab_cpp/zlib_wrapper.hpp
-
-if ENABLE_HTS
-libsmithlab_cpp_a_SOURCES += src/smithlab_cpp/htslib_wrapper.cpp
-libsmithlab_cpp_a_SOURCES += src/smithlab_cpp/htslib_wrapper.hpp
-endif
 
 LDADD = libmethpipe.a libsmithlab_cpp.a
 
