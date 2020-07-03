@@ -17,7 +17,8 @@
 EXTRA_DIST = README.md
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src/smithlab_cpp
+SUBDIRS := src/smithlab_cpp
+install installdirs: SUBDIRS := $(filter-out src/smithlab_cpp, $(SUBDIRS))
 AM_CPPFLAGS = -I $(top_srcdir)/src/common -I $(top_srcdir)/src/smithlab_cpp
 
 CXXFLAGS = -O3 # default has optimization on
@@ -54,7 +55,7 @@ libmethpipe_a_SOURCES += \
 	src/common/bsutils.hpp \
 	src/common/numerical_utils.hpp
 
-LDADD = libmethpipe.a libsmithlab_cpp.a
+LDADD = libmethpipe.a src/smithlab_cpp/libsmithlab_cpp.a
 
 ### ANALYSIS SUBDIR
 bin_PROGRAMS = pmd methcounts bsrate hmr hypermr levels roimethstat \
