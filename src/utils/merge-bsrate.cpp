@@ -37,7 +37,6 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MappedRead.hpp"
 
 #include "bsutils.hpp"
 
