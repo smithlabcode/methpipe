@@ -116,6 +116,7 @@ collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
 
 static void
 write_line_for_tabular(const bool write_fractional,
+                       const size_t min_reads,
                        std::ostream &out,
                        const vector<bool> &to_print,
                        const vector<MSite> &sites,
@@ -132,8 +133,11 @@ write_line_for_tabular(const bool write_fractional,
 
   if (write_fractional) {
     for (size_t i = 0; i < n_files; ++i) {
-      if (to_print[i]) out << '\t' << sites[i].meth;
-      else out << '\t' << 0;
+      const size_t r = sites[i].n_reads;
+      if (to_print[i] && r > min_reads)
+        out << '\t' << sites[i].meth;
+      else
+        out << '\t' << "NA";
     }
   }
   else
@@ -186,6 +190,8 @@ main(int argc, const char **argv) {
 
     string header_info;
 
+    size_t min_reads = 1;
+
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]),
                            "merge multiple methcounts files",
@@ -194,11 +200,14 @@ main(int argc, const char **argv) {
                       false, outfile);
     opt_parse.add_opt("header", 'h',"header to print (ignored for tabular)",
                       false, header_info);
-    opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.add_opt("tabular", 't', "output as table",
                       false, write_tabular_format);
     opt_parse.add_opt("fractional", 'f', "output fractions (requires tabular)",
                       false, write_fractional);
+    opt_parse.add_opt("reads", 'r', "min reads (for fractional)",
+                      false, min_reads);
+    opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
+    opt_parse.set_show_defaults();
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -265,7 +274,7 @@ main(int argc, const char **argv) {
 
       // output the appropriate sites' data
       if (write_tabular_format)
-        write_line_for_tabular(write_fractional, out,
+        write_line_for_tabular(write_fractional, min_reads, out,
                                sites_to_print, sites, sites[idx]);
       else
         write_line_for_merged_counts(out, sites_to_print, sites, sites[idx]);
