@@ -33,6 +33,7 @@
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
+#include "MappedRead.hpp"
 #include "htslib_wrapper.hpp"
 
 using std::string;
@@ -51,11 +52,10 @@ using std::swap;
 /********Below are functions for merging pair-end reads********/
 static void
 fill_overlap(const bool pos_str, const MappedRead &mr, const size_t start,
-             const size_t end, const size_t offset, string &seq, string &scr) {
+             const size_t end, const size_t offset, string &seq) {
   const size_t a = pos_str ? (start - mr.r.get_start()) : (mr.r.get_end() - end);
   const size_t b = pos_str ? (end -  mr.r.get_start()) : (mr.r.get_end() - start);
   copy(begin(mr.seq) + a, begin(mr.seq) + b, begin(seq) + offset);
-  copy(begin(mr.scr) + a, begin(mr.scr) + b, begin(scr) + offset);
 }
 
 static void
@@ -88,20 +88,17 @@ merge_mates(const size_t suffix_len, const size_t range,
 
   if (len > 0) {
     string seq(len, 'N');
-    string scr(len, 'B');
     if (len <= static_cast<int>(range)) {
       // lim_one: offset in merged sequence where overlap starts
       const size_t lim_one = one_right - one_left;
-      copy(one.seq.begin(), one.seq.begin() + lim_one, seq.begin());
-      copy(one.scr.begin(), one.scr.begin() + lim_one, scr.begin());
+      copy(begin(one.seq), begin(one.seq) + lim_one, seq.begin());
 
       const size_t lim_two = two_right - two_left;
       copy(two.seq.end() - lim_two, two.seq.end(), seq.end() - lim_two);
-      copy(two.scr.end() - lim_two, two.scr.end(), scr.end() - lim_two);
 
       // deal with overlapping part
       if (overlap_start < overlap_end) {
-        const size_t one_bads = count(one.seq.begin(), one.seq.end(), 'N');
+        const size_t one_bads = count(begin(one.seq), one.seq.end(), 'N');
         const int info_one = one.seq.length() - (one_bads + one.r.get_score());
 
         const size_t two_bads = count(two.seq.begin(), two.seq.end(), 'N');
@@ -109,9 +106,9 @@ merge_mates(const size_t suffix_len, const size_t range,
 
         // use the mate with the most info to fill in the overlap
         if (info_one >= info_two)
-          fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq, scr);
+          fill_overlap(pos_str, one, overlap_start, overlap_end, lim_one, seq);
         else
-          fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq, scr);
+          fill_overlap(pos_str, two, overlap_start, overlap_end, lim_one, seq);
       }
     }
 
@@ -120,7 +117,6 @@ merge_mates(const size_t suffix_len, const size_t range,
     merged.r.set_end(merged.r.get_start() + len);
     merged.r.set_score(one.r.get_score() + two.r.get_score());
     merged.seq = seq;
-    merged.scr = scr;
     const string name(one.r.get_name());
     merged.r.set_name("FRAG:" + name.substr(0, name.size() - suffix_len));
   }
@@ -131,16 +127,14 @@ same_read(const size_t suffix_len,
           const MappedRead &a, const MappedRead &b) {
   const string sa(a.r.get_name());
   const string sb(b.r.get_name());
-  return std::equal(sa.begin(), sa.end() - suffix_len, sb.begin());
+  return std::equal(begin(sa), end(sa) - suffix_len, begin(sb));
 }
 
 static void
 revcomp(MappedRead &mr) {
   // set the strand to the opposite of the current value
   mr.r.set_strand(mr.r.pos_strand() ? '-' : '+');
-  // reverse complement the sequence, and reverse the quality scores
-  revcomp_inplace(mr.seq);
-  std::reverse(mr.scr.begin(), mr.scr.end());
+  revcomp_inplace(mr.seq); // reverse complement the sequence
 }
 /********Above are functions for merging pair-end reads********/
 
