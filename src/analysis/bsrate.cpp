@@ -126,16 +126,14 @@ write_output(const string &outfile,
              const vector<size_t> &err_p, const vector<size_t> &err_n) {
 
   // Get some totals first
-  const size_t pos_cvt = accumulate(cvt_count_p.begin(),
-                                    cvt_count_p.end(), 0ul);
-  const size_t neg_cvt = accumulate(cvt_count_n.begin(),
-                                    cvt_count_n.end(), 0ul);
+  const size_t pos_cvt = accumulate(begin(cvt_count_p), end(cvt_count_p), 0ul);
+  const size_t neg_cvt = accumulate(begin(cvt_count_n), end(cvt_count_n), 0ul);
   const size_t total_cvt = pos_cvt + neg_cvt;
 
   const size_t pos_ucvt =
-    accumulate(ucvt_count_p.begin(), ucvt_count_p.end(), 0ul);
+    accumulate(begin(ucvt_count_p), end(ucvt_count_p), 0ul);
   const size_t neg_ucvt =
-    accumulate(ucvt_count_n.begin(), ucvt_count_n.end(), 0ul);
+    accumulate(begin(ucvt_count_n), end(ucvt_count_n), 0ul);
   const size_t total_ucvt = pos_ucvt + neg_ucvt;
 
   std::ofstream of;
@@ -234,7 +232,7 @@ main(int argc, const char **argv) {
   try {
 
     // ASSUMED MAXIMUM LENGTH OF A FRAGMENT
-    static const size_t OUTPUT_SIZE = 10000;
+    static const size_t output_size = 10000;
 
     bool VERBOSE = false;
     bool INCLUDE_CPGS = false;
@@ -322,12 +320,12 @@ main(int argc, const char **argv) {
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 
-    vector<size_t> unconv_count_pos(OUTPUT_SIZE, 0ul);
-    vector<size_t> conv_count_pos(OUTPUT_SIZE, 0ul);
-    vector<size_t> unconv_count_neg(OUTPUT_SIZE, 0ul);
-    vector<size_t> conv_count_neg(OUTPUT_SIZE, 0ul);
-    vector<size_t> err_pos(OUTPUT_SIZE, 0ul);
-    vector<size_t> err_neg(OUTPUT_SIZE, 0ul);
+    vector<size_t> unconv_count_pos(output_size, 0ul);
+    vector<size_t> conv_count_pos(output_size, 0ul);
+    vector<size_t> unconv_count_neg(output_size, 0ul);
+    vector<size_t> conv_count_neg(output_size, 0ul);
+    vector<size_t> err_pos(output_size, 0ul);
+    vector<size_t> err_neg(output_size, 0ul);
 
     string chrom;
     MappedRead mr;
