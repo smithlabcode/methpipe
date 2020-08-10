@@ -21,6 +21,12 @@
 PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 	methstates methentropy hmr_rep multimethstat
 
+ifdef HAVE_HTSLIB
+	ifdef DEBUG
+		PROGS += bsrate_sam methcounts_sam
+	endif
+endif
+
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O3
@@ -45,6 +51,10 @@ INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
 LIBS = -lgsl -lgslcblas -lz
+
+ifdef HAVE_HTSLIB
+	LIBS += -lhts
+endif
 
 all: $(PROGS)
 
