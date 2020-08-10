@@ -38,7 +38,7 @@ PROGS = lc_approx fast-liftover lift-filter \
 	clean-hairpins selectsites guessprotocol
 
 ifdef HAVE_HTSLIB
-	PROGS += to-mr format_mapped_reads
+	PROGS += to-mr format_reads
 	ifdef DEBUG
 		PROGS += duplicate-remover_sam
 	endif

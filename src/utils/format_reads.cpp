@@ -1,4 +1,4 @@
-/* format_mapped_reads: a program to ensure SAM and BAM format reads
+/* format_reads: a program to ensure SAM and BAM format reads
  * are conforming to expectations of methpipe software
  *
  * Copyright (C) 2020 University of Southern California and
