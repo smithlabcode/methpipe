@@ -22,9 +22,9 @@ PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 	methstates methentropy hmr_rep multimethstat
 
 ifdef HAVE_HTSLIB
-	ifdef DEBUG
-		PROGS += bsrate_sam methcounts_sam
-	endif
+ifdef DEBUG
+PROGS += bsrate_sam methcounts_sam
+endif
 endif
 
 CXX = g++
@@ -53,7 +53,7 @@ INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 LIBS = -lgsl -lgslcblas -lz
 
 ifdef HAVE_HTSLIB
-	LIBS += -lhts
+LIBS += -lhts
 endif
 
 all: $(PROGS)
@@ -65,6 +65,9 @@ install: $(PROGS)
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
 levels hmr_rep hmr methcounts roimethstat hypermr pmd: \
+	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+
+methcounts_sam: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
