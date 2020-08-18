@@ -7,13 +7,13 @@ methylation features, such as hypo-methylated regions (HMR), partially
 methylated domains (PMD), hyper-methylated regions (HyperMR), and
 allele-specific methylated regions (AMR).
 
-Release 4.1.0
+Release 4.1.1
 ===================
 
 This release should be more stable than 4.0.0 and should be easier to
 build and install.
 
-## Installing release 4.1.0
+## Installing release 4.1.1
 
 ### Required libraries
 
@@ -31,14 +31,14 @@ build and install.
 
 ### Configuration
 
-1. Download methpipe-4.1.0.tar.gz [here](https://github.com/smithlabcode/methpipe).
+1. Download methpipe-4.1.1.tar.gz [here](https://github.com/smithlabcode/methpipe/releases/download/v4.1.1/methpipe-4.1.1.tar.gz).
 2. Unpack the archive:
 ```
-$ tar -zxvf methpipe-4.1.0.tar.gz
+$ tar -zxvf methpipe-4.1.1.tar.gz
 ```
 3. Move into the methpipe directory and create a build directory:
 ```
-$ cd methpipe-4.1.0
+$ cd methpipe-4.1.1
 $ mkdir build && cd build
 ```
 4. Run the configuration script:
