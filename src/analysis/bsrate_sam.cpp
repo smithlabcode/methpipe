@@ -25,7 +25,6 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MappedRead.hpp"
 #include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 #include "cigar_utils.hpp"
@@ -39,6 +38,7 @@
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+#include <unordered_set>
 
 using std::string;
 using std::vector;
@@ -49,6 +49,7 @@ using std::max;
 using std::accumulate;
 using std::to_string;
 using std::unordered_map;
+using std::unordered_set;
 using std::runtime_error;
 
 inline bool
@@ -357,7 +358,6 @@ main(int argc, const char **argv) {
     vector<size_t> err_neg(output_size, 0ul);
 
     string chrom;
-    MappedRead mr;
     GenomicRegion chrom_region; // exists only for faster comparison
     size_t hanging = 0;
 
@@ -369,6 +369,7 @@ main(int argc, const char **argv) {
     SAMReader sam_reader(mapped_reads_file);
     sam_rec aln;
 
+    unordered_set<string> chroms_seen;
     while (sam_reader >> aln) {
 
       if (reads_are_a_rich)
@@ -376,6 +377,14 @@ main(int argc, const char **argv) {
 
       // get the correct chrom if it has changed
       if (chrom.empty() || aln.rname != chrom_region.get_chrom()) {
+        // make sure all reads from same chrom are contiguous in the file
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("chroms out of order in mapped reads file");
+
+        if (VERBOSE)
+          cerr << "processing chromosome " << aln.rname << "\n";
+
+        chroms_seen.insert(aln.rname);
         get_chrom(aln, all_chroms, chrom_lookup, chrom_region, chrom);
         use_this_chrom =
           sequence_to_use.empty() || aln.rname == seq_to_use_check.get_chrom();
