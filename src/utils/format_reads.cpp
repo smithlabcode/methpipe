@@ -94,7 +94,7 @@ is_mapped_single_end(const sam_rec &aln) {
   //    aln.rnext == "=");
 }
 
-inline bool
+bool
 is_rc(const sam_rec &aln) {
   return check_flag(aln, samflags::read_rc);
 }
@@ -133,16 +133,19 @@ get_r_end(const sam_rec &sr) {
 
 
 static size_t
-merge_mates(const size_t suffix_len, const size_t range,
+merge_mates(const size_t range,
             const sam_rec &one, const sam_rec &two, sam_rec &merged) {
 
-  // cerr << one << '\t' << is_rc(one) << endl
-  //      << two << '\t' << is_rc(two) << endl;
-
-  assert(is_rc(one) == false && is_rc(two) == true);
+  // assert(is_rc(one) == false && is_rc(two) == true);
+  if (is_rc(one) != false || is_rc(two) != true) {
+    return -std::numeric_limits<int>::max();
+  }
 
   // ADS: not sure this can be consistent across mappers
-  assert(is_a_rich(one) != is_a_rich(two));
+  // assert(is_a_rich(one) != is_a_rich(two));
+  if (is_a_rich(one) == is_a_rich(two)) {
+    return -std::numeric_limits<int>::max();
+  }
 
   merged = one;
 
@@ -164,10 +167,11 @@ merge_mates(const size_t suffix_len, const size_t range,
      * one_s                    one_e      two_s                    two_e
      * [------------end1------------]______[------------end2------------]
      */
-    merged.seq = one.seq + revcomp(two.seq);
+    merged.seq += revcomp(two.seq);
     // ADS: need to take care of soft clipping in between;
-    merged.cigar = one.cigar + to_string(spacer) + "N" + two.cigar;
-    merged.qual = (one.qual == "*" ? one.qual : one.qual + revcomp(two.qual));
+    merged.cigar += to_string(spacer) + "N";
+    merged.cigar += two.cigar;
+    // merged.qual = (one.qual == "*" ? one.qual : one.qual + revcomp(two.qual));
   }
   else {
     const int head = two_s - one_s;
@@ -193,10 +197,10 @@ merge_mates(const size_t suffix_len, const size_t range,
       // ADS: need to take care of soft clipping in between;
       merged.seq.resize(one_seq_len);
       merged.seq += revcomp(two.seq);
-      if (merged.qual != "*") {
-        merged.qual.resize(one_seq_len);
-        merged.qual += two.qual;
-      }
+      // if (merged.qual != "*") {
+      //   merged.qual.resize(one_seq_len);
+      //   merged.qual += two.qual;
+      // }
     }
     else {
       /* dovetail fragments shorter than read length: this is
@@ -214,8 +218,8 @@ merge_mates(const size_t suffix_len, const size_t range,
         truncate_cigar_r(merged.cigar, overlap);
         const uint32_t overlap_qlen = cigar_qseq_ops(merged.cigar);
         merged.seq.resize(overlap_qlen);
-        if (merged.qual != "*")
-          merged.qual.resize(overlap_qlen);
+        // if (merged.qual != "*")
+        //   merged.qual.resize(overlap_qlen);
       }
     }
   }
@@ -231,24 +235,24 @@ merge_mates(const size_t suffix_len, const size_t range,
 // ADS: there is a bug somewhere when a value of 0 is given for
 // suffix_len
 static string
-remove_suffix(const string &x, const size_t suffix_len) {
+remove_suff(const string &x, const size_t suffix_len) {
   return x.size() > suffix_len ? x.substr(0, x.size() - suffix_len) : x;
 }
 
 static bool
-precedes_by_more_than(const sam_rec &a, const sam_rec &b,
-                      const size_t max_frag_len) {
+precedes_by(const sam_rec &a, const sam_rec &b,
+            const size_t max_frag_len) {
   return (a.rname < b.rname ||
-          (a.rname == b.rname && (get_r_end(a) + max_frag_len < b.pos)));
+          (a.rname == b.rname && a.pos + max_frag_len < b.pos));
 }
 
 
-inline bool
+bool
 bsmap_get_rc(const string &strand_tag) {
   return strand_tag.size() >= 5 && strand_tag[5] == '-';
 }
 
-inline bool
+bool
 bsmap_get_a_rich(const string &richness_tag) {
   return richness_tag.size() >= 6 && richness_tag[6] == '-';
 }
@@ -291,9 +295,9 @@ main(int argc, const char **argv) {
 
     string outfile;
     string input_format;
-    int max_frag_len = 3000;
-    size_t max_dangling = 5000;
-    size_t suffix_len = 1;
+    int max_frag_len = 10000;
+    size_t buff_size = 10000;
+    size_t suff_len = 1;
     bool VERBOSE = false;
 
     const string description = "convert SAM/BAM mapped bs-seq reads "
@@ -307,9 +311,11 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("output", 'o', "output file name",
                       false, outfile);
     opt_parse.add_opt("suff", 's', "read name suffix length (default: 1)",
-                      false, suffix_len);
+                      false, suff_len);
     opt_parse.add_opt("max-frag", 'L', "maximum allowed insert size",
                       false, max_frag_len);
+    opt_parse.add_opt("buf-size", 'B', "maximum buffer size",
+                      false, buff_size);
     opt_parse.add_opt("verbose", 'v', "print more information",
                       false, VERBOSE);
     opt_parse.set_show_defaults();
@@ -344,74 +350,68 @@ main(int argc, const char **argv) {
            << (outfile.empty() ? "stdout" : outfile) << "]" << endl;
 
     SAMReader sam_reader(mapped_reads_file);
-    unordered_map<string, sam_rec> dangling_mates;
+    std::ifstream in(mapped_reads_file);
+    if (!in)
+      throw std::runtime_error("problem with input file: " + mapped_reads_file);
 
     out << sam_reader.get_header(); // includes newline
 
-    size_t count = 0;
+    size_t count_a = 0, count_b = 0;
     sam_rec aln;
+
+    vector<sam_rec> buffer(buff_size); // keeps previous records
+    unordered_map<string, uint32_t> mate_lookup; // allows them to be accessed
 
     while (sam_reader >> aln) {
 
       standardize_format(input_format, aln);
 
-      if (is_mapped(aln) && is_primary(aln)) {
-        if (is_mapped_single_end(aln)) {
-          if (is_a_rich(aln))
-            flip_conversion(aln);
-          out << aln << '\n';
+      const string read_name(remove_suff(aln.qname, suff_len));
+      auto the_mate = mate_lookup.find(read_name);
+      if (the_mate == end(mate_lookup)) { // add solo end to buffer
+        const size_t real_idx = count_a % buff_size;
+        buffer[real_idx] = std::move(aln);
+        mate_lookup[read_name] = real_idx;
+        ++count_a;
+      }
+      else { // found a mate; attempt to merge
+        const size_t mate_idx = the_mate->second;
+
+        if (!is_rc(aln)) // essentially check for dovetail
+          swap(buffer[mate_idx], aln);
+
+        sam_rec merged;
+        const int frag_len =
+          merge_mates(max_frag_len, buffer[mate_idx], aln, merged);
+
+        if (frag_len < max_frag_len) {
+          swap(buffer[mate_idx], merged);
+          // nothing to do for mate_lookup
         }
-        else { // is_mapped_paired(aln)
-
-          const string read_name(remove_suffix(aln.qname, suffix_len));
-          auto the_mate = dangling_mates.find(read_name);
-          if (the_mate == end(dangling_mates)) {
-            dangling_mates[read_name] = aln; // no mate seen yet
-          }
-          else { // found a mate
-
-            // ADS: below is essentially a check for dovetail
-            if (!is_rc(aln))
-              swap(aln, the_mate->second);
-
-            sam_rec merged;
-            const int frag_len = merge_mates(suffix_len, max_frag_len,
-                                             the_mate->second, aln, merged);
-
-            if (is_a_rich(merged))
-              flip_conversion(merged);
-
-            if (frag_len <= max_frag_len)
-              out << merged << '\n';
-            else if (frag_len > 0)
-              out << the_mate->second << '\n'
-                  << aln << '\n';
-            dangling_mates.erase(read_name);
-          }
-
-          // flush dangling_mates
-          if (dangling_mates.size() > max_dangling) {
-            unordered_map<string, sam_rec> to_keep;
-            for (auto &&mates : dangling_mates)
-              if (precedes_by_more_than(the_mate->second, aln, max_frag_len)) {
-                if (is_a_rich(mates.second))
-                  flip_conversion(mates.second);
-                out << mates.second << endl;
-              }
-              else to_keep.insert(mates);
-            swap(to_keep, dangling_mates);
-          }
+        else { // if (frag_len > 0)
+          // leave "mate" alone, but add current read
+          const size_t real_idx = count_a % buff_size;
+          swap(buffer[real_idx], aln);
+          // no need to index this one; mate already incompatible
+          ++count_a;
         }
-        ++count;
+      }
+
+      if ((count_a % buff_size) == (count_b % buff_size)) {
+        const size_t real_idx = count_b % buff_size;
+        mate_lookup.erase(remove_suff(buffer[real_idx].qname, suff_len));
+        if (is_a_rich(buffer[real_idx]))
+          flip_conversion(buffer[real_idx]);
+        out << buffer[real_idx] << '\n';
+        ++count_b;
       }
     }
 
-    // flushing dangling_mates
-    while (!dangling_mates.empty()) {
-      if (is_a_rich(begin(dangling_mates)->second))
-        flip_conversion(begin(dangling_mates)->second);
-      out << begin(dangling_mates)->second << endl;
-      dangling_mates.erase(begin(dangling_mates));
+    for (; count_b < count_a; ++count_b) { // no need to erase names
+      const size_t real_idx = count_b % buff_size;
+      if (is_a_rich(buffer[real_idx]))
+        flip_conversion(buffer[real_idx]);
+      out << buffer[real_idx] << '\n';
     }
   }
   catch (const runtime_error &e) {
