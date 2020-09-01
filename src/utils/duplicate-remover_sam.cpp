@@ -253,13 +253,10 @@ int main(int argc, const char **argv) {
     bool USE_SEQUENCE = false;
     bool ALL_C = false;
     bool DISABLE_SORT_TEST = false;
-    bool INPUT_FROM_STDIN = false;
 
     size_t the_seed = 408;
     string statfile;
     string histfile;
-
-    throw runtime_error("Program not yet implemented!");
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
@@ -291,11 +288,13 @@ int main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (!INPUT_FROM_STDIN && leftover_args.size() != 1) {
+    if (leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl
            << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
+    throw runtime_error("Program not yet implemented!");
+
     const string infile(leftover_args.front());
     const string outfile(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
