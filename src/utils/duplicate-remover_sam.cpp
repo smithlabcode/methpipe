@@ -57,27 +57,28 @@ get_end(const sam_rec &r) {
   return r.pos + cigar_rseq_ops(r.cigar);
 }
 
-
 static bool
-precedes(const sam_rec &a, const sam_rec &b) {
+precedes_by_chrom_and_start(const sam_rec &a, const sam_rec &b) {
   return (a.rname < b.rname ||
-          (a.rname == b.rname &&
-           (a.pos < b.pos ||
-            (a.pos == b.pos &&
-             (get_end(a) < get_end(b) ||
-              (get_end(a) == get_end(b) &&
-               (get_strand(a) < get_strand(b))))))));
+          (a.rname == b.rname && a.pos < b.pos));
 }
-
 
 static bool
-equivalent(const sam_rec &a, const sam_rec &b) {
-  return a.rname == b.rname &&
-    a.pos == b.pos &&
-    get_end(a) == get_end(b) &&
-    get_strand(a) == get_strand(b);
+precedes_by_end_and_strand(const sam_rec &a, const sam_rec &b) {
+  const size_t end_a = get_end(a), end_b = get_end(b);
+  return (end_a < end_b ||
+          (end_a == end_b && get_strand(a) < get_strand(b)));
 }
 
+static bool
+equivalent_chrom_and_start(const sam_rec &a, const sam_rec &b) {
+  return a.rname == b.rname && a.pos == b.pos;
+}
+
+static bool
+equivalent_end_and_strand(const sam_rec &a, const sam_rec &b) {
+  return get_end(a) == get_end(b) && get_strand(a) == get_strand(b);
+}
 
 static void
 get_cpgs(const vector<sam_rec> &aln, vector<size_t> &cpg_pos) {
@@ -139,6 +140,68 @@ get_meth_patterns(const bool ALL_C,
 }
 
 
+template<class T>
+static void
+process_inner_buffer(const bool USE_SEQUENCE,
+               const bool ALL_C,
+               size_t &reads_out,
+               size_t &good_bases_out,
+               size_t &reads_with_duplicates,
+               vector<size_t> &hist,
+               vector<sam_rec> &buffer,
+               T &out) {
+  if (USE_SEQUENCE) {
+    const size_t orig_buffer_size = buffer.size();
+    get_meth_patterns(ALL_C, buffer, hist);
+    for (auto && r : buffer)
+      out << r << "\n";
+    reads_out += buffer.size();
+    good_bases_out += buffer.size()*buffer[0].seq.length();
+    reads_with_duplicates += (buffer.size() < orig_buffer_size);
+  }
+  else {
+    const size_t selected = rand() % buffer.size();
+    out << buffer[selected] << "\n";
+    if (hist.size() <= buffer.size())
+      hist.resize(buffer.size() + 1);
+    hist[buffer.size()]++;
+    good_bases_out += buffer[selected].seq.length();
+    ++reads_out;
+    reads_with_duplicates += (buffer.size() > 1);
+  }
+  buffer.clear();
+}
+
+template<class T>
+static void
+process_outer_buffer(const bool USE_SEQUENCE,
+                     const bool ALL_C,
+                     size_t &reads_out,
+                     size_t &good_bases_out,
+                     size_t &reads_with_duplicates,
+                     vector<size_t> &hist,
+                     vector<sam_rec> &outer_buffer,
+                     vector<sam_rec> &inner_buffer,
+                     T &out) {
+  sort(begin(outer_buffer), end(outer_buffer), precedes_by_end_and_strand);
+  auto it(begin(outer_buffer));
+
+  // give inner buffer the first element before processing
+  inner_buffer.push_back(*it);
+  ++it;
+
+  for (; it != end(outer_buffer); ++it) {
+    if (!equivalent_end_and_strand(inner_buffer.front(), *it)) {
+      process_inner_buffer(USE_SEQUENCE, ALL_C, reads_out, good_bases_out,
+                           reads_with_duplicates, hist, inner_buffer, out);
+    }
+    inner_buffer.push_back(*it);
+  }
+  process_inner_buffer(USE_SEQUENCE, ALL_C, reads_out, good_bases_out,
+                       reads_with_duplicates, hist, inner_buffer, out);
+  outer_buffer.clear();
+}
+
 template <class T>
 static void
 duplicate_remover(const bool VERBOSE,
@@ -165,57 +228,28 @@ duplicate_remover(const bool VERBOSE,
   size_t good_bases_out = 0;
   size_t reads_with_duplicates = 0;
 
-  vector<sam_rec> buffer(1, aln);
+  // header of input = header of output
+  out << in.get_header();
+
+  vector<sam_rec> outer_buffer(1, aln), inner_buffer;
   while (in >> aln) {
     ++reads_in;
     good_bases_in += aln.seq.length();
-    if (!DISABLE_SORT_TEST && precedes(aln, buffer.front()))
+    if (!DISABLE_SORT_TEST &&
+         precedes_by_chrom_and_start(aln, outer_buffer.front()))
       throw runtime_error("input not properly sorted:\n" +
-                          toa(buffer.front()) + "\n" + toa(aln));
-    if (!equivalent(buffer.front(), aln)) {
-      if (USE_SEQUENCE) {
-        const size_t orig_buffer_size = buffer.size();
-        get_meth_patterns(ALL_C, buffer, hist); // select within buffer
-        for (auto && r : buffer)
-          out << r << "\n";
-        reads_out += buffer.size();
-        good_bases_out += buffer.size()*buffer[0].seq.length();
-        reads_with_duplicates += (buffer.size() < orig_buffer_size);
-      }
-      else {
-        const size_t selected = rand() % buffer.size();
-        out << buffer[selected] << "\n";
-        if (hist.size() <= buffer.size())
-          hist.resize(buffer.size() + 1);
-        hist[buffer.size()]++;
-        good_bases_out += buffer[selected].seq.length();
-        ++reads_out;
-        reads_with_duplicates += (buffer.size() > 1);
-      }
-      buffer.clear();
-    }
-    buffer.push_back(aln);
+                          toa(outer_buffer.front()) + "\n" + toa(aln));
+
+    if (!equivalent_chrom_and_start(outer_buffer.front(), aln))
+      process_outer_buffer(USE_SEQUENCE, ALL_C, reads_out, good_bases_out,
+                           reads_with_duplicates, hist, outer_buffer,
+                           inner_buffer, out);
+    outer_buffer.push_back(aln);
   }
 
-  if (USE_SEQUENCE) {
-    const size_t orig_buffer_size = buffer.size();
-    get_meth_patterns(ALL_C, buffer, hist);
-    for (auto && r : buffer)
-      out << r << "\n";
-    reads_out += buffer.size();
-    good_bases_out += buffer.size()*buffer[0].seq.length();
-    reads_with_duplicates += (buffer.size() < orig_buffer_size);
-  }
-  else {
-    const size_t selected = rand() % buffer.size();
-    out << buffer[selected] << "\n";
-    if (hist.size() <= buffer.size())
-      hist.resize(buffer.size() + 1);
-    hist[buffer.size()]++;
-    good_bases_out += buffer[selected].seq.length();
-    ++reads_out;
-    reads_with_duplicates += (buffer.size() > 1);
-  }
+  process_outer_buffer(USE_SEQUENCE, ALL_C, reads_out, good_bases_out,
+                       reads_with_duplicates, hist, outer_buffer,
+                       inner_buffer, out);
 
   if (!statfile.empty()) {
 
@@ -293,7 +327,6 @@ int main(int argc, const char **argv) {
            << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
-    throw runtime_error("Program not yet implemented!");
 
     const string infile(leftover_args.front());
     const string outfile(leftover_args.back());
