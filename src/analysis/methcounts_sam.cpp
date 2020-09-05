@@ -303,6 +303,12 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
         ++j;
       }
       while (j < chrom_order.size() && chrom_order[j] != aln.rname) {
+        // need to check if we are skipping chrom because it actually
+        // does not exist in the reference
+        if (chrom_lookup.find(aln.rname) == end(chrom_lookup))
+          throw runtime_error("chrom in sam file does not exist in reference:" +
+                              aln.rname);
+
         if (VERBOSE)
           cerr << "NO_READS:\t" << chrom_order[j] << endl;
         chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
@@ -363,8 +369,6 @@ main(int argc, const char **argv) {
     string chrom_file;
     string outfile;
     string fasta_suffix = "fa";
-
-    throw runtime_error("Program not yet implemented!");
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "get methylation levels from "

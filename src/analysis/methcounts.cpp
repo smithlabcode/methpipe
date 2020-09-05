@@ -286,6 +286,12 @@ process_reads(const bool VERBOSE, igzfstream &in, T &out,
         ++j;
       }
       while (j < chrom_order.size() && chrom_order[j] != mr.r.get_chrom()) {
+        // need to check if we are skipping chrom because it actually
+        // does not exist in the reference
+        if (chrom_lookup.find(mr.r.get_chrom()) == end(chrom_lookup))
+          throw runtime_error("chrom in mr file does not exist in reference:" +
+                              mr.r.get_chrom());
+
         if (VERBOSE)
           cerr << "NO_READS:\t" << chrom_order[j] << endl;
         chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
