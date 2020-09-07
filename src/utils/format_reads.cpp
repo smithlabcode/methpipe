@@ -74,26 +74,6 @@ is_a_rich(const sam_rec &aln) {
   return abismal_is_a_rich(aln);
 }
 
-static bool
-is_mapped(const sam_rec &aln) {
-  return !check_flag(aln, samflags::read_unmapped);
-}
-
-static bool
-is_primary(const sam_rec &aln) {
-  return !check_flag(aln, samflags::secondary_aln);
-}
-
-static bool
-is_mapped_single_end(const sam_rec &aln) {
-  return is_mapped(aln) &&
-    (!check_flag(aln, samflags::read_paired) ||
-     check_flag(aln, samflags::mate_unmapped) ||
-     aln.tlen == 0);
-  // ||
-  //    aln.rnext == "=");
-}
-
 bool
 is_rc(const sam_rec &aln) {
   return check_flag(aln, samflags::read_rc);
@@ -126,17 +106,14 @@ flip_conversion(sam_rec &aln) {
   }
 }
 
-static uint32_t
-get_r_end(const sam_rec &sr) {
-  return sr.pos + cigar_rseq_ops(sr.cigar);
-}
-
 
 static size_t
 merge_mates(const size_t range,
             const sam_rec &one, const sam_rec &two, sam_rec &merged) {
 
   // assert(is_rc(one) == false && is_rc(two) == true);
+  // GS: this is false when mates map independently but are not
+  // concordant
   if (is_rc(one) != false || is_rc(two) != true) {
     return -std::numeric_limits<int>::max();
   }
@@ -226,7 +203,6 @@ merge_mates(const size_t range,
   merged.rnext = "*";
   merged.pnext = 0;
   merged.tlen = 0;
-
   return two_e - one_s;
 }
 
@@ -239,22 +215,19 @@ remove_suff(const string &x, const size_t suffix_len) {
   return x.size() > suffix_len ? x.substr(0, x.size() - suffix_len) : x;
 }
 
-static bool
-precedes_by(const sam_rec &a, const sam_rec &b,
-            const size_t max_frag_len) {
-  return (a.rname < b.rname ||
-          (a.rname == b.rname && a.pos + max_frag_len < b.pos));
-}
-
-
 bool
 bsmap_get_rc(const string &strand_tag) {
-  return strand_tag.size() >= 5 && strand_tag[5] == '-';
+  return strand_tag.size() > 5 && strand_tag[5] == '-';
 }
 
 bool
 bsmap_get_a_rich(const string &richness_tag) {
-  return richness_tag.size() >= 6 && richness_tag[6] == '-';
+  return richness_tag.size() > 6 && richness_tag[6] == '-';
+}
+
+bool
+bismark_get_a_rich(const string &richness_tag) {
+  return richness_tag.size() > 5 && richness_tag[5] == 'G';
 }
 
 static void
@@ -271,16 +244,34 @@ standardize_format(const string &input_format, sam_rec &aln) {
       throw runtime_error("record appears to be invalid for bsmap");
     const string z_tag = *z_tag_itr;
     aln.tags.erase(z_tag_itr);
+    aln.add_tag(bsmap_get_a_rich(z_tag) ? "CV:A:A" : "CV:A:T");
 
-    if (bsmap_get_rc(z_tag))
-      set_flag(aln, samflags::read_rc);
-    else
-      unset_flag(aln, samflags::read_rc);
+    if (is_rc(aln)) revcomp_inplace(aln.seq);
+  }
 
-    const bool ar = bsmap_get_a_rich(z_tag);
-    if (ar)
-      flip_strand(aln);
-    aln.add_tag(ar ? "CV:A:A" : "CV:A:T");
+  if (input_format == "bismark") {
+    // remove everything after _ in read name
+    aln.qname = aln.qname.substr(0, aln.qname.find_first_of("_"));
+    auto xr_tag_itr = find_if(begin(aln.tags), end(aln.tags),
+                             [](const string &t) {
+                               return t.compare (0, 3, "XR:") == 0;
+                             }),
+         nm_tag_itr = find_if(begin(aln.tags), end(aln.tags),
+                             [](const string &t) {
+                               return t.compare (0, 3, "NM:") == 0;
+                             });
+
+    if (xr_tag_itr == end(aln.tags))
+      throw runtime_error("record appears to be invalid for bismark");
+
+    const string xr_tag = *xr_tag_itr,
+                 nm_tag = *nm_tag_itr;
+
+    aln.tags.clear();
+    aln.add_tag(nm_tag);
+    aln.add_tag(bismark_get_a_rich(xr_tag) ? "CV:A:A" : "CV:A:T");
+
+    if (is_rc(aln)) revcomp_inplace(aln.seq);
   }
 
   // doesn't depend on mapper
@@ -363,7 +354,6 @@ main(int argc, const char **argv) {
     unordered_map<string, uint32_t> mate_lookup; // allows them to be accessed
 
     while (sam_reader >> aln) {
-
       standardize_format(input_format, aln);
 
       const string read_name(remove_suff(aln.qname, suff_len));
@@ -381,10 +371,11 @@ main(int argc, const char **argv) {
           swap(buffer[mate_idx], aln);
 
         sam_rec merged;
+
         const int frag_len =
           merge_mates(max_frag_len, buffer[mate_idx], aln, merged);
 
-        if (frag_len < max_frag_len) {
+        if (frag_len > 0 && frag_len < max_frag_len) {
           swap(buffer[mate_idx], merged);
           // nothing to do for mate_lookup
         }
