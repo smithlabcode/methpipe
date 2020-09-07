@@ -117,6 +117,14 @@ are_mates(const sam_rec &one, const sam_rec &two) {
            two.pnext == one.pos;
 }
 
+static bool
+are_opposite_strands(const sam_rec &one, const sam_rec &two) {
+  return (check_flag(one, samflags::template_first) !=
+          check_flag(two, samflags::template_first)) &&
+         (check_flag(one, samflags::template_last) !=
+          check_flag(two, samflags::template_last));
+}
+
 static size_t
 merge_mates(const size_t range,
             const sam_rec &one, const sam_rec &two, sam_rec &merged) {
@@ -126,22 +134,20 @@ merge_mates(const size_t range,
   }
 
   // assert(is_rc(one) == false && is_rc(two) == true);
-  // GS: this is false when mates map independently but are not
-  // concordant
-  if (is_rc(one) != false || is_rc(two) != true) {
+  if (!are_opposite_strands(one, two)) {
     ostringstream fail;
-    fail << "Reads below are not in + and - strand:\n";
+    fail << "Reads below are not in opposite strands\n";
     fail << one << '\n';
     fail << two << '\n';
     throw runtime_error(fail.str());
   }
 
   // ADS: not sure this can be consistent across mappers
-  // assert(is_a_rich(one) != is_a_rich(two));
   // GS: true after standardization
+  // assert(is_a_rich(one) != is_a_rich(two));
   if (is_a_rich(one) == is_a_rich(two)) {
     ostringstream fail;
-    fail << "Reads below are not in T-rich/A-rich conversions respectively:\n";
+    fail << "Reads below do not have the same richness:\n";
     fail << one << '\n';
     fail << two << '\n';
     throw runtime_error(fail.str());
@@ -267,8 +273,8 @@ standardize_format(const string &input_format, sam_rec &aln) {
       throw runtime_error("record appears to be invalid for bsmap");
     const string z_tag = *z_tag_itr;
     aln.tags.erase(z_tag_itr);
-    aln.add_tag(bsmap_get_a_rich(z_tag) ? "CV:A:A" : "CV:A:T");
 
+    aln.add_tag(bsmap_get_a_rich(z_tag) ? "CV:A:A" : "CV:A:T");
     if (is_rc(aln)) revcomp_inplace(aln.seq);
   }
 
