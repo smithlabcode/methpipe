@@ -34,6 +34,7 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <cmath>
+#include <sstream>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -54,6 +55,7 @@ using std::runtime_error;
 using std::unordered_map;
 using std::swap;
 using std::to_string;
+using std::ostringstream;
 
 // ADS: do we need to check that both mates are on the same strand? Or
 // that they are on opposite strands?
@@ -107,21 +109,42 @@ flip_conversion(sam_rec &aln) {
 }
 
 
+static bool
+are_mates(const sam_rec &one, const sam_rec &two) {
+  return ((one.rnext == "=" && two.rnext == "=") ||
+          (one.rnext == two.qname)) &&
+           one.pnext == two.pos &&
+           two.pnext == one.pos;
+}
+
 static size_t
 merge_mates(const size_t range,
             const sam_rec &one, const sam_rec &two, sam_rec &merged) {
+
+  if (!are_mates(one, two)) {
+    return -std::numeric_limits<int>::max();
+  }
 
   // assert(is_rc(one) == false && is_rc(two) == true);
   // GS: this is false when mates map independently but are not
   // concordant
   if (is_rc(one) != false || is_rc(two) != true) {
-    return -std::numeric_limits<int>::max();
+    ostringstream fail;
+    fail << "Reads below are not in + and - strand:\n";
+    fail << one << '\n';
+    fail << two << '\n';
+    throw runtime_error(fail.str());
   }
 
   // ADS: not sure this can be consistent across mappers
   // assert(is_a_rich(one) != is_a_rich(two));
+  // GS: true after standardization
   if (is_a_rich(one) == is_a_rich(two)) {
-    return -std::numeric_limits<int>::max();
+    ostringstream fail;
+    fail << "Reads below are not in T-rich/A-rich conversions respectively:\n";
+    fail << one << '\n';
+    fail << two << '\n';
+    throw runtime_error(fail.str());
   }
 
   merged = one;
