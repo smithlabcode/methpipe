@@ -58,7 +58,7 @@ get_end(const sam_rec &r) {
 }
 
 static bool
-precedes_by_chrom_and_start(const sam_rec &a, const sam_rec &b) {
+precedes_by_start(const sam_rec &a, const sam_rec &b) {
   return (a.rname < b.rname ||
           (a.rname == b.rname && a.pos < b.pos));
 }
@@ -232,14 +232,24 @@ duplicate_remover(const bool VERBOSE,
   out << in.get_header();
 
   vector<sam_rec> outer_buffer(1, aln), inner_buffer;
+  unordered_set<string> chroms_seen;
+  string cur_chrom = "";
   while (in >> aln) {
     ++reads_in;
     good_bases_in += aln.seq.length();
-    if (!DISABLE_SORT_TEST &&
-         precedes_by_chrom_and_start(aln, outer_buffer.front()))
-      throw runtime_error("input not properly sorted:\n" +
-                          toa(outer_buffer.front()) + "\n" + toa(aln));
+    if (!DISABLE_SORT_TEST) {
+      if (precedes_by_start(aln, outer_buffer.front()))
+        throw runtime_error("input not properly sorted within chrom:\n" +
+                            toa(outer_buffer.front()) + "\n" + toa(aln));
 
+      if (aln.rname != cur_chrom) {
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("input not grouped by chromosomes: " +
+                toa(aln));
+
+        cur_chrom = aln.rname;
+      }
+    }
     if (!equivalent_chrom_and_start(outer_buffer.front(), aln))
       process_outer_buffer(USE_SEQUENCE, ALL_C, reads_out, good_bases_out,
                            reads_with_duplicates, hist, outer_buffer,
