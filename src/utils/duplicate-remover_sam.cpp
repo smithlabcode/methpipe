@@ -59,8 +59,7 @@ get_end(const sam_rec &r) {
 
 static bool
 precedes_by_start(const sam_rec &a, const sam_rec &b) {
-  return (a.rname < b.rname ||
-          (a.rname == b.rname && a.pos < b.pos));
+  return a.rname == b.rname && a.pos < b.pos;
 }
 
 static bool
@@ -246,7 +245,7 @@ duplicate_remover(const bool VERBOSE,
         if (chroms_seen.find(aln.rname) != end(chroms_seen))
           throw runtime_error("input not grouped by chromosomes: " +
                 toa(aln));
-
+        chroms_seen.insert(aln.rname);
         cur_chrom = aln.rname;
       }
     }
