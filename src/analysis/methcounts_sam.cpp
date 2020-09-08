@@ -307,21 +307,7 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
       }
       if (!counts.empty()) // should be true after first iteration
         write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
-      /*
-      while (j < chrom_order.size() && chrom_order[j] != aln.rname) {
-        if (VERBOSE)
-          cerr << "NO_READS:\t" << chrom_order[j] << endl;
-        chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-        chrom_size = chrom_sizes[chrom_id];
-        chrom_region.set_chrom(chrom_order[j]);
-        counts.clear();
-        counts.resize(chrom_size);
-        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-        ++j;
-      }
-      if (j == chrom_order.size() || cur_chrom != aln.rname)
-        throw runtime_error("problem with chrom order in mapped reads");
-      */
+
       // move to the current chromosome
       chrom_id = get_chrom_id(aln.rname, chrom_lookup);
       chrom_size = chrom_sizes[chrom_id];
@@ -343,18 +329,6 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
   if (!counts.empty()) {// should be true after first iteration
     write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
   }
-  /*
-  while (j < chrom_order.size()) {
-    if (VERBOSE)
-      cerr << "NO_READS:\t" << chrom_order[j] << endl;
-    chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-    chrom_size = chrom_sizes[chrom_id];
-    chrom_region.set_chrom(chrom_order[j]);
-    counts.clear();
-    counts.resize(chrom_size);
-    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-    ++j;
-  }*/
 }
 
 int
