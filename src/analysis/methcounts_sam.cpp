@@ -28,6 +28,7 @@
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -47,8 +48,10 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::unordered_set;
 using std::unordered_map;
 using std::runtime_error;
+using std::end;
 
 inline bool
 is_rc(const sam_rec &aln) {
@@ -287,28 +290,25 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
   // this is where all the counts are accumulated
   vector<CountSet<unsigned short> > counts;
 
-  size_t j = 0; // current chromosome
-
+  unordered_set<string> chroms_seen;
   while (in >> aln) {
 
     // if chrom changes, output previous results, get new one
     if (counts.empty() || aln.rname != chrom_region.get_chrom()) {
-
       // make sure all reads from same chrom are contiguous in the file
-      if (aln.rname < chrom_region.get_chrom())
-        throw runtime_error("chroms out of order in mapped reads file");
-
-      if (!counts.empty()) {// should be true after first iteration
-        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-        ++j;
-      }
-      while (j < chrom_order.size() && chrom_order[j] != aln.rname) {
-        // need to check if we are skipping chrom because it actually
-        // does not exist in the reference
+      if (aln.rname != chrom_region.get_chrom()) {
         if (chrom_lookup.find(aln.rname) == end(chrom_lookup))
           throw runtime_error("chrom in sam file does not exist in reference:" +
                               aln.rname);
 
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("entries not grouped by chrom in sam file");
+        chroms_seen.insert(aln.rname);
+      }
+      if (!counts.empty()) // should be true after first iteration
+        write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
+      /*
+      while (j < chrom_order.size() && chrom_order[j] != aln.rname) {
         if (VERBOSE)
           cerr << "NO_READS:\t" << chrom_order[j] << endl;
         chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
@@ -319,20 +319,19 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
         write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
         ++j;
       }
-
-      if (j == chrom_order.size() || chrom_order[j] != aln.rname)
+      if (j == chrom_order.size() || cur_chrom != aln.rname)
         throw runtime_error("problem with chrom order in mapped reads");
-
+      */
       // move to the current chromosome
-      chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+      chrom_id = get_chrom_id(aln.rname, chrom_lookup);
       chrom_size = chrom_sizes[chrom_id];
-      chrom_region.set_chrom(chrom_order[j]);
+      chrom_region.set_chrom(aln.rname);
       // reset the counts
       counts.clear();
       counts.resize(chrom_size);
 
       if (VERBOSE)
-        cerr << "PROCESSING:\t" << chrom_order[j] << endl;
+        cerr << "PROCESSING:\t" << aln.rname << endl;
     }
 
     // do the work for this mapped read, depending on strand
@@ -342,9 +341,9 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
       count_states_pos(aln, counts);
   }
   if (!counts.empty()) {// should be true after first iteration
-    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-    ++j;
+    write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
   }
+  /*
   while (j < chrom_order.size()) {
     if (VERBOSE)
       cerr << "NO_READS:\t" << chrom_order[j] << endl;
@@ -355,7 +354,7 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
     counts.resize(chrom_size);
     write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
     ++j;
-  }
+  }*/
 }
 
 int
