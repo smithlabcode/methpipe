@@ -306,7 +306,8 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
         chroms_seen.insert(aln.rname);
       }
       if (!counts.empty()) // should be true after first iteration
-        write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
+        write_output(out, chrom_region.get_chrom(),
+                     chroms[chrom_id], counts, CPG_ONLY);
 
       // move to the current chromosome
       chrom_id = get_chrom_id(aln.rname, chrom_lookup);
@@ -327,7 +328,8 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
       count_states_pos(aln, counts);
   }
   if (!counts.empty()) {// should be true after first iteration
-    write_output(out, aln.rname, chroms[chrom_id], counts, CPG_ONLY);
+    write_output(out, chrom_region.get_chrom(),
+                chroms[chrom_id], counts, CPG_ONLY);
   }
 }
 
