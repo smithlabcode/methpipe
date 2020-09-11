@@ -298,11 +298,11 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
       // make sure all reads from same chrom are contiguous in the file
       if (aln.rname != chrom_region.get_chrom()) {
         if (chrom_lookup.find(aln.rname) == end(chrom_lookup))
-          throw runtime_error("chrom in sam file does not exist in reference:" +
+          throw runtime_error("chromosome in SAM file not found in reference:" +
                               aln.rname);
 
         if (chroms_seen.find(aln.rname) != end(chroms_seen))
-          throw runtime_error("entries not grouped by chrom in sam file");
+          throw runtime_error("reads in SAM file not sorted by position");
         chroms_seen.insert(aln.rname);
       }
       if (!counts.empty()) // should be true after first iteration
