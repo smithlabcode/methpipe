@@ -851,10 +851,11 @@ specifically the likelihood and certainty of the boundary at the PMD start
 of \cite{decato2020characterization} for more information regarding 
 boundaries. These values can be used relative to other PMDs to assess the
 ``sharpness'' of the PMD boundaries, and the confidence we have in the 
-boundary estimate based on the coverage of the sample. For boundaries with
-a not-a-number (-nan) boundary likelihood, it is because all CpGs on one
-side of the boundary or the other have zero coverage, and therefore no
-confidence score could be assigned to the boundary. The fifth column is 
+boundary estimate based on the coverage of the sample. NaN boundary scores
+represent the case where the joint likelihood and confidence score of a
+boundary cannot be calculated because one side of the boundary has either 
+zero coverage or no CpGs: this occurs when
+PMDs cut off due to deserts, for instance. The fifth column is 
 the number of bins in the PMD, which is analogous to the number of CpGs
 segmented in the HMR program. PMDs should be called using information from 
 both strands, so the last column is a placeholder.
