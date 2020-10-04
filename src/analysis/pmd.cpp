@@ -147,6 +147,7 @@ precedes(const string &chrom, const size_t position,
                  (chrom == r.get_chrom() && position < r.get_start());
 }
 
+
 static bool
 succeeds(const string &chrom, const size_t position,
          const GenomicRegion &r) {
@@ -750,6 +751,7 @@ read_params_file(const bool VERBOSE,
          << "FDR_CUTOFF\t" << fdr_cutoff << endl;
 }
 
+
 static void
 write_posteriors_file(const string &posteriors_file,
                       const vector<vector<SimpleGenomicRegion> > &cpgs,
@@ -759,6 +761,7 @@ write_posteriors_file(const string &posteriors_file,
   for (size_t r = 0; r < scores.size(); ++r)
     out << cpgs[0][r] << '\t' << scores[r] << endl;
 }
+
 
 static void
 write_params_file(const string &outfile,
@@ -788,6 +791,7 @@ write_params_file(const string &outfile,
       << "B_E\t" << end_trans[1] << endl;
 }
 
+
 static bool
 check_if_array_data(const string &infile) {
   igzfstream in(infile);
@@ -801,6 +805,7 @@ check_if_array_data(const string &infile) {
   iss >> chrom >> pos >> strand >> seq >> meth;
   return (!(iss >> cov));
 }
+
 
 static void
 load_array_data(const size_t bin_size,
@@ -1036,6 +1041,7 @@ binsize_selection(const bool &VERBOSE,
   }
 }
 
+
 static void
 load_intervals(const size_t bin_size,
                const string &cpgs_file,
@@ -1087,7 +1093,6 @@ main(int argc, const char **argv) {
       details. This program assumes only data at CpG sites and that \
       strands are collapsed so only the positive site appears in the \
       file, but reads counts are from both strands.";
-
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), description,

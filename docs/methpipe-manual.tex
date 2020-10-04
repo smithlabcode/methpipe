@@ -1,6 +1,6 @@
 \documentclass[10pt]{article}
 
-\usepackage{times,fullpage,graphicx,amsmath, subfigure}
+\usepackage{times, fullpage, graphicx, amsmath, subfigure, cite, bibentry}
 \usepackage[pdfborder={0 0 0}]{hyperref}
 
 \title{The Smithlab DNA Methylation Data Analysis Pipeline (MethPipe)}
@@ -22,6 +22,9 @@
 \newcommand{\lit}[1]{\texttt{#1}}
 %% For program options
 \newcommand{\op}[1]{\texttt{#1}}
+
+\nobibliography* % This command loads the bibliography database for
+% the full in-text citations in section 2.
 
 \begin{document}
 
@@ -58,6 +61,28 @@ affects what we observe in the sequenced reads. This is especially important
 if paired-end sequencing is used. If you do not understand these
 concepts, you will likely run into major problems trying to customize our
 pipeline.
+
+\section{Citation information}
+
+If you find our programs helpful, please cite us. The majority of the
+tools described in this manual were introduced as part of the main
+methpipe manuscript, listed first below. However, several improvements and
+additions have been made over the years. Below is the main citation
+along with the papers describing those improvements or additions.
+
+\begin{itemize}
+
+\item{\textbf{methpipe:}} \bibentry{song2013reference}
+
+\item{\textbf{amrfinder:}} \bibentry{fang2012genomic}
+
+\item{\textbf{MLML:}} \bibentry{qu2013mlml}
+
+\item{\textbf{Radmeth:}} \bibentry{dolzhenko2014using}
+
+\item{\textbf{PMD:}} \bibentry{decato2020characterization}
+
+\end{itemize}
 
 \section{Methylome construction}
 
@@ -772,7 +797,8 @@ tissues. Partially methylated domains (PMDs) are not homogeneously
 hypomethylated as in the case of HMRs, and contain focal
 hypermethylation at specific sites. PMDs are large domains with sizes
 ranging from $10$kb to over $1$Mb. Hidden Markov Models can also
-identify these larger domains. The program \prog{pmd} is provided for
+identify these larger domains. The program \prog{pmd}
+\cite{decato2020characterization} is provided for
 their identification, and can be run as follows:
 
 \begin{verbatim}
@@ -800,6 +826,39 @@ CpG positions, and merging candidates that are ``close'' to each
 other. Currently, we are using $2\times bin\_size$ as the merging
 distance. Development in later versions of the \prog{pmd} program will
 include randomization procedures for choosing merging distance.
+
+The output of the program is as follows:
+
+\begin{verbatim}
+bdecato:~/testdata$ head Human_ColonCancer.pmd 
+chr1	4083054	4756012	PMD0:3.455556:278:4.584455:260	673	+
+chr1	4846663	5430747	PMD1:3.842801:276:5.246181:166	580	+
+chr1	5463102	5912049	PMD2:3.839765:217:4.191114:282	448	+
+chr1	11366900	11716004	PMD3:4.141159:240:3.132796:411	349	+
+chr1	12781853	13024981	PMD4:3.499296:241:2.168534:3	227	+
+chr1	14741633	15210084	PMD5:5.306778:173:5.009876:147	467	+
+chr1	18150329	18718393	PMD6:5.247428:179:3.984616:45	569	+
+chr1	18789404	19197536	PMD7:3.511930:168:5.494317:268	408	+
+chr1	29655012	29877666	PMD8:4.887023:232:1.406238:162	221	+
+chr1	30028301	30464612	PMD9:5.101033:16:2.987482:118	434	+
+\end{verbatim}
+
+The first three columns give the chromosome, start, and end positions
+of the identified PMD. The fourth column has an arbitrarily assigned
+name for the PMD (counting up from zero) and boundary quality information:
+specifically the likelihood and certainty of the boundary at the PMD start
+(1\&2) and boundary at the PMD end (3\&4). See the Supplementary information
+of \cite{decato2020characterization} for more information regarding 
+boundaries. These values can be used relative to other PMDs to assess the
+``sharpness'' of the PMD boundaries, and the confidence we have in the 
+boundary estimate based on the coverage of the sample. NaN boundary scores
+represent the case where the joint likelihood and confidence score of a
+boundary cannot be calculated because one side of the boundary has either 
+zero coverage or no CpGs: this occurs when
+PMDs cut off due to deserts, for instance. The fifth column is 
+the number of bins in the PMD, which is analogous to the number of CpGs
+segmented in the HMR program. PMDs should be called using information from 
+both strands, so the last column is a placeholder.
 
 In general, the presence of a single HMR wouldn't cause the program to
 report a PMD in that region. However, in cases where a number of HMRs
