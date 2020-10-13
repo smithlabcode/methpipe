@@ -110,19 +110,20 @@ flip_conversion(sam_rec &aln) {
 
 
 static bool
-are_mates(const sam_rec &one, const sam_rec &two) {
-  return ((one.rnext == "=" && two.rnext == "=") ||
-          (one.rnext == two.qname)) &&
-           one.pnext == two.pos &&
-           two.pnext == one.pos;
-}
-
-static bool
 are_opposite_strands(const sam_rec &one, const sam_rec &two) {
   return (check_flag(one, samflags::template_first) !=
           check_flag(two, samflags::template_first)) &&
          (check_flag(one, samflags::template_last) !=
           check_flag(two, samflags::template_last));
+}
+
+static bool
+are_mates(const sam_rec &one, const sam_rec &two) {
+  return ((one.rnext == "=" && two.rnext == "=") ||
+          (one.rnext == two.qname)) &&
+           one.pnext == two.pos &&
+           two.pnext == one.pos &&
+           are_opposite_strands(one, two);
 }
 
 static size_t
@@ -133,27 +134,12 @@ merge_mates(const size_t range,
     return -std::numeric_limits<int>::max();
   }
 
-  // assert(is_rc(one) == false && is_rc(two) == true);
-  if (!are_opposite_strands(one, two)) {
-    ostringstream fail;
-    fail << "Reads below are not in opposite strands\n";
-    fail << one << '\n';
-    fail << two << '\n';
-    throw runtime_error(fail.str());
-  }
 
   // ADS: not sure this can be consistent across mappers
   // GS: true after standardization
-  // assert(is_a_rich(one) != is_a_rich(two));
-  if (is_a_rich(one) == is_a_rich(two)) {
-    ostringstream fail;
-    fail << "Reads below do not have the same richness:\n";
-    fail << one << '\n';
-    fail << two << '\n';
-    throw runtime_error(fail.str());
-  }
 
   merged = one;
+  merged.rnext = "*";
 
   // arithmetic easier using base 0 so subtracting 1 from pos
   const int one_s = one.pos - 1;
@@ -262,7 +248,7 @@ bismark_get_a_rich(const string &richness_tag) {
 static void
 standardize_format(const string &input_format, sam_rec &aln) {
 
-  if (input_format == "abismal") return;
+  if (input_format == "abismal" || input_format == "walt") return;
 
   if (input_format == "bsmap") {
     auto z_tag_itr = find_if(begin(aln.tags), end(aln.tags),
