@@ -34,25 +34,18 @@ endif
 
 PROGS = lc_approx fast-liftover lift-filter \
 	merge-bsrate merge-methcounts \
-	duplicate-remover symmetric-cpgs \
-	clean-hairpins selectsites guessprotocol
+	symmetric-cpgs clean-hairpins selectsites guessprotocol \
+	mr-to-sam format_reads duplicate-remover
 
-ifdef HAVE_HTSLIB
-	PROGS += to-mr format_reads
-	ifdef DEBUG
-		PROGS += duplicate-remover_sam
-	endif
+ifdef MR_PROGRAMS
+	PROGS += duplicate-remover-mr to-mr
 endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas -lz
-
-ifdef HAVE_HTSLIB
-	LIBS += -lhts
-endif
+LIBS = -lgsl -lgslcblas -lz -lhts
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)

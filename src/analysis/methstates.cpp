@@ -33,6 +33,9 @@
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
 #include "MappedRead.hpp"
+#include "htslib_wrapper.hpp"
+#include "sam_record.hpp"
+#include "cigar_utils.hpp"
 
 using std::string;
 using std::vector;
@@ -63,10 +66,14 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 static bool
 convert_meth_states_pos(const string &chrom,
                         const unordered_map<size_t, size_t> &cpgs,
-                        MappedRead &mr,
+                        sam_rec &aln,
                         size_t &start_pos, string &seq) {
-  const size_t width = mr.r.get_width();
-  const size_t offset = mr.r.get_start();
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  const size_t offset = aln.pos - 1;
+
+  string the_seq(aln.seq);
+  apply_cigar(aln.cigar, the_seq);
+  assert(the_seq.size() == width);
 
   size_t cpg_count = 0;
   string states;
@@ -74,11 +81,11 @@ convert_meth_states_pos(const string &chrom,
   //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i < chrom.length() && is_cpg(chrom, offset + i)) {
-      if (mr.seq[i] == 'C') {
+      if (the_seq[i] == 'C') {
         states += 'C';
         ++cpg_count;
       }
-      else if (mr.seq[i] == 'T') {
+      else if (the_seq[i] == 'T') {
         states += 'T';
         ++cpg_count;
       }
@@ -100,13 +107,19 @@ convert_meth_states_pos(const string &chrom,
 static bool
 convert_meth_states_neg(const string &chrom,
                         const unordered_map<size_t, size_t> &cpgs,
-                        MappedRead &mr,
+                        sam_rec &aln,
                         size_t &start_pos, string &seq) {
-  const size_t width = mr.r.get_width();
-  const size_t offset = mr.r.get_start();
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  const size_t offset = aln.pos - 1;
 
-  // NEED TO TAKE REVERSE COMPLEMENT FOR THE NEGATIVE STRAND ONES!
-  revcomp_inplace(mr.seq);
+  // ADS: reverse complement twice because the cigar is applied
+  // starting relative to the reference.
+  string the_seq(aln.seq);
+  revcomp_inplace(the_seq);
+  apply_cigar(aln.cigar, the_seq);
+  //revcomp_inplace(the_seq);
+
+  assert(the_seq.size() == width);
 
   size_t cpg_count = 0;
   string states;
@@ -114,11 +127,11 @@ convert_meth_states_neg(const string &chrom,
   //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i > 0 && is_cpg(chrom, offset + i - 1)) {
-      if (mr.seq[i] == 'G') {
+      if (the_seq[i] == 'G') {
         states += 'C';
         ++cpg_count;
       }
-      else if (mr.seq[i] == 'A') {
+      else if (the_seq[i] == 'A') {
         states += 'T';
         ++cpg_count;
       }
@@ -154,7 +167,7 @@ main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], "convert read sequences "
-                           "in MappedRead format to methylation states "
+                           "in SAM format to methylation states "
                            "at CpGs covered by those reads",
                            "<mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file name", false, outfile);
@@ -190,7 +203,7 @@ main(int argc, const char **argv) {
       cerr << "CHROMS:\t" << chrom_files.size() << endl;
     }
 
-    std::ifstream in(mapped_reads_file.c_str());
+    SAMReader in(mapped_reads_file.c_str());
     if (!in)
       throw runtime_error("cannot open input file " + mapped_reads_file);
 
@@ -201,15 +214,15 @@ main(int argc, const char **argv) {
     unordered_map<size_t, size_t> cpgs;
     vector<string> chrom_names, chroms;
     string chrom_name;
-    MappedRead mr;
+    sam_rec aln;
     GenomicRegion chrom_region("chr0", 0, 0);
-    while (!in.eof() && in >> mr) {
+    while (in >> aln) {
       // get the correct chrom if it has changed
-      if (chroms.empty() || !mr.r.same_chrom(chrom_region)) {
+      if (chroms.empty() || aln.rname != chrom_region.get_chrom()) {
         const unordered_map<string, string>::const_iterator
-          fn(chrom_files.find(mr.r.get_chrom()));
+          fn(chrom_files.find(aln.rname));
         if (fn == chrom_files.end())
-          throw runtime_error("could not find chrom: " + mr.r.get_chrom());
+          throw runtime_error("could not find chrom: " + aln.rname);
         chrom_names.clear();
         chroms.clear();
         read_fasta_file(fn->second.c_str(), chrom_names, chroms);
@@ -221,9 +234,9 @@ main(int argc, const char **argv) {
       }
       size_t start_pos = std::numeric_limits<size_t>::max();
       string seq;
-      const bool has_cpgs = mr.r.pos_strand() ?
-        convert_meth_states_pos(chroms.front(), cpgs, mr, start_pos, seq) :
-        convert_meth_states_neg(chroms.front(), cpgs, mr, start_pos, seq);
+      const bool has_cpgs = check_flag(aln, samflags::read_rc) ?
+        convert_meth_states_pos(chroms.front(), cpgs, aln, start_pos, seq) :
+        convert_meth_states_neg(chroms.front(), cpgs, aln, start_pos, seq);
       if (has_cpgs)
         out << chrom_name << '\t'
             << start_pos << '\t'
