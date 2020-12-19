@@ -44,11 +44,7 @@ COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
 
-LIBS = -lgsl -lgslcblas -lz
-
-ifdef HAVE_HTSLIB
-LIBS += -lhts
-endif
+LIBS = -lgsl -lgslcblas -lz -lhts
 
 all: $(PROGS)
 
