@@ -18,14 +18,8 @@
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301 USA
 
-PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
-	methstates methentropy hmr_rep multimethstat
-
-ifdef HAVE_HTSLIB
-ifdef DEBUG
-PROGS += bsrate_sam methcounts_sam
-endif
-endif
+PROGS = pmd methcounts hmr hypermr levels roimethstat \
+       	methentropy hmr_rep multimethstat bsrate methcounts methstates
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11

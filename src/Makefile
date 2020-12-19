@@ -35,10 +35,9 @@ all_subdirs += $(SMITHLAB_CPP)
 lib_subdirs += $(SMITHLAB_CPP)
 
 all:
-	make -C $(SMITHLAB_CPP) all
+	make -C $(SMITHLAB_CPP) HAVE_HTSLIB=1 all 
 	@for i in $(app_subdirs); do \
 		make -C $${i} \
-			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT); \
 	done;
@@ -46,15 +45,14 @@ all:
 install:
 	@for i in $(app_subdirs); do \
 		make -C $${i} \
-			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) install; \
 	done;
 
 clean:
+	make -C $(SMITHLAB_CPP) clean
 	@for i in $(all_subdirs); do \
 		make -C $${i} \
-			HAVE_HTSLIB=$(HAVE_HTSLIB) \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
 			SRC_ROOT=$(METHPIPE_ROOT) clean; \
 	done;

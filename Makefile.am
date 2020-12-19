@@ -76,17 +76,13 @@ hypermr_SOURCES = src/analysis/hypermr.cpp
 ### UTILS SUBDIR
 bin_PROGRAMS += lc_approx fast-liftover lift-filter merge-bsrate \
 	merge-methcounts duplicate-remover symmetric-cpgs \
-	clean-hairpins selectsites guessprotocol
-
-if ENABLE_HTS
-bin_PROGRAMS += to-mr
-endif
+	clean-hairpins selectsites guessprotocol format_reads
 
 clean_hairpins_SOURCES = src/utils/clean-hairpins.cpp
 guessprotocol_SOURCES = src/utils/guessprotocol.cpp
 duplicate_remover_SOURCES = src/utils/duplicate-remover.cpp
 merge_bsrate_SOURCES = src/utils/merge-bsrate.cpp
-to_mr_SOURCES = src/utils/to-mr.cpp
+format_reads_SOURCES = src/utils/format_reads.cpp
 lc_approx_SOURCES = src/utils/lc_approx.cpp
 selectsites_SOURCES = src/utils/selectsites.cpp
 symmetric_cpgs_SOURCES = src/utils/symmetric-cpgs.cpp
