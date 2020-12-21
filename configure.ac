@@ -36,17 +36,28 @@ AX_SUBDIRS_CONFIGURE([src/smithlab_cpp], [--enable-hts])
 
 dnl check for HTSLib if requested
 hts_fail_msg="
-
 Failed to locate HTSLib on your system. Please use the LDFLAGS and
 CPPFLAGS variables to specify the directories where the HTSLib library
 and headers can be found.
 "
 
+gsl_fail_msg="
+Failed to locate the GNU Scientific Library (GSL) on your system. Please use
+the LDFLAGS and CPPFLAGS variables to specify the directories where the GSL
+library and headers can be found.
+"
+
+zlib_fail_msg="
+Failed to locate the ZLib on your system. Please use the LDFLAGS and CPPFLAGS
+variables to specify the directories where the ZLib library and headers can be
+found.
+"
+
 dnl check for required libraries
 AC_SEARCH_LIBS([hts_version], [hts], [], [AC_MSG_FAILURE([$hts_fail_msg])])
-AC_SEARCH_LIBS([zlibVersion], [z])
-AC_SEARCH_LIBS([cblas_dgemm], [gslcblas])
-AC_SEARCH_LIBS([gsl_blas_dgemm], [gsl])
+AC_SEARCH_LIBS([zlibVersion], [z], [], [AC_MSG_FAILURE([$zlib_fail_msg])])
+AC_SEARCH_LIBS([cblas_dgemm], [gslcblas], [], [AC_MSG_FAILURE([$gsl_fail_msg])])
+AC_SEARCH_LIBS([gsl_blas_dgemm], [gsl], [], [AC_MSG_FAILURE([$gsl_fail_msg])])
 
 AC_CONFIG_FILES([
   Makefile
