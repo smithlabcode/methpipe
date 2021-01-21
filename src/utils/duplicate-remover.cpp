@@ -304,9 +304,7 @@ int main(int argc, const char **argv) {
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
                            "duplicate reads from sorted mapped reads",
-                           "<in-file>", 1);
-   opt_parse.add_opt("output", 'o', "output file name",
-                     false, outfile);
+                           "<in-file> <out-file>", 2);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
     opt_parse.add_opt("hist", '\0', "histogram output file for library"
                       " complexity analysis", false, histfile);
@@ -333,13 +331,14 @@ int main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.empty()) {
+    if (leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl
            << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
 
     const string infile(leftover_args.front());
+    const string outfile(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
 
     srand(the_seed);
@@ -347,15 +346,6 @@ int main(int argc, const char **argv) {
     std::ofstream out(outfile);
     if (!out)
       throw runtime_error("failed to open output file: " + outfile);
-
-    std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
-    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-    if (VERBOSE)
-      cerr << "[input file: " << infile << "]" << endl
-           << "[output file: "
-           << (outfile.empty() ? "stdout" : outfile) << "]" << endl;
-
 
     duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
                       infile, statfile, histfile, out);
