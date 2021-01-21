@@ -345,7 +345,7 @@ int main(int argc, const char **argv) {
 
     std::ofstream of;
     if (outfile!="-") of.open(outfile.c_str());
-    std::ostream out(outfile!="-" ? cout.rdbuf() : of.rdbuf());
+    std::ostream out(outfile=="-" ? cout.rdbuf() : of.rdbuf());
     if (!out)
       throw runtime_error("failed to open output file: " + outfile);
 
