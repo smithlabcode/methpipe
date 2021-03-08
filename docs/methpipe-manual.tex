@@ -1374,7 +1374,7 @@ file and a sorted BED format file of genomic ``regions of interest''
 sorted by (chrom,end,start,strand) it can be sorted using the
 following command:
 \begin{verbatim}
-$ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
+$ LC_ALL=C sort -k 1,1 -k 2,2n -k 3,3n -k 6,6 \
          -o regions_ESC.meth.sorted regions_ESC.meth
 \end{verbatim}
 From there, \prog{roimethstat} can be run as follows:
