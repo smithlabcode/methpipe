@@ -17,6 +17,12 @@ build and install.
 
 ### Required libraries
 
+* A recent compiler: most users will be building and installing this
+  software with GCC. We require a compiler that fully supports C++11,
+  so we recommend using at least GCC 5.8. There are still many systems
+  that install a very old version of GCC by default, so if you have
+  problems with building this software, that might be the first thing
+  to check.
 * The GNU Scientific Library: this has always been required. It can be
   installed using `apt` on Linux, using `brew` on macOS, or from
   source available [here](http://www.gnu.org/software/gsl).
@@ -113,11 +119,12 @@ http://groups.google.com/group/methpipe
 Copyright and License Information
 =================================
 
-Copyright (C) 2018-2020
+Copyright (C) 2018-2021
 University of Southern California,
 Andrew D. Smith
 
-Current Authors: Andrew D. Smith, Ben Decato, Meng Zhou, Liz Ji, Jenny Qu, Egor Dolzhenko
+Current Authors: Andrew D. Smith, Ben Decato, Meng Zhou, Liz Ji,
+Terence Li, Guilherme de Sena Brandine
 
 This is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
