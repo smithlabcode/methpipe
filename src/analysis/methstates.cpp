@@ -225,7 +225,7 @@ main(int argc, const char **argv) {
           throw runtime_error("could not find chrom: " + aln.rname);
         chrom_names.clear();
         chroms.clear();
-        read_fasta_file(fn->second.c_str(), chrom_names, chroms);
+        read_fasta_file_short_names(fn->second.c_str(), chrom_names, chroms);
         if (VERBOSE)
           cerr << "PROCESSING: " << chrom_names.front() << endl;
         collect_cpgs(chroms.front(), cpgs);
