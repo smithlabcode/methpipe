@@ -393,7 +393,7 @@ main(int argc, const char **argv) {
 
       const size_t chrom_counter = chroms.size();
       vector<string> tmp_chroms, tmp_names;
-      read_fasta_file(*i, tmp_names, tmp_chroms);
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
 
       chroms.resize(chrom_counter + tmp_chroms.size());
       names.resize(chrom_counter + tmp_chroms.size());

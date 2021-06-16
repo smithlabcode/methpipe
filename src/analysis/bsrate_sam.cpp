@@ -334,7 +334,7 @@ main(int argc, const char **argv) {
     unordered_map<string, size_t> chrom_lookup;
     for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
       vector<string> tmp_chroms, tmp_names;
-      read_fasta_file(*i, tmp_names, tmp_chroms);
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
       for (size_t j = 0; j < tmp_chroms.size(); ++j) {
         chrom_names.push_back(tmp_names[j]);
         chrom_lookup[chrom_names.back()] = all_chroms.size();
