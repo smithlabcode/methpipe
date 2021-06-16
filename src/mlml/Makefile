@@ -39,8 +39,9 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas
+LDLIBS = -lgsl -lgslcblas
 
 all: $(PROGS)
 
@@ -53,10 +54,10 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 mlml: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
