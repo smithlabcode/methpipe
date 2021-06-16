@@ -149,7 +149,7 @@ static void
 get_cpg_positions(const string &chrom_file,
                   vector<size_t> &cpg_positions) {
   vector<string> chrom_names, chrom_seqs;
-  read_fasta_file(chrom_file.c_str(), chrom_names, chrom_seqs);
+  read_fasta_file_short_names(chrom_file, chrom_names, chrom_seqs);
   if (chrom_names.size() > 1)
     throw runtime_error("error: more than one seq "
                             "in chrom file" + chrom_file);
