@@ -18,8 +18,8 @@
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301 USA
 
-PROGS = pmd methcounts hmr hypermr levels roimethstat \
-       	methentropy hmr_rep multimethstat bsrate methcounts methstates
+PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
+	methstates methentropy hmr_rep multimethstat
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
@@ -43,8 +43,9 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas -lz -lhts
+LDLIBS = -lgsl -lgslcblas -lz -lhts
 
 all: $(PROGS)
 
@@ -75,10 +76,10 @@ methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
