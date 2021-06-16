@@ -38,14 +38,15 @@ PROGS = lc_approx fast-liftover lift-filter \
 	mr-to-sam format_reads duplicate-remover
 
 ifdef MR_PROGRAMS
-	PROGS += duplicate-remover-mr to-mr
+PROGS += duplicate-remover-mr to-mr
 endif
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas -lz -lhts
+LDLIBS = -lgsl -lgslcblas -lz -lhts
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -66,10 +67,10 @@ fast-liftover guessprotocol: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~
