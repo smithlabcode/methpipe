@@ -28,6 +28,7 @@ DEBUGFLAGS = -g
 
 INCLUDEDIRS =  $(SMITHLAB_CPP)/
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
@@ -36,7 +37,7 @@ CXXFLAGS += $(OPTFLAGS)
 endif
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 clean:
 	@-rm -f *.o *~
