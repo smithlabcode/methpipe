@@ -1315,18 +1315,12 @@ two of \underline{T}et-\underline{A}ssisted \underline{B}isulfite sequencing
 you can use \prog{mlml} \cite{qu2013mlml} to perform consistent and
 simultaneous estimation.
 
-The input file format could be the default \prog{methcounts} output format
-described in Section~\ref{sec:estim-methyl-freq}, or BED format file with 6
-columns as the example below:
-\begin{verbatim}
-chr1    3001345 3001346 CpG:9   0.777777777778  +
-\end{verbatim}
-Here the fourth column indicates that this site is a CpG site, and the
-number of reads covering this site is 9. The fifth column is the
-methylation level of the CpG site, ranging from 0 to 1. Note that all input
-files must be sorted. Assume you have three input files ready:
-\fn{meth\_BS-seq.meth}, \fn{meth\_oxBS-seq.meth} and \fn{meth\_Tab-seq.meth}.
-The following command will take all the inputs:
+The input file format is the \prog{methcounts} output format described
+in Section~\ref{sec:estim-methyl-freq}. Once datasets for each
+technology (TAB-seq, oxBS-seq and BS-Seq) have been processed and
+files \fn{meth\_BS-seq.meth}, \fn{meth\_oxBS-seq.meth} and
+\fn{meth\_Tab-seq.meth} are available, the following command will take
+all the inputs:
 \begin{verbatim}
 $ mlml -v -u meth_BS-seq.meth -m meth_oxBS-seq.meth \
          -h meth_Tab-seq.meth -o result.txt
