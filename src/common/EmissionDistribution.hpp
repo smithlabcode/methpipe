@@ -42,6 +42,7 @@ class EmissionDistribution
 {
   public:
     EmissionDistribution();
+    virtual ~EmissionDistribution();
     EmissionDistribution(const double a, const double b);
     EmissionDistribution(const std::string &str);
     virtual double operator()(const std::pair<double, double> &val) const = 0;
