@@ -33,7 +33,6 @@
 using std::vector;
 using std::transform;
 using std::divides;
-using std::bind2nd;
 using std::runtime_error;
 
 static double
@@ -80,7 +79,7 @@ KernelSmoothing(const double bandwidth,
       weights[j] = Epanechnikov_kernel(x_target[i], x_vals[x_start+j], bandwidth);
     const double weight_sum = accumulate(weights.begin(), weights.end(), 0.0);
     transform(weights.begin(), weights.end(), weights.begin(),
-              bind2nd(divides<double>(), weight_sum));
+              [weight_sum] (const double w) {return w / weight_sum;});
 
     // apply the weights
     y_target[i] = 0;
@@ -126,7 +125,7 @@ KernelSmoothing(const double bandwidth, const vector<double> &y_vals,
 
     const double weight_sum = accumulate(weights.begin(), weights.end(), 0.0);
     transform(weights.begin(), weights.end(), weights.begin(),
-              bind2nd(divides<double>(), weight_sum));
+              [weight_sum] (const double w) {return w / weight_sum;});
 
     // apply the weights
     y_target[i] = 0;
@@ -176,7 +175,7 @@ LocalLinearRegression(const double bandwidth,
       weights[j] = Epanechnikov_kernel(x_target[i], x_vals[x_start+j], bandwidth);
     const double weight_sum = accumulate(weights.begin(), weights.end(), 0.0);
     transform(weights.begin(), weights.end(), weights.begin(),
-              bind2nd(divides<double>(), weight_sum));
+              [weight_sum] (const double w) {return w / weight_sum;});
 
     double intercept = 0, slope = 0;
     double c00 = 0, c10 = 0, c11 = 0;

@@ -47,7 +47,6 @@ using std::cerr;
 using std::endl;
 using std::max;
 using std::min;
-using std::bind2nd;
 using std::divides;
 using std::numeric_limits;
 using std::pair;
@@ -1574,7 +1573,7 @@ EmpiricalDistro::estimate_params_ml(const vector<double> &vals) {
   // normalize the table for probs
   const double total = accumulate(hist.begin(), hist.end(), 0.0);
   transform(hist.begin(), hist.end(), hist.begin(),
-            bind2nd(divides<double>(), total));
+            [total] (const double h) { return h / total;});
 
   for (size_t i = 0; i < hist.size(); ++i)
     hist[i] = max(MIN_PROB, hist[i]);
@@ -1621,7 +1620,7 @@ EmpiricalDistro::estimate_params_ml(const vector<double> &vals,
   // normalize the table for probs
   const double total = accumulate(hist.begin(), hist.end(), 0.0);
   transform(hist.begin(), hist.end(), hist.begin(),
-            bind2nd(divides<double>(), total));
+            [total] (const double h) { return h / total;});
 
   for (size_t i = 0; i < hist.size(); ++i)
     hist[i] = max(MIN_PROB, hist[i]);
@@ -1771,7 +1770,7 @@ DiscEmpDistro::estimate_params_ml(const vector<double> &vals) {
   // normalize the table for probs
   const double total = accumulate(hist.begin(), hist.end(), 0.0);
   transform(hist.begin(), hist.end(), hist.begin(),
-            bind2nd(divides<double>(), total));
+            [total] (const double h) { return h / total;});
 
   for (size_t i = 0; i < hist.size(); ++i)
     hist[i] = max(MIN_PROB, hist[i]);
@@ -1820,7 +1819,7 @@ DiscEmpDistro::estimate_params_ml(const vector<double> &vals,
   // normalize the table for probs
   const double total = accumulate(hist.begin(), hist.end(), 0.0);
   transform(hist.begin(), hist.end(), hist.begin(),
-            bind2nd(divides<double>(), total));
+            [total] (const double h) { return h / total;});
 
   for (size_t i = 0; i < hist.size(); ++i)
     hist[i] = max(MIN_PROB, hist[i]);
