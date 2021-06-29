@@ -51,6 +51,7 @@ EmissionDistribution::EmissionDistribution(const string &str) {
     lnbeta_helper = gsl_sf_lnbeta(alpha, beta);
 }
 
+EmissionDistribution::~EmissionDistribution() {}
 
 string
 EmissionDistribution::tostring() const {
