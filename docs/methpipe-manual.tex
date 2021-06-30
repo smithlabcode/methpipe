@@ -1242,6 +1242,11 @@ component of Methpipe:
 $ allelicmeth -c hg19 -o Human_ESC.allelic Human_ESC.epiread
 \end{verbatim}
 
+The score reported in the fifth column is the $p$-value of a Fisher's
+exact test using the frequencies of CC, CT, TC and TT in a $2 \times
+2$ matrix. In other words, we test the hypothesis that the observed
+allele-specific counts (um and mu, or CT and TC) arise by chance. 
+
 \subsubsection{Allelically methylated regions (AMRs)}
 
 The method described here was introduced in \cite{fang2012genomic}.
