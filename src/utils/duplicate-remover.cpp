@@ -298,6 +298,7 @@ int main(int argc, const char **argv) {
     bool DISABLE_SORT_TEST = false;
 
     size_t the_seed = 408;
+    string outfile;
     string statfile;
     string histfile;
 
@@ -331,21 +332,22 @@ int main(int argc, const char **argv) {
       cerr << opt_parse.option_missing_message() << endl;
       return EXIT_SUCCESS;
     }
-    if (leftover_args.size() != 2) {
+    if (leftover_args.size() != 1 && leftover_args.size() != 2) {
       cerr << opt_parse.help_message() << endl
            << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
 
     const string infile(leftover_args.front());
-    const string outfile(leftover_args.back());
+    if (leftover_args.size() == 2)
+      outfile = leftover_args.back();
     /****************** END COMMAND LINE OPTIONS *****************/
 
     srand(the_seed);
 
     std::ofstream of;
-    if (outfile!="-") of.open(outfile.c_str());
-    std::ostream out(outfile=="-" ? cout.rdbuf() : of.rdbuf());
+    if (!outfile.empty()) of.open(outfile.c_str());
+    std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
     if (!out)
       throw runtime_error("failed to open output file: " + outfile);
 
