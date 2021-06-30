@@ -305,7 +305,7 @@ int main(int argc, const char **argv) {
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "program to remove "
                            "duplicate reads from sorted mapped reads",
-                           "<in-file> <out-file> (use - for stdout)", 2);
+                           "<in-file> [out-file]", 2);
     opt_parse.add_opt("stats", 'S', "statistics output file", false, statfile);
     opt_parse.add_opt("hist", '\0', "histogram output file for library"
                       " complexity analysis", false, histfile);
