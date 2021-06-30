@@ -14,6 +14,7 @@ dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl General Public License for more details.
 
+AC_CONFIG_SUBDIRS([src/smithlab_cpp])
 AC_INIT([methpipe], [4.1.2], [andrewds@usc.edu],
         [methpipe], [https://github.com/smithlabcode/methpipe])
 dnl the config.h is not currently #included in the source, and only
@@ -24,6 +25,7 @@ AM_INIT_AUTOMAKE([subdir-objects foreign])
 dnl Less output to the terminal. Use "--disable-silent-rules" when
 dnl running ./configure to reverse this.
 AM_SILENT_RULES([yes])
+
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_LANG(C++)
