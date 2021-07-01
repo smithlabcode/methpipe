@@ -39,8 +39,9 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas -lz
+LDLIBS = -lgsl -lgslcblas -lz
 
 all: $(PROGS)
 
@@ -57,10 +58,10 @@ amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
 allelicmeth:   $(addprefix $(COMMON_DIR)/, Epiread.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

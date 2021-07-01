@@ -28,6 +28,7 @@
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -38,14 +39,24 @@
 #include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
 
+#include "cigar_utils.hpp"
+#include "htslib_wrapper.hpp"
+#include "sam_record.hpp"
+
 using std::string;
 using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::unordered_set;
 using std::unordered_map;
 using std::runtime_error;
+using std::end;
 
+inline bool
+is_rc(const sam_rec &aln) {
+  return check_flag(aln, samflags::read_rc);
+}
 
 
 /* The three functions below here should probably be moved into
@@ -151,35 +162,46 @@ get_methylation_context_tag_from_genome(const string &s, const size_t pos) {
 
 template <class count_type>
 static void
-count_states_pos(const MappedRead &r,
+count_states_pos(const sam_rec &aln,
                  vector<CountSet<count_type> > &counts) {
+
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  size_t position = aln.pos - 1;
+  string seq(aln.seq);
+  apply_cigar(aln.cigar, seq);
+  assert(seq.size() == width);
 
   const size_t chrom_len = counts.size(); // the counts should have
                                           // one entry per position
-  const size_t width = r.r.get_width();
-
-  size_t position = r.r.get_start();
-  if (chrom_len < r.r.get_start())
-    throw runtime_error("read mapped past chrom end: " + r.tostring());
+  if (chrom_len < position) {
+    //throw runtime_error("read mapped past chrom end: " + aln.qname);
+    position = chrom_len;
+  }
 
   for (size_t i = 0; i < width && position < chrom_len; ++i, ++position)
-    counts[position].add_count_pos(r.seq[i]);
+    counts[position].add_count_pos(seq[i]);
 }
 
 
 template <class count_type>
 static void
-count_states_neg(const MappedRead &r,
+count_states_neg(const sam_rec &aln,
                  vector<CountSet<count_type> > &counts) {
+
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  size_t position = (aln.pos - 1) + width;
+  string seq(aln.seq);
+  revcomp_inplace(seq);
+  apply_cigar(aln.cigar, seq);
+  revcomp_inplace(seq);
+  assert(seq.size() == width);
 
   const size_t chrom_len = counts.size(); // the counts should have
                                           // one entry per position
-  const size_t width = r.r.get_width();
-
-  size_t position = r.r.get_start() + width;
-  if (chrom_len < r.r.get_start())
-    throw runtime_error("read mapped past chrom end: " + r.tostring());
-
+  if (chrom_len < position) {
+    //throw runtime_error("read mapped past chrom end: " + aln.qname);
+    position = chrom_len;
+  }
   // skip past any part of read not overlapping chrom; condition above
   // ensures value for i remains valid as it is incremented in this
   // first loop below
@@ -187,7 +209,7 @@ count_states_neg(const MappedRead &r,
   for (; position > chrom_len; ++i, --position);
 
   for (; i < width && position > 0; ++i)
-    counts[--position].add_count_neg(r.seq[i]);
+    counts[--position].add_count_neg(seq[i]);
 }
 
 
@@ -255,7 +277,7 @@ get_chrom_id(const string &chrom_name,
 
 template <class T>
 static void
-process_reads(const bool VERBOSE, igzfstream &in, T &out,
+process_reads(const bool VERBOSE, SAMReader &in, T &out,
               const unordered_map<string, size_t> &chrom_lookup,
               const vector<size_t> &chrom_sizes,
               const vector<string> &chrom_order,
@@ -265,79 +287,52 @@ process_reads(const bool VERBOSE, igzfstream &in, T &out,
   size_t chrom_id = 0;
   size_t chrom_size = 0;
   GenomicRegion chrom_region; // holds chrom name for fast comparisons
-  MappedRead mr;
+
+  sam_rec aln;
 
   // this is where all the counts are accumulated
   vector<CountSet<unsigned short> > counts;
 
-  size_t j = 0; // current chromosome
-
-  while (in >> mr) {
+  unordered_set<string> chroms_seen;
+  while (in >> aln) {
 
     // if chrom changes, output previous results, get new one
-    if (counts.empty() || !mr.r.same_chrom(chrom_region)) {
-
+    if (counts.empty() || aln.rname != chrom_region.get_chrom()) {
       // make sure all reads from same chrom are contiguous in the file
-      if (mr.r.get_chrom() < chrom_region.get_chrom())
-        throw runtime_error("chroms out of order in mapped reads file");
+      if (aln.rname != chrom_region.get_chrom()) {
+        if (chrom_lookup.find(aln.rname) == end(chrom_lookup))
+          throw runtime_error("chromosome in SAM file not found in reference:" +
+                              aln.rname);
 
-      if (!counts.empty()) {// should be true after first iteration
-        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-        ++j;
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("reads in SAM file not sorted by position");
+        chroms_seen.insert(aln.rname);
       }
-      while (j < chrom_order.size() && chrom_order[j] != mr.r.get_chrom()) {
-        // need to check if we are skipping chrom because it actually
-        // does not exist in the reference
-        if (chrom_lookup.find(mr.r.get_chrom()) == end(chrom_lookup))
-          throw runtime_error("chrom in mr file does not exist in reference:" +
-                              mr.r.get_chrom());
-
-        if (VERBOSE)
-          cerr << "NO_READS:\t" << chrom_order[j] << endl;
-        chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-        chrom_size = chrom_sizes[chrom_id];
-        chrom_region.set_chrom(chrom_order[j]);
-        counts.clear();
-        counts.resize(chrom_size);
-        write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-        ++j;
-      }
-
-      if (j == chrom_order.size() || chrom_order[j] != mr.r.get_chrom())
-        throw runtime_error("problem with chrom order in mapped reads");
+      if (!counts.empty()) // should be true after first iteration
+        write_output(out, chrom_region.get_chrom(),
+                     chroms[chrom_id], counts, CPG_ONLY);
 
       // move to the current chromosome
-      chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
+      chrom_id = get_chrom_id(aln.rname, chrom_lookup);
       chrom_size = chrom_sizes[chrom_id];
-      chrom_region.set_chrom(chrom_order[j]);
+      chrom_region.set_chrom(aln.rname);
       // reset the counts
       counts.clear();
       counts.resize(chrom_size);
 
       if (VERBOSE)
-        cerr << "PROCESSING:\t" << chrom_order[j] << endl;
+        cerr << "PROCESSING:\t" << aln.rname << endl;
     }
 
     // do the work for this mapped read, depending on strand
-    if (mr.r.pos_strand())
-      count_states_pos(mr, counts);
-    else count_states_neg(mr, counts);
-
+    if (is_rc(aln))
+      count_states_neg(aln, counts);
+    else
+      count_states_pos(aln, counts);
   }
   if (!counts.empty()) {// should be true after first iteration
-    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-    ++j;
-  }
-  while (j < chrom_order.size()) {
-    if (VERBOSE)
-      cerr << "NO_READS:\t" << chrom_order[j] << endl;
-    chrom_id = get_chrom_id(chrom_order[j], chrom_lookup);
-    chrom_size = chrom_sizes[chrom_id];
-    chrom_region.set_chrom(chrom_order[j]);
-    counts.clear();
-    counts.resize(chrom_size);
-    write_output(out, chrom_order[j], chroms[chrom_id], counts, CPG_ONLY);
-    ++j;
+    write_output(out, chrom_region.get_chrom(),
+                chroms[chrom_id], counts, CPG_ONLY);
   }
 }
 
@@ -401,7 +396,7 @@ main(int argc, const char **argv) {
 
       const size_t chrom_counter = chroms.size();
       vector<string> tmp_chroms, tmp_names;
-      read_fasta_file(*i, tmp_names, tmp_chroms);
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
 
       chroms.resize(chrom_counter + tmp_chroms.size());
       names.resize(chrom_counter + tmp_chroms.size());
@@ -421,7 +416,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << chroms.size() << endl;
 
-    igzfstream in(mapped_reads_file);
+    SAMReader in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open file: " + mapped_reads_file);
 

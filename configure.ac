@@ -14,7 +14,8 @@ dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl General Public License for more details.
 
-AC_INIT([methpipe], [4.1.1], [andrewds@usc.edu],
+AC_CONFIG_SUBDIRS([src/smithlab_cpp])
+AC_INIT([methpipe], [4.1.2], [andrewds@usc.edu],
         [methpipe], [https://github.com/smithlabcode/methpipe])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
@@ -25,6 +26,7 @@ dnl Less output to the terminal. Use "--disable-silent-rules" when
 dnl running ./configure to reverse this.
 AM_SILENT_RULES([yes])
 
+
 AC_CONFIG_MACRO_DIR([m4])
 AC_LANG(C++)
 AC_PROG_CXX
@@ -32,28 +34,32 @@ AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
 AC_PROG_RANLIB
 
 dnl recursively configure smithlab_cpp
-AC_CONFIG_SUBDIRS([src/smithlab_cpp])
+AX_SUBDIRS_CONFIGURE([src/smithlab_cpp], [--enable-hts])
 
 dnl check for HTSLib if requested
 hts_fail_msg="
-
 Failed to locate HTSLib on your system. Please use the LDFLAGS and
 CPPFLAGS variables to specify the directories where the HTSLib library
 and headers can be found.
 "
-AC_ARG_ENABLE([hts],
-  [AS_HELP_STRING([--enable-hts], [Enable HTSLib @<:@yes@:>@])],
-  [enable_hts=yes], [enable_hts=no])
-AS_IF([test "x$enable_hts" = "xyes"],
-  [AC_CHECK_LIB([hts], [hts_version], [],
-  [AC_MSG_FAILURE([$hts_fail_msg])])]
-)
-AM_CONDITIONAL([ENABLE_HTS], [test "x$enable_hts" = "xyes"])
+
+gsl_fail_msg="
+Failed to locate the GNU Scientific Library (GSL) on your system. Please use
+the LDFLAGS and CPPFLAGS variables to specify the directories where the GSL
+library and headers can be found.
+"
+
+zlib_fail_msg="
+Failed to locate the ZLib on your system. Please use the LDFLAGS and CPPFLAGS
+variables to specify the directories where the ZLib library and headers can be
+found.
+"
 
 dnl check for required libraries
-AC_SEARCH_LIBS([zlibVersion], [z])
-AC_SEARCH_LIBS([cblas_dgemm], [gslcblas])
-AC_SEARCH_LIBS([gsl_blas_dgemm], [gsl])
+AC_SEARCH_LIBS([hts_version], [hts], [], [AC_MSG_FAILURE([$hts_fail_msg])])
+AC_SEARCH_LIBS([zlibVersion], [z], [], [AC_MSG_FAILURE([$zlib_fail_msg])])
+AC_SEARCH_LIBS([cblas_dgemm], [gslcblas], [], [AC_MSG_FAILURE([$gsl_fail_msg])])
+AC_SEARCH_LIBS([gsl_blas_dgemm], [gsl], [], [AC_MSG_FAILURE([$gsl_fail_msg])])
 
 AC_CONFIG_FILES([
   Makefile

@@ -66,8 +66,13 @@ static void
 parse_site(const string &line, string &chrom, size_t &pos,
            string &strand, string &seq,
            double &meth, size_t &coverage, const bool is_array_data) {
+  /* GS: this is faster but seems to be generating issues when
+   * compiled with clang
   std::istringstream iss;
   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  */
+
+  std::istringstream iss(line);
   if (!(iss >> chrom >> pos >> strand >> seq >> meth))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
   if (is_array_data)
@@ -113,8 +118,11 @@ methpipe_read_site(T &in, string &chrom, size_t &pos,
                    size_t &coverage, bool &is_array_data) {
   string line;
   methpipe_skip_header(in, line);
+
+  /*
   std::istringstream iss;
-  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length()); */
+  std::istringstream iss(line);
   iss >> chrom >> pos >> strand >> seq >> meth;
   if (!(iss >> chrom >> pos >> strand >> seq >> meth))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");

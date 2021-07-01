@@ -126,6 +126,19 @@ are_mates(const sam_rec &one, const sam_rec &two) {
            are_opposite_strands(one, two);
 }
 
+size_t
+get_edit_distance(const sam_rec &aln) {
+  auto the_nm_tag = find_if(begin(aln.tags), end(aln.tags),
+                            [](const string &t) {
+                              return t.compare (0, 3, "NM:") == 0;
+                            });
+
+  // GS: NM:i:xxxx, get xxxx
+  assert(the_nm_tag->size() > 5);
+  return stoi(the_nm_tag->substr(5));
+}
+
+
 static size_t
 merge_mates(const size_t range,
             const sam_rec &one, const sam_rec &two, sam_rec &merged) {

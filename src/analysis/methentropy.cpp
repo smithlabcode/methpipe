@@ -56,7 +56,7 @@ build_coordinate_converter(const unordered_map<string, string> &chrom_files,
     throw runtime_error("chrom file not found for chrom: " + chrom);
 
   vector<string> dummy, chrom_seq;
-  read_fasta_file(file_name->second.c_str(), dummy, chrom_seq);
+  read_fasta_file_short_names(file_name->second.c_str(), dummy, chrom_seq);
   if (chrom_seq.size() > 1)
     throw runtime_error("multiple chroms/file: " + file_name->second);
 

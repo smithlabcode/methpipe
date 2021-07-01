@@ -19,7 +19,6 @@ $(error SMITHLAB_CPP variable undefined)
 endif
 
 PROGS = radmeth methdiff dmr
-OBJS= regression.o combine_pvals.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
@@ -35,8 +34,9 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS =  $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas -lz
+LDLIBS = -lgsl -lgslcblas -lz
 
 all: $(PROGS)
 
@@ -48,14 +48,13 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
 methdiff: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-radmeth: radmeth.cpp $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+radmeth: regression.o combine_pvals.o
 
-%.o : %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+%.o: %.cpp %.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

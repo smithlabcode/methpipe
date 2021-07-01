@@ -7,13 +7,18 @@ methylation features, such as hypo-methylated regions (HMR), partially
 methylated domains (PMD), hyper-methylated regions (HyperMR), and
 allele-specific methylated regions (AMR).
 
-Release 4.1.1
+Release 4.1.2
 ===================
 
-This release should be more stable than 4.0.0 and should be easier to
-build and install.
+This is a pre-release in preparation for the transition to using SAM files by
+default. This pre-release no longer supports `mr` files, which means that the
+`to-mr` program has been eliminated and replaced by a program called
+`format_reads`, which merges mates in paired-end SAM files, also converting
+them to a standardized SAM format depending on the mapper it originates from.
+Additionally, the `htslib` library is now required, and instructions to install
+it in different environments are discussed bellow
 
-## Installing release 4.1.1
+## Installing release 4.1.2
 
 ### Required libraries
 
@@ -30,10 +35,9 @@ build and install.
   installed on your system. If not, it can be installed using `apt`
   on Linux through the package `zlib1g-dev`. On macOS, Zlib can be
   installed with `brew`.
-* Optional: The HTSlib library, which can be installed through `brew`
+* The HTSlib library, which can be installed through `brew`
   on macOS, through `apt` on Linux, or from source downloadable
-  [here](https://github.com/samtools/htslib). This is only required
-  for using the `to-mr` tool.
+  [here](https://github.com/samtools/htslib).
 
 ### Configuration
 
@@ -56,16 +60,11 @@ not have admin privileges, specify a prefix directory:
 ```
 $ ../configure --prefix=/some/reasonable/place
 ```
-Finally, if you want to build with HTSlib support (for the `to-mr`
-program) then you need to specify the following:
-```
-$ ../configure --enable-hts
-```
-And if you installed HTSlib yourself in some non-standard directory,
+If you installed HTSlib yourself in some non-standard directory,
 you must specify the location like this:
 ```
-$ ../configure --enable-hts CPPFLAGS='-I /path/to/htslib/headers' \
-    LDFLAGS='-L/path/to/htslib/lib'
+$ ../configure CPPFLAGS='-I /path/to/htslib/headers' \
+               LDFLAGS='-L/path/to/htslib/lib'
 ```
 
 ### Building and installing the tools
@@ -84,15 +83,9 @@ We strongly recommend using methpipe through the latest stable release
 under the releases section on GitHub. However, developers who wish to
 work on the latest commits, which are potentially unstable, can
 compile the cloned repository using the `Makefile` available in the
-repository. To compile without programs that require HTSlib, simply
-run:
+repository. If HTSLib is available system-wide, compile by running
 ```
 make
-```
-If HTSlib is available and users which to compile all programs,
-including `to-mr`, run:
-```
-make HAVE_HTSLIB=1
 ```
 
 Usage

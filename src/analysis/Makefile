@@ -21,12 +21,6 @@
 PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
 	methstates methentropy hmr_rep multimethstat
 
-ifdef HAVE_HTSLIB
-ifdef DEBUG
-PROGS += bsrate_sam methcounts_sam
-endif
-endif
-
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
 OPTFLAGS = -O3
@@ -49,12 +43,9 @@ endif
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
 INCLUDEARGS = $(addprefix -I,$(INCLUDEDIRS))
+override CPPFLAGS += $(INCLUDEARGS)
 
-LIBS = -lgsl -lgslcblas -lz
-
-ifdef HAVE_HTSLIB
-LIBS += -lhts
-endif
+LDLIBS = -lgsl -lgslcblas -lz -lhts
 
 all: $(PROGS)
 
@@ -85,10 +76,10 @@ methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(INCLUDEARGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDEARGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

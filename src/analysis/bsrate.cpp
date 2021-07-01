@@ -1,7 +1,7 @@
 /*    bsrate: a program for determining the rate of bisulfite
  *    conversion in a bisulfite sequencing experiment
  *
- *    Copyright (C) 2014-2017 University of Southern California and
+ *    Copyright (C) 2014-2020 University of Southern California and
  *                            Andrew D. Smith
  *
  *    Authors: Andrew D. Smith
@@ -25,9 +25,11 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "GenomicRegion.hpp"
-#include "MappedRead.hpp"
 #include "zlib_wrapper.hpp"
 #include "bsutils.hpp"
+#include "cigar_utils.hpp"
+#include "htslib_wrapper.hpp"
+#include "sam_record.hpp"
 
 #include <string>
 #include <vector>
@@ -36,6 +38,7 @@
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+#include <unordered_set>
 
 using std::string;
 using std::vector;
@@ -46,30 +49,47 @@ using std::max;
 using std::accumulate;
 using std::to_string;
 using std::unordered_map;
+using std::unordered_set;
 using std::runtime_error;
 
+inline bool
+is_rc(const sam_rec &aln) {
+  return check_flag(aln, samflags::read_rc);
+}
+
 static void
-revcomp(MappedRead &mr) {
-  revcomp_inplace(mr.seq);
-  if (mr.r.pos_strand())
-    mr.r.set_strand('-');
-  else mr.r.set_strand('+');
+flip_strand(sam_rec &aln) {
+  if (check_flag(aln, samflags::read_rc))
+    unset_flag(aln, samflags::read_rc);
+  else
+    set_flag(aln, samflags::read_rc);
+}
+
+static void
+revcomp(sam_rec &aln) {
+  flip_strand(aln); // set strand to opposite of current value
+  revcomp_inplace(aln.seq); // reverse complement sequence
+  std::reverse(begin(aln.qual), end(aln.qual)); // and quality scores
 }
 
 
 static void
 count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
-                 const MappedRead &r,
+                 const sam_rec &aln,
                  vector<size_t> &unconv, vector<size_t> &conv,
                  vector<size_t> &err, size_t &hanging) {
 
-  const size_t width = r.r.get_width();
-  const size_t offset = r.r.get_start();
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  const size_t offset = aln.pos - 1;
+
+  string seq(aln.seq);
+  apply_cigar(aln.cigar, seq);
+
+  assert(seq.size() == width);
 
   size_t position = offset;
   if (chrom.length() < offset) // at least one bp of read on chr
     throw runtime_error("read mapped off chrom:\n" +
-                        r.tostring() + "\n" +
                         to_string(chrom.length()));
   for (size_t i = 0; i < width; ++i, ++position) {
     if (position >= chrom.length()) // some overhang
@@ -80,9 +100,9 @@ count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
          position == chrom.length() ||
          INCLUDE_CPGS)) {
 
-      if (is_cytosine(r.seq[i])) ++unconv[i];
-      else if (is_thymine(r.seq[i])) ++conv[i];
-      else if (toupper(r.seq[i]) != 'N')
+      if (is_cytosine(seq[i])) ++unconv[i];
+      else if (is_thymine(seq[i])) ++conv[i];
+      else if (toupper(seq[i]) != 'N')
         ++err[i];
     }
   }
@@ -91,12 +111,21 @@ count_states_pos(const bool INCLUDE_CPGS, const string &chrom,
 
 static void
 count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
-                 const MappedRead &r,
+                 const sam_rec &aln,
                  vector<size_t> &unconv, vector<size_t> &conv,
                  vector<size_t> &err, size_t &hanging) {
 
-  const size_t width = r.r.get_width();
-  const size_t offset = r.r.get_start();
+  const size_t width = cigar_rseq_ops(aln.cigar);
+  const size_t offset = aln.pos - 1;
+
+  // ADS: reverse complement twice because the cigar is applied
+  // starting relative to the reference.
+  string seq(aln.seq);
+  revcomp_inplace(seq);
+  apply_cigar(aln.cigar, seq);
+  revcomp_inplace(seq);
+
+  assert(seq.size() == width);
 
   size_t position = offset + width - 1;
   assert(offset < chrom.length()); // at least one bp of read on chr
@@ -108,9 +137,9 @@ count_states_neg(const bool INCLUDE_CPGS, const string &chrom,
          !is_cytosine(chrom[position-1]) ||
          INCLUDE_CPGS)) {
 
-      if (is_cytosine(r.seq[i])) ++unconv[i];
-      else if (is_thymine(r.seq[i])) ++conv[i];
-      else if (toupper(r.seq[i]) != 'N')
+      if (is_cytosine(seq[i])) ++unconv[i];
+      else if (is_thymine(seq[i])) ++conv[i];
+      else if (toupper(seq[i]) != 'N')
         ++err[i];
     }
   }
@@ -208,21 +237,21 @@ write_output(const string &outfile,
 
 typedef unordered_map<string, string> chrom_file_map;
 static void
-get_chrom(const MappedRead &mr,
+get_chrom(const sam_rec &aln,
           const vector<string> &all_chroms,
           const unordered_map<string, size_t> &chrom_lookup,
           GenomicRegion &chrom_region, string &chrom) {
 
   const unordered_map<string, size_t>::const_iterator
-    the_chrom(chrom_lookup.find(mr.r.get_chrom()));
+    the_chrom(chrom_lookup.find(aln.rname));
   if (the_chrom == chrom_lookup.end())
-    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + aln.rname);
 
   chrom = all_chroms[the_chrom->second];
   if (chrom.empty())
-    throw runtime_error("could not find chrom: " + mr.r.get_chrom());
+    throw runtime_error("could not find chrom: " + aln.rname);
 
-  chrom_region.set_chrom(mr.r.get_chrom());
+  chrom_region.set_chrom(aln.rname);
 }
 
 
@@ -236,7 +265,7 @@ main(int argc, const char **argv) {
 
     bool VERBOSE = false;
     bool INCLUDE_CPGS = false;
-    bool A_RICH_READS = false;
+    bool reads_are_a_rich = false;
 
     string chrom_file;
     string outfile;
@@ -264,7 +293,8 @@ main(int argc, const char **argv) {
                       false , sequence_to_use);
     opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)",
                       false , max_mismatches);
-    opt_parse.add_opt("a-rich", 'A', "reads are A-rich", false, A_RICH_READS);
+    opt_parse.add_opt("a-rich", 'A', "reads are A-rich",
+                      false, reads_are_a_rich);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -304,7 +334,7 @@ main(int argc, const char **argv) {
     unordered_map<string, size_t> chrom_lookup;
     for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
       vector<string> tmp_chroms, tmp_names;
-      read_fasta_file(*i, tmp_names, tmp_chroms);
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
       for (size_t j = 0; j < tmp_chroms.size(); ++j) {
         chrom_names.push_back(tmp_names[j]);
         chrom_lookup[chrom_names.back()] = all_chroms.size();
@@ -328,7 +358,6 @@ main(int argc, const char **argv) {
     vector<size_t> err_neg(output_size, 0ul);
 
     string chrom;
-    MappedRead mr;
     GenomicRegion chrom_region; // exists only for faster comparison
     size_t hanging = 0;
 
@@ -337,25 +366,38 @@ main(int argc, const char **argv) {
 
     bool use_this_chrom = sequence_to_use.empty();
 
-    while (in >> mr) {
-      if (A_RICH_READS)
-        revcomp(mr);
+    SAMReader sam_reader(mapped_reads_file);
+    sam_rec aln;
+
+    unordered_set<string> chroms_seen;
+    while (sam_reader >> aln) {
+
+      if (reads_are_a_rich)
+        revcomp(aln);
 
       // get the correct chrom if it has changed
-      if (chrom.empty() || !mr.r.same_chrom(chrom_region)) {
-        get_chrom(mr, all_chroms, chrom_lookup, chrom_region, chrom);
+      if (chrom.empty() || aln.rname != chrom_region.get_chrom()) {
+        // make sure all reads from same chrom are contiguous in the file
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("chroms out of order in mapped reads file");
+
+        if (VERBOSE)
+          cerr << "processing chromosome " << aln.rname << "\n";
+
+        chroms_seen.insert(aln.rname);
+        get_chrom(aln, all_chroms, chrom_lookup, chrom_region, chrom);
         use_this_chrom =
-          (sequence_to_use.empty() || mr.r.same_chrom(seq_to_use_check));
+          sequence_to_use.empty() || aln.rname == seq_to_use_check.get_chrom();
       }
 
       if (use_this_chrom) {
         // do the work for this mapped read
-        if (mr.r.pos_strand())
-          count_states_pos(INCLUDE_CPGS, chrom, mr,
-                           unconv_count_pos, conv_count_pos, err_pos, hanging);
-        else
-          count_states_neg(INCLUDE_CPGS, chrom, mr,
+        if (is_rc(aln))
+          count_states_neg(INCLUDE_CPGS, chrom, aln,
                            unconv_count_neg, conv_count_neg, err_neg, hanging);
+        else
+          count_states_pos(INCLUDE_CPGS, chrom, aln,
+                           unconv_count_pos, conv_count_pos, err_pos, hanging);
       }
     }
     write_output(outfile, unconv_count_pos,
