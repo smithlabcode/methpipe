@@ -7,18 +7,23 @@ methylation features, such as hypo-methylated regions (HMR), partially
 methylated domains (PMD), hyper-methylated regions (HyperMR), and
 allele-specific methylated regions (AMR).
 
-Release 4.1.2
+Release 5.0.0
 ===================
 
-This is a pre-release in preparation for the transition to using SAM files by
-default. This pre-release no longer supports `mr` files, which means that the
+This new release no longer supports `mr` files, which means that the
 `to-mr` program has been eliminated and replaced by a program called
-`format_reads`, which merges mates in paired-end SAM files, also converting
-them to a standardized SAM format depending on the mapper it originates from.
-Additionally, the `htslib` library is now required, and instructions to install
-it in different environments are discussed bellow
+`format_reads`, which merges mates in paired-end SAM files, also
+converting them to a standardized SAM format depending on the mapper
+it originates from.  Additionally, the `htslib` library is now
+required, and instructions to install it in different environments are
+discussed below.
 
-## Installing release 4.1.2
+If working with MR files is necessary for your analysis, we refer
+users to methpipe version [4.1.1](https://github.com/smithlabcode/methpipe/releases/tag/v4.1.1),
+which is the last release that contains programs that take MR as
+input.
+
+## Installing release 5.0.0
 
 ### Required libraries
 
