@@ -51,8 +51,11 @@ read_methdiff_site(T &in, std::string &chrom,
   string line;
   getline(in, line);
   if (in) {
+    /* GS: this is faster but seems to be generating issues when
+     * compiled with clang
     std::istringstream iss;
-    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());*/
+    std::istringstream iss(line);
     if (!(iss >> chrom >> pos >> strand >> seq >>
           diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b))
       throw runtime_error("bad methdiff line: " + line);

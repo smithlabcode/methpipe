@@ -30,8 +30,11 @@ using std::string;
 using std::runtime_error;
 
 MSite::MSite(const string &line) {
+  /* GS: this is faster but seems to be genenerating issues when
+   * compiled with clang
   std::istringstream iss;
-  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
+  iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length()); */
+  std::istringstream iss(line);
   string strand_tmp;
   if (!(iss >> chrom >> pos >> strand_tmp >> context >> meth >> n_reads))
     throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
