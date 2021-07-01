@@ -35,11 +35,7 @@ endif
 PROGS = lc_approx fast-liftover lift-filter \
 	merge-bsrate merge-methcounts \
 	symmetric-cpgs clean-hairpins selectsites guessprotocol \
-	mr-to-sam format_reads duplicate-remover
-
-ifdef MR_PROGRAMS
-PROGS += duplicate-remover-mr to-mr
-endif
+	format_reads duplicate-remover
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
