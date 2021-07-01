@@ -15,7 +15,7 @@ dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl General Public License for more details.
 
 AC_CONFIG_SUBDIRS([src/smithlab_cpp])
-AC_INIT([methpipe], [4.1.2], [andrewds@usc.edu],
+AC_INIT([methpipe], [5.0.0], [andrewds@usc.edu],
         [methpipe], [https://github.com/smithlabcode/methpipe])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
