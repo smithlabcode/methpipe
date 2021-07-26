@@ -1412,11 +1412,16 @@ that information from such site is not reliable.
 
 One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
-program accomplishes this. It takes a sorted \prog{methcounts} output
-file and a sorted BED format file of genomic ``regions of interest''
-(hence the ``roi'' in \prog{roimethstat}).  If either file is not
-sorted by (chrom,end,start,strand) it can be sorted using the
-following command:
+program accomplishes this.
+ 
+This program requires two input files: The first is a sorted \prog{methcounts}
+output file (human\_esc.meth.sorted). This file provides data for every
+methylated cytosine site that \prog{roimethstat} will use to compute the
+average methylation. The second input file (regions.bed) is used to specify
+the ``regions of interest'' that are identified using the former methcounts
+file (hence the ``roi'' in \prog{roimethstat}).
+If either file is not sorted by (chrom,end,start,strand) it can be sorted using 
+the following command:
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
          -o regions_ESC.meth.sorted regions_ESC.meth
