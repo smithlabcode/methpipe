@@ -489,7 +489,11 @@ TwoStateHMM::BaumWelchTraining(const vector<pair<double, double> > &values,
       report_params_for_verbose(i, p_fb_est, p_bf_est,
                                 fg_distro, bg_distro, total, prev_total);
 
-    converged = (get_delta(prev_total, total) < tolerance);
+    // ADS: removing the check based on expected log likelihood from
+    // forward/backward as these seem to have some problem...
+    converged = ((get_delta(p_fb_est, p_fb) < tolerance) &&
+		 (get_delta(p_bf_est, p_bf) < tolerance));
+    // converged = (get_delta(prev_total, total) < tolerance);
 
     if (converged) {
       if (VERBOSE)
@@ -1016,7 +1020,11 @@ TwoStateHMM::BaumWelchTraining(const vector<vector<pair<double, double> > > &val
       report_params_for_verbose(i, p_fb_est, p_bf_est,
                                 fg_distro[0], bg_distro[0], total, prev_total);
 
-    converged = (get_delta(prev_total, total) < tolerance);
+    // ADS: removing the check based on expected log likelihood from
+    // forward/backward as these seem to have some problem...
+    converged = ((get_delta(p_fb_est, p_fb) < tolerance) &&
+		 (get_delta(p_bf_est, p_bf) < tolerance));
+    // converged = (get_delta(prev_total, total) < tolerance);
 
     if (converged) {
       if (VERBOSE)
