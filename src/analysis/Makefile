@@ -58,9 +58,6 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 levels hmr_rep hmr methcounts roimethstat hypermr pmd: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-methcounts_sam: \
-	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
-
 hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
 pmd: $(addprefix $(COMMON_DIR)/, bsutils.o \
