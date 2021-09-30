@@ -986,35 +986,29 @@ binsize_selection(const bool &VERBOSE,
     cerr << "evaluating bin size " << bin_size << endl;
   igzfstream in(cpgs_file);
   size_t curr_pos = 0ul;
-  size_t n_meth_bin = 0ul, n_unmeth_bin = 0ul;
+  size_t n_reads_bin = 0ul;
   string chrom, site_name, strand;
   double meth_level;
-  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
+  size_t position = 0ul, coverage = 0;
 
   vector<size_t> reads;
   string first_chrom;
 
   while (methpipe_read_site(in, chrom, position, strand, site_name,
                             meth_level, coverage, false) &&
-         (first_chrom.empty() || first_chrom == chrom)) {
-    n_meth = round(meth_level * coverage);
-    n_unmeth = coverage - n_meth;
-
+	 (first_chrom.empty() || first_chrom == chrom)) {
     if (curr_pos > position)
-      throw std::runtime_error("CpGs not sorted in file \""
-                               + cpgs_file + "\"");
+      throw std::runtime_error("CpGs not sorted in file: "+ cpgs_file);
     else if (position > curr_pos + bin_size) {
-      reads.push_back(n_meth_bin + n_unmeth_bin);
-      n_meth_bin = 0ul;
-      n_unmeth_bin = 0ul;
+      reads.push_back(n_reads_bin);
+      n_reads_bin = 0ul;
       curr_pos += bin_size;
       while (curr_pos + bin_size < position) {
-        reads.push_back(0);
-        curr_pos += bin_size;
+	reads.push_back(0);
+	curr_pos += bin_size;
       }
     }
-    n_meth_bin += n_meth;
-    n_unmeth_bin += n_unmeth;
+    n_reads_bin += coverage;
     swap(chrom, first_chrom);
   }
 
