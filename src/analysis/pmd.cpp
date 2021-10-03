@@ -107,7 +107,7 @@ methpipe_read_site(T &in, string &chrom, size_t &pos,
   if (in) {
     string strand_tmp;
     parse_site(line, chrom, pos, strand_tmp, seq,
-	       meth, coverage, is_array_data);
+         meth, coverage, is_array_data);
     strand = strand_tmp[0];
   }
   return in;
@@ -153,8 +153,8 @@ static bool
 precedes(const string &chrom, const size_t position,
          const GenomicRegion &r) {
   return (chrom < r.get_chrom() ||
-	  (chrom == r.get_chrom() &&
-	   position < r.get_start()));
+    (chrom == r.get_chrom() &&
+     position < r.get_start()));
 }
 
 
@@ -162,14 +162,14 @@ static bool
 succeeds(const string &chrom, const size_t position,
          const GenomicRegion &r) {
   return (r.get_chrom() < chrom ||
-	  (chrom == r.get_chrom() &&
-	   r.get_end() <= position));
+    (chrom == r.get_chrom() &&
+     r.get_end() <= position));
 }
 
 
 static void
 merge_nearby_pmd(const size_t max_merge_dist,
-		 vector<GenomicRegion> &pmds) {
+     vector<GenomicRegion> &pmds) {
   size_t j = 0;
   for (size_t i = 1; i < pmds.size(); ++i) {
     if (pmds[j].same_chrom(pmds[i]) &&
@@ -256,8 +256,8 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
 
 static void
 get_boundary_positions(vector<GenomicRegion> &bounds,
-		       const vector<GenomicRegion> &pmds,
-		       const size_t &bin_size) {
+           const vector<GenomicRegion> &pmds,
+           const size_t &bin_size) {
   for (size_t i = 0; i < pmds.size(); ++i) {
     bounds.push_back(pmds[i]);
     pmds[i].get_start() > bin_size ?
@@ -276,14 +276,14 @@ get_boundary_positions(vector<GenomicRegion> &bounds,
 
 static void
 get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
-				   vector<GenomicRegion> &bounds,
-				   const vector<bool> &array_status,
-				   const vector<double> &fg_alpha_reps,
-				   const vector<double> &fg_beta_reps,
-				   const vector<double> &bg_alpha_reps,
-				   const vector<double> &bg_beta_reps,
-				   vector<double> &boundary_scores,
-				   vector<size_t> &boundary_certainties) {
+           vector<GenomicRegion> &bounds,
+           const vector<bool> &array_status,
+           const vector<double> &fg_alpha_reps,
+           const vector<double> &fg_beta_reps,
+           const vector<double> &bg_alpha_reps,
+           const vector<double> &bg_beta_reps,
+           vector<double> &boundary_scores,
+           vector<size_t> &boundary_certainties) {
   double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
                                        // CONTRIBUTION TO BOUNDARY OBSERVATIONS
 
@@ -511,8 +511,8 @@ optimize_boundaries(const size_t bin_size,
   vector<double> boundary_scores;
   vector<size_t> boundary_certainties;
   get_optimized_boundary_likelihoods(cpgs_file, bounds, array_status,
-				     fg_alpha_reps, fg_beta_reps, bg_alpha_reps,
-				     bg_beta_reps, boundary_scores, boundary_certainties);
+             fg_alpha_reps, fg_beta_reps, bg_alpha_reps,
+             bg_beta_reps, boundary_scores, boundary_certainties);
 
   // Add the boundary scores to the PMD names
   for (size_t i = 0; i < pmds.size(); ++i)
@@ -1009,18 +1009,18 @@ binsize_selection(const bool &VERBOSE,
     string first_chrom;
 
     while (methpipe_read_site(in, chrom, position, strand, site_name,
-			      meth_level, coverage, false) &&
-	   (first_chrom.empty() || first_chrom == chrom)) {
+            meth_level, coverage, false) &&
+     (first_chrom.empty() || first_chrom == chrom)) {
       if (curr_pos > position)
-	throw std::runtime_error("CpGs not sorted in file: " + cpgs_file);
+        throw std::runtime_error("CpGs not sorted in file: " + cpgs_file);
       else if (position > curr_pos + bin_size) {
-	reads.push_back(n_reads_bin);
-	n_reads_bin = 0ul;
-	curr_pos += bin_size;
-	while (curr_pos + bin_size < position) {
-	  reads.push_back(0);
-	  curr_pos += bin_size;
-	}
+        reads.push_back(n_reads_bin);
+        n_reads_bin = 0ul;
+        curr_pos += bin_size;
+        while (curr_pos + bin_size < position) {
+          reads.push_back(0);
+          curr_pos += bin_size;
+        }
       }
       n_reads_bin += coverage;
       swap(chrom, first_chrom);
@@ -1030,27 +1030,43 @@ binsize_selection(const bool &VERBOSE,
     size_t total = 0;
     double fixed_phat = 0.5;
     size_t min_cov_to_pass = numeric_limits<size_t>::max();
+
+    double prev_frac_passed = 0.0;
     for (size_t i = 0; i < reads.size(); ++i) {
       if (reads[i] > 0) {
-	++total_covered;
-	double lower = 0.0, upper = 0.0;
-	wilson_ci_for_binomial(1.0 - conf_level, reads[i],
-			       fixed_phat, lower, upper);
-	if ((upper - lower) < (1.0 - conf_level)) {
-	  if (reads[i] < min_cov_to_pass)
-	    min_cov_to_pass = reads[i];
-	  ++total_passed;
-	}
+        ++total_covered;
+        double lower = 0.0, upper = 0.0;
+        wilson_ci_for_binomial(1.0 - conf_level, reads[i],
+            fixed_phat, lower, upper);
+        if ((upper - lower) < (1.0 - conf_level)) {
+          if (reads[i] < min_cov_to_pass)
+            min_cov_to_pass = reads[i];
+          ++total_passed;
+        }
       }
       ++total;
     }
+
+    // fails if minimum coverage could not be calculated
+    if (min_cov_to_pass == numeric_limits<size_t>::max()) {
+      throw runtime_error("Insufficient coverage in chrom " +
+                          first_chrom + " to estimate a bin size");
+    }
     if (VERBOSE)
       cerr << "Min. cov. to pass: " << min_cov_to_pass << endl;
-    if ((double)total_passed/total > ACCEPT_THRESHOLD)
-      break; // return bin_size;
+
+    const double frac_passed = static_cast<double>(total_passed)/total;
+    if (frac_passed > ACCEPT_THRESHOLD)
+      return bin_size;
     else {
       if (VERBOSE)
-	cerr << "% bins passed: " << (double)total_passed/total << endl;
+        cerr << "% bins passed: " << (double)total_passed/total << endl;
+
+      if (frac_passed < prev_frac_passed)
+        throw runtime_error("Insufficient coverage in chrom " +
+                            first_chrom + " to estimate a bin size");
+
+      prev_frac_passed = frac_passed;
     }
   }
   return bin_size;
@@ -1332,7 +1348,7 @@ main(int argc, const char **argv) {
       }
 
     optimize_boundaries(bin_size, cpgs_file, good_domains, array_status,
-			reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta);
+      reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta);
 
     ofstream of;
     if (!outfile.empty()) of.open(outfile);
