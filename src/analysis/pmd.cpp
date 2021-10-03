@@ -332,8 +332,9 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     }
 
     // Get the boundary position
-    const size_t boundary_position =
+    size_t boundary_position =
       (bounds[bound_idx].get_start() + bounds[bound_idx].get_end())/2;
+
     size_t N_low = 0, k_low = 0, N_hi = 0, k_hi = 0;
     for (auto it = begin(pos_meth_tot); it != end(pos_meth_tot); ++it) {
       if (it->first < boundary_position) {
@@ -1050,9 +1051,6 @@ binsize_selection(const bool &VERBOSE,
     else {
       if (VERBOSE)
 	cerr << "% bins passed: " << (double)total_passed/total << endl;
-      // bin_size += 500;
-      // return binsize_selection(VERBOSE, bin_size, cpgs_file,
-      // 			       conf_level, ACCEPT_THRESHOLD);
     }
   }
   return bin_size;
