@@ -100,6 +100,10 @@ get_domain_scores(const vector<bool> &state_ids,
       score = 0;
     }
   }
+
+  if (in_domain) {
+    scores.push_back(score);
+  }
 }
 
 
