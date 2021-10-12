@@ -216,7 +216,7 @@ program using the \op{-b} flag to compress to BAM and the \op{-S} flag
 to indicate that input is in SAM format.
 
 \begin{verbatim}
-$ abismal -i <genome index> -m <output STATS> [options] <input fastq> |
+$ abismal -i <genome index> -s <output STATS> [options] <input fastq> |
   samtools view -bS > <output BAM>
 \end{verbatim}
 
@@ -477,7 +477,7 @@ back together:
 
 \begin{verbatim}
 $ samtools view -H human_esc_fsd.sam >headers.txt
-$ awk '$1 == "chrM"' human_esc_fsd.sam >reads.sam
+$ awk '$2 == "chrM"' human_esc_fsd.sam >reads.sam
 $ cat headers.txt reads.sam >human_esc_chrM.sam
 $ rm headers.txt reads.sam
 \end{verbatim}
