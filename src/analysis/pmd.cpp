@@ -187,10 +187,10 @@ merge_nearby_pmd(const size_t max_merge_dist,
 static size_t
 find_best_bound(const bool IS_RIGHT_BOUNDARY,
                 std::map<size_t, pair<size_t, size_t> > &pos_meth_tot,
-                const vector<double> &fg_alpha_reps,
-                const vector<double> &fg_beta_reps,
-                const vector<double> &bg_alpha_reps,
-                const vector<double> &bg_beta_reps) {
+                const vector<double> &fg_alpha,
+                const vector<double> &fg_beta,
+                const vector<double> &bg_alpha,
+                const vector<double> &bg_beta) {
 
   vector<pair<size_t,size_t> > meth_tot;
   vector<size_t> positions;
@@ -234,15 +234,15 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         const double p_hi = static_cast<double>(k_hi)/N_hi;
         const double p_low = static_cast<double>(k_low)/N_low;
 
-        for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
-          score += (((fg_alpha_reps[j]-1.0)*log(p_low) +
-                     ((fg_beta_reps[j]-1.0)*log(1.0 - p_low)))
-                    - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]))
-            + (((bg_alpha_reps[j]-1.0)*log(p_hi) +
-                ((bg_beta_reps[j]-1.0)*log(1.0 - p_hi)))
-               - gsl_sf_lnbeta(bg_alpha_reps[j],bg_beta_reps[j]));
+        for (size_t j = 0; j < fg_alpha.size(); ++j) {
+          score += (((fg_alpha[j]-1.0)*log(p_low) +
+                     ((fg_beta[j]-1.0)*log(1.0 - p_low)))
+                    - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]))
+            + (((bg_alpha[j]-1.0)*log(p_hi) +
+                ((bg_beta[j]-1.0)*log(1.0 - p_hi)))
+               - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]));
         } // beta max likelihood using learned emissions
-        score /= fg_alpha_reps.size();
+        score /= fg_alpha.size();
         if (p_hi > p_low && score > best_score) {
           best_idx = i;
           best_score = score;
@@ -278,10 +278,10 @@ static void
 get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
            vector<GenomicRegion> &bounds,
            const vector<bool> &array_status,
-           const vector<double> &fg_alpha_reps,
-           const vector<double> &fg_beta_reps,
-           const vector<double> &bg_alpha_reps,
-           const vector<double> &bg_beta_reps,
+           const vector<double> &fg_alpha,
+           const vector<double> &fg_beta,
+           const vector<double> &bg_alpha,
+           const vector<double> &bg_beta,
            vector<double> &boundary_scores,
            vector<size_t> &boundary_certainties) {
   // MAGIC NUMBER FOR WEIGHTING ARRAY
@@ -353,27 +353,27 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     const double p_low = static_cast<double>(k_low)/N_low;
 
     if (bound_idx %2 ) { // its a right boundary, p_low should go with fg
-      for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
-        score += (((fg_alpha_reps[j]-1.0)*log(p_low) +
-                   ((fg_beta_reps[j]-1.0)*log(1.0-p_low)))
-                  - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]))
-          + (((bg_alpha_reps[j]-1.0)*log(p_hi) +
-              ((bg_beta_reps[j]-1.0)*log(1.0-p_hi)))
-             - gsl_sf_lnbeta(bg_alpha_reps[j],bg_beta_reps[j]));
+      for (size_t j = 0; j < fg_alpha.size(); ++j) {
+        score += (((fg_alpha[j]-1.0)*log(p_low) +
+                   ((fg_beta[j]-1.0)*log(1.0-p_low)))
+                  - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]))
+          + (((bg_alpha[j]-1.0)*log(p_hi) +
+              ((bg_beta[j]-1.0)*log(1.0-p_hi)))
+             - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]));
       }
     }
     else { // its a left boundary, p_low should go with bg
-      for (size_t j = 0; j < fg_alpha_reps.size(); ++j) {
-        score +=  (((bg_alpha_reps[j]-1.0)*log(p_low) +
-                    ((bg_beta_reps[j]-1.0)*log(1.0-p_low)))
-                   - gsl_sf_lnbeta(bg_alpha_reps[j],bg_beta_reps[j]))
-          + (((fg_alpha_reps[j]-1.0)*log(p_hi) +
-              ((fg_beta_reps[j]-1.0)*log(1.0-p_hi)))
-             - gsl_sf_lnbeta(fg_alpha_reps[j],fg_beta_reps[j]));
+      for (size_t j = 0; j < fg_alpha.size(); ++j) {
+        score +=  (((bg_alpha[j]-1.0)*log(p_low) +
+                    ((bg_beta[j]-1.0)*log(1.0-p_low)))
+                   - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]))
+          + (((fg_alpha[j]-1.0)*log(p_hi) +
+              ((fg_beta[j]-1.0)*log(1.0-p_hi)))
+             - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]));
       }
     }
     boundary_certainties.push_back(std::min(N_low,N_hi));
-    score /= fg_alpha_reps.size();
+    score /= fg_alpha.size();
     boundary_scores.push_back(exp(score));
     pos_meth_tot.clear();
   }
@@ -387,10 +387,10 @@ static void
 find_exact_boundaries(const vector<string> &cpgs_file,
                       vector<GenomicRegion> &bounds,
                       const vector<bool> &array_status,
-                      const vector<double> &fg_alpha_reps,
-                      const vector<double> &fg_beta_reps,
-                      const vector<double> &bg_alpha_reps,
-                      const vector<double> &bg_beta_reps,
+                      const vector<double> &fg_alpha,
+                      const vector<double> &fg_beta,
+                      const vector<double> &bg_alpha,
+                      const vector<double> &bg_beta,
                       vector<size_t> &bound_site) {
   // MAGIC NUMBER FOR WEIGHTING ARRAY
   // CONTRIBUTION TO BOUNDARY OBSERVATIONS
@@ -440,8 +440,8 @@ find_exact_boundaries(const vector<string> &cpgs_file,
       }
     }
     bound_site.push_back(find_best_bound(bound_idx % 2, pos_meth_tot,
-                                         fg_alpha_reps, fg_beta_reps,
-                                         bg_alpha_reps, bg_beta_reps));
+                                         fg_alpha, fg_beta,
+                                         bg_alpha, bg_beta));
     pos_meth_tot.clear();
   }
   for (size_t i = 0; i < in.size(); ++i)
@@ -454,16 +454,16 @@ optimize_boundaries(const size_t bin_size,
                     const vector<string> &cpgs_file,
                     vector<GenomicRegion> &pmds,
                     const vector<bool> &array_status,
-                    const vector<double> &fg_alpha_reps,
-                    const vector<double> &fg_beta_reps,
-                    const vector<double> &bg_alpha_reps,
-                    const vector<double> &bg_beta_reps) {
+                    const vector<double> &fg_alpha,
+                    const vector<double> &fg_beta,
+                    const vector<double> &bg_alpha,
+                    const vector<double> &bg_beta) {
 
   vector<GenomicRegion> bounds;
   get_boundary_positions(bounds, pmds, bin_size);
   vector<size_t> bound_site;
-  find_exact_boundaries(cpgs_file, bounds, array_status, fg_alpha_reps,
-                        fg_beta_reps, bg_alpha_reps, bg_beta_reps,
+  find_exact_boundaries(cpgs_file, bounds, array_status, fg_alpha,
+                        fg_beta, bg_alpha, bg_beta,
                         bound_site);
 
   ////////////////////////////////////////////////////////////////////////
@@ -512,8 +512,8 @@ optimize_boundaries(const size_t bin_size,
   vector<double> boundary_scores;
   vector<size_t> boundary_certainties;
   get_optimized_boundary_likelihoods(cpgs_file, bounds, array_status,
-             fg_alpha_reps, fg_beta_reps, bg_alpha_reps,
-             bg_beta_reps, boundary_scores, boundary_certainties);
+             fg_alpha, fg_beta, bg_alpha,
+             bg_beta, boundary_scores, boundary_certainties);
 
   // Add the boundary scores to the PMD names
   for (size_t i = 0; i < pmds.size(); ++i)
@@ -548,10 +548,10 @@ score_contribution(const pair<double, double> &m) {
 
 
 static void
-get_domain_scores_rep(const vector<bool> &classes,
-                      const vector<vector<pair<double, double> > > &meth,
-                      const vector<size_t> &reset_points,
-                      vector<double> &scores) {
+get_domain_scores(const vector<bool> &classes,
+		  const vector<vector<pair<double, double> > > &meth,
+		  const vector<size_t> &reset_points,
+		  vector<double> &scores) {
 
   const size_t n_replicates = meth.size();
   size_t reset_idx = 1;
@@ -682,16 +682,16 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
 
 
 static void
-shuffle_cpgs_rep(const TwoStateHMM &hmm,
-                 vector<vector<pair<double, double> > > meth,
-                 const vector<size_t> &reset_points,
-                 const vector<double> &start_trans,
-                 const vector<vector<double> > &trans,
-                 const vector<double> &end_trans,
-                 const vector<double> &fg_alpha, const vector<double> &fg_beta,
-                 const vector<double> &bg_alpha, const vector<double> &bg_beta,
-                 vector<double> &domain_scores,
-                 vector<bool> &array_status) {
+shuffle_cpgs(const TwoStateHMM &hmm,
+	     vector<vector<pair<double, double> > > meth,
+	     const vector<size_t> &reset_points,
+	     const vector<double> &start_trans,
+	     const vector<vector<double> > &trans,
+	     const vector<double> &end_trans,
+	     const vector<double> &fg_alpha, const vector<double> &fg_beta,
+	     const vector<double> &bg_alpha, const vector<double> &bg_beta,
+	     vector<double> &domain_scores,
+	     vector<bool> &array_status) {
 
   size_t n_replicates = meth.size();
 
@@ -702,7 +702,7 @@ shuffle_cpgs_rep(const TwoStateHMM &hmm,
   hmm.PosteriorDecoding_rep(meth, reset_points, start_trans, trans,
                             end_trans, fg_alpha, fg_beta, bg_alpha,
                             bg_beta, classes, scores, array_status);
-  get_domain_scores_rep(classes, meth, reset_points, domain_scores);
+  get_domain_scores(classes, meth, reset_points, domain_scores);
   sort(begin(domain_scores), end(domain_scores));
 }
 
@@ -1187,12 +1187,6 @@ main(int argc, const char **argv) {
 
     size_t n_replicates = cpgs_file.size();
 
-    // separate the regions by chrom and by desert
-    vector<vector<SimpleGenomicRegion> > cpgs;
-    vector<vector<pair<double, double> > > meth;
-    vector<vector<size_t> > reads;
-    vector<bool> array_status;
-
     // Sanity checks input file format and dynamically selects bin
     // size from WGBS samples.
     if (!fixed_bin_size && !ARRAY_MODE) {
@@ -1222,19 +1216,18 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING IN AT BIN SIZE " << bin_size << "]" << endl;
 
+    // separate the regions by chrom and by desert
+    vector<vector<SimpleGenomicRegion> > cpgs(n_replicates);
+    vector<vector<pair<double, double> > > meth(n_replicates);
+    vector<vector<size_t> > reads(n_replicates);
+    vector<bool> array_status;
+
     for (size_t i = 0; i < n_replicates; ++i) {
-      vector<SimpleGenomicRegion> cpgs_rep;
-      vector<pair<double, double> > meth_rep;
-      vector<size_t> reads_rep;
       if (VERBOSE)
         cerr << "[READING CPGS AND METH PROPS] from " << cpgs_file[i] << endl;
 
-      load_intervals(bin_size, cpgs_file[i], cpgs_rep, meth_rep,
-                     reads_rep, array_status);
-
-      cpgs.push_back(cpgs_rep);
-      meth.push_back(meth_rep);
-      reads.push_back(reads_rep);
+      load_intervals(bin_size, cpgs_file[i], cpgs[i], meth[i],
+                     reads[i], array_status);
       if (VERBOSE)
         cerr << "TOTAL CPGS: " << cpgs[i].size() << endl
              << "MEAN COVERAGE: "
@@ -1319,15 +1312,15 @@ main(int argc, const char **argv) {
     }
 
     vector<double> domain_scores;
-    get_domain_scores_rep(classes, meth, reset_points, domain_scores);
+    get_domain_scores(classes, meth, reset_points, domain_scores);
 
     if (VERBOSE)
       cerr << "[RANDOMIZING SCORES FOR FDR]" << endl;
 
     vector<double> random_scores;
-    shuffle_cpgs_rep(hmm, meth, reset_points, start_trans, trans, end_trans,
-                     reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
-                     random_scores, array_status);
+    shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
+		 reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
+		 random_scores, array_status);
 
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
