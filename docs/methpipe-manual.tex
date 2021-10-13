@@ -477,7 +477,7 @@ back together:
 
 \begin{verbatim}
 $ samtools view -H human_esc_fsd.sam >headers.txt
-$ awk '$2 == "chrM"' human_esc_fsd.sam >reads.sam
+$ awk '$3 == "chrM"' human_esc_fsd.sam >reads.sam
 $ cat headers.txt reads.sam >human_esc_chrM.sam
 $ rm headers.txt reads.sam
 \end{verbatim}
