@@ -1180,12 +1180,6 @@ main(int argc, const char **argv) {
 
     size_t n_replicates = cpgs_file.size();
 
-    // separate the regions by chrom and by desert
-    vector<vector<SimpleGenomicRegion> > cpgs;
-    vector<vector<pair<double, double> > > meth;
-    vector<vector<size_t> > reads;
-    vector<bool> array_status;
-
     // Sanity checks input file format and dynamically selects bin
     // size from WGBS samples.
     if (!fixed_bin_size && !ARRAY_MODE) {
@@ -1215,19 +1209,18 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING IN AT BIN SIZE " << bin_size << "]" << endl;
 
+    // separate the regions by chrom and by desert
+    vector<vector<SimpleGenomicRegion> > cpgs(n_replicates);
+    vector<vector<pair<double, double> > > meth(n_replicates);
+    vector<vector<size_t> > reads(n_replicates);
+    vector<bool> array_status;
+
     for (size_t i = 0; i < n_replicates; ++i) {
-      vector<SimpleGenomicRegion> cpgs_rep;
-      vector<pair<double, double> > meth_rep;
-      vector<size_t> reads_rep;
       if (VERBOSE)
         cerr << "[READING CPGS AND METH PROPS] from " << cpgs_file[i] << endl;
 
-      load_intervals(bin_size, cpgs_file[i], cpgs_rep, meth_rep,
-                     reads_rep, array_status);
-
-      cpgs.push_back(cpgs_rep);
-      meth.push_back(meth_rep);
-      reads.push_back(reads_rep);
+      load_intervals(bin_size, cpgs_file[i], cpgs[i], meth[i],
+                     reads[i], array_status);
       if (VERBOSE)
         cerr << "TOTAL CPGS: " << cpgs[i].size() << endl
              << "MEAN COVERAGE: "
