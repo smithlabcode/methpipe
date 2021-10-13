@@ -62,65 +62,15 @@ methpipe_skip_header(T &in, string &line) {
   return in;
 }
 
-static void
-parse_site(const string &line, string &chrom, size_t &pos,
-           string &strand, string &seq,
-           double &meth, size_t &coverage, const bool is_array_data) {
-  /* GS: this is faster but seems to be generating issues when
-   * compiled with clang
-   std::istringstream iss;
-   iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());
-  */
-
-  std::istringstream iss(line);
-  if (!(iss >> chrom >> pos >> strand >> seq >> meth))
-    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
-  if (is_array_data)
-    coverage = 1;
-  else
-    iss >> coverage;
-  strand.resize(1);
-  if (strand[0] != '-' && strand[0] != '+')
-    throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
-                             line + "\"");
-}
-
 template <class T> T &
-methpipe_read_site(T &in, string &chrom, size_t &pos,
-                   string &strand, string &seq,
-                   double &meth, size_t &coverage,
-                   const bool is_array_data) {
-  string line;
-  methpipe_skip_header(in, line);
-  if (in)
-    parse_site(line, chrom, pos, strand, seq, meth, coverage, is_array_data);
-  return in;
-}
-
-template <class T> T &
-methpipe_read_site(T &in, string &chrom, size_t &pos,
-                   char &strand, string &seq,
-                   double &meth, size_t &coverage,
-                   const bool is_array_data) {
-  string line;
-  methpipe_skip_header(in, line);
-  if (in) {
-    string strand_tmp;
-    parse_site(line, chrom, pos, strand_tmp, seq,
-         meth, coverage, is_array_data);
-    strand = strand_tmp[0];
-  }
-  return in;
-}
-
-template <class T> T &
-methpipe_read_site(T &in, string &chrom, size_t &pos,
+methpipe_read_site(const bool is_array_data,
+                   T &in, string &chrom, size_t &pos,
                    string &strand, string &seq, double &meth,
-                   size_t &coverage, bool &is_array_data) {
+                   size_t &coverage) {
   string line;
   methpipe_skip_header(in, line);
 
-  /*
+  /* GS: commenting out because it breaks when compiled with OSX clang
     std::istringstream iss;
     iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length()); */
   std::istringstream iss(line);
@@ -300,9 +250,8 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe_read_site(*in[i], chrom, position,
-                                strand, site_name, meth_level, coverage,
-                                array_status[i])
+      while (methpipe_read_site(array_status[i], *in[i], chrom, position,
+                                strand, site_name, meth_level, coverage)
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
         if (!precedes(chrom, position, bounds[bound_idx])) {
@@ -408,9 +357,8 @@ find_exact_boundaries(const vector<string> &cpgs_file,
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe_read_site(*in[i], chrom, position,
-                                strand, site_name, meth_level, coverage,
-                                array_status[i])
+      while (methpipe_read_site(array_status[i], *in[i], chrom, position,
+                                strand, site_name, meth_level, coverage)
              && !succeeds(chrom, position, bounds[bound_idx])) {
         // check if CpG is inside boundary
         if (!precedes(chrom, position, bounds[bound_idx])) {
@@ -841,8 +789,8 @@ load_array_data(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul;
 
-  while (methpipe_read_site(in, chrom, position, strand, site_name,
-                            meth_level, coverage, true)) {
+  while (methpipe_read_site(true, in, chrom, position, strand, site_name,
+                            meth_level, coverage)) {
     if (meth_level != -1 ) { // its covered by a probe
       ++num_probes_in_bin;
       if (meth_level < meth_min)
@@ -928,8 +876,8 @@ load_wgbs_data(const size_t bin_size,
   double meth_level;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
-  while (methpipe_read_site(in, chrom, position,
-                            strand, site_name, meth_level, coverage, false)) {
+  while (methpipe_read_site(false, in, chrom, position,
+                            strand, site_name, meth_level, coverage)) {
 
     n_meth = round(meth_level * coverage);
     n_unmeth = coverage - n_meth;
@@ -1014,8 +962,8 @@ binsize_selection(const bool &VERBOSE,
     vector<size_t> reads;
     string first_chrom;
 
-    while (methpipe_read_site(in, chrom, position, strand, site_name,
-            meth_level, coverage, false) &&
+    while (methpipe_read_site(false, in, chrom, position, strand, site_name,
+            meth_level, coverage) &&
      (first_chrom.empty() || first_chrom == chrom)) {
       if (curr_pos > position)
         throw std::runtime_error("CpGs not sorted in file: " + cpgs_file);
