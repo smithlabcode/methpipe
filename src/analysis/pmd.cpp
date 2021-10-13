@@ -73,18 +73,20 @@ methpipe_read_site(const bool is_array_data,
     std::istringstream iss;
     iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length()); */
   std::istringstream iss(line);
-  iss >> chrom >> pos >> strand >> seq >> meth;
-  if (!(iss >> chrom >> pos >> strand >> seq >> meth))
-    throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
-  strand.resize(1);
-  if (strand[0] != '-' && strand[0] != '+') {
-    throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
-                             line + "\"");
+  if (!line.empty()) {
+    if (!(iss >> chrom >> pos >> strand >> seq >> meth))
+      throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
+    strand.resize(1);
+    if (strand[0] != '-' && strand[0] != '+') {
+      throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
+                               line + "\"");
+    }
+    if (is_array_data)
+      coverage = 1;
+    else
+      iss >> coverage;
+    return in;
   }
-  if (is_array_data)
-    coverage = 1;
-  else
-    iss >> coverage;
   return in;
 }
 
