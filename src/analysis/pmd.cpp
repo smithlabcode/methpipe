@@ -284,8 +284,9 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
            const vector<double> &bg_beta_reps,
            vector<double> &boundary_scores,
            vector<size_t> &boundary_certainties) {
-  double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
-                                       // CONTRIBUTION TO BOUNDARY OBSERVATIONS
+  // MAGIC NUMBER FOR WEIGHTING ARRAY
+  // CONTRIBUTION TO BOUNDARY OBSERVATIONS
+  static const double array_coverage_constant = 10;
 
   vector<igzfstream*> in(cpgs_file.size());
   for (size_t i = 0; i < cpgs_file.size(); ++i)
@@ -307,8 +308,8 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
         if (!precedes(chrom, position, bounds[bound_idx])) {
           if (array_status[i]) {
             if (meth_level != -1) {
-              n_meth = round(meth_level*ARRAY_COVERAGE_CONSTANT);
-              n_unmeth = ARRAY_COVERAGE_CONSTANT - n_meth;
+              n_meth = round(meth_level*array_coverage_constant);
+              n_unmeth = array_coverage_constant - n_meth;
             }
             else {
               n_meth = 0;
@@ -391,9 +392,9 @@ find_exact_boundaries(const vector<string> &cpgs_file,
                       const vector<double> &bg_alpha_reps,
                       const vector<double> &bg_beta_reps,
                       vector<size_t> &bound_site) {
-
-  double ARRAY_COVERAGE_CONSTANT = 10; // MAGIC NUMBER FOR WEIGHTING ARRAY
-                                       // CONTRIBUTION TO BOUNDARY OBSERVATIONS
+  // MAGIC NUMBER FOR WEIGHTING ARRAY
+  // CONTRIBUTION TO BOUNDARY OBSERVATIONS
+  static const double array_coverage_constant = 10;
 
   vector<igzfstream*> in(cpgs_file.size());
   for (size_t i = 0; i < cpgs_file.size(); ++i)
@@ -415,8 +416,8 @@ find_exact_boundaries(const vector<string> &cpgs_file,
         if (!precedes(chrom, position, bounds[bound_idx])) {
           if (array_status[i]) {
             if (meth_level != -1) {
-              n_meth = round(meth_level*ARRAY_COVERAGE_CONSTANT);
-              n_unmeth = ARRAY_COVERAGE_CONSTANT - n_meth;
+              n_meth = round(meth_level*array_coverage_constant);
+              n_unmeth = array_coverage_constant - n_meth;
             }
             else {
               n_meth = 0;
@@ -769,8 +770,10 @@ static void
 write_posteriors_file(const string &posteriors_file,
                       const vector<vector<SimpleGenomicRegion> > &cpgs,
                       const vector<double> &scores) {
+  static const size_t decimal_precision = 10;
+
   ofstream out(posteriors_file);
-  out.precision(10);
+  out.precision(decimal_precision);
   for (size_t r = 0; r < scores.size(); ++r)
     out << cpgs[0][r] << '\t' << scores[r] << endl;
 }
@@ -785,9 +788,9 @@ write_params_file(const string &outfile,
                   const vector<double> &start_trans,
                   const vector<vector<double> > &trans,
                   const vector<double> &end_trans) {
-
+  static const size_t decimal_precision = 30;
   ofstream out(outfile);
-  out.precision(30);
+  out.precision(decimal_precision);
   for (size_t r =0; r < fg_alpha.size(); ++r)
     out << "FG_ALPHA_" << r+1 << "\t" << std::setw(14) << fg_alpha[r] << "\t"
         << "FG_BETA_" << r+1 << "\t" << std::setw(14) << fg_beta[r] << "\t"
@@ -826,6 +829,9 @@ load_array_data(const size_t bin_size,
                 vector<SimpleGenomicRegion> &intervals,
                 vector<pair<double, double> > &meth,
                 vector<size_t> &reads) {
+  // MAGIC. GS: minimum value for array? 
+  static const double meth_min = 1.0e-2;
+
   igzfstream in(cpgs_file);
   string curr_chrom;
   size_t prev_pos = 0ul, curr_pos = 0ul;
@@ -839,10 +845,10 @@ load_array_data(const size_t bin_size,
                             meth_level, coverage, true)) {
     if (meth_level != -1 ) { // its covered by a probe
       ++num_probes_in_bin;
-      if (meth_level < 1e-2)
-        array_meth_bin += 1e-2;
-      else if (meth_level > 1.0-1e-2)
-        array_meth_bin += (1.0-1e-2);
+      if (meth_level < meth_min)
+        array_meth_bin += meth_min;
+      else if (meth_level > 1.0 - meth_min)
+        array_meth_bin += (1.0 - meth_min);
       else
         array_meth_bin += meth_level;
     }
@@ -887,10 +893,10 @@ load_array_data(const size_t bin_size,
 
   if (meth_level != -1 ) { // its covered by a probe
     ++num_probes_in_bin;
-    if (meth_level < 1e-2)
-      array_meth_bin += 1e-2;
-    else if (meth_level > 1.0-1e-2)
-      array_meth_bin += (1.0-1e-2);
+    if (meth_level < meth_min)
+      array_meth_bin += meth_min;
+    else if (meth_level > 1.0 - meth_min)
+      array_meth_bin += (1.0 - meth_min);
     else
       array_meth_bin += meth_level;
   }
@@ -1108,9 +1114,10 @@ main(int argc, const char **argv) {
     bool VERBOSE = false;
     bool ARRAY_MODE = false;
     bool fixed_bin_size = false;
-    // corrections for small values (not parameters):
-    double tolerance = 1e-5;
-    double min_prob  = 1e-10;
+
+    // MAGIC: corrections for small values (not parameters):
+    static const double tolerance = 1e-5;
+    static const double min_prob  = 1e-10;
 
     string params_in_files;
     string params_out_file;
