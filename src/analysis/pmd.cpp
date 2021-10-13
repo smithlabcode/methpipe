@@ -497,9 +497,9 @@ score_contribution(const pair<double, double> &m) {
 
 static void
 get_domain_scores(const vector<bool> &classes,
-		  const vector<vector<pair<double, double> > > &meth,
-		  const vector<size_t> &reset_points,
-		  vector<double> &scores) {
+    const vector<vector<pair<double, double> > > &meth,
+    const vector<size_t> &reset_points,
+    vector<double> &scores) {
 
   const size_t n_replicates = meth.size();
   size_t reset_idx = 1;
@@ -631,15 +631,15 @@ separate_regions(const bool VERBOSE, const size_t desert_size,
 
 static void
 shuffle_cpgs(const TwoStateHMM &hmm,
-	     vector<vector<pair<double, double> > > meth,
-	     const vector<size_t> &reset_points,
-	     const vector<double> &start_trans,
-	     const vector<vector<double> > &trans,
-	     const vector<double> &end_trans,
-	     const vector<double> &fg_alpha, const vector<double> &fg_beta,
-	     const vector<double> &bg_alpha, const vector<double> &bg_beta,
-	     vector<double> &domain_scores,
-	     vector<bool> &array_status) {
+       vector<vector<pair<double, double> > > meth,
+       const vector<size_t> &reset_points,
+       const vector<double> &start_trans,
+       const vector<vector<double> > &trans,
+       const vector<double> &end_trans,
+       const vector<double> &fg_alpha, const vector<double> &fg_beta,
+       const vector<double> &bg_alpha, const vector<double> &bg_beta,
+       vector<double> &domain_scores,
+       vector<bool> &array_status) {
 
   size_t n_replicates = meth.size();
 
@@ -933,13 +933,13 @@ load_wgbs_data(const size_t bin_size,
 
 static void
 apply_ci_criterion(const double conf_level,
-		   const size_t &n_reads,
-		   size_t &min_cov_to_pass,
-		   size_t &total_passed) {
+    const size_t &n_reads,
+    size_t &min_cov_to_pass,
+    size_t &total_passed) {
   static const double fixed_phat = 0.5; // magic
   double lower = 0.0, upper = 0.0;
   wilson_ci_for_binomial(1.0 - conf_level, n_reads,
-			 fixed_phat, lower, upper);
+    fixed_phat, lower, upper);
   if ((upper - lower) < (1.0 - conf_level)) {
     if (n_reads < min_cov_to_pass)
       min_cov_to_pass = n_reads;
@@ -1006,8 +1006,8 @@ binsize_selection(const bool &VERBOSE,
     for (size_t i = 0; i < reads.size(); ++i) {
       if (reads[i] > 0) {
         ++total_covered;
-	apply_ci_criterion(conf_level, reads[i],
-			   min_cov_to_pass, total_passed);
+        apply_ci_criterion(conf_level, reads[i],
+          min_cov_to_pass, total_passed);
       }
       ++total;
     }
@@ -1278,8 +1278,8 @@ main(int argc, const char **argv) {
 
     vector<double> random_scores;
     shuffle_cpgs(hmm, meth, reset_points, start_trans, trans, end_trans,
-		 reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
-		 random_scores, array_status);
+      reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta,
+      random_scores, array_status);
 
     vector<double> p_values;
     assign_p_values(random_scores, domain_scores, p_values);
