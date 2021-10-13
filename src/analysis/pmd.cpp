@@ -26,7 +26,6 @@
 #include <map>
 #include <stdexcept>
 
-#include <unistd.h>
 #include <gsl/gsl_sf.h>
 
 #include "smithlab_utils.hpp"
@@ -165,7 +164,7 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
     }
 
   size_t best_idx = 0;
-  double best_score = -std::numeric_limits<double>::max();
+  double best_score = -numeric_limits<double>::max();
   if (meth_tot.size() > 0)
     for (size_t i = 1; i < meth_tot.size()-1; ++i) {
       size_t N_low, k_low, N_hi, k_hi;
@@ -201,8 +200,8 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         }
       }
     }
-  return (best_score > -std::numeric_limits<double>::max()) ?
-    positions[best_idx] : std::numeric_limits<size_t>::max();
+  return (best_score > -numeric_limits<double>::max()) ?
+    positions[best_idx] : numeric_limits<size_t>::max();
 }
 
 
@@ -246,7 +245,7 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
 
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
   string chrom, site_name, strand;
-  double meth_level;
+  double meth_level = 0.0;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
@@ -353,7 +352,7 @@ find_exact_boundaries(const vector<string> &cpgs_file,
 
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
   string chrom, site_name, strand;
-  double meth_level;
+  double meth_level = 0.0;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
   size_t bound_idx = 0;
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
@@ -422,10 +421,10 @@ optimize_boundaries(const size_t bin_size,
   /////
   for (size_t i = 0; i < pmds.size(); ++i) {
     const size_t start_site = bound_site[2*i];
-    if (start_site != std::numeric_limits<size_t>::max())
+    if (start_site != numeric_limits<size_t>::max())
       pmds[i].set_start(start_site);
     const size_t end_site = bound_site[2*i + 1];
-    if (end_site != std::numeric_limits<size_t>::max())
+    if (end_site != numeric_limits<size_t>::max())
       pmds[i].set_end(end_site + 1);
   }
 
@@ -788,7 +787,7 @@ load_array_data(const size_t bin_size,
   double array_meth_bin = 0.0;
   double num_probes_in_bin = 0.0;
   string chrom, site_name, strand;
-  double meth_level;
+  double meth_level = 0.0;
   size_t position = 0ul, coverage = 0ul;
 
   while (methpipe_read_site(true, in, chrom, position, strand, site_name,
@@ -875,7 +874,7 @@ load_wgbs_data(const size_t bin_size,
   size_t prev_pos = 0ul, curr_pos = 0ul;
   size_t n_meth_bin = 0ul, n_unmeth_bin = 0ul;
   string chrom, site_name, strand;
-  double meth_level;
+  double meth_level = 0.0;
   size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
   while (methpipe_read_site(false, in, chrom, position,
@@ -974,7 +973,7 @@ binsize_selection(const bool &VERBOSE,
     size_t curr_pos = 0ul;
     size_t n_reads_bin = 0ul;
     string chrom, site_name, strand;
-    double meth_level;
+    double meth_level = 0.0;
     size_t position = 0ul, coverage = 0;
 
     vector<size_t> reads;
@@ -1217,7 +1216,7 @@ main(int argc, const char **argv) {
     vector<double> reps_fg_beta(n_replicates, 0.95);
     vector<double> reps_bg_alpha(n_replicates, 0.95);
     vector<double> reps_bg_beta(n_replicates, 0.05);
-    double score_cutoff_for_fdr = std::numeric_limits<double>::max();
+    double score_cutoff_for_fdr = numeric_limits<double>::max();
 
     if (!params_in_file.empty()) {
       // read parameters files
