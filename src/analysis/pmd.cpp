@@ -829,7 +829,7 @@ load_array_data(const size_t bin_size,
                 vector<SimpleGenomicRegion> &intervals,
                 vector<pair<double, double> > &meth,
                 vector<size_t> &reads) {
-  // MAGIC. GS: minimum value for array? 
+  // MAGIC. GS: minimum value for array?
   static const double meth_min = 1.0e-2;
 
   igzfstream in(cpgs_file);
@@ -983,6 +983,22 @@ load_wgbs_data(const size_t bin_size,
   }
 }
 
+static void
+apply_ci_criterion(const double conf_level,
+		   const size_t &n_reads,
+		   size_t &min_cov_to_pass,
+		   size_t &total_passed) {
+  static const double fixed_phat = 0.5; // magic
+  double lower = 0.0, upper = 0.0;
+  wilson_ci_for_binomial(1.0 - conf_level, n_reads,
+			 fixed_phat, lower, upper);
+  if ((upper - lower) < (1.0 - conf_level)) {
+    if (n_reads < min_cov_to_pass)
+      min_cov_to_pass = n_reads;
+    ++total_passed;
+  }
+}
+
 
 /* Bin first chromosome into bins of increasing size, starting
  * at @param bin_size, until a sufficient percentage of bins
@@ -1034,21 +1050,24 @@ binsize_selection(const bool &VERBOSE,
 
     size_t total_passed = 0, total_covered = 0;
     size_t total = 0;
-    double fixed_phat = 0.5;
+
+    // min_cov_to_pass will change during iteration
     size_t min_cov_to_pass = numeric_limits<size_t>::max();
 
     double prev_frac_passed = 0.0;
     for (size_t i = 0; i < reads.size(); ++i) {
       if (reads[i] > 0) {
         ++total_covered;
-        double lower = 0.0, upper = 0.0;
-        wilson_ci_for_binomial(1.0 - conf_level, reads[i],
-            fixed_phat, lower, upper);
-        if ((upper - lower) < (1.0 - conf_level)) {
-          if (reads[i] < min_cov_to_pass)
-            min_cov_to_pass = reads[i];
-          ++total_passed;
-        }
+	apply_ci_criterion(conf_level, reads[i],
+			   min_cov_to_pass, total_passed);
+	//   double lower = 0.0, upper = 0.0;
+        // wilson_ci_for_binomial(1.0 - conf_level, reads[i],
+        //     fixed_phat, lower, upper);
+        // if ((upper - lower) < (1.0 - conf_level)) {
+        //   if (reads[i] < min_cov_to_pass)
+        //     min_cov_to_pass = reads[i];
+        //   ++total_passed;
+        // }
       }
       ++total;
     }
