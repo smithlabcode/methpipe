@@ -1008,14 +1008,6 @@ binsize_selection(const bool &VERBOSE,
         ++total_covered;
 	apply_ci_criterion(conf_level, reads[i],
 			   min_cov_to_pass, total_passed);
-	//   double lower = 0.0, upper = 0.0;
-        // wilson_ci_for_binomial(1.0 - conf_level, reads[i],
-        //     fixed_phat, lower, upper);
-        // if ((upper - lower) < (1.0 - conf_level)) {
-        //   if (reads[i] < min_cov_to_pass)
-        //     min_cov_to_pass = reads[i];
-        //   ++total_passed;
-        // }
       }
       ++total;
     }
