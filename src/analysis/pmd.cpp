@@ -134,6 +134,17 @@ merge_nearby_pmd(const size_t max_merge_dist,
   pmds.resize(j);
 }
 
+inline double
+beta_max_likelihood(const double fg_alpha, const double fg_beta,
+                    const double bg_alpha, const double bg_beta,
+                    const double p_low, const double p_hi) {
+  return (fg_alpha - 1.0)*log(p_low) +
+         (fg_beta - 1.0)*log(1.0 - p_low) -
+         gsl_sf_lnbeta(fg_alpha, fg_beta) +
+         (bg_alpha - 1.0)*log(p_hi) +
+         (bg_beta - 1.0)*log(1.0 - p_hi) -
+         gsl_sf_lnbeta(bg_alpha, bg_beta);
+}
 
 static size_t
 find_best_bound(const bool IS_RIGHT_BOUNDARY,
@@ -186,12 +197,9 @@ find_best_bound(const bool IS_RIGHT_BOUNDARY,
         const double p_low = static_cast<double>(k_low)/N_low;
 
         for (size_t j = 0; j < fg_alpha.size(); ++j) {
-          score += (((fg_alpha[j]-1.0)*log(p_low) +
-                     ((fg_beta[j]-1.0)*log(1.0 - p_low)))
-                    - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]))
-            + (((bg_alpha[j]-1.0)*log(p_hi) +
-                ((bg_beta[j]-1.0)*log(1.0 - p_hi)))
-               - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]));
+          score += beta_max_likelihood(fg_alpha[j], fg_beta[j],
+                                       bg_alpha[j], bg_beta[j],
+                                       p_low, p_hi);
         } // beta max likelihood using learned emissions
         score /= fg_alpha.size();
         if (p_hi > p_low && score > best_score) {
@@ -302,25 +310,19 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     const double p_hi = static_cast<double>(k_hi)/N_hi;
     const double p_low = static_cast<double>(k_low)/N_low;
 
-    if (bound_idx %2 ) { // its a right boundary, p_low should go with fg
-      for (size_t j = 0; j < fg_alpha.size(); ++j) {
-        score += (((fg_alpha[j]-1.0)*log(p_low) +
-                   ((fg_beta[j]-1.0)*log(1.0-p_low)))
-                  - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]))
-          + (((bg_alpha[j]-1.0)*log(p_hi) +
-              ((bg_beta[j]-1.0)*log(1.0-p_hi)))
-             - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]));
-      }
+    if (bound_idx % 2) { // its a right boundary, p_low should go with fg
+      for (size_t j = 0; j < fg_alpha.size(); ++j)
+        score += beta_max_likelihood(fg_alpha[j], fg_beta[j],
+                                     bg_alpha[j], bg_beta[j],
+                                     p_low, p_hi);
     }
     else { // its a left boundary, p_low should go with bg
-      for (size_t j = 0; j < fg_alpha.size(); ++j) {
-        score +=  (((bg_alpha[j]-1.0)*log(p_low) +
-                    ((bg_beta[j]-1.0)*log(1.0-p_low)))
-                   - gsl_sf_lnbeta(bg_alpha[j],bg_beta[j]))
-          + (((fg_alpha[j]-1.0)*log(p_hi) +
-              ((fg_beta[j]-1.0)*log(1.0-p_hi)))
-             - gsl_sf_lnbeta(fg_alpha[j],fg_beta[j]));
-      }
+      for (size_t j = 0; j < fg_alpha.size(); ++j)
+        score += beta_max_likelihood(bg_alpha[j], bg_beta[j],
+                                     fg_alpha[j], fg_beta[j],
+                                     p_low, p_hi);
+
+
     }
     boundary_certainties.push_back(std::min(N_low,N_hi));
     score /= fg_alpha.size();
