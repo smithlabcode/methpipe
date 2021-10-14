@@ -18,15 +18,14 @@
  * 02110-1301 USA
  */
 
-#include <stdexcept>
+#include <gsl/gsl_sf.h>
+
 #include <numeric>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <map>
 #include <stdexcept>
-
-#include <gsl/gsl_sf.h>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
