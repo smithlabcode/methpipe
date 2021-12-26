@@ -1,6 +1,8 @@
-/* duplicate-remover:
+/* duplicate-remover: remove duplicate reads from a file of mapped
+ * reads, based on identical mapping location and possibly also using
+ * the read sequence.
  *
- * Copyright (C) 2013-2018 University of Southern California and
+ * Copyright (C) 2013-2021 University of Southern California and
  *                         Andrew D. Smith
  *
  * Authors: Andrew D. Smith, Ben Decato, Song Qiang
@@ -139,6 +141,10 @@ get_meth_patterns(const bool ALL_C,
 }
 
 
+/* The "inner" buffer corresponds to all reads sharing chrom, start,
+ * end and strand, and is the subset of an "outer" buffer that shares
+ * the same end and strand.
+ */
 template<class T>
 static void
 process_inner_buffer(const bool USE_SEQUENCE,
@@ -171,6 +177,10 @@ process_inner_buffer(const bool USE_SEQUENCE,
   buffer.clear();
 }
 
+/* The "outer" buffer corresponds to reads sharing the same mapping
+ * chromosome and start position. These are gathered and then
+ * processed together.
+ */
 template<class T>
 static void
 process_outer_buffer(const bool USE_SEQUENCE,
@@ -212,7 +222,8 @@ duplicate_remover(const bool VERBOSE,
                   const string &histfile,
                   T &out) {
 
-  // histogram is tabulated whether or not user requests it
+  // histogram is tabulated whether or not user requests it, as there
+  // isn't really a cost.
   vector<size_t> hist;
 
   SAMReader in(infile);
@@ -230,7 +241,14 @@ duplicate_remover(const bool VERBOSE,
   // header of input = header of output
   out << in.get_header();
 
-  vector<sam_rec> outer_buffer(1, aln), inner_buffer;
+  // ADS: should we update the header to include the removal of
+  // duplicates?
+
+  // The outer and inner buffers are declared here so that the memory
+  // they use can be re-used without reallocation. The inner buffer
+  // could have been declared much later.
+  vector<sam_rec> outer_buffer(1, aln);
+  vector<sam_rec> inner_buffer;
   unordered_set<string> chroms_seen;
   string cur_chrom = "";
   while (in >> aln) {
@@ -297,6 +315,8 @@ int main(int argc, const char **argv) {
     bool ALL_C = false;
     bool DISABLE_SORT_TEST = false;
 
+    // ADS: Not recommended to change this seed. It shouldn't matter
+    // at all, and we want results to behave as deterministic.
     size_t the_seed = 408;
     string outfile;
     string statfile;
@@ -314,7 +334,7 @@ int main(int argc, const char **argv) {
                       false, ALL_C);
     opt_parse.add_opt("disable", 'D', "disable sort test",
                       false, DISABLE_SORT_TEST);
-    opt_parse.add_opt("seed", 's', "specify random seed", false, the_seed);
+    opt_parse.add_opt("seed", 's', "random seed", false, the_seed);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.set_show_defaults();
     vector<string> leftover_args;
@@ -343,6 +363,8 @@ int main(int argc, const char **argv) {
       outfile = leftover_args.back();
     /****************** END COMMAND LINE OPTIONS *****************/
 
+    // ADS: Random here is because we choose randomly when keeping one
+    // among duplicate reads.
     srand(the_seed);
 
     std::ofstream of;
