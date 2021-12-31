@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <map>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -819,7 +820,6 @@ load_array_data(const size_t bin_size,
       num_probes_in_bin = 0.0;
     }
     else if (curr_pos > position) {
-      cerr << curr_pos << "\t" << position << endl;
       throw std::runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
     else if (position > curr_pos + bin_size) {
@@ -933,108 +933,113 @@ load_wgbs_data(const size_t bin_size,
   }
 }
 
+
 static void
-apply_ci_criterion(const double conf_level,
-    const size_t &n_reads,
-    size_t &min_cov_to_pass,
-    size_t &total_passed) {
-  static const double fixed_phat = 0.5; // magic
-  double lower = 0.0, upper = 0.0;
-  wilson_ci_for_binomial(1.0 - conf_level, n_reads,
-    fixed_phat, lower, upper);
-  if ((upper - lower) < (1.0 - conf_level)) {
-    if (n_reads < min_cov_to_pass)
-      min_cov_to_pass = n_reads;
-    ++total_passed;
+load_read_counts(const string &cpgs_file, const size_t resolution,
+                 vector<size_t> &reads) {
+
+  // ADS: loading data each iteration should be put outside loop
+  igzfstream in(cpgs_file);
+  if (!in)
+    throw runtime_error("bad methcounts file: " + cpgs_file);
+
+  // variables for reading methcounts format
+  string chrom, site_name, strand;
+  size_t curr_pos = 0ul, coverage = 0ul;
+  double meth_level = 0.0;
+
+  reads.clear(); // for safety
+
+  // keep track of where we are and what we've seen
+  size_t bin_start = 0ul;
+  string curr_chrom;
+  std::unordered_set<string> chroms_seen;
+
+  while (methpipe_read_site(false, in, chrom, curr_pos, strand,
+                            site_name, meth_level, coverage)) {
+    if (curr_chrom != chrom) { // handle change of chrom
+      if (chroms_seen.find(chrom) != end(chroms_seen))
+        throw runtime_error("sites not sorted");
+      chroms_seen.insert(chrom);
+      bin_start = 0;
+      curr_chrom = chrom;
+    }
+    if (curr_pos < bin_start)
+      throw runtime_error("sites not sorted");
+    for (; bin_start + resolution < curr_pos; bin_start += resolution)
+      reads.push_back(0);
+    reads.back() += coverage;
   }
 }
 
-
-/* Bin first chromosome into bins of increasing size, starting
- * at @param bin_size, until a sufficient percentage of bins
- * contain confident binomial estimates of the true methylation
- * level in the bin.
- */
 static double
-binsize_selection(const bool &VERBOSE,
-                  const size_t initial_bin_size, const string &cpgs_file,
-                  const double conf_level, const double ACCEPT_THRESHOLD) {
-  static const size_t bin_size_step = 500; // MAGIC (ADS: must be fixed)
-  static const size_t max_bin_size = 50000; // MORE MAGIC...
+good_bins_frac(const vector<size_t> &cumulative, const size_t min_bin_size,
+               const size_t bin_size, const size_t min_cov_to_pass) {
 
-  size_t bin_size = initial_bin_size;
+  // make sure the target bin size is a multiple of the minimum so we
+  // have the resolution to construct the new bins
+  assert(bin_size % min_bin_size == 0);
 
-  for (; bin_size < max_bin_size; bin_size += bin_size_step) {
+  // the step size corresponds to the number of minium sized bins that
+  // would make up a new bin of the target size
+  const size_t step_size = bin_size/min_bin_size;
 
-    if (VERBOSE)
-      cerr << "evaluating bin size " << bin_size << endl;
+  size_t passing_bins = 0, covered_bins = 0;
 
-    // ADS: loading data each iteration should be put outside loop
-    igzfstream in(cpgs_file);
-    size_t curr_pos = 0ul;
-    size_t n_reads_bin = 0ul;
-    string chrom, site_name, strand;
-    double meth_level = 0.0;
-    size_t position = 0ul, coverage = 0;
+  size_t prev_total = 0;
+  for (size_t i = 0; i + step_size < cumulative.size(); i += step_size) {
+    const size_t curr_cumulative = cumulative[i + step_size];
+    const size_t bin_count = curr_cumulative - prev_total;
+    covered_bins += (bin_count > 0);
+    passing_bins += (bin_count >= min_cov_to_pass);
+    prev_total = curr_cumulative;
+  }
 
-    vector<size_t> reads;
-    string first_chrom;
+  // check if there is a leftover bin at the end
+  if (cumulative.size() % step_size != 0) {
+    const size_t bin_count = cumulative.back() - prev_total;
+    covered_bins += (bin_count > 0);
+    passing_bins += (bin_count >= min_cov_to_pass);
+  }
 
-    while (methpipe_read_site(false, in, chrom, position, strand, site_name,
-            meth_level, coverage) &&
-     (first_chrom.empty() || first_chrom == chrom)) {
-      if (curr_pos > position)
-        throw std::runtime_error("CpGs not sorted in file: " + cpgs_file);
-      else if (position > curr_pos + bin_size) {
-        reads.push_back(n_reads_bin);
-        n_reads_bin = 0ul;
-        curr_pos += bin_size;
-        while (curr_pos + bin_size < position) {
-          reads.push_back(0);
-          curr_pos += bin_size;
-        }
-      }
-      n_reads_bin += coverage;
-      swap(chrom, first_chrom);
-    }
+  return static_cast<double>(passing_bins)/covered_bins;
+}
 
-    size_t total_passed = 0, total_covered = 0;
-    size_t total = 0;
+static size_t
+get_min_reads_for_confidence(const double conf_level) {
+  // ADS: value of 0.5 below important; this is where the CI is widest
+  static const double fixed_phat = 0.5;
+  size_t n_reads = 0;
+  double lower = 0.0, upper = 1.0;
+  // ADS: should be doubling first, followed by bisection
+  while (1.0 - conf_level < upper - lower) {
+    ++n_reads;
+    wilson_ci_for_binomial(1.0 - conf_level, n_reads,
+                           fixed_phat, lower, upper);
+  }
+  return n_reads;
+}
 
-    // min_cov_to_pass will change during iteration
-    size_t min_cov_to_pass = numeric_limits<size_t>::max();
+static size_t
+binsize_selection(const bool &VERBOSE, const size_t resolution,
+                  const size_t min_bin_sz, const size_t max_bin_sz,
+                  const double conf_level, const double min_frac_passed,
+                  const string &cpgs_file) {
 
-    double prev_frac_passed = 0.0;
-    for (size_t i = 0; i < reads.size(); ++i) {
-      if (reads[i] > 0) {
-        ++total_covered;
-        apply_ci_criterion(conf_level, reads[i],
-          min_cov_to_pass, total_passed);
-      }
-      ++total;
-    }
+  const size_t min_cov_to_pass = get_min_reads_for_confidence(conf_level);
 
-    // fails if minimum coverage could not be calculated
-    if (min_cov_to_pass == numeric_limits<size_t>::max()) {
-      throw runtime_error("Insufficient coverage in chrom " +
-                          first_chrom + " to estimate a bin size");
-    }
-    if (VERBOSE)
-      cerr << "Min. cov. to pass: " << min_cov_to_pass << endl;
+  vector<size_t> reads;
+  load_read_counts(cpgs_file, resolution, reads);
 
-    const double frac_passed = static_cast<double>(total_passed)/total;
-    if (frac_passed > ACCEPT_THRESHOLD)
-      return bin_size;
-    else {
-      if (VERBOSE)
-        cerr << "% bins passed: " << (double)total_passed/total << endl;
+  std::partial_sum(begin(reads), end(reads), begin(reads));
 
-      if (frac_passed < prev_frac_passed)
-        throw runtime_error("Insufficient coverage in chrom " +
-                            first_chrom + " to estimate a bin size");
+  double frac_passed = 0.0;
+  size_t bin_size = min_bin_sz;
 
-      prev_frac_passed = frac_passed;
-    }
+  while (bin_size < max_bin_sz && frac_passed < min_frac_passed) {
+    frac_passed = good_bins_frac(reads, resolution, bin_size, min_cov_to_pass);
+    if (frac_passed < min_frac_passed)
+      bin_size += resolution;
   }
   return bin_size;
 }
@@ -1061,6 +1066,10 @@ load_intervals(const size_t bin_size,
 int
 main(int argc, const char **argv) {
   try {
+
+    static const size_t max_bin_size = 500000;
+    static const size_t min_bin_size = 1000;
+    static const size_t resolution = 500;
 
     const char* sep = ",";
     string outfile;
@@ -1158,8 +1167,10 @@ main(int argc, const char **argv) {
       for (size_t i = 0; i < n_replicates; ++i) {
         const bool arrayData = check_if_array_data(cpgs_file[i]);
         if (!arrayData) {
-          bin_size = binsize_selection(VERBOSE, bin_size, cpgs_file[i],
-                                       confidence_interval, prop_accept);
+          bin_size = binsize_selection(VERBOSE, resolution,
+                                       min_bin_size, max_bin_size,
+                                       confidence_interval, prop_accept,
+                                       cpgs_file[i]);
           desert_size = 5*bin_size; // TODO: explore extrapolation number
         }
         else {
