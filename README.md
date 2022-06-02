@@ -7,7 +7,7 @@ methylation features, such as hypo-methylated regions (HMR), partially
 methylated domains (PMD), hyper-methylated regions (HyperMR), and
 allele-specific methylated regions (AMR).
 
-Release 5.0.0
+Release 5.0.1
 ===================
 
 This new release no longer supports `mr` files, which means that the
@@ -19,11 +19,11 @@ required, and instructions to install it in different environments are
 discussed below.
 
 If working with MR files is necessary for your analysis, we refer
-users to methpipe version [4.1.1](https://github.com/smithlabcode/methpipe/releases/tag/v4.1.1),
+users to methpipe version [5.0.1](https://github.com/smithlabcode/methpipe/releases/tag/v5.0.1),
 which is the last release that contains programs that take MR as
 input.
 
-## Installing release 5.0.0
+## Installing release 5.0.1
 
 ### Required libraries
 
@@ -46,14 +46,14 @@ input.
 
 ### Configuration
 
-1. Download methpipe-4.1.1.tar.gz [here](https://github.com/smithlabcode/methpipe/releases/download/v4.1.1/methpipe-4.1.1.tar.gz).
+1. Download methpipe-5.0.1.tar.gz [here](https://github.com/smithlabcode/methpipe/releases/download/v5.0.1/methpipe-5.0.1.tar.gz).
 2. Unpack the archive:
 ```
-$ tar -zxvf methpipe-4.1.1.tar.gz
+$ tar -zxvf methpipe-5.0.1.tar.gz
 ```
 3. Move into the methpipe directory and create a build directory:
 ```
-$ cd methpipe-4.1.1
+$ cd methpipe-5.0.1
 $ mkdir build && cd build
 ```
 4. Run the configuration script:
