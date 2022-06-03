@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -43,6 +44,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::unordered_map;
+using std::unordered_set;
 using std::runtime_error;
 
 
@@ -152,6 +154,23 @@ convert_meth_states_neg(const string &chrom,
   return cpg_count > 0;
 }
 
+static void
+get_chrom(const sam_rec &aln,
+          const vector<string> &all_chroms,
+          const unordered_map<string, size_t> &chrom_lookup,
+          GenomicRegion &chrom_region, string &chrom) {
+
+  const unordered_map<string, size_t>::const_iterator
+    the_chrom(chrom_lookup.find(aln.rname));
+  if (the_chrom == chrom_lookup.end())
+    throw runtime_error("could not find chrom: " + aln.rname);
+
+  chrom = all_chroms[the_chrom->second];
+  if (chrom.empty())
+    throw runtime_error("could not find chrom: " + aln.rname);
+
+  chrom_region.set_chrom(aln.rname);
+}
 
 
 int
@@ -197,11 +216,30 @@ main(int argc, const char **argv) {
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
 
-    unordered_map<string, string> chrom_files;
-    identify_chromosomes(chrom_file, fasta_suffix, chrom_files);
-    if (VERBOSE) {
-      cerr << "CHROMS:\t" << chrom_files.size() << endl;
+    vector<string> chrom_files;
+    if (isdir(chrom_file.c_str()))
+      read_dir(chrom_file, fasta_suffix, chrom_files);
+    else chrom_files.push_back(chrom_file);
+
+    if (VERBOSE)
+      cerr << "n_chrom_files:\t" << chrom_files.size() << endl;
+
+    vector<string> all_chroms;
+    vector<string> chrom_names;
+    unordered_map<string, size_t> chrom_lookup;
+    for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
+      vector<string> tmp_chroms, tmp_names;
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
+      for (size_t j = 0; j < tmp_chroms.size(); ++j) {
+        chrom_names.push_back(tmp_names[j]);
+        chrom_lookup[chrom_names.back()] = all_chroms.size();
+        all_chroms.push_back("");
+        all_chroms.back().swap(tmp_chroms[j]);
+      }
     }
+
+    if (VERBOSE)
+      cerr << "n_chroms: " << all_chroms.size() << endl;
 
     SAMReader in(mapped_reads_file.c_str());
     if (!in)
@@ -212,33 +250,32 @@ main(int argc, const char **argv) {
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     unordered_map<size_t, size_t> cpgs;
-    vector<string> chrom_names, chroms;
-    string chrom_name;
+    string chrom;
     sam_rec aln;
-    GenomicRegion chrom_region("chr0", 0, 0);
+    GenomicRegion chrom_region("EMPTY_CHROMOSOME", 0, 0);
+
+    unordered_set<string> chroms_seen;
     while (in >> aln) {
       // get the correct chrom if it has changed
-      if (chroms.empty() || aln.rname != chrom_region.get_chrom()) {
-        const unordered_map<string, string>::const_iterator
-          fn(chrom_files.find(aln.rname));
-        if (fn == chrom_files.end())
-          throw runtime_error("could not find chrom: " + aln.rname);
-        chrom_names.clear();
-        chroms.clear();
-        read_fasta_file_short_names(fn->second.c_str(), chrom_names, chroms);
+      if (chrom.empty() || aln.rname != chrom_region.get_chrom()) {
+        // make sure all reads from same chrom are contiguous in the file
+        if (chroms_seen.find(aln.rname) != end(chroms_seen))
+          throw runtime_error("chroms out of order. Is the SAM input sorted?");
+
         if (VERBOSE)
-          cerr << "PROCESSING: " << chrom_names.front() << endl;
-        collect_cpgs(chroms.front(), cpgs);
-        chrom_region.set_chrom(chrom_names.front());
-        chrom_name = chrom_names.front();
+          cerr << "processing " << aln.rname << endl;
+
+        get_chrom(aln, all_chroms, chrom_lookup, chrom_region, chrom);
+        collect_cpgs(chrom, cpgs);
+        chrom_region.set_chrom(aln.rname);
       }
       size_t start_pos = std::numeric_limits<size_t>::max();
       string seq;
       const bool has_cpgs = check_flag(aln, samflags::read_rc) ?
-        convert_meth_states_pos(chroms.front(), cpgs, aln, start_pos, seq) :
-        convert_meth_states_neg(chroms.front(), cpgs, aln, start_pos, seq);
+        convert_meth_states_pos(chrom, cpgs, aln, start_pos, seq) :
+        convert_meth_states_neg(chrom, cpgs, aln, start_pos, seq);
       if (has_cpgs)
-        out << chrom_name << '\t'
+        out << aln.rname << '\t'
             << start_pos << '\t'
             << seq << '\n';
     }
