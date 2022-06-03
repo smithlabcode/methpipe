@@ -272,7 +272,6 @@ main(int argc, const char **argv) {
     string fasta_suffix = "fa";
     string sequence_to_use;
 
-    double max_mismatches = std::numeric_limits<double>::max();
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(strip_path(argv[0]), "Program to compute the "
@@ -291,8 +290,6 @@ main(int argc, const char **argv) {
                       false , INCLUDE_CPGS);
     opt_parse.add_opt("seq", '\0', "use only this sequence (e.g. chrM)",
                       false , sequence_to_use);
-    opt_parse.add_opt("max", 'M', "max mismatches (can be fractional)",
-                      false , max_mismatches);
     opt_parse.add_opt("a-rich", 'A', "reads are A-rich",
                       false, reads_are_a_rich);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
@@ -317,9 +314,6 @@ main(int argc, const char **argv) {
     }
     const string mapped_reads_file = leftover_args.front();
     /****************** END COMMAND LINE OPTIONS *****************/
-
-    if (VERBOSE && max_mismatches != std::numeric_limits<double>::max())
-      cerr << "max_mismatches: " << max_mismatches << endl;
 
     vector<string> chrom_files;
     if (isdir(chrom_file.c_str()))
