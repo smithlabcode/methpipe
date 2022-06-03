@@ -1718,7 +1718,7 @@ First, convert the methcounts file \fn{Mouse\_BCell\_mm9.meth} to the
 BED file \fn{mm9\_cpg.bed} file for \prog{liftOver} using the
 following command.
 \begin{verbatim}
- awk '{print $1"\t"$2"\t"$2+1"\t",$1":"$2":"$2+1":+\t0\t+"}' \
+$ awk '{print $1"\t"$2"\t"$2+1"\t",$1":"$2":"$2+1":+\t0\t+"}' \
      Mouse_BCell_mm9.meth >mm9_cpg.bed
 \end{verbatim}
 
@@ -1749,7 +1749,7 @@ site in mm9 coordinates.
 Next, convert the file \fn{mm9-hg19.index} to a tab-separated input to
 be passed onto the \prog{fast-liftover} tool as follows.
 \begin{verbatim}
-tr ':' '\t' <mm9-hg19.index  | \
+$ tr ':' '\t' <mm9-hg19.index  | \
    awk '{print $4"\t"$5"\t"$1"\t"$2"\t"$9}' >mm9-hg19-fastliftover.index
 \end{verbatim}
 
