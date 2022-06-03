@@ -1714,8 +1714,15 @@ We would like to lift it over to the human genome hg19, and generate
 an index file \fn{mm9-hg19.index} to facilitate later lift-over
 operations from mm9 to hg19, and keep a record of unlifted mm9
 cytosine positions in the file \fn{mm9-hg19.unlifted}.
-First, prepare the input \fn{mm9\_cpg.bed} file for \prog{liftOver} into
-the following BED format:
+First, convert the methcounts file \fn{Mouse\_BCell\_mm9.meth} to the
+BED file \fn{mm9\_cpg.bed} file for \prog{liftOver} using the
+following command.
+\begin{verbatim}
+ awk '{print $1"\t"$2"\t"$2+1"\t",$1":"$2":"$2+1":+\t0\t+"}' \
+     Mouse_BCell_mm9.meth >mm9_cpg.bed
+\end{verbatim}
+
+The output file \fn{mm9\_cpg.bed} should look like this:
 \begin{verbatim}
 chr1  3005765   3005766  chr1:3005765:3005766:+  0  +
 chr1  3005846  3005847  chr1:3005846:3005847:+  0  +
@@ -1726,7 +1733,7 @@ with colons.
 
 Then, run UCSC Genome Browser tool \fn{liftOver} as follows:
 \begin{verbatim}
-$ liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz  mm9-hg19.index mm9-hg19.unlifted
+$ liftOver mm9_cpg.bed mm9ToHg19.over.chain.gz mm9-hg19.index mm9-hg19.unlifted
 \end{verbatim}
 
 The generated index file \fn{mm9-hg19.index} will be a BED format
@@ -1739,17 +1746,26 @@ chr8    56539209        56539210  chr1:3005927:3005928:+        0       -
 where the 4\textsuperscript{th} column contains the genomic position of the cytosine
 site in mm9 coordinates.
 
-After the index file is generated, we can use the \prog{fast-liftover}
+Next, convert the file \fn{mm9-hg19.index} to a tab-separated input to
+be passed onto the \prog{fast-liftover} tool as follows.
+\begin{verbatim}
+tr ':' '\t' <mm9-hg19.index  | \
+   awk '{print $4"\t"$5"\t"$1"\t"$2"\t"$9}' >mm9-hg19-fastliftover.index
+\end{verbatim}
+
+After the index file is converted, we can use the \prog{fast-liftover}
 program on any mm9 \prog{methcounts} file to lift it to hg19:
 \begin{verbatim}
-$ fast-liftover -i mm9-hg19.index -f SAMPLE_mm9.meth -t SAMPLE_hg19.meth.lift -v
+$ fast-liftover -i mm9-hg19-fastliftover.index -f Mouse_BCell_mm9.meth \
+                -t Mouse_BCell_hg19.meth.lift
 \end{verbatim}
 The \op{-p} option should be specified to report positions on the positive
 strand of the target assembly.
 
 Before using the lifted methcounts file, make sure it is sorted properly.
 \begin{verbatim}
-$ LC_ALL=C sort -k1,1 -k2,2g -k3,3 SAMPLE_hg19.meth.lift -o SAMPLE_hg19.meth.sorted
+$ LC_ALL=C sort -k1,1 -k2,2g -k3,3 Mouse_BCell_hg19.meth.lift \
+                -o Mouse_BCell_hg19.meth.sorted
 \end{verbatim}
 
 The \prog{liftOver} program may report multiple mm9 sites mapped to a same position in hg19.
@@ -1758,7 +1774,7 @@ In this situation, we may either collapse read counts at those mm9 sites, or
 keep the data for only one mm9 site. We can use the \fn{lift-filter} program
 to achieve these two options. Use
 \begin{verbatim}
-$ lift-filter -o SAMPLE_hg19.meth  SAMPLE_hg19.meth.sorted -v
+$ lift-filter -o Mouse_BCell_hg19.meth.lift  Mouse_BCell_hg19.meth.sorted -v
  \end{verbatim}
 to merge data from mm9 sites lifted to the same hg19 position. Use
 the option \op{-u} to keep the first record of duplicated sites.
