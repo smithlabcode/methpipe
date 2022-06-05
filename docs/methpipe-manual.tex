@@ -1413,14 +1413,14 @@ that information from such site is not reliable.
 One of the most common analysis tasks is to compute the average
 methylation level through a genomic region. The \prog{roimethstat}
 program accomplishes this.
- 
+
 This program requires two input files: The first is a sorted \prog{methcounts}
 output file (human\_esc.meth.sorted). This file provides data for every
 methylated cytosine site that \prog{roimethstat} will use to compute the
 average methylation. The second input file (regions.bed) is used to specify
 the ``regions of interest'' that are identified using the former methcounts
 file (hence the ``roi'' in \prog{roimethstat}).
-If either file is not sorted by (chrom,end,start,strand) it can be sorted using 
+If either file is not sorted by (chrom,end,start,strand) it can be sorted using
 the following command:
 \begin{verbatim}
 $ LC_ALL=C sort -k 1,1 -k 3,3n -k 2,2n -k 6,6 \
@@ -1464,6 +1464,28 @@ loads only those CpGs to save memory. However, with many target regions
 this can be tedious. The -L option loads all lines of the methcounts
 file into memory, which saves time at the expense of an increased
 memory requirement.
+
+\subsection{Subsetting cytosines in methcounts files}
+\label{sec:selectsites}
+
+In many cases, we may be interested in analyzing only a subset of
+cytosines or CpGs in a sample. Some instances of these cases
+including calculating average methylation levels in (1) annotated regions,
+such as promoter regions or repeats or (2) regions defined by the data
+itself, such as HMRs or PMDs. A possible solution to subset these
+regions is to convert the methcounts file to BED format, intersect it
+with a BED file of the regions of interest (using \prog{bedtools}), then convert it back to
+methcounts. The program \prog{selectsites} simplifies these
+operations. It simply takes a methcounts file and a set of intervals
+represented as a BED file and produces a subset of the entries in the
+methcounts file included in the BED regions. Given the example input
+files from the previous section (\fn{regions.bed} and
+\fn{human\_esc.meth}), we can select entries in \fn{human\_esc.meth}
+contained in \fn{reigons.bed}) using the following command
+\begin{verbatim}
+$ selectsites -o human_esc_regions.meth regions.bed human_esc.bed
+\end{verbatim}
+The resulting subset is saved in file \fn{human\_esc\_regions.meth}.
 
 
 \subsection{Computing methylation entropy}
