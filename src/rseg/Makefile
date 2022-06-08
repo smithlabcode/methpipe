@@ -54,7 +54,7 @@ rseg: $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 	Distro.o SplitDistro.o Smoothing.o BAMFile.o \
 	SortGenomicRegion.o LoadReadsByRegion.o SelectBinSize.o ReadCounts.o \
 	TwoStateScaleHMM.o TwoStateScaleResolveMixture.o \
-	EvaluateBoundaries.o) \
+	EvaluateBoundaries.o)
 
 rseg-diff: $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 	smithlab_utils.o OptionParser.o) \
@@ -63,7 +63,7 @@ rseg-diff: $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 	SortGenomicRegion.o LoadReadsByRegion.o SelectBinSize.o ReadCounts.o \
 	TwoStateScaleSplitHMM.o TwoStateScaleSplitResolveMixture.o \
 	ThreeStateScaleSplitHMM.o ThreeStateScaleSplitResolveMixture.o \
-	EvaluateBoundaries.o) \
+	EvaluateBoundaries.o)
 
 deadzones: $(addprefix $(SMITHLAB_CPP)/, GenomicRegion.o smithlab_os.o \
 	smithlab_utils.o OptionParser.o)
