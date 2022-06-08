@@ -111,6 +111,133 @@ radmeth_SOURCES += \
 	src/radmeth/combine_pvals.hpp \
 	src/radmeth/merge.hpp
 
+### RSEG SUBDIR
+bin_PROGRAMS += rseg rseg-diff deadzones
+
+rseg_SOURCES = \
+	src/rseg/rseg.cpp \
+	src/rseg/BAMFile.cpp \
+	src/rseg/Distro.cpp \
+	src/rseg/EvaluateBoundaries.cpp \
+	src/rseg/LoadReadsByRegion.cpp \
+	src/rseg/ModelParams.cpp \
+	src/rseg/numerical_utils.cpp \
+	src/rseg/ReadCounts.cpp \
+	src/rseg/rseg_utils.cpp \
+	src/rseg/SelectBinSize.cpp \
+	src/rseg/Smoothing.cpp \
+	src/rseg/SortGenomicRegion.cpp \
+	src/rseg/SplitDistro.cpp \
+	src/rseg/ThreeStateScaleSplitHMM.cpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.cpp \
+	src/rseg/TwoStateScaleHMM.cpp \
+	src/rseg/TwoStateScaleResolveMixture.cpp \
+	src/rseg/TwoStateScaleSplitHMM.cpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.cpp
+
+rseg_SOURCES += \
+	src/rseg/BAMFile.hpp \
+	src/rseg/Distro.hpp \
+	src/rseg/EvaluateBoundaries.hpp \
+	src/rseg/LoadReadsByRegion.hpp \
+	src/rseg/ModelParams.hpp \
+	src/rseg/numerical_utils.hpp \
+	src/rseg/ReadCounts.hpp \
+	src/rseg/rseg_utils.hpp \
+	src/rseg/SelectBinSize.hpp \
+	src/rseg/Smoothing.hpp \
+	src/rseg/SortGenomicRegion.hpp \
+	src/rseg/SplitDistro.hpp \
+	src/rseg/ThreeStateScaleSplitHMM.hpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.hpp \
+	src/rseg/TwoStateScaleHMM.hpp \
+	src/rseg/TwoStateScaleResolveMixture.hpp \
+	src/rseg/TwoStateScaleSplitHMM.hpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.hpp
+
+rseg_diff_SOURCES = \
+	src/rseg/rseg-diff.cpp \
+	src/rseg/BAMFile.cpp \
+	src/rseg/Distro.cpp \
+	src/rseg/EvaluateBoundaries.cpp \
+	src/rseg/LoadReadsByRegion.cpp \
+	src/rseg/ModelParams.cpp \
+	src/rseg/numerical_utils.cpp \
+	src/rseg/ReadCounts.cpp \
+	src/rseg/rseg_utils.cpp \
+	src/rseg/SelectBinSize.cpp \
+	src/rseg/Smoothing.cpp \
+	src/rseg/SortGenomicRegion.cpp \
+	src/rseg/SplitDistro.cpp \
+	src/rseg/ThreeStateScaleSplitHMM.cpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.cpp \
+	src/rseg/TwoStateScaleHMM.cpp \
+	src/rseg/TwoStateScaleResolveMixture.cpp \
+	src/rseg/TwoStateScaleSplitHMM.cpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.cpp
+
+rseg_diff_SOURCES += \
+	src/rseg/BAMFile.hpp \
+	src/rseg/Distro.hpp \
+	src/rseg/EvaluateBoundaries.hpp \
+	src/rseg/LoadReadsByRegion.hpp \
+	src/rseg/ModelParams.hpp \
+	src/rseg/numerical_utils.hpp \
+	src/rseg/ReadCounts.hpp \
+	src/rseg/rseg_utils.hpp \
+	src/rseg/SelectBinSize.hpp \
+	src/rseg/Smoothing.hpp \
+	src/rseg/SortGenomicRegion.hpp \
+	src/rseg/SplitDistro.hpp \
+	src/rseg/ThreeStateScaleSplitHMM.hpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.hpp \
+	src/rseg/TwoStateScaleHMM.hpp \
+	src/rseg/TwoStateScaleResolveMixture.hpp \
+	src/rseg/TwoStateScaleSplitHMM.hpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.hpp
+
+deadzones_SOURCES = \
+	src/rseg/deadzones.cpp \
+	src/rseg/BAMFile.cpp \
+	src/rseg/Distro.cpp \
+	src/rseg/EvaluateBoundaries.cpp \
+	src/rseg/LoadReadsByRegion.cpp \
+	src/rseg/ModelParams.cpp \
+	src/rseg/numerical_utils.cpp \
+	src/rseg/ReadCounts.cpp \
+	src/rseg/rseg_utils.cpp \
+	src/rseg/SelectBinSize.cpp \
+	src/rseg/Smoothing.cpp \
+	src/rseg/SortGenomicRegion.cpp \
+	src/rseg/SplitDistro.cpp \
+	src/rseg/ThreeStateScaleSplitHMM.cpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.cpp \
+	src/rseg/TwoStateScaleHMM.cpp \
+	src/rseg/TwoStateScaleResolveMixture.cpp \
+	src/rseg/TwoStateScaleSplitHMM.cpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.cpp
+
+deadzones_SOURCES += \
+	src/rseg/BAMFile.hpp \
+	src/rseg/Distro.hpp \
+	src/rseg/EvaluateBoundaries.hpp \
+	src/rseg/LoadReadsByRegion.hpp \
+	src/rseg/ModelParams.hpp \
+	src/rseg/numerical_utils.hpp \
+	src/rseg/ReadCounts.hpp \
+	src/rseg/rseg_utils.hpp \
+	src/rseg/SelectBinSize.hpp \
+	src/rseg/Smoothing.hpp \
+	src/rseg/SortGenomicRegion.hpp \
+	src/rseg/SplitDistro.hpp \
+	src/rseg/ThreeStateScaleSplitHMM.hpp \
+	src/rseg/ThreeStateScaleSplitResolveMixture.hpp \
+	src/rseg/TwoStateScaleHMM.hpp \
+	src/rseg/TwoStateScaleResolveMixture.hpp \
+	src/rseg/TwoStateScaleSplitHMM.hpp \
+	src/rseg/TwoStateScaleSplitResolveMixture.hpp
+
+
 ### MLML SUBDIR
 bin_PROGRAMS += mlml
 
