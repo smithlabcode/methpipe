@@ -27,15 +27,15 @@ $(error src/smithlab_cpp does not have a Makefile. \
 	      Did you use --recursive when running git clone?)
 endif
 
-all_subdirs=common utils analysis rseg amrfinder mlml radmeth
+all_subdirs=common utils analysis amrfinder mlml radmeth
 lib_subdirs=common
-app_subdirs=analysis rseg utils amrfinder mlml radmeth
+app_subdirs=analysis utils amrfinder mlml radmeth
 
 all_subdirs += $(SMITHLAB_CPP)
 lib_subdirs += $(SMITHLAB_CPP)
 
 all:
-	make -C $(SMITHLAB_CPP) HAVE_HTSLIB=1 all
+	make -C $(SMITHLAB_CPP) HAVE_HTSLIB=1 all 
 	@for i in $(app_subdirs); do \
 		make -C $${i} \
 			SMITHLAB_CPP=$(SMITHLAB_CPP) \
