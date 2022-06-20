@@ -963,6 +963,7 @@ load_read_counts(const string &cpgs_file, const size_t resolution,
       chroms_seen.insert(chrom);
       bin_start = 0;
       curr_chrom = chrom;
+      reads.push_back(0);
     }
     if (curr_pos < bin_start)
       throw runtime_error("sites not sorted");
@@ -1069,7 +1070,7 @@ main(int argc, const char **argv) {
 
     static const size_t max_bin_size = 500000;
     static const size_t min_bin_size = 1000;
-    static const size_t resolution = 500;
+    size_t resolution = 500;
 
     const char* sep = ",";
     string outfile;
@@ -1145,6 +1146,8 @@ main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     /****************** END COMMAND LINE OPTIONS *****************/
+
+    resolution = min(bin_size, resolution);
 
     srand(rng_seed);
 
