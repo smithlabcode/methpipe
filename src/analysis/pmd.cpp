@@ -1,5 +1,5 @@
 /* Copyright (C) 2018 University of Southern California
- *                         Andrew D Smith
+ *                    Andrew D Smith
  * Authors: Andrew D. Smith, Song Qiang, Jenny Qu, Benjamin Decato
  *
  * This is free software; you can redistribute it and/or modify it
@@ -1047,20 +1047,20 @@ binsize_selection(const bool &VERBOSE, const size_t resolution,
 
 
 static void
-load_intervals(const size_t bin_size,
-               const string &cpgs_file,
-               vector<SimpleGenomicRegion> &intervals,
-               vector<pair<double, double> > &meth,
-               vector<size_t> &reads, vector<bool> &array_status) {
+load_bins(const size_t bin_size,
+          const string &cpgs_file,
+          vector<SimpleGenomicRegion> &bins,
+          vector<pair<double, double> > &meth,
+          vector<size_t> &reads, vector<bool> &array_status) {
 
   const bool is_array_data = check_if_array_data(cpgs_file);
 
   array_status.push_back(is_array_data);
 
   if (is_array_data)
-    load_array_data(bin_size, cpgs_file, intervals, meth, reads);
+    load_array_data(bin_size, cpgs_file, bins, meth, reads);
   else
-    load_wgbs_data(bin_size, cpgs_file, intervals, meth, reads);
+    load_wgbs_data(bin_size, cpgs_file, bins, meth, reads);
 }
 
 
