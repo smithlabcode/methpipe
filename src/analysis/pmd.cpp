@@ -863,76 +863,53 @@ load_array_data(const size_t bin_size,
 
 
 static void
-load_wgbs_data(const size_t bin_size,
-               const string &cpgs_file,
+load_wgbs_data(const size_t bin_size, const string &cpgs_file,
                vector<SimpleGenomicRegion> &bins,
                vector<pair<double, double> > &meth,
                vector<size_t> &reads) {
 
+  // ADS: loading data each iteration should be put outside loop
   igzfstream in(cpgs_file);
+  if (!in)
+    throw runtime_error("bad methcounts file: " + cpgs_file);
 
-  string curr_chrom;
-  size_t prev_pos = 0ul, curr_pos = 0ul;
-  size_t n_meth_bin = 0ul, n_unmeth_bin = 0ul;
+  // variables for reading methcounts format
   string chrom, site_name, strand;
+  size_t curr_pos = 0ul, coverage = 0ul;
   double meth_level = 0.0;
-  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
 
-  while (methpipe_read_site(false, in, chrom, position,
-                            strand, site_name, meth_level, coverage)) {
+  reads.clear(); // for safety
+  meth.clear();
+  bins.clear();
 
-    n_meth = round(meth_level * coverage);
-    n_unmeth = coverage - n_meth;
+  // keep track of the chroms we've seen
+  string curr_chrom;
+  std::unordered_set<string> chroms_seen;
 
-    // no range, or no chrom
-    if (curr_chrom != chrom) {
-      if (!curr_chrom.empty()) {
-        if (chrom < curr_chrom)
-          throw std::runtime_error("CpGs not sorted in file \""
-                                   + cpgs_file + "\"");
-        bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
-                                           prev_pos + 1));
-        reads.push_back(n_meth_bin + n_unmeth_bin);
-        meth.push_back(make_pair(n_meth_bin, n_unmeth_bin));
-      }
+  while (methpipe_read_site(false, in, chrom, curr_pos, strand,
+                            site_name, meth_level, coverage)) {
+    if (curr_chrom != chrom) { // handle change of chrom
+      if (chroms_seen.find(chrom) != end(chroms_seen))
+        throw runtime_error("sites not sorted");
+      chroms_seen.insert(chrom);
       curr_chrom = chrom;
-      curr_pos = position;
-      n_meth_bin = 0ul;
-      n_unmeth_bin = 0ul;
+      reads.push_back(0);
+      meth.push_back(make_pair(0.0, 0.0));
+      bins.push_back(SimpleGenomicRegion(chrom, 0, bin_size));
     }
-    else if (curr_pos > position) {
-      throw std::runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
+    if (curr_pos < bins.back().get_start())
+      throw runtime_error("sites not sorted");
+    while (bins.back().get_end() < curr_pos) {
+      reads.push_back(0);
+      meth.push_back(make_pair(0.0, 0.0));
+      bins.push_back(SimpleGenomicRegion(chrom, bins.back().get_end(),
+                                         bins.back().get_end() + bin_size));
     }
-    else if (position > curr_pos + bin_size) {
-      bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
-                                         curr_pos + bin_size));
-      reads.push_back(n_meth_bin + n_unmeth_bin);
-      meth.push_back(make_pair(n_meth_bin, n_unmeth_bin));
-
-      n_meth_bin = 0ul;
-      n_unmeth_bin = 0ul;
-      curr_pos += bin_size;
-      while (curr_pos + bin_size < position) {
-        bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
-                                           curr_pos + bin_size));
-        reads.push_back(0);
-        meth.push_back(make_pair(0.0, 0.0));
-
-        curr_pos += bin_size;
-      }
-    }
-    n_meth_bin += n_meth;
-    n_unmeth_bin += n_unmeth;
-    prev_pos = position;
-  }
-  if (!curr_chrom.empty()) {
-    bins.push_back(SimpleGenomicRegion(curr_chrom,
-                                       curr_pos, prev_pos + 1));
-    reads.push_back(n_meth_bin + n_unmeth_bin);
-    meth.push_back(make_pair(n_meth_bin, n_unmeth_bin));
+    reads.back() += coverage;
+    meth.back().first += round(meth_level * coverage);
+    meth.back().second += (coverage - round(meth_level * coverage));
   }
 }
-
 
 
 static void
