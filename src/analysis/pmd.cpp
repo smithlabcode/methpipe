@@ -913,6 +913,33 @@ load_wgbs_data(const size_t bin_size, const string &cpgs_file,
 
 
 static void
+remove_empty_bins_at_chrom_start(vector<SimpleGenomicRegion> &bins,
+                                 vector<pair<double, double> > &meth,
+                                 vector<size_t> &reads) {
+  bool chrom_start = true;
+  size_t j = 0;
+  string prev_chrom = "";
+  for (size_t i = 0; i < bins.size(); ++i) {
+    if (bins[i].get_chrom() != prev_chrom) {
+      chrom_start = true;
+      prev_chrom = bins[i].get_chrom();
+    }
+    if (reads[i] > 0)
+      chrom_start = false;
+    if (!chrom_start) {
+      reads[j] = reads[i];
+      meth[j] = meth[i];
+      bins[j] = bins[i];
+      ++j;
+    }
+  }
+  bins.erase(begin(bins) + j, end(bins));
+  meth.erase(begin(meth) + j, end(meth));
+  reads.erase(begin(reads) + j, end(reads));
+}
+
+
+static void
 load_read_counts(const string &cpgs_file, const size_t bin_size,
                  vector<size_t> &reads) {
 
@@ -1037,8 +1064,10 @@ load_bins(const size_t bin_size,
 
   if (is_array_data)
     load_array_data(bin_size, cpgs_file, bins, meth, reads);
-  else
+  else {
     load_wgbs_data(bin_size, cpgs_file, bins, meth, reads);
+    remove_empty_bins_at_chrom_start(bins, meth, reads);
+  }
 }
 
 
