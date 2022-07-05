@@ -54,42 +54,6 @@ using std::ostream;
 using std::ofstream;
 using std::to_string;
 
-template <class T> T &
-methpipe_skip_header(T &in, string &line) {
-  do {getline(in, line);}
-  while (line[0] == '#');
-  return in;
-}
-
-template <class T> T &
-methpipe_read_site(const bool is_array_data,
-                   T &in, string &chrom, size_t &pos,
-                   string &strand, string &seq, double &meth,
-                   size_t &coverage) {
-  string line;
-  methpipe_skip_header(in, line);
-
-  /* GS: commenting out because it breaks when compiled with OSX clang
-     std::istringstream iss;
-     iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length()); */
-  std::istringstream iss(line);
-  if (!line.empty()) {
-    if (!(iss >> chrom >> pos >> strand >> seq >> meth))
-      throw std::runtime_error("bad methpipe site line: \"" + line + "\"");
-    strand.resize(1);
-    if (strand[0] != '-' && strand[0] != '+') {
-      throw std::runtime_error("bad methpipe site line, strand incorrect: \"" +
-                               line + "\"");
-    }
-    if (is_array_data)
-      coverage = 1;
-    else
-      iss >> coverage;
-    return in;
-  }
-  return in;
-}
-
 
 static void
 get_adjacent_distances(const vector<GenomicRegion> &pmds,
@@ -252,39 +216,42 @@ get_optimized_boundary_likelihoods(const vector<string> &cpgs_file,
     in[i] = new igzfstream(cpgs_file[i]);
 
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
-  string chrom, site_name, strand;
-  double meth_level = 0.0;
-  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
+  size_t n_meth = 0ul, n_reads = 0ul;
   size_t bound_idx = 0;
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe_read_site(array_status[i], *in[i], chrom, position,
-                                strand, site_name, meth_level, coverage)
-             && !succeeds(chrom, position, bounds[bound_idx])) {
+
+      MSite site;
+      while (*in[i] >> site &&
+             !succeeds(site.chrom, site.pos, bounds[bound_idx])) {
+
+        if (array_status[i])
+          site.n_reads = array_coverage_constant;
+
         // check if CpG is inside boundary
-        if (!precedes(chrom, position, bounds[bound_idx])) {
+        if (!precedes(site.chrom, site.pos, bounds[bound_idx])) {
           if (array_status[i]) {
-            if (meth_level != -1) {
-              n_meth = round(meth_level*array_coverage_constant);
-              n_unmeth = array_coverage_constant - n_meth;
+            if (site.meth != -1) {
+              n_meth = site.n_meth();
+              n_reads = site.n_reads;
             }
             else {
               n_meth = 0;
-              n_unmeth = 0;
+              n_reads = 0;
             }
           }
           else {
-            n_meth = round(meth_level*coverage);
-            n_unmeth = coverage - n_meth;
+            n_meth = site.n_meth();
+            n_reads = site.n_reads;
           }
-          auto it(pos_meth_tot.find(position));
-          if (it == end(pos_meth_tot)) {// does not exist in map
-            pos_meth_tot[position] = make_pair(n_meth, n_meth+n_unmeth);
-          }
-          else { // add this file's contribution to the CpG's methylation
-            pos_meth_tot[position].first += n_meth;
-            pos_meth_tot[position].second += n_meth + n_unmeth;
+          auto it(pos_meth_tot.find(site.pos));
+          if (it == end(pos_meth_tot))
+            pos_meth_tot[site.pos] = make_pair(n_meth, n_reads);
+
+          else { // add this file's contribution to the site's methylation
+            pos_meth_tot[site.pos].first += n_meth;
+            pos_meth_tot[site.pos].second += n_reads;
           }
         }
       }
@@ -353,39 +320,42 @@ find_exact_boundaries(const vector<string> &cpgs_file,
     in[i] = new igzfstream(cpgs_file[i]);
 
   std::map<size_t, pair<size_t, size_t> > pos_meth_tot;
-  string chrom, site_name, strand;
-  double meth_level = 0.0;
-  size_t position = 0ul, coverage = 0ul, n_meth = 0ul, n_unmeth = 0ul;
+  size_t n_meth = 0ul, n_reads = 0ul;
   size_t bound_idx = 0;
   for (; bound_idx < bounds.size(); ++bound_idx) { // for each boundary
     for (size_t i = 0; i < in.size(); ++i) {
       // get totals for all CpGs overlapping that boundary
-      while (methpipe_read_site(array_status[i], *in[i], chrom, position,
-                                strand, site_name, meth_level, coverage)
-             && !succeeds(chrom, position, bounds[bound_idx])) {
+
+      MSite site;
+      while (*in[i] >> site &&
+             !succeeds(site.chrom, site.pos, bounds[bound_idx])) {
+
+        if (array_status[i])
+          site.pos = array_coverage_constant;
+
         // check if CpG is inside boundary
-        if (!precedes(chrom, position, bounds[bound_idx])) {
+        if (!precedes(site.chrom, site.pos, bounds[bound_idx])) {
           if (array_status[i]) {
-            if (meth_level != -1) {
-              n_meth = round(meth_level*array_coverage_constant);
-              n_unmeth = array_coverage_constant - n_meth;
+            if (site.meth != -1) {
+              n_meth = site.n_meth();
+              n_reads = site.n_reads;
             }
             else {
               n_meth = 0;
-              n_unmeth = 0;
+              n_reads = 0;
             }
           }
           else {
-            n_meth = round(meth_level*coverage);
-            n_unmeth = coverage - n_meth;
+            n_meth = site.n_meth();
+            n_reads = site.n_reads;
           }
-          auto it = pos_meth_tot.find(position);
+          auto it = pos_meth_tot.find(site.pos);
           if (it == end(pos_meth_tot)) {// does not exist in map
-            pos_meth_tot.emplace(position, make_pair(n_meth,n_meth+n_unmeth));
+            pos_meth_tot.emplace(site.pos, make_pair(n_meth, n_reads));
           }
           else { // add this file's contribution to the CpG's methylation
-            pos_meth_tot[position].first += n_meth;
-            pos_meth_tot[position].second += n_meth + n_unmeth;
+            pos_meth_tot[site.pos].first += site.n_meth();
+            pos_meth_tot[site.pos].second += site.n_reads;
           }
         }
       }
@@ -464,7 +434,8 @@ optimize_boundaries(const size_t bin_size,
   vector<size_t> boundary_certainties;
   get_optimized_boundary_likelihoods(cpgs_file, bounds, array_status,
                                      fg_alpha, fg_beta, bg_alpha,
-                                     bg_beta, boundary_scores, boundary_certainties);
+                                     bg_beta, boundary_scores,
+                                     boundary_certainties);
 
   // Add the boundary scores to the PMD names
   for (size_t i = 0; i < pmds.size(); ++i)
@@ -788,41 +759,39 @@ load_array_data(const size_t bin_size,
   size_t prev_pos = 0ul, curr_pos = 0ul;
   double array_meth_bin = 0.0;
   double num_probes_in_bin = 0.0;
-  string chrom, site_name, strand;
-  double meth_level = 0.0;
-  size_t position = 0ul, coverage = 0ul;
 
-  while (methpipe_read_site(true, in, chrom, position, strand, site_name,
-                            meth_level, coverage)) {
-    if (meth_level != -1 ) { // its covered by a probe
+  MSite site;
+  while (in >> site) {
+    if (site.n_reads > 0) { // its covered by a probe
       ++num_probes_in_bin;
-      if (meth_level < meth_min)
+      if (site.meth < meth_min)
         array_meth_bin += meth_min;
-      else if (meth_level > 1.0 - meth_min)
+      else if (site.meth > 1.0 - meth_min)
         array_meth_bin += (1.0 - meth_min);
       else
-        array_meth_bin += meth_level;
+        array_meth_bin += site.meth;
     }
 
-    if (curr_chrom != chrom) {
+    if (curr_chrom != site.chrom) {
       if (!curr_chrom.empty()) {
-        if (chrom < curr_chrom)
+        if (site.chrom < curr_chrom)
           throw runtime_error("CpGs not sorted in file \""
                               + cpgs_file + "\"");
         bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                                            prev_pos + 1));
         meth.push_back(make_pair(array_meth_bin, num_probes_in_bin));
-        (num_probes_in_bin > 0) ? reads.push_back(1) : reads.push_back(0);
+        if (num_probes_in_bin > 0) reads.push_back(1);
+        else reads.push_back(0);
       }
-      curr_chrom = chrom;
-      curr_pos = position;
+      curr_chrom = site.chrom;
+      curr_pos = site.pos;
       array_meth_bin = 0.0;
       num_probes_in_bin = 0.0;
     }
-    else if (curr_pos > position) {
+    else if (curr_pos > site.pos) {
       throw std::runtime_error("CpGs not sorted in file \"" + cpgs_file + "\"");
     }
-    else if (position > curr_pos + bin_size) {
+    else if (site.pos > curr_pos + bin_size) {
       bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                                          curr_pos + bin_size));
       meth.push_back(make_pair(array_meth_bin, num_probes_in_bin));
@@ -831,7 +800,7 @@ load_array_data(const size_t bin_size,
       array_meth_bin = 0.0;
       num_probes_in_bin = 0.0;
       curr_pos += bin_size;
-      while (curr_pos + bin_size < position) {
+      while (curr_pos + bin_size < site.pos) {
         bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                                            curr_pos + bin_size));
         reads.push_back(0);
@@ -841,16 +810,16 @@ load_array_data(const size_t bin_size,
     }
   }
 
-  if (meth_level != -1 ) { // its covered by a probe
+  if (site.meth != -1 ) { // its covered by a probe
     ++num_probes_in_bin;
-    if (meth_level < meth_min)
+    if (site.meth < meth_min)
       array_meth_bin += meth_min;
-    else if (meth_level > 1.0 - meth_min)
+    else if (site.meth > 1.0 - meth_min)
       array_meth_bin += (1.0 - meth_min);
     else
-      array_meth_bin += meth_level;
+      array_meth_bin += site.meth;
   }
-  prev_pos = position;
+  prev_pos = site.pos;
   if (!curr_chrom.empty()) {
     bins.push_back(SimpleGenomicRegion(curr_chrom, curr_pos,
                                        prev_pos + 1));
@@ -867,47 +836,41 @@ load_wgbs_data(const size_t bin_size, const string &cpgs_file,
                vector<SimpleGenomicRegion> &bins,
                vector<pair<double, double> > &meth,
                vector<size_t> &reads) {
+  reads.clear(); // for safety
+  meth.clear();
+  bins.clear();
 
   // ADS: loading data each iteration should be put outside loop
   igzfstream in(cpgs_file);
   if (!in)
     throw runtime_error("bad methcounts file: " + cpgs_file);
 
-  // variables for reading methcounts format
-  string chrom, site_name, strand;
-  size_t curr_pos = 0ul, coverage = 0ul;
-  double meth_level = 0.0;
-
-  reads.clear(); // for safety
-  meth.clear();
-  bins.clear();
-
   // keep track of the chroms we've seen
   string curr_chrom;
   std::unordered_set<string> chroms_seen;
 
-  while (methpipe_read_site(false, in, chrom, curr_pos, strand,
-                            site_name, meth_level, coverage)) {
-    if (curr_chrom != chrom) { // handle change of chrom
-      if (chroms_seen.find(chrom) != end(chroms_seen))
+  MSite site;
+  while (in >> site) {
+    if (curr_chrom != site.chrom) { // handle change of chrom
+      if (chroms_seen.find(site.chrom) != end(chroms_seen))
         throw runtime_error("sites not sorted");
-      chroms_seen.insert(chrom);
-      curr_chrom = chrom;
+      chroms_seen.insert(site.chrom);
+      curr_chrom = site.chrom;
       reads.push_back(0);
       meth.push_back(make_pair(0.0, 0.0));
-      bins.push_back(SimpleGenomicRegion(chrom, 0, bin_size));
+      bins.push_back(SimpleGenomicRegion(site.chrom, 0, bin_size));
     }
-    if (curr_pos < bins.back().get_start())
+    if (site.pos < bins.back().get_start())
       throw runtime_error("sites not sorted");
-    while (bins.back().get_end() < curr_pos) {
+    while (bins.back().get_end() < site.pos) {
       reads.push_back(0);
       meth.push_back(make_pair(0.0, 0.0));
-      bins.push_back(SimpleGenomicRegion(chrom, bins.back().get_end(),
+      bins.push_back(SimpleGenomicRegion(site.chrom, bins.back().get_end(),
                                          bins.back().get_end() + bin_size));
     }
-    reads.back() += coverage;
-    meth.back().first += round(meth_level * coverage);
-    meth.back().second += (coverage - round(meth_level * coverage));
+    reads.back() += site.n_reads;
+    meth.back().first += site.n_meth();
+    meth.back().second += site.n_unmeth();
   }
 }
 
@@ -942,39 +905,33 @@ remove_empty_bins_at_chrom_start(vector<SimpleGenomicRegion> &bins,
 static void
 load_read_counts(const string &cpgs_file, const size_t bin_size,
                  vector<size_t> &reads) {
+  reads.clear(); // for safety
 
   // ADS: loading data each iteration should be put outside loop
   igzfstream in(cpgs_file);
   if (!in)
     throw runtime_error("bad methcounts file: " + cpgs_file);
 
-  // variables for reading methcounts format
-  string chrom, site_name, strand;
-  size_t curr_pos = 0ul, coverage = 0ul;
-  double meth_level = 0.0;
-
-  reads.clear(); // for safety
-
   // keep track of where we are and what we've seen
   size_t bin_start = 0ul;
   string curr_chrom;
   std::unordered_set<string> chroms_seen;
 
-  while (methpipe_read_site(false, in, chrom, curr_pos, strand,
-                            site_name, meth_level, coverage)) {
-    if (curr_chrom != chrom) { // handle change of chrom
-      if (chroms_seen.find(chrom) != end(chroms_seen))
+  MSite site;
+  while (in >> site) {
+    if (curr_chrom != site.chrom) { // handle change of chrom
+      if (chroms_seen.find(site.chrom) != end(chroms_seen))
         throw runtime_error("sites not sorted");
-      chroms_seen.insert(chrom);
+      chroms_seen.insert(site.chrom);
       bin_start = 0;
-      curr_chrom = chrom;
+      curr_chrom = site.chrom;
       reads.push_back(0);
     }
-    if (curr_pos < bin_start)
+    if (site.pos < bin_start)
       throw runtime_error("sites not sorted");
-    for (; bin_start + bin_size < curr_pos; bin_start += bin_size)
+    for (; bin_start + bin_size < site.pos; bin_start += bin_size)
       reads.push_back(0);
-    reads.back() += coverage;
+    reads.back() += site.n_reads;
   }
 }
 
@@ -1119,7 +1076,8 @@ main(int argc, const char **argv) {
                       false, desert_size);
     opt_parse.add_opt("fixedbin", 'f', "Fixed bin size", false, fixed_bin_size);
     opt_parse.add_opt("bin", 'b', "Starting bin size", false, bin_size);
-    opt_parse.add_opt("arraymode",'a', "All samples are array", false, ARRAY_MODE);
+    opt_parse.add_opt("arraymode",'a', "All samples are array",
+                      false, ARRAY_MODE);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_iterations);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("debug", 'D', "print more run info", false, DEBUG);
@@ -1333,7 +1291,8 @@ main(int argc, const char **argv) {
       }
 
     optimize_boundaries(bin_size, cpgs_file, good_domains, array_status,
-                        reps_fg_alpha, reps_fg_beta, reps_bg_alpha, reps_bg_beta);
+                        reps_fg_alpha, reps_fg_beta,
+                        reps_bg_alpha, reps_bg_beta);
 
     ofstream of;
     if (!outfile.empty()) of.open(outfile);
