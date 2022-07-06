@@ -48,8 +48,6 @@ $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
 methdiff: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-radmeth: regression.o combine_pvals.o
-
 %.o: %.cpp %.hpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
 
