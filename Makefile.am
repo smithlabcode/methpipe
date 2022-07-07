@@ -103,13 +103,7 @@ bin_PROGRAMS += radmeth methdiff dmr
 dmr_SOURCES = src/radmeth/dmr.cpp
 methdiff_SOURCES = src/radmeth/methdiff.cpp
 radmeth_SOURCES = \
-	src/radmeth/radmeth.cpp \
-	src/radmeth/regression.cpp \
-	src/radmeth/combine_pvals.cpp
-radmeth_SOURCES += \
-	src/radmeth/regression.hpp \
-	src/radmeth/combine_pvals.hpp \
-	src/radmeth/merge.hpp
+	src/radmeth/radmeth.cpp
 
 ### MLML SUBDIR
 bin_PROGRAMS += mlml
