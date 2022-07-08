@@ -420,6 +420,7 @@ process_three_types(const double alpha,
           CONFLICT = cflt_m + cflt_u + cflt_h;
         }
 
+
         out << r.chrom << '\t' << r.pos << '\t'
             << r.pos + 1 << '\t' << p_m << '\t'
             << p_h << "\t" << p_u << "\t" << CONFLICT << endl;
@@ -438,7 +439,7 @@ process_three_types(const double alpha,
     }
     else { //observation from only one experiment
       out << r.chrom << '\t' << r.pos << '\t'
-          << r.pos +1 << '\t' << "nan\tnan\tnan\tnan" << endl;
+          << r.pos +1 << '\t' << "NA\tNA\tNA\tNA" << endl;
 
       // write out pseudo methcount files for mC and hmC
       if (!out_methcount_pseudo_m.empty()) {
@@ -568,10 +569,10 @@ process_two_types(const double alpha,
         out_m << '\t' << x + y + z+ w << endl;
       }
     }
-    else { // only one input file has non-zero coverage
+    else { // at most one input file has non-zero coverage
 
       out << f.chrom << '\t' << f.pos << '\t'
-          << f.pos + 1 << "\tnan\tnan\tnan\tnan" << endl;
+          << f.pos + 1 << "\tNA\tNA\tNA\tNA" << endl;
 
       // write out pseudo methcount files for mC and hmC
       if (!out_methcount_pseudo_h.empty()) {
