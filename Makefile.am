@@ -98,12 +98,13 @@ amrfinder_SOURCES = src/amrfinder/amrfinder.cpp
 amrtester_SOURCES = src/amrfinder/amrtester.cpp
 
 ### RADMETH SUBDIR
-bin_PROGRAMS += radmeth methdiff dmr
+bin_PROGRAMS += radmeth radmeth-adjust radmeth-merge methdiff dmr
 
 dmr_SOURCES = src/radmeth/dmr.cpp
 methdiff_SOURCES = src/radmeth/methdiff.cpp
-radmeth_SOURCES = \
-	src/radmeth/radmeth.cpp
+radmeth_SOURCES = src/radmeth/radmeth.cpp
+radmeth_adjust_SOURCES = src/radmeth/radmeth-adjust.cpp
+radmeth_merge_SOURCES = src/radmeth/radmeth-merge.cpp
 
 ### MLML SUBDIR
 bin_PROGRAMS += mlml

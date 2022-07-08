@@ -18,7 +18,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = radmeth methdiff dmr
+PROGS = radmeth radmeth-adjust radmeth-merge methdiff dmr
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
