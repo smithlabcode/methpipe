@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <string>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
@@ -47,6 +48,7 @@ using std::pair;
 using std::make_pair;
 using std::runtime_error;
 using std::to_string;
+using std::unordered_set;
 
 static GenomicRegion
 as_gen_rgn(const MSite &s) {
@@ -327,6 +329,42 @@ get_mean(InputIterator first, InputIterator last) {
   return accumulate(first, last, 0.0)/std::distance(first, last);
 }
 
+template<class T> void
+check_sorted_within_chroms(T first, const T last) {
+
+  // empty, or a single element
+  if (first == last || first + 1 == last) return;
+
+  unordered_set<string> chroms_seen;
+  string cur_chrom = "";
+
+  for (auto fast = first + 1; fast != last; ++fast, ++first) {
+    if (fast->chrom != cur_chrom) {
+      if (chroms_seen.find(fast->chrom) != end(chroms_seen)) {
+        throw runtime_error(
+          "input not grouped by chromosomes. "
+          "Error in the following line:\n" +
+          fast->tostring()
+        );
+
+      }
+      cur_chrom = fast->chrom;
+      chroms_seen.insert(cur_chrom);
+      // don't check ordering if chroms have changed
+    }
+    else { // first and fast are in the same chrom
+      if (first->pos >= fast->pos) {
+        throw runtime_error(
+          "input file not sorted properly. "
+          "Error in the following lines:\n" +
+          first->tostring() + "\n" +
+          fast->tostring()
+        );
+      }
+    }
+  }
+}
+
 int
 main(int argc, const char **argv) {
 
@@ -411,9 +449,9 @@ main(int argc, const char **argv) {
       cerr << "[reading methylation levels]" << endl;
     load_cpgs(cpgs_file, cpgs, meth, reads);
 
-    if (!std::is_sorted(begin(cpgs), end(cpgs)))
-      throw runtime_error("error: input is not properly sorted: " + cpgs_file);
-
+    if (VERBOSE)
+      cerr << "[checking if input is properly formatted]" << endl;
+    check_sorted_within_chroms(begin(cpgs), end(cpgs));
     if (PARTIAL_METH)
       make_partial_meth(reads, meth);
 
