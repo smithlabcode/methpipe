@@ -202,9 +202,9 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
 static void
 get_chrom(const bool VERBOSE, const GenomicRegion &r,
           const unordered_map<string, string>& chrom_files,
-      GenomicRegion &chrom_region,  string &chrom) {
+          GenomicRegion &chrom_region,  string &chrom) {
   const unordered_map<string, string>::const_iterator
-                              fn(chrom_files.find(r.get_chrom()));
+    fn(chrom_files.find(r.get_chrom()));
   if (fn == chrom_files.end())
     throw runtime_error("could not find chrom: " + r.get_chrom());
   chrom.clear();
@@ -243,22 +243,22 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
 
 static void
 add_cytosine(const string &chrom_name, const size_t start_cpg,
-     vector<PairStateCounter<unsigned short> > &counts,
-     vector<GenomicRegion> &cytosines) {
+             vector<PairStateCounter<unsigned short> > &counts,
+             vector<GenomicRegion> &cytosines) {
   const size_t end_cpg = start_cpg + 1;
   ostringstream s;
   s << counts[start_cpg].score() << "\t" << counts[start_cpg].total()
     << "\t" << counts[start_cpg].tostring();
   const string name(s.str());
   cytosines.push_back(GenomicRegion(chrom_name, start_cpg, end_cpg,
-                               name, 0, '+'));
+                                    name, 0, '+'));
 }
 
 
 static size_t
 process_chrom(const bool VERBOSE, const string &chrom_name,
-        const vector<epiread> &epireads, vector<GenomicRegion> &cytosines,
-          vector<PairStateCounter<unsigned short> > &counts) {
+              const vector<epiread> &epireads, vector<GenomicRegion> &cytosines,
+              vector<PairStateCounter<unsigned short> > &counts) {
   size_t max_epiread_len = 0;
   for (size_t i = 0; i < epireads.size(); ++i)
     max_epiread_len = std::max(max_epiread_len, epireads[i].length());
@@ -294,7 +294,7 @@ main(int argc, const char **argv) {
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
-              true, chroms_dir);
+                      true, chroms_dir);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -339,31 +339,31 @@ main(int argc, const char **argv) {
     vector<PairStateCounter<unsigned short> > counts;
     while (in >> er) {
       if (er.chr != chrom && !chrom.empty()) {
-          counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom] -1 );
-          process_chrom(VERBOSE, chrom, epireads, cytosines,counts);
-          // convert coordinates
-          convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
-          epireads.clear();
-          for( size_t i = 0; i < cytosines.size()-1; ++i ) {
-           out << cytosines[i].get_chrom() << "\t"
-               << cytosines[i].get_start() << "\t+\tCpG\t"
-               << cytosines[i].get_name() << endl;
-          }
-          cytosines.clear();
+        counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom] -1 );
+        process_chrom(VERBOSE, chrom, epireads, cytosines,counts);
+        // convert coordinates
+        convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
+        epireads.clear();
+        for( size_t i = 0; i < cytosines.size()-1; ++i ) {
+          out << cytosines[i].get_chrom() << "\t"
+              << cytosines[i].get_start() << "\t+\tCpG\t"
+              << cytosines[i].get_name() << endl;
+        }
+        cytosines.clear();
       }
       epireads.push_back(er);
       chrom.swap(er.chr);
     }
     if (!chrom.empty()) {
-        counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
-        process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
-        convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
-        // output STILL assumes CpG ... probably should fix this soon
-        for( size_t i = 0; i < cytosines.size()-1; ++i ) {
-           out << cytosines[i].get_chrom() << "\t"
-               << cytosines[i].get_start() << "\t+\tCpG\t"
-               << cytosines[i].get_name() << endl;
-        }
+      counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
+      process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
+      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
+      // output STILL assumes CpG ... probably should fix this soon
+      for( size_t i = 0; i < cytosines.size()-1; ++i ) {
+        out << cytosines[i].get_chrom() << "\t"
+            << cytosines[i].get_start() << "\t+\tCpG\t"
+            << cytosines[i].get_name() << endl;
+      }
 
     }
   }
