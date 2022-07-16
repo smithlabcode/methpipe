@@ -62,13 +62,13 @@ mates(const size_t to_ignore_at_end, // in case names have #0/1 name ends
   return equal(begin(a.name), end(a.name) - to_ignore_at_end, begin(b.name));
 }
 
-std::ostream&
+static std::ostream&
 operator<<(std::ostream& s, const FASTQRecord &r) {
   return s << r.tostring();
 }
 
 // Read 4 lines one time from fastq and fill in the FASTQRecord structure
-std::istream&
+static std::istream&
 operator>>(std::istream& s, FASTQRecord &r) {
   if (getline(s, r.name)) {
 
@@ -155,7 +155,7 @@ check_hairpins(const size_t name_suffix_len,
 
 
 int
-main(int argc, const char **argv) {
+main_clean_hairpins(int argc, const char **argv) {
 
   try {
 

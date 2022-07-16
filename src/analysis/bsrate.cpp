@@ -256,7 +256,7 @@ get_chrom(const sam_rec &aln,
 
 
 int
-main(int argc, const char **argv) {
+main_bsrate(int argc, const char **argv) {
 
   try {
 

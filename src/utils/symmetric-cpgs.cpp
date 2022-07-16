@@ -72,7 +72,7 @@ process_sites(const bool include_mutated, igzfstream &in, T &out) {
 }
 
 int
-main(int argc, const char **argv) {
+main_symmetric_cpgs(int argc, const char **argv) {
 
   try {
 

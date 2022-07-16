@@ -86,7 +86,7 @@ get_approx_line_count(const bool VERBOSE, const string &filename,
 
 
 int
-main(int argc, const char **argv) {
+main_lc_approx(int argc, const char **argv) {
   try {
 
     size_t n_samples = 100;

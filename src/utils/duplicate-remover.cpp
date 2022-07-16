@@ -306,7 +306,8 @@ duplicate_remover(const bool VERBOSE,
   }
 }
 
-int main(int argc, const char **argv) {
+int
+main_duplicate_remover(int argc, const char **argv) {
 
   try {
 

@@ -133,7 +133,7 @@ operator>>(std::istream &in, epiread &er) {
 
 
 
-std::ostream&
+static std::ostream&
 operator<<(std::ostream &out, const epiread &er) {
   return out << er.chr << '\t' << er.pos << '\t' << er.seq;
 }
@@ -318,7 +318,7 @@ process_chrom(const bool VERBOSE, const size_t cpg_window,
 ////////////////////////////////////////////////////////////////////////
 
 int
-main(int argc, const char **argv) {
+main_methentropy(int argc, const char **argv) {
 
   try {
 

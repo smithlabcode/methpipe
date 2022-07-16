@@ -308,7 +308,7 @@ standardize_format(const string &input_format, sam_rec &aln) {
 
 
 int
-main(int argc, const char **argv) {
+main_format_reads(int argc, const char **argv) {
 
   try {
 

@@ -305,7 +305,7 @@ initialize_transitions(vector<vector<double> > &trans) {
 }
 
 int
-main(int argc, const char **argv) {
+main_hypermr(int argc, const char **argv) {
 
   try {
 

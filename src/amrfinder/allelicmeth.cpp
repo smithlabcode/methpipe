@@ -279,7 +279,7 @@ process_chrom(const bool VERBOSE, const string &chrom_name,
 
 
 int
-main(int argc, const char **argv) {
+main_allelicmeth(int argc, const char **argv) {
 
   try {
     static const string fasta_suffix = "fa";
@@ -355,15 +355,15 @@ main(int argc, const char **argv) {
       chrom.swap(er.chr);
     }
     if (!chrom.empty()) {
-        counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
-        process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
-        convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
-        // output STILL assumes CpG ... probably should fix this soon
-        for( size_t i = 0; i < cytosines.size()-1; ++i ) {
-           out << cytosines[i].get_chrom() << "\t"
-               << cytosines[i].get_start() << "\t+\tCpG\t"
-               << cytosines[i].get_name() << endl;
-        }
+      counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
+      process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
+      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
+
+      // output STILL assumes CpG ... probably should fix this soon
+      for (size_t i = 0; i < cytosines.size()-1; ++i)
+        out << cytosines[i].get_chrom() << "\t"
+            << cytosines[i].get_start() << "\t+\tCpG\t"
+            << cytosines[i].get_name() << endl;
 
     }
   }

@@ -179,7 +179,7 @@ remove_extension(const std::string &filename){
 }
 
 int
-main(int argc, const char **argv) {
+main_merge_methcounts(int argc, const char **argv) {
 
   try {
 

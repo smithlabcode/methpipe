@@ -32,10 +32,10 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = lc_approx fast-liftover lift-filter \
-	merge-bsrate merge-methcounts \
-	symmetric-cpgs clean-hairpins selectsites guessprotocol \
-	format_reads duplicate-remover
+PROGS = lc_approx.o fast-liftover.o lift-filter.o \
+	merge-bsrate.o merge-methcounts.o \
+	symmetric-cpgs.o clean-hairpins.o selectsites.o guessprotocol.o \
+	format_reads.o duplicate-remover.o
 
 COMMON_DIR = ../common
 INCLUDEDIRS = $(SMITHLAB_CPP) $(COMMON_DIR)
@@ -52,14 +52,10 @@ endif
 
 all: $(PROGS)
 
-install: $(PROGS)
-	@mkdir -p $(SRC_ROOT)/bin
-	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
-
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-merge-methcounts symmetric-cpgs selectsites lift-filter \
-fast-liftover guessprotocol: \
+merge-methcounts.o symmetric-cpgs.o selectsites.o lift-filter.o \
+fast-liftover.o guessprotocol.o: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp

@@ -18,8 +18,8 @@
 #  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #  02110-1301 USA
 
-PROGS = pmd methcounts bsrate hmr hypermr levels roimethstat \
-	methstates methentropy hmr_rep multimethstat
+PROGS = pmd.o methcounts.o bsrate.o hmr.o hypermr.o levels.o roimethstat.o \
+	methstates.o methentropy.o hmr_rep.o multimethstat.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
@@ -49,34 +49,27 @@ LDLIBS = -lgsl -lgslcblas -lz -lhts
 
 all: $(PROGS)
 
-install: $(PROGS)
-	@mkdir -p $(SRC_ROOT)/bin
-	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
-
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-levels hmr_rep hmr methcounts roimethstat hypermr pmd: \
+levels.o hmr_rep.o hmr.o methcounts.o roimethstat.o hypermr.o pmd.o: \
 	$(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-hmr hmr_rep: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
+hmr.o hmr_rep.o: $(addprefix $(COMMON_DIR)/, TwoStateHMM.o)
 
-pmd: $(addprefix $(COMMON_DIR)/, bsutils.o \
+pmd.o: $(addprefix $(COMMON_DIR)/, bsutils.o \
 	TwoStateHMM_PMD.o EmissionDistribution.o)
 
-hypermr: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
+hypermr.o: $(addprefix $(COMMON_DIR)/, ThreeStateHMM.o Smoothing.o \
 	Distro.o BetaBin.o numerical_utils.o)
 
-levels: $(addprefix $(COMMON_DIR)/, LevelsCounter.o)
+levels.o: $(addprefix $(COMMON_DIR)/, LevelsCounter.o)
 
-methcounts: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+methcounts.o: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
-roimethstat levels: $(addprefix $(COMMON_DIR)/, bsutils.o)
+roimethstat.o levels.o: $(addprefix $(COMMON_DIR)/, bsutils.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
-
-%: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

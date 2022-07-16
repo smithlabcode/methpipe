@@ -40,7 +40,7 @@ same_chrom_pos_strand(const MSite &a, const MSite &b) {
 }
 
 int
-main(int argc, const char **argv) {
+main_lift_filter(int argc, const char **argv) {
   try{
     string pfile;
     bool VERBOSE = false;

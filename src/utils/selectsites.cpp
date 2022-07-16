@@ -191,7 +191,7 @@ process_with_sites_on_disk(const string &sites_file,
 
 
 int
-main(int argc, const char **argv) {
+main_selectsites(int argc, const char **argv) {
 
   try {
 

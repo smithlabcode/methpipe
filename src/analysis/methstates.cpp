@@ -174,7 +174,7 @@ get_chrom(const sam_rec &aln,
 
 
 int
-main(int argc, const char **argv) {
+main_methstates(int argc, const char **argv) {
 
   try {
 

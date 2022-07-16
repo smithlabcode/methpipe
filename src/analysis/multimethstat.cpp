@@ -230,7 +230,7 @@ get_frag_to_feature(const vector<GenomicRegion> &features,
 
 
 int
-main(int argc, const char **argv) {
+main_multimethstat(int argc, const char **argv) {
 
   try {
 

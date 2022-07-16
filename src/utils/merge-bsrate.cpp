@@ -63,7 +63,7 @@ bool readline(std::vector<std::ifstream*>& infiles,
 }
 
 int
-main(int argc, const char **argv) {
+main_merge_bsrate(int argc, const char **argv) {
 
   try {
     bool VERBOSE = false;

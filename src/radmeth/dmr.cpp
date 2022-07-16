@@ -186,7 +186,7 @@ get_cpg_stats(const bool LOW_CUTOFF, const double sig_cutoff,
 
 
 int
-main(int argc, const char **argv) {
+main_dmr(int argc, const char **argv) {
 
   try {
 

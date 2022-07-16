@@ -289,7 +289,7 @@ process_with_cpgs_on_disk(const bool PRINT_NAN,
 ////////////////////////////////////////////////////////////////////////
 
 int
-main(int argc, const char **argv) {
+main_roimethstat(int argc, const char **argv) {
 
   try {
 

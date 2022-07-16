@@ -188,7 +188,7 @@ clip_reads(const size_t start_pos, const size_t end_pos,
 
 
 int
-main(int argc, const char **argv) {
+main_amrtester(int argc, const char **argv) {
 
   try {
 

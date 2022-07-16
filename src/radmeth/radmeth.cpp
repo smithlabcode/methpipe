@@ -476,7 +476,7 @@ has_extreme_counts(const Regression &reg) {
  * proportions and design matrix
  */
 int
-main(int argc, const char **argv) {
+main_radmeth(int argc, const char **argv) {
 
   const string command_name = argv[0];
 

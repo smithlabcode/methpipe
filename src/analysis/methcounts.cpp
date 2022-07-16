@@ -65,7 +65,7 @@ is_rc(const sam_rec &aln) {
    then one needs this. Also, Qiang should be consulted on this
    because he spent much time thinking about it in the context of
    plants. */
-bool
+static bool
 is_chh(const std::string &s, size_t i) {
   return (i < (s.length() - 2)) &&
     is_cytosine(s[i]) &&
@@ -74,7 +74,7 @@ is_chh(const std::string &s, size_t i) {
 }
 
 
-bool
+static bool
 is_ddg(const std::string &s, size_t i) {
   return (i < (s.length() - 2)) &&
     !is_cytosine(s[i]) &&
@@ -83,7 +83,7 @@ is_ddg(const std::string &s, size_t i) {
 }
 
 
-bool
+static bool
 is_c_at_g(const std::string &s, size_t i) {
   return (i < (s.length() - 2)) &&
     is_cytosine(s[i]) &&
@@ -142,7 +142,7 @@ struct CountSet {
  * works as long as the chromosome size is not the maximum size of a
  * size_t.
  */
-string
+static string
 get_methylation_context_tag_from_genome(const string &s, const size_t pos) {
   if (is_cytosine(s[pos])) {
     if (is_cpg(s, pos)) return "CpG";
@@ -263,7 +263,7 @@ write_output(output_type &out,
 }
 
 
-inline size_t
+inline static size_t
 get_chrom_id(const string &chrom_name,
              const unordered_map<string, size_t> &cl) {
 
@@ -337,7 +337,7 @@ process_reads(const bool VERBOSE, SAMReader &in, T &out,
 }
 
 int
-main(int argc, const char **argv) {
+main_methcounts(int argc, const char **argv) {
 
   try {
 

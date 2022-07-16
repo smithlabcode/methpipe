@@ -1029,7 +1029,7 @@ load_bins(const size_t bin_size,
 
 
 int
-main(int argc, const char **argv) {
+main_pmd(int argc, const char **argv) {
   try {
 
     static const size_t max_bin_size = 500000;

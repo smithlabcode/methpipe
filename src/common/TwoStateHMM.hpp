@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-struct betabin;
+struct TwoStateBetaBin;
 
 class TwoStateHMM {
 public:
@@ -109,21 +109,21 @@ private:
   ViterbiDecoding(const std::vector<std::pair<double, double> > &values,
                   const std::vector<size_t> &reset_points,
                   const double p_fb, const double p_bf,
-                  const betabin &fg_distro, const betabin &bg_distro,
+                  const TwoStateBetaBin &fg_distro, const TwoStateBetaBin &bg_distro,
                   std::vector<bool> &ml_classes) const;
 
   double
   BaumWelchTraining(const std::vector<std::pair<double, double> > &values,
                     const std::vector<size_t> &reset_points,
                     double &p_fb, double &p_bf,
-                    betabin &fg_distro, betabin &bg_distro) const;
+                    TwoStateBetaBin &fg_distro, TwoStateBetaBin &bg_distro) const;
 
   double
   PosteriorDecoding(const std::vector<std::pair<double, double> > &values,
                     const std::vector<size_t> &reset_points,
                     const double p_fb, const double p_bf,
-                    const betabin &fg_distro,
-                    const betabin &bg_distro,
+                    const TwoStateBetaBin &fg_distro,
+                    const TwoStateBetaBin &bg_distro,
                     std::vector<bool> &classes,
                     std::vector<double> &llr_scores) const;
 
@@ -131,7 +131,7 @@ private:
   PosteriorScores(const std::vector<std::pair<double, double> > &values,
                   const std::vector<size_t> &reset_points,
                   const double p_fb, const double p_bf,
-                  const betabin &fg_distro, const betabin &bg_distro,
+                  const TwoStateBetaBin &fg_distro, const TwoStateBetaBin &bg_distro,
                   const bool class_id,
                   std::vector<double> &llr_scores) const;
 
@@ -139,7 +139,7 @@ private:
   TransitionPosteriors(const std::vector<std::pair<double, double> > &values,
                        const std::vector<size_t> &reset_points,
                        const double p_fb, const double p_bf,
-                       const betabin &fg_distro, const betabin &bg_distro,
+                       const TwoStateBetaBin &fg_distro, const TwoStateBetaBin &bg_distro,
                        const size_t transition,
                        std::vector<double> &scores) const;
 
@@ -149,15 +149,15 @@ private:
   BaumWelchTraining(const std::vector<std::vector<std::pair<double, double> > > &values,
                     const std::vector<size_t> &reset_points,
                     double &p_fb, double &p_bf,
-                    std::vector<betabin> &fg_distro,
-                    std::vector<betabin> &bg_distro) const;
+                    std::vector<TwoStateBetaBin> &fg_distro,
+                    std::vector<TwoStateBetaBin> &bg_distro) const;
 
   void
   PosteriorScores(const std::vector<std::vector<std::pair<double, double> > > &values,
                   const std::vector<size_t> &reset_points,
                   const double p_fb, const double p_bf,
-                  const std::vector<betabin> &fg_distro,
-                  const std::vector<betabin> &bg_distro,
+                  const std::vector<TwoStateBetaBin> &fg_distro,
+                  const std::vector<TwoStateBetaBin> &bg_distro,
                   const bool fg_class,
                   std::vector<double> &llr_scores) const;
 
@@ -165,8 +165,8 @@ private:
   PosteriorDecoding(const std::vector<std::vector<std::pair<double, double> > > &values,
                     const std::vector<size_t> &reset_points,
                     const double p_fb, const double p_bf,
-                    const std::vector<betabin> &fg_distro,
-                    const std::vector<betabin> &bg_distro,
+                    const std::vector<TwoStateBetaBin> &fg_distro,
+                    const std::vector<TwoStateBetaBin> &bg_distro,
                     std::vector<bool> &classes,
                     std::vector<double> &llr_scores) const;
 

@@ -52,7 +52,7 @@ mates(const size_t to_ignore_at_end, // in case names have #0/1 name ends
 }
 
 // Read 4 lines one time from fastq and fill in the FASTQRecord structure
-std::istream&
+static std::istream&
 operator>>(std::istream& s, FASTQRecord &r) {
   if (getline(s, r.name)) {
 
@@ -90,7 +90,7 @@ guess_protocol(const double fraction_t_rich) {
 }
 
 int
-main(int argc, const char **argv) {
+main_guessprotocol(int argc, const char **argv) {
 
   try {
 

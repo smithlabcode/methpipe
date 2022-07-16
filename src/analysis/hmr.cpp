@@ -61,7 +61,7 @@ format_cpg_meth_tag(const pair<double, double> &m) {
     ":" + to_string(static_cast<size_t>(m.second));
 }
 
-double
+static double
 get_stepup_cutoff(vector<double> scores, const double cutoff) {
   if (cutoff <= 0) return numeric_limits<double>::max();
   else if (cutoff > 1) return numeric_limits<double>::min();
@@ -324,12 +324,12 @@ load_cpgs(const string &cpgs_file, vector<MSite> &cpgs,
   }
 }
 
-template <class InputIterator> double
+template <class InputIterator> static double
 get_mean(InputIterator first, InputIterator last) {
   return accumulate(first, last, 0.0)/std::distance(first, last);
 }
 
-template<class T> void
+template<class T> static void
 check_sorted_within_chroms(T first, const T last) {
 
   // empty, or a single element
@@ -366,7 +366,7 @@ check_sorted_within_chroms(T first, const T last) {
 }
 
 int
-main(int argc, const char **argv) {
+main_hmr(int argc, const char **argv) {
 
   try {
 

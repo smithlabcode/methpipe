@@ -137,7 +137,7 @@ process_sites(const bool VERBOSE, igzfstream &in_a, igzfstream &in_b,
 
 
 int
-main(int argc, const char **argv) {
+main_methdiff(int argc, const char **argv) {
 
   try {
 

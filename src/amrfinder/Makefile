@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = allelicmeth amrfinder amrtester
+PROGS = allelicmeth.o amrfinder.o amrtester.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
@@ -45,23 +45,16 @@ LDLIBS = -lgsl -lgslcblas -lz
 
 all: $(PROGS)
 
-install: $(PROGS)
-	@mkdir -p $(SRC_ROOT)/bin
-	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
-
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-amrfinder: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
+amrfinder.o: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
 
-amrtester: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
+amrtester.o: $(addprefix $(COMMON_DIR)/, EpireadStats.o Epiread.o)
 
-allelicmeth:   $(addprefix $(COMMON_DIR)/, Epiread.o)
+allelicmeth.o:   $(addprefix $(COMMON_DIR)/, Epiread.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
-
-%: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 clean:
 	@-rm -f $(PROGS) *.o *.so *.a *~

@@ -340,7 +340,7 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 
 
 int
-main(int argc, const char **argv) {
+main_amrfinder(int argc, const char **argv) {
   try {
 
     static const string fasta_suffix = "fa";

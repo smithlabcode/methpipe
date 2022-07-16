@@ -152,7 +152,7 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
 }
 
 int
-main(int argc, const char **argv) {
+main_radmeth_merge(int argc, const char **argv) {
 
   // first argument is name of command
   const string command_name = argv[0];

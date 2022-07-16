@@ -57,7 +57,7 @@ struct SimpleSite {
     chrom(c), pos(p), strand(s) {}
 };
 
-void
+static void
 flip_strand(SimpleSite &s) {
   if (s.strand == '-') {
     s.pos--;
@@ -107,7 +107,7 @@ lift_site(const unordered_map<string, liftover_index> &index,
 }
 
 int
-main(int argc, const char **argv) {
+main_fast_liftover(int argc, const char **argv) {
   try {
     string indexfile;
     string tofile;

@@ -412,7 +412,7 @@ fdr(vector<PvalLocus> &loci) {
 
 
 int
-main(int argc, const char **argv) {
+main_radmeth_adjust(int argc, const char **argv) {
 
   // first argument is name of command
   const string command_name = argv[0];

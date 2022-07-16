@@ -54,7 +54,7 @@ as_gen_rgn(const MSite &s) {
   return GenomicRegion(s.chrom, s.pos, s.pos + 1);
 }
 
-double
+static double
 get_stepup_cutoff(vector<double> scores, const double cutoff) {
   if (cutoff <= 0) return numeric_limits<double>::max();
   else if (cutoff > 1) return numeric_limits<double>::min();
@@ -347,7 +347,7 @@ split_comma(const string &orig) {
 }
 
 int
-main(int argc, const char **argv) {
+main_hmr_rep(int argc, const char **argv) {
 
   try {
 

@@ -23,7 +23,7 @@ ifndef SMITHLAB_CPP
 $(error SMITHLAB_CPP variable undefined)
 endif
 
-PROGS = mlml
+PROGS = mlml.o
 
 CXX = g++
 CXXFLAGS = -Wall -std=c++11
@@ -45,16 +45,12 @@ LDLIBS = -lgsl -lgslcblas
 
 all: $(PROGS)
 
-install: $(PROGS)
-	@mkdir -p $(SRC_ROOT)/bin
-	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
-
 $(PROGS): $(addprefix $(SMITHLAB_CPP)/, libsmithlab_cpp.a)
 
-mlml: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
+mlml.o: $(addprefix $(COMMON_DIR)/, MethpipeSite.o)
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS) $(LDFLAGS)

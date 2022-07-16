@@ -48,13 +48,13 @@ using std::setprecision;
 
 const double betabin::tolerance = 1e-10;
 
-betabin::betabin() : 
+betabin::betabin() :
     alpha(1), beta(1), lnbeta_helper(gsl_sf_lnbeta(1, 1)) {}
 
-betabin::betabin(const double a, const double b) : 
+betabin::betabin(const double a, const double b) :
     alpha(a), beta(b), lnbeta_helper(gsl_sf_lnbeta(a, b)) {}
 
-betabin::betabin(const string &str)  
+betabin::betabin(const string &str)
 {
     std::istringstream iss(str, std::istringstream::in);
     string name;
@@ -71,7 +71,7 @@ betabin::betabin(const string &str)
 
 
 string
-betabin::tostring() const 
+betabin::tostring() const
 {
     std::ostringstream os;
     os << "betabin " << setprecision(4) << alpha << " "
@@ -80,32 +80,32 @@ betabin::tostring() const
 }
 
 
-double 
-betabin::operator()(const pair<double, double> &val) const 
+double
+betabin::operator()(const pair<double, double> &val) const
 {
     const size_t x = static_cast<size_t>(val.first);
     const size_t n = static_cast<size_t>(x + val.second);
-    return gsl_sf_lnchoose(n, x) + 
+    return gsl_sf_lnchoose(n, x) +
         gsl_sf_lnbeta(alpha + x, beta + val.second) - lnbeta_helper;
 }
 
-double 
-betabin::log_likelihood(const pair<double, double> &val) const 
+double
+betabin::log_likelihood(const pair<double, double> &val) const
 {
     const size_t x = static_cast<size_t>(val.first);
     const size_t n = static_cast<size_t>(x + val.second);
-    return gsl_sf_lnchoose(n, x) + 
+    return gsl_sf_lnchoose(n, x) +
         gsl_sf_lnbeta(alpha + x, beta + val.second) - lnbeta_helper;
 }
 
-double 
-betabin::sign(const double x) 
+double
+betabin::sign(const double x)
 {
     return (x >= 0) ? 1.0 : -1.0;
 }
 
 double
-betabin::invpsi(const double tolerance, const double x) 
+betabin::invpsi(const double tolerance, const double x)
 {
     double L = 1.0, Y = std::exp(x);
     while (L > tolerance)
@@ -117,14 +117,14 @@ betabin::invpsi(const double tolerance, const double x)
 }
 
 double
-betabin::movement(const double curr, const double prev) 
+betabin::movement(const double curr, const double prev)
 {
     return std::abs(curr - prev)/std::max(std::fabs(curr), std::fabs(prev));
 }
 
 void
 betabin::fit(const vector<double> &vals_a, const vector<double> &vals_b,
-             const vector<double> &p) 
+             const vector<double> &p)
 {
     const double p_total = std::accumulate(p.begin(), p.end(), 0.0);
     const double alpha_rhs = inner_product(vals_a.begin(), vals_a.end(), 
