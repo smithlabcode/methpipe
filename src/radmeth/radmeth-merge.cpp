@@ -154,55 +154,58 @@ merge(istream &cpg_stream, ostream &dmr_stream, double cutoff) {
 int
 main(int argc, const char **argv) {
 
-  // first argument is name of command
-  const string command_name = argv[0];
+  try {
 
-  /* FILES */
-  string outfile;
-  string bin_spec = "1:200:25";
-  double cutoff = 0.01;
+    /* FILES */
+    string outfile;
+    string bin_spec = "1:200:25";
+    double cutoff = 0.01;
 
-  /**************** GET COMMAND LINE ARGUMENTS *************************/
-  OptionParser opt_parse(command_name,
-                         "merge significantly differentially"
-                         " methylated CpGs into DMRs",
-                         "<bed-file-in-radmeth-format>");
-  opt_parse.set_show_defaults();
-  opt_parse.add_opt("output", 'o',
-                    "output file (default: stdout)", false, outfile);
-  opt_parse.add_opt("cutoff", 'p', "P-value cutoff (default: 0.01)",
-                    false , cutoff);
-  opt_parse.add_opt("bins", 'b', "corrlation bin specs", false , bin_spec);
-  vector<string> leftover_args;
-  opt_parse.parse(argc, argv, leftover_args);
-  if (argc == 1 || opt_parse.help_requested()) {
-    cerr << opt_parse.help_message() << endl;
-    return EXIT_SUCCESS;
+    /**************** GET COMMAND LINE ARGUMENTS *************************/
+    OptionParser opt_parse(strip_path(argv[0]),
+                           "merge significantly differentially"
+                           " methylated CpGs into DMRs",
+                           "<bed-file-in-radmeth-format>");
+    opt_parse.set_show_defaults();
+    opt_parse.add_opt("output", 'o',
+                      "output file (default: stdout)", false, outfile);
+    opt_parse.add_opt("cutoff", 'p', "p-value cutoff", false , cutoff);
+    opt_parse.add_opt("bins", 'b', "corrlation bin specs", false , bin_spec);
+    vector<string> leftover_args;
+    opt_parse.parse(argc, argv, leftover_args);
+    if (argc == 1 || opt_parse.help_requested()) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (leftover_args.size() != 1) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    const string bed_filename = leftover_args.front();
+    /************************************************************************/
+
+    ofstream of;
+    if (!outfile.empty()) of.open(outfile);
+    ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+
+    ifstream in(bed_filename);
+    if (!in)
+      throw runtime_error("could not open file: " + bed_filename);
+
+    merge(in, out, cutoff);
+
   }
-  if (opt_parse.about_requested()) {
-    cerr << opt_parse.about_message() << endl;
-    return EXIT_SUCCESS;
+  catch (const std::exception &e) {
+    cerr << "ERROR: " << e.what() << endl;
+    exit(EXIT_FAILURE);
   }
-  if (opt_parse.option_missing()) {
-    cerr << opt_parse.option_missing_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (leftover_args.size() != 1) {
-    cerr << opt_parse.help_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  const string bed_filename = leftover_args.front();
-  /************************************************************************/
-
-  ofstream of;
-  if (!outfile.empty()) of.open(outfile);
-  ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-
-  ifstream in(bed_filename);
-  if (!in)
-    throw runtime_error("could not open file: " + bed_filename);
-
-  merge(in, out, cutoff);
-
   return EXIT_SUCCESS;
 }
