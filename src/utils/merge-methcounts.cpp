@@ -30,7 +30,6 @@
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
 #include "MethpipeSite.hpp"
-
 #include "zlib_wrapper.hpp"
 
 using std::string;
@@ -126,6 +125,7 @@ write_line_for_tabular(const bool write_fractional,
 
   min_site.set_unmutated();
 
+  // ADS: is this the format we want for the row names?
   out << min_site.chrom << ':'
       << min_site.pos << ':'
       << min_site.strand << ':'
@@ -178,10 +178,33 @@ remove_extension(const std::string &filename){
   else return filename.substr(0, last_dot);
 }
 
+
+/*
+  This utility does two things, and they are grouped together here
+  because of how they are done, not because the uses are related. (1)
+  merge-methcounts can take a set of methcounts output files and
+  combine them into one. There are several reasons a user might want
+  to do this. An example is when technical replicates are performed,
+  and analyzed separately to understand technical variance (e.g.,
+  between sequencing runs or library preps). After examining the
+  technical variation, subsequent analyses might be best conducted on
+  all the data together. So all the methcounts files can be combined
+  into one using merge-methcounts. In this case, the coverage at any
+  site is the sum of the coverages in the original methcounts files,
+  and the methylation level at any site is the weighted mean. (2)
+  merge-methcounts can take a set of methcounts output files, and
+  create a table that contains all the same information. The table
+  format is helpful if subsequent analyses are best done using a data
+  table, for example in R. When producing a tabular format,
+  merge-methcounts allows the user to select whether the desired
+  output is in counts or fractions.
+ */
 int
 main(int argc, const char **argv) {
 
   try {
+
+    static const string description = "merge multiple methcounts files";
 
     string outfile;
     bool VERBOSE;
@@ -193,8 +216,7 @@ main(int argc, const char **argv) {
     size_t min_reads = 1;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]),
-                           "merge multiple methcounts files",
+    OptionParser opt_parse(strip_path(argv[0]), description,
                            "<methcounts-files>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
@@ -244,7 +266,7 @@ main(int argc, const char **argv) {
     }
 
     std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
+    if (!outfile.empty()) of.open(outfile);
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     // print header if user specifies or if tabular output format
@@ -270,7 +292,8 @@ main(int argc, const char **argv) {
       sites_to_print.resize(n_files, false);
 
       // below idx is one index among the sites to print
-      const size_t idx = collect_sites_to_print(sites, outdated, sites_to_print);
+      const size_t idx =
+        collect_sites_to_print(sites, outdated, sites_to_print);
 
       // output the appropriate sites' data
       if (write_tabular_format)
