@@ -1,22 +1,22 @@
-/*    allelicmeth:
+/* allelicmeth:
  *
- *    Copyright (C) 2014 University of Southern California,
- *                       Andrew D. Smith, and Benjamin E. Decato
+ * Copyright (C) 2014-2022 University of Southern California,
+ *                         Andrew D. Smith, and Benjamin E. Decato
  *
- *    Authors: Andrew D. Smith and Benjamin E. Decato
+ * Authors: Andrew D. Smith and Benjamin E. Decato
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string>
@@ -147,7 +147,7 @@ fit_states(const epiread &er, vector<PairStateCounter<T> > &counts) {
 static void
 get_chrom_sizes(const bool VERBOSE, const string &epi_file,
                 unordered_map<string, size_t> &chrom_sizes) {
-  std::ifstream in(epi_file.c_str());
+  std::ifstream in(epi_file);
   if (!in)
     throw runtime_error("cannot open input file: " + epi_file);
 
@@ -190,10 +190,11 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
 static void
 convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
                     GenomicRegion &region)  {
-  const unordered_map<size_t, size_t>::const_iterator
-    start_itr(cpgs.find(region.get_start()));
-  if (start_itr == cpgs.end())
+
+  auto start_itr(cpgs.find(region.get_start()));
+  if (start_itr == end(cpgs))
     throw runtime_error("could not convert:\n" + region.tostring());
+
   region.set_start(start_itr->second);
   region.set_end(start_itr->second + 1);
 }
@@ -217,9 +218,11 @@ get_chrom(const bool VERBOSE, const GenomicRegion &r,
 }
 
 
+/* The "sites" in the convert_coordinates function represent pairs of
+    consecutive CpG sites */
 static void
 convert_coordinates(const bool VERBOSE, const string chroms_dir,
-                    const string fasta_suffix, vector<GenomicRegion> &amrs) {
+                    const string fasta_suffix, vector<GenomicRegion> &sites) {
 
   unordered_map<string, string> chrom_files;
   identify_and_read_chromosomes(chroms_dir, fasta_suffix, chrom_files);
@@ -229,14 +232,14 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
   unordered_map<size_t, size_t> cpgs;
   string chrom;
   GenomicRegion chrom_region("chr0", 0, 0);
-  for (size_t i = 0; i < amrs.size(); ++i) {
-    if (!amrs[i].same_chrom(chrom_region)) {
-      get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
+  for (size_t i = 0; i < sites.size(); ++i) {
+    if (!sites[i].same_chrom(chrom_region)) {
+      get_chrom(VERBOSE, sites[i], chrom_files, chrom_region, chrom);
       collect_cpgs(chrom, cpgs);
       if (VERBOSE)
         cerr << "CONVERTING: " << chrom_region.get_chrom() << endl;
     }
-    convert_coordinates(cpgs, amrs[i]);
+    convert_coordinates(cpgs, sites[i]);
   }
 }
 
@@ -247,8 +250,9 @@ add_cytosine(const string &chrom_name, const size_t start_cpg,
              vector<GenomicRegion> &cytosines) {
   const size_t end_cpg = start_cpg + 1;
   ostringstream s;
-  s << counts[start_cpg].score() << "\t" << counts[start_cpg].total()
-    << "\t" << counts[start_cpg].tostring();
+  s << counts[start_cpg].score() << "\t"
+    << counts[start_cpg].total() << "\t"
+    << counts[start_cpg].tostring();
   const string name(s.str());
   cytosines.push_back(GenomicRegion(chrom_name, start_cpg, end_cpg,
                                     name, 0, '+'));
@@ -268,10 +272,10 @@ process_chrom(const bool VERBOSE, const string &chrom_name,
          << "[reads: " << epireads.size() << "] "
          << "[cpgs: " << chrom_cpgs << "]" << endl;
 
-  for ( size_t i = 0; i < epireads.size(); ++i) {
-    fit_states(epireads[i],counts);
+  for (size_t i = 0; i < epireads.size(); ++i) {
+    fit_states(epireads[i], counts);
   }
-  for ( size_t i = 0; i < counts.size(); ++i) {
+  for (size_t i = 0; i < counts.size(); ++i) {
     add_cytosine(chrom_name, i, counts, cytosines);
   }
   return 0;
@@ -282,15 +286,18 @@ int
 main(int argc, const char **argv) {
 
   try {
+
+    static const string description =
+      "computes probability of allele-specific \
+       methylation at each tuple of CpGs";
+
     static const string fasta_suffix = "fa";
     bool VERBOSE = false;
 
     string outfile;
     string chroms_dir;
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]),
-                           "computes probability of allele-specific "
-                           "methylation at each tuple of CpGs", "<epireads>");
+    OptionParser opt_parse(strip_path(argv[0]), description, "<epireads>");
     opt_parse.add_opt("output", 'o', "output file name (default: stdout)",
                       false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
@@ -324,12 +331,12 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "CHROMS: " << chrom_sizes.size() << endl;
 
-    std::ifstream in(epi_file.c_str());
+    std::ifstream in(epi_file);
     if (!in)
       throw runtime_error("cannot open input file: " + epi_file);
 
     std::ofstream of;
-    if (!outfile.empty()) of.open(outfile.c_str());
+    if (!outfile.empty()) of.open(outfile);
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     string chrom;
@@ -339,8 +346,8 @@ main(int argc, const char **argv) {
     vector<PairStateCounter<unsigned short> > counts;
     while (in >> er) {
       if (er.chr != chrom && !chrom.empty()) {
-        counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom] -1 );
-        process_chrom(VERBOSE, chrom, epireads, cytosines,counts);
+        counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom] - 1);
+        process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
         // convert coordinates
         convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
         epireads.clear();
@@ -358,13 +365,11 @@ main(int argc, const char **argv) {
       counts = vector<PairStateCounter<unsigned short> >(chrom_sizes[chrom]);
       process_chrom(VERBOSE, chrom, epireads, cytosines, counts);
       convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, cytosines);
-      // output STILL assumes CpG ... probably should fix this soon
-      for( size_t i = 0; i < cytosines.size()-1; ++i ) {
+      for (size_t i = 0; i < cytosines.size() - 1; ++i) {
         out << cytosines[i].get_chrom() << "\t"
             << cytosines[i].get_start() << "\t+\tCpG\t"
             << cytosines[i].get_name() << endl;
       }
-
     }
   }
   catch (const runtime_error &e) {
