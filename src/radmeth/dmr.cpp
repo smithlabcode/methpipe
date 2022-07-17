@@ -42,48 +42,31 @@ using std::max;
 using std::ifstream;
 using std::runtime_error;
 
-template <class T> T&
-read_methdiff_site(T &in, std::string &chrom,
-                   size_t &pos, std::string &strand,
-                   std::string &seq, double &diffscore,
-                   size_t &meth_a, size_t &unmeth_a,
-                   size_t &meth_b, size_t &unmeth_b) {
-  string line;
-  getline(in, line);
-  if (in) {
-    /* GS: this is faster but seems to be generating issues when
-     * compiled with clang
-    std::istringstream iss;
-    iss.rdbuf()->pubsetbuf(const_cast<char*>(line.c_str()), line.length());*/
-    std::istringstream iss(line);
-    if (!(iss >> chrom >> pos >> strand >> seq >>
-          diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b))
-      throw runtime_error("bad methdiff line: " + line);
-  }
-  return in;
-}
-
 
 static void
-read_diffs_file(const string &diffs_file,
-                vector<GenomicRegion> &cpgs, const bool VERBOSE) {
-  std::ifstream in(diffs_file.c_str());
-  string chrom, strand, seq;
+read_diffs_file(const bool VERBOSE, const string &diffs_file,
+                vector<GenomicRegion> &cpgs) {
+
+  cpgs.clear();
+
+  std::ifstream in(diffs_file);
+  string chrom, strand, name;
   double diffscore;
   size_t pos, meth_a, unmeth_a, meth_b, unmeth_b;
-  int n = 0;
-  while (read_methdiff_site(in, chrom, pos, strand, seq, diffscore,
-                            meth_a, unmeth_a, meth_b, unmeth_b)) {
-    ++n;
-    cpgs.push_back(GenomicRegion(chrom, pos, pos + 1,
-                                 seq, diffscore, strand[0]));
-  }
+  string line;
+  while (getline(in, line)) {
 
-  if (!in.eof() && !in.good())
-    throw runtime_error("Immature termination when reading " + diffs_file +
-                            " around line " + smithlab::toa(n));
+    std::istringstream iss(line);
+    if (!(iss >> chrom >> pos >> strand >> name >>
+          diffscore >> meth_a >> unmeth_a >> meth_b >> unmeth_b))
+      throw runtime_error("bad methdiff line: " + line);
+
+    cpgs.push_back(GenomicRegion(chrom, pos, pos + 1,
+                                 name, diffscore, strand[0]));
+  }
   if (VERBOSE)
-    cerr << "Read " << n << " sites from " + diffs_file << endl;
+    cerr << "[read " << cpgs.size()
+         << " sites from " + diffs_file << "]" << endl;
 }
 
 static void
@@ -112,7 +95,7 @@ get_chrom_ends(const vector<GenomicRegion> &r, vector<size_t> &ends) {
 
 static void
 complement_regions(const size_t max_end,
-      const vector<GenomicRegion> &r, vector<GenomicRegion> &r_cmpl) {
+                   const vector<GenomicRegion> &r, vector<GenomicRegion> &r_cmpl) {
 
   vector<size_t> r_chroms;
   get_chrom_ends(r, r_chroms);
@@ -136,8 +119,8 @@ check_no_overlap(const vector<GenomicRegion> &regions) {
 
 static void
 separate_sites(const vector<GenomicRegion> &dmrs,
-        const vector<GenomicRegion> &sites,
-        vector<pair<size_t, size_t> > &sep_sites) {
+               const vector<GenomicRegion> &sites,
+               vector<pair<size_t, size_t> > &sep_sites) {
   const size_t n_dmrs = dmrs.size();
 
   for (size_t i = 0; i < n_dmrs; ++i) {
@@ -147,14 +130,11 @@ separate_sites(const vector<GenomicRegion> &dmrs,
     b.set_start(b.get_end());
     b.set_end(b.get_end() + 1);
 
-    vector<GenomicRegion>::const_iterator a_insert =
-      lower_bound(sites.begin(), sites.end(), a);
+    auto a_insert = lower_bound(begin(sites), end(sites), a);
+    auto b_insert = lower_bound(begin(sites), end(sites), b);
 
-    vector<GenomicRegion>::const_iterator b_insert =
-      lower_bound(sites.begin(), sites.end(), b);
-
-    sep_sites.push_back(std::make_pair(a_insert - sites.begin(),
-            b_insert - sites.begin()));
+    sep_sites.push_back(std::make_pair(a_insert - begin(sites),
+                                       b_insert - begin(sites)));
   }
 }
 
@@ -173,13 +153,13 @@ same_start(const T &a, const T &b) {
 
 static void
 get_cpg_stats(const bool LOW_CUTOFF, const double sig_cutoff,
-        const vector<GenomicRegion> &cpgs,
-        const size_t start_idx, const size_t end_idx,
-        size_t &total_cpgs, size_t &total_sig) {
+              const vector<GenomicRegion> &cpgs,
+              const size_t start_idx, const size_t end_idx,
+              size_t &total_cpgs, size_t &total_sig) {
   total_cpgs = end_idx - start_idx;
   for (size_t i = start_idx; i < end_idx; ++i) {
     if ((LOW_CUTOFF && (cpgs[i].get_score() < sig_cutoff)) ||
-      (!LOW_CUTOFF && (cpgs[i].get_score() > 1.0 - sig_cutoff)))
+        (!LOW_CUTOFF && (cpgs[i].get_score() > 1.0 - sig_cutoff)))
       ++total_sig;
   }
 }
@@ -190,23 +170,25 @@ main(int argc, const char **argv) {
 
   try {
 
+    static const string description =
+      "computes DMRs based on HMRs and probability of differences at \
+       individual CpGs";
+
     bool VERBOSE = false;
     double sig_cutoff = 0.05;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]), "computes DMRs based on "
-        "HMRs and probability of differences at "
-        "individual CpGs",
-        "<methdiffs_1_gt_2> <hmr_1> <hmr_2> "
-        "<dmr_1_lt_2> <dmr_2_lt_1>");
-    opt_parse.add_opt("cutoff", 'c', "Significance cutoff (default: 0.05)",
-        false, sig_cutoff);
+    OptionParser opt_parse(strip_path(argv[0]), description,
+                           "<methdiffs_1_gt_2> <hmr_1> <hmr_2> "
+                           "<dmr_1_lt_2> <dmr_2_lt_1>");
+    opt_parse.set_show_defaults();
+    opt_parse.add_opt("cutoff", 'c', "Significance cutoff", false, sig_cutoff);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
-      << opt_parse.about_message() << endl;
+           << opt_parse.about_message() << endl;
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
@@ -272,7 +254,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "[READING CPG METH DIFFS]" << endl;
     vector<GenomicRegion> cpgs;
-        read_diffs_file(diffs_file, cpgs, VERBOSE);
+    read_diffs_file(VERBOSE, diffs_file, cpgs);
     if (!check_sorted(cpgs))
       throw runtime_error("CpGs not sorted in: " + diffs_file);
     if (VERBOSE)
@@ -284,8 +266,8 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < dmrs_a.size(); ++i) {
       size_t total_cpgs = 0, total_sig = 0;
       get_cpg_stats(true, sig_cutoff,
-      cpgs, sep_sites[i].first, sep_sites[i].second,
-      total_cpgs, total_sig);
+                    cpgs, sep_sites[i].first, sep_sites[i].second,
+                    total_cpgs, total_sig);
       dmrs_a[i].set_name(dmrs_a[i].get_name() + ":" + toa(total_cpgs));
       dmrs_a[i].set_score(total_sig);
     }
@@ -296,19 +278,19 @@ main(int argc, const char **argv) {
     for (size_t i = 0; i < dmrs_b.size(); ++i) {
       size_t total_cpgs = 0, total_sig = 0;
       get_cpg_stats(false, sig_cutoff,
-        cpgs, sep_sites[i].first, sep_sites[i].second,
-        total_cpgs, total_sig);
+                    cpgs, sep_sites[i].first, sep_sites[i].second,
+                    total_cpgs, total_sig);
       dmrs_b[i].set_name(dmrs_b[i].get_name() + ":" + toa(total_cpgs));
       dmrs_b[i].set_score(total_sig);
     }
 
-    std::ofstream out_a(outfile_a.c_str());
-    copy(dmrs_a.begin(), dmrs_a.end(),
-    std::ostream_iterator<GenomicRegion>(out_a, "\n"));
+    std::ofstream out_a(outfile_a);
+    copy(begin(dmrs_a), end(dmrs_a),
+         std::ostream_iterator<GenomicRegion>(out_a, "\n"));
 
-    std::ofstream out_b(outfile_b.c_str());
-    copy(dmrs_b.begin(), dmrs_b.end(),
-    std::ostream_iterator<GenomicRegion>(out_b, "\n"));
+    std::ofstream out_b(outfile_b);
+    copy(begin(dmrs_b), end(dmrs_b),
+         std::ostream_iterator<GenomicRegion>(out_b, "\n"));
 
     if (VERBOSE)
       cerr << "[OUTPUT FORMAT] COL4=NAME:N_COVERED_CPGS COL5=N_SIG_CPGS" << endl;
