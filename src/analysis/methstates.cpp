@@ -1,24 +1,23 @@
-/*    methstates: a program for converting read sequences in
- *    MappedRead format files into methylation states at CpGs covered
- *    by those reads
+/* methstates: a program for converting read sequences in SAM format
+ * files into methylation states at CpGs covered by those reads
  *
- *    Copyright (C) 2011 University of Southern California and
- *                       Andrew D. Smith
+ * Copyright (C) 2011-2022 University of Southern California and
+ *                         Andrew D. Smith
  *
- *    Authors: Andrew D. Smith
+ * Authors: Andrew D. Smith
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string>
@@ -32,8 +31,6 @@
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
 #include "smithlab_os.hpp"
-#include "GenomicRegion.hpp"
-#include "MappedRead.hpp"
 #include "htslib_wrapper.hpp"
 #include "sam_record.hpp"
 #include "cigar_utils.hpp"
@@ -56,31 +53,32 @@ is_cpg(const string &s, const size_t idx) {
 
 static void
 collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
+  cpgs.clear();
   const size_t lim = s.length() - 1;
   size_t cpg_count = 0;
   for (size_t i = 0; i < lim; ++i)
-    if (is_cpg(s, i)) {
-      cpgs[i] = cpg_count;
-      ++cpg_count;
-    }
+    if (is_cpg(s, i))
+      cpgs[i] = cpg_count++;
 }
+
 
 static bool
 convert_meth_states_pos(const string &chrom,
                         const unordered_map<size_t, size_t> &cpgs,
-                        sam_rec &aln,
-                        size_t &start_pos, string &seq) {
+                        const sam_rec &aln,
+                        size_t &start_pos, string &states) {
+  states.clear();
+
   const size_t width = cigar_rseq_ops(aln.cigar);
   const size_t offset = aln.pos - 1;
 
   string the_seq(aln.seq);
   apply_cigar(aln.cigar, the_seq);
-  assert(the_seq.size() == width);
+  if (the_seq.size() != width)
+    throw runtime_error("bad sam record format: " + aln.tostring());
 
   size_t cpg_count = 0;
-  string states;
   size_t first_cpg = std::numeric_limits<size_t>::max();
-  //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i < chrom.length() && is_cpg(chrom, offset + i)) {
       if (the_seq[i] == 'C') {
@@ -92,15 +90,17 @@ convert_meth_states_pos(const string &chrom,
         ++cpg_count;
       }
       else states += 'N';
-      if (first_cpg == std::numeric_limits<size_t>::max()) {
+
+      if (first_cpg == std::numeric_limits<size_t>::max())
         first_cpg = i;
-      }
-      //last_cpg = i;
     }
   }
   if (first_cpg != std::numeric_limits<size_t>::max()) {
-    start_pos = cpgs.find(offset + first_cpg)->second;
-    seq = states;
+    auto the_cpg = cpgs.find(offset + first_cpg);
+    if (the_cpg == end(cpgs))
+      throw runtime_error("cannot locate site on positive strand: " +
+                          aln.tostring());
+    start_pos = the_cpg->second;
   }
   return cpg_count > 0;
 }
@@ -109,24 +109,21 @@ convert_meth_states_pos(const string &chrom,
 static bool
 convert_meth_states_neg(const string &chrom,
                         const unordered_map<size_t, size_t> &cpgs,
-                        sam_rec &aln,
-                        size_t &start_pos, string &seq) {
+                        const sam_rec &aln,
+                        size_t &start_pos, string &states) {
+  states.clear();
+
   const size_t width = cigar_rseq_ops(aln.cigar);
   const size_t offset = aln.pos - 1;
 
-  // ADS: reverse complement twice because the cigar is applied
-  // starting relative to the reference.
   string the_seq(aln.seq);
   revcomp_inplace(the_seq);
   apply_cigar(aln.cigar, the_seq);
-  //revcomp_inplace(the_seq);
-
-  assert(the_seq.size() == width);
+  if (the_seq.size() != width)
+    throw runtime_error("bad sam record format: " + aln.tostring());
 
   size_t cpg_count = 0;
-  string states;
   size_t first_cpg = std::numeric_limits<size_t>::max();
-  //size_t last_cpg = first_cpg;
   for (size_t i = 0; i < width; ++i) {
     if (offset + i > 0 && is_cpg(chrom, offset + i - 1)) {
       if (the_seq[i] == 'G') {
@@ -141,35 +138,32 @@ convert_meth_states_neg(const string &chrom,
       if (first_cpg == std::numeric_limits<size_t>::max()) {
         first_cpg = i;
       }
-      //last_cpg = i;
     }
   }
   if (first_cpg != std::numeric_limits<size_t>::max()) {
-    const unordered_map<size_t, size_t>::const_iterator
-      the_cpg(cpgs.find(offset + first_cpg - 1));
-    assert(the_cpg != cpgs.end());
+    auto the_cpg = cpgs.find(offset + first_cpg - 1);
+    if (the_cpg == end(cpgs))
+      throw runtime_error("cannot locate site on negative strand: " +
+                          aln.tostring());
     start_pos = the_cpg->second;
-    seq = states;
   }
   return cpg_count > 0;
 }
 
+
 static void
-get_chrom(const sam_rec &aln,
+get_chrom(const string &chrom_name,
           const vector<string> &all_chroms,
           const unordered_map<string, size_t> &chrom_lookup,
-          GenomicRegion &chrom_region, string &chrom) {
+          string &chrom) {
 
-  const unordered_map<string, size_t>::const_iterator
-    the_chrom(chrom_lookup.find(aln.rname));
-  if (the_chrom == chrom_lookup.end())
-    throw runtime_error("could not find chrom: " + aln.rname);
+  auto the_chrom = chrom_lookup.find(chrom_name);
+  if (the_chrom == end(chrom_lookup))
+    throw runtime_error("could not find chrom: " + chrom_name);
 
   chrom = all_chroms[the_chrom->second];
   if (chrom.empty())
-    throw runtime_error("could not find chrom: " + aln.rname);
-
-  chrom_region.set_chrom(aln.rname);
+    throw runtime_error("problem with chrom: " + chrom_name);
 }
 
 
@@ -178,6 +172,15 @@ main(int argc, const char **argv) {
 
   try {
 
+    const string description =
+      "Convert mapped reads in SAM format into a format that indicates binary \
+      sequences of methylation states in each read, indexed by the identity   \
+      of the CpG they cover, along with the chromosome. Only reads that       \
+      cover a CpG site are included in the output. All output is relative to  \
+      the positive reference strand. This format is used as input to other    \
+      tools, and is not intended to be human-interpretable. All chromosome    \
+      sequences are loaded at once.";
+
     bool VERBOSE = false;
 
     string chrom_file;
@@ -185,10 +188,7 @@ main(int argc, const char **argv) {
     string fasta_suffix = "fa";
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], "convert read sequences "
-                           "in SAM format to methylation states "
-                           "at CpGs covered by those reads",
-                           "<mapped-reads>");
+    OptionParser opt_parse(argv[0], description, "<sam-file>");
     opt_parse.add_opt("output", 'o', "output file name", false, outfile);
     opt_parse.add_opt("chrom", 'c', "file or dir of chroms (.fa extn)",
                       true , chrom_file);
@@ -224,6 +224,9 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chrom_files:\t" << chrom_files.size() << endl;
 
+    /* first load in all the chromosome sequences and names, and make
+       a map from chromosome name to the location of the chromosome
+       itself */
     vector<string> all_chroms;
     vector<string> chrom_names;
     unordered_map<string, size_t> chrom_lookup;
@@ -231,6 +234,8 @@ main(int argc, const char **argv) {
       vector<string> tmp_chroms, tmp_names;
       read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
       for (size_t j = 0; j < tmp_chroms.size(); ++j) {
+        if (chrom_lookup.find(tmp_names[j]) != end(chrom_lookup))
+          throw runtime_error("repeated chromosome or name: " + tmp_names[j]);
         chrom_names.push_back(tmp_names[j]);
         chrom_lookup[chrom_names.back()] = all_chroms.size();
         all_chroms.push_back("");
@@ -241,7 +246,7 @@ main(int argc, const char **argv) {
     if (VERBOSE)
       cerr << "n_chroms: " << all_chroms.size() << endl;
 
-    SAMReader in(mapped_reads_file.c_str());
+    SAMReader in(mapped_reads_file);
     if (!in)
       throw runtime_error("cannot open input file " + mapped_reads_file);
 
@@ -249,43 +254,46 @@ main(int argc, const char **argv) {
     if (!outfile.empty()) of.open(outfile.c_str());
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
+    // given a chrom, get cpg location from cpg index
     unordered_map<size_t, size_t> cpgs;
-    string chrom;
-    sam_rec aln;
-    GenomicRegion chrom_region("EMPTY_CHROMOSOME", 0, 0);
 
     unordered_set<string> chroms_seen;
+    string chrom_name;
+    string chrom;
+
+    // iterate over records/reads in the SAM file, sequentially
+    // processing each before considering the next
+    sam_rec aln;
     while (in >> aln) {
+
       // get the correct chrom if it has changed
-      if (chrom.empty() || aln.rname != chrom_region.get_chrom()) {
+      if (aln.rname != chrom_name) {
         // make sure all reads from same chrom are contiguous in the file
         if (chroms_seen.find(aln.rname) != end(chroms_seen))
-          throw runtime_error("chroms out of order. Is the SAM input sorted?");
+          throw runtime_error("chroms out of order (check SAM file sorted)");
 
+        chrom_name = aln.rname;
         if (VERBOSE)
-          cerr << "processing " << aln.rname << endl;
+          cerr << "processing " << chrom_name << endl;
 
-        get_chrom(aln, all_chroms, chrom_lookup, chrom_region, chrom);
+        get_chrom(chrom_name, all_chroms, chrom_lookup, chrom);
         collect_cpgs(chrom, cpgs);
-        chrom_region.set_chrom(aln.rname);
       }
+
       size_t start_pos = std::numeric_limits<size_t>::max();
       string seq;
       const bool has_cpgs = check_flag(aln, samflags::read_rc) ?
         convert_meth_states_pos(chrom, cpgs, aln, start_pos, seq) :
         convert_meth_states_neg(chrom, cpgs, aln, start_pos, seq);
+
       if (has_cpgs)
         out << aln.rname << '\t'
             << start_pos << '\t'
             << seq << '\n';
     }
   }
-  catch (const runtime_error &e) {
+  catch (const std::exception &e) {
     cerr << e.what() << endl;
-    return EXIT_FAILURE;
-  }
-  catch (std::bad_alloc &ba) {
-    cerr << "ERROR: could not allocate memory" << endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
