@@ -81,6 +81,7 @@ convert_meth_states_pos(const string &chrom,
   size_t first_cpg = std::numeric_limits<size_t>::max();
   for (size_t i = 0; i < width; ++i) {
     if (offset + i < chrom.length() && is_cpg(chrom, offset + i)) {
+
       if (the_seq[i] == 'C') {
         states += 'C';
         ++cpg_count;
@@ -282,9 +283,10 @@ main(int argc, const char **argv) {
 
       size_t start_pos = std::numeric_limits<size_t>::max();
       string seq;
+
       const bool has_cpgs = check_flag(aln, samflags::read_rc) ?
-        convert_meth_states_pos(chrom, cpgs, aln, start_pos, seq) :
-        convert_meth_states_neg(chrom, cpgs, aln, start_pos, seq);
+        convert_meth_states_neg(chrom, cpgs, aln, start_pos, seq) :
+        convert_meth_states_pos(chrom, cpgs, aln, start_pos, seq);
 
       if (has_cpgs)
         out << aln.rname << '\t'
