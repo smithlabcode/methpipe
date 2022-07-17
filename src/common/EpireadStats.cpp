@@ -154,7 +154,7 @@ expectation_maximization(const size_t max_itr, const vector<epiread> &reads,
                          const double &mixing, vector<double> &indicators,
                          vector<double> &a1, vector<double> &a2) {
 
-  static const double EPIREAD_STATS_TOLERANCE = 1e-20;
+  static const double EPIREAD_STATS_TOLERANCE = 1e-10;
 
   double prev_score = -std::numeric_limits<double>::max();
   for (size_t i = 0; i < max_itr; ++i) {
@@ -206,8 +206,9 @@ fit_single_epiallele(const vector<epiread> &reads, vector<double> &a) {
 
 void
 compute_model_likelihoods(double &single_score, double &pair_score,
-                          const size_t &max_itr, const double &low_prob, const double &high_prob,
-                          const size_t &n_cpgs, vector<epiread> &reads) {
+                          const size_t &max_itr, const double &low_prob,
+                          const double &high_prob, const size_t &n_cpgs,
+                          const vector<epiread> &reads) {
 
   static const double mixing = 0.5;
 
@@ -225,8 +226,8 @@ compute_model_likelihoods(double &single_score, double &pair_score,
 
 
 double
-test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob,
-             vector<epiread> reads) {
+test_asm_lrt(const size_t max_itr, const double low_prob,
+             const double high_prob, vector<epiread> reads) {
   double single_score = std::numeric_limits<double>::min();
   double pair_score = std::numeric_limits<double>::min();
   adjust_read_offsets(reads);
@@ -246,8 +247,8 @@ test_asm_lrt(const size_t max_itr, const double low_prob, const double high_prob
 
 
 double
-test_asm_bic(const size_t max_itr, const double low_prob, const double high_prob,
-             vector<epiread> reads) {
+test_asm_bic(const size_t max_itr, const double low_prob,
+             const double high_prob, vector<epiread> reads) {
 
   double single_score = std::numeric_limits<double>::min();
   double pair_score = std::numeric_limits<double>::min();
