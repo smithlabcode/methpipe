@@ -1,23 +1,23 @@
-/*    amrfinder: program for resolving epialleles in a sliding window
- *    along a chromosome.
+/* amrfinder: program for resolving epialleles in a sliding window
+ * along a chromosome.
  *
- *    Copyright (C) 2014-2017 University of Southern California and
- *                            Andrew D. Smith and Benjamin E. Decato
+ * Copyright (C) 2014-2022 University of Southern California and
+ *                         Andrew D. Smith and Benjamin E. Decato
  *
- *    Authors: Fang Fang and Benjamin E. Decato and Andrew D. Smith
+ * Authors: Fang Fang and Benjamin E. Decato and Andrew D. Smith
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string>
@@ -43,12 +43,8 @@ using std::runtime_error;
 
 
 ////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-//////////////
-//////////////  CODE BELOW HERE IS FOR FILTERING THE AMR WINDOWS AND
-//////////////  MERGING THEM TO OBTAIN FINAL AMRS
-//////////////
+/// CODE BELOW HERE IS FOR FILTERING THE AMR WINDOWS AND MERGING THEM
+/// TO OBTAIN FINAL AMRS
 
 static void
 eliminate_amrs_by_cutoff(const double cutoff, vector<GenomicRegion> &amrs) {
@@ -58,7 +54,7 @@ eliminate_amrs_by_cutoff(const double cutoff, vector<GenomicRegion> &amrs) {
       amrs[j] = amrs[i];
       ++j;
     }
-  amrs.erase(amrs.begin() + j, amrs.end());
+  amrs.erase(begin(amrs) + j, end(amrs));
 }
 
 
@@ -70,17 +66,16 @@ eliminate_amrs_by_size(const size_t min_size, vector<GenomicRegion> &amrs) {
       amrs[j] = amrs[i];
       ++j;
     }
-  amrs.erase(amrs.begin() + j, amrs.end());
+  amrs.erase(begin(amrs) + j, end(amrs));
 }
 
-
+/* merges amrs that overlap, and uses the minimum score among them */
 static void
 collapse_amrs(vector<GenomicRegion> &amrs) {
   size_t j = 0;
   for (size_t i = 1; i < amrs.size(); ++i)
+    // +1 below is because intervals in terms of CpGs are inclusive
     if (amrs[j].same_chrom(amrs[i]) &&
-        // The +1 below is because intervals in terms of CpGs are
-        // inclusive
         amrs[j].get_end() + 1 >= amrs[i].get_start()) {
       amrs[j].set_end(amrs[i].get_end());
       amrs[j].set_score(std::min(amrs[i].get_score(), amrs[j].get_score()));
@@ -90,17 +85,18 @@ collapse_amrs(vector<GenomicRegion> &amrs) {
       amrs[j] = amrs[i];
     }
   ++j;
-  amrs.erase(amrs.begin() + j, amrs.end());
+  amrs.erase(begin(amrs) + j, end(amrs));
 }
 
 
+/* merges amrs within some pre-defined distance */
 static void
 merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
   size_t j = 0;
   for (size_t i = 1; i < amrs.size(); ++i)
     // check distance between two amrs is greater than gap limit
     if (amrs[j].same_chrom(amrs[i]) &&
-        amrs[j].get_end() + gap_limit>= amrs[i].get_start()) {
+        amrs[j].get_end() + gap_limit >= amrs[i].get_start()) {
       amrs[j].set_end(amrs[i].get_end());
       amrs[j].set_score(std::min(amrs[i].get_score(), amrs[j].get_score()));
     }
@@ -109,7 +105,7 @@ merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
       amrs[j] = amrs[i];
     }
   ++j;
-  amrs.erase(amrs.begin() + j, amrs.end());
+  amrs.erase(begin(amrs) + j, end(amrs));
 }
 
 
@@ -165,6 +161,9 @@ merge_amrs(const size_t gap_limit, vector<GenomicRegion> &amrs) {
 //////////////  COORDINATES BELOW HERE
 //////////////
 
+// ADS: need to check that the use if this `is_cpg` function will not
+// overrun the string; why is this used and not `is_cpg` function used
+// in other programs?
 inline static bool
 is_cpg(const string &s, const size_t idx) {
   return toupper(s[idx]) == 'C' && toupper(s[idx + 1]) == 'G';
@@ -176,21 +175,17 @@ collect_cpgs(const string &s, unordered_map<size_t, size_t> &cpgs) {
   const size_t lim = s.length() - 1;
   size_t cpg_count = 0;
   for (size_t i = 0; i < lim; ++i)
-    if (is_cpg(s, i)) {
-      cpgs[cpg_count] = i;
-      ++cpg_count;
-    }
+    if (is_cpg(s, i))
+      cpgs[cpg_count++] = i;
 }
 
 
 static void
 convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
                     GenomicRegion &region)  {
-  const unordered_map<size_t, size_t>::const_iterator
-    start_itr(cpgs.find(region.get_start()));
-  const unordered_map<size_t, size_t>::const_iterator
-    end_itr(cpgs.find(region.get_end()));
-  if (start_itr == cpgs.end() || end_itr == cpgs.end())
+  auto start_itr = cpgs.find(region.get_start());
+  auto end_itr = cpgs.find(region.get_end());
+  if (start_itr == end(cpgs) || end_itr == end(cpgs))
     throw runtime_error("could not convert:\n" + region.tostring());
   region.set_start(start_itr->second);
   region.set_end(end_itr->second);
@@ -198,20 +193,19 @@ convert_coordinates(const unordered_map<size_t, size_t> &cpgs,
 
 
 static void
-get_chrom(const bool VERBOSE, const GenomicRegion &r,
-          const unordered_map<string, string>& chrom_files,
-      GenomicRegion &chrom_region,  string &chrom) {
-  const unordered_map<string, string>::const_iterator
-                              fn(chrom_files.find(r.get_chrom()));
-  if (fn == chrom_files.end())
-    throw runtime_error("could not find chrom: " + r.get_chrom());
+get_chrom(const string &chrom_name,
+          const unordered_map<string, string> &chrom_files,
+          GenomicRegion &chrom_region, string &chrom) {
+  // get the right filename
+  auto fn = chrom_files.find(chrom_name);
+  if (fn == end(chrom_files))
+    throw runtime_error("could not find chrom: " + chrom_name);
   chrom.clear();
-  read_fasta_file(fn->second, r.get_chrom(), chrom);
+  read_fasta_file(fn->second, chrom_name, chrom);
   if (chrom.empty())
-    throw runtime_error("could not find chrom: " + r.get_chrom());
-  else {
-    chrom_region.set_chrom(r.get_chrom());
-  }
+    throw runtime_error("could not find chrom: " + chrom_name);
+
+  chrom_region.set_chrom(chrom_name);
 }
 
 static void
@@ -225,10 +219,12 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
 
   unordered_map<size_t, size_t> cpgs;
   string chrom;
+  // ADS: this should be done with a chrom_name and not using the
+  // dummy "region"
   GenomicRegion chrom_region("chr0", 0, 0);
   for (size_t i = 0; i < amrs.size(); ++i) {
     if (!amrs[i].same_chrom(chrom_region)) {
-      get_chrom(VERBOSE, amrs[i], chrom_files, chrom_region, chrom);
+      get_chrom(amrs[i].get_chrom(), chrom_files, chrom_region, chrom);
       collect_cpgs(chrom, cpgs);
       if (VERBOSE)
         cerr << "CONVERTING: " << chrom_region.get_chrom() << endl;
@@ -246,6 +242,8 @@ convert_coordinates(const bool VERBOSE, const string chroms_dir,
 /////////
 
 
+/* make sure the current read is shortened to only include positions
+   within the relevant window */
 static void
 clip_read(const size_t start_pos, const size_t end_pos, epiread &r) {
   if (r.pos < start_pos) {
@@ -313,13 +311,17 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
     cerr << "PROCESSING: " << chrom_name << " "
          << "[reads: " << epireads.size() << "] "
          << "[cpgs: " << chrom_cpgs << "]" << endl;
-  const size_t PROGRESS_TIMING_MODULUS = std::max(1ul, epireads.size()/1000);
+
+  ProgressBar progress(epireads.size());
+
   size_t windows_tested = 0;
   size_t start_idx = 0;
   const size_t lim = chrom_cpgs - window_size + 1;
   for (size_t i = 0; i < lim && start_idx < epireads.size(); ++i) {
-    if (PROGRESS && i % PROGRESS_TIMING_MODULUS == 0)
-      cerr << '\r' << chrom_name << ' ' << percent(i, chrom_cpgs) << "%\r";
+
+    if (PROGRESS && progress.time_to_report(start_idx))
+      progress.report(cerr, start_idx);
+
     vector<epiread> current_epireads;
     get_current_epireads(epireads, max_epiread_len,
                          window_size, i, start_idx, current_epireads);
@@ -328,13 +330,12 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
       bool is_significant = false;
       const double score = epistat.test_asm(current_epireads, is_significant);
       if (is_significant)
-
         add_amr(chrom_name, i, window_size, current_epireads, score, amrs);
       ++windows_tested;
     }
   }
   if (PROGRESS)
-    cerr << '\r' << chrom_name << " 100%" << endl;
+    progress.report(cerr, epireads.size());
   return windows_tested;
 }
 
@@ -342,6 +343,9 @@ process_chrom(const bool VERBOSE, const bool PROGRESS,
 int
 main(int argc, const char **argv) {
   try {
+
+    const string description =
+      "identify regions of allele-specific methylation";
 
     static const string fasta_suffix = "fa";
 
@@ -356,38 +360,35 @@ main(int argc, const char **argv) {
     size_t gap_limit = 1000;
 
     double high_prob = 0.75, low_prob = 0.25;
-    double min_obs_per_cpg = 4;
+    size_t min_obs_per_cpg = 4;
     double critical_value = 0.01;
 
     // bool RANDOMIZE_READS = false;
-    bool USE_BIC = false;
-    bool CORRECTION = false;
-    bool NOFDR=false;
+    bool use_bic = false;
+    bool use_fdr = true;
+    bool apply_correction = false;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(strip_path(argv[0]),
-                           "identify regions of allele-specific methylation",
-                           "<epireads>");
+    OptionParser opt_parse(strip_path(argv[0]), description, "<epireads>");
     opt_parse.add_opt("output", 'o', "output file", false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
                       true, chroms_dir);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
-    opt_parse.add_opt("window", 'w', "size of sliding window",
+    opt_parse.add_opt("window", 'w', "size of sliding window (in CpGs)",
                       false, window_size);
     opt_parse.add_opt("min-cov", 'm', "min coverage per cpg to test windows",
                       false, min_obs_per_cpg);
     opt_parse.add_opt("gap", 'g', "min allowed gap between amrs (in bp)",
                       false, gap_limit);
-    opt_parse.add_opt("crit", 'C', "critical p-value cutoff (default: 0.01)",
+    opt_parse.add_opt("crit", 'C', "critical p-value cutoff",
                       false, critical_value);
-    // BOOLEAN FLAGS
-    opt_parse.add_opt("nofdr", 'f', "omits FDR multiple testing correction",
-                      false, NOFDR);
     opt_parse.add_opt("pvals", 'h', "adjusts p-values using Hochberg step-up",
-                      false, CORRECTION);
-    opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, USE_BIC);
+                      false, apply_correction);
+    opt_parse.add_opt("nofdr", 'f', "omits FDR procedure", false, use_fdr);
+    opt_parse.add_opt("bic", 'b', "use BIC to compare models", false, use_bic);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
+    opt_parse.set_show_defaults();
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -412,13 +413,13 @@ main(int argc, const char **argv) {
 
     if (VERBOSE)
       cerr << "AMR TESTING OPTIONS: "
-           << "[test=" << (USE_BIC ? "BIC" : "LRT") << "] "
+           << "[test=" << (use_bic ? "BIC" : "LRT") << "] "
            << "[iterations=" << max_itr << "]" << endl;
 
-    const EpireadStats epistat(low_prob, high_prob, critical_value, max_itr,
-                                USE_BIC);
+    const EpireadStats epistat(low_prob, high_prob,
+                               critical_value, max_itr, use_bic);
 
-    std::ifstream in(reads_file.c_str());
+    std::ifstream in(reads_file);
     if (!in)
       throw runtime_error("cannot open input file: " + reads_file);
 
@@ -432,8 +433,8 @@ main(int argc, const char **argv) {
       curr_chrom = er.chr;
       if (!epireads.empty() && curr_chrom != prev_chrom) {
         windows_tested +=
-        process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
-                    epistat, prev_chrom, epireads, amrs);
+          process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
+                        epistat, prev_chrom, epireads, amrs);
         epireads.clear();
       }
       epireads.push_back(er);
@@ -445,44 +446,57 @@ main(int argc, const char **argv) {
         process_chrom(VERBOSE, PROGRESS, min_obs_per_cpg, window_size,
                       epistat, prev_chrom, epireads, amrs);
 
-    //////////////////////////////////////////////////////////////////
-    //////  POSTPROCESSING IDENTIFIED AMRS AND COMPUTING SUMMARY STATS
     if (VERBOSE)
       cerr << "========= POST PROCESSING =========" << endl;
 
     const size_t windows_accepted = amrs.size();
     if (!amrs.empty()) {
-      // Could potentially only get the first n p-vals, but would
-      // have to sort here and assume sorted for smithlab_utils, or
-      // sort twice...
+
+      // get all the pvals... (but they might be BIC scores)
       vector<double> pvals;
-      for ( size_t i = 0; i < amrs.size(); ++i)
-          pvals.push_back(amrs[i].get_score());
+      for (size_t i = 0; i < amrs.size(); ++i)
+        pvals.push_back(amrs[i].get_score());
 
-      const double fdr_cutoff = (!USE_BIC && !CORRECTION) ?
-         smithlab::get_fdr_cutoff(windows_tested, pvals, critical_value) : 0.0;
+      // if the pvalues are not BIC scores, get an FDR cutoff
+      // corresponding to the given critical value
+      const double fdr_cutoff = use_bic ? 0.0 :
+        smithlab::get_fdr_cutoff(windows_tested, pvals, critical_value);
 
-      if (!USE_BIC && CORRECTION) {
+      // if we are not using BIC, and if corrected p-values are
+      // requested, then adjust the p-values
+      if (!use_bic && apply_correction) {
         smithlab::correct_pvals(windows_tested, pvals);
-        for ( size_t i = 0; i < pvals.size(); ++i) {
+        for (size_t i = 0; i < pvals.size(); ++i)
           amrs[i].set_score(pvals[i]);
-        }
       }
 
+      // ADS: not sure it's a good idea in this next collapse function
+      // to keep the lowest among all p-values for merged regions
       collapse_amrs(amrs);
       const size_t collapsed_amrs = amrs.size();
-      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
-      merge_amrs(gap_limit, amrs);
 
+      convert_coordinates(VERBOSE, chroms_dir, fasta_suffix, amrs);
+
+      // ADS: merge AMRs if they are sufficiently close; the distance
+      // should not be too large, and a distance of 1000 bp is likely
+      // too large.
+      merge_amrs(gap_limit, amrs);
       const size_t merged_amrs = amrs.size();
 
-      if (!USE_BIC)
-        (CORRECTION || NOFDR)
-                ? eliminate_amrs_by_cutoff(critical_value, amrs) :
-                       eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
+      // if BIC was not requested, then eliminate AMRs based on either
+      // the p-value cutoff, or with the FDR-based cutoff, if it was
+      // requested.
+      if (!use_bic) {
+        if (apply_correction || !use_fdr)
+          eliminate_amrs_by_cutoff(critical_value, amrs);
+        else eliminate_amrs_by_cutoff(fdr_cutoff, amrs);
+      }
 
       const size_t amrs_passing_fdr = amrs.size();
 
+      // ADS: eliminating AMRs based on their size makes sense, but
+      // not if that size is tied to the gap between AMRs we would
+      // merge. There is no symmetry for these.
       eliminate_amrs_by_size(gap_limit/2, amrs);
 
       if (VERBOSE) {
@@ -490,22 +504,19 @@ main(int argc, const char **argv) {
              << "WINDOWS ACCEPTED: " << windows_accepted << endl
              << "COLLAPSED WINDOWS: " << collapsed_amrs << endl
              << "MERGED WINDOWS: " << merged_amrs << endl;
-        if (!NOFDR) {
+        if (use_fdr)
           cerr  << "FDR CUTOFF: " << fdr_cutoff << endl
                 << "WINDOWS PASSING FDR: " << amrs_passing_fdr << endl;
-        }
         cerr << "AMRS (WINDOWS PASSING MINIMUM SIZE): " << amrs.size() << endl;
       }
       std::ofstream of;
       if (!outfile.empty()) of.open(outfile.c_str());
       std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-      copy(amrs.begin(), amrs.end(),
-      std::ostream_iterator<GenomicRegion>(out, "\n"));
+      copy(begin(amrs), end(amrs),
+           std::ostream_iterator<GenomicRegion>(out, "\n"));
     }
-    else {
-      if (VERBOSE)
-          cerr << "No AMRs found." << endl;
-    }
+    else if (VERBOSE)
+      cerr << "no AMRs found" << endl;
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;
