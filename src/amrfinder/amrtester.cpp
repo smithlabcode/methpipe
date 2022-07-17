@@ -1,23 +1,23 @@
-/*    amrtester: A program for testing whether a genomic region has
- *    allele-specific methylation
+/* amrtester: A program for testing whether a genomic region has
+ * allele-specific methylation
  *
- *    Copyright (C) 2014 University of Southern California and
- *                       Benjamin E Decato and Andrew D. Smith and Fang Fang
+ * Copyright (C) 2014-2022 University of Southern California and
+ *                         Benjamin E Decato and Andrew D. Smith and Fang Fang
  *
- *    Authors: Andrew D. Smith and Benjamin E Decato and Fang Fang
+ * Authors: Andrew D. Smith and Benjamin E Decato and Fang Fang
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  *
- *    You should have received a copy of the GNU General Public License
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string>
@@ -41,6 +41,8 @@ using std::cerr;
 using std::endl;
 using std::unordered_map;
 using std::runtime_error;
+using std::begin;
+using std::end;
 
 
 static void
@@ -113,17 +115,18 @@ load_reads(const string &reads_file_name,
     the_reads.push_back(epiread(start, seq));
 }
 
+
 static void
 convert_coordinates(const vector<size_t> &cpg_positions,
                     GenomicRegion &region) {
 
   const size_t start_pos =
-    lower_bound(cpg_positions.begin(), cpg_positions.end(),
-                region.get_start()) - cpg_positions.begin();
+    lower_bound(begin(cpg_positions), end(cpg_positions),
+                region.get_start()) - begin(cpg_positions);
 
   const size_t end_pos =
-    lower_bound(cpg_positions.begin(), cpg_positions.end(),
-                region.get_end()) - cpg_positions.begin();
+    lower_bound(begin(cpg_positions), end(cpg_positions),
+                region.get_end()) - begin(cpg_positions);
 
   region.set_start(start_pos);
   region.set_end(end_pos);
@@ -146,26 +149,6 @@ collect_cpgs(const string &s, vector<size_t> &cpgs) {
 
 
 static void
-get_cpg_positions(const string &chrom_file,
-                  vector<size_t> &cpg_positions) {
-  vector<string> chrom_names, chrom_seqs;
-  read_fasta_file_short_names(chrom_file, chrom_names, chrom_seqs);
-  if (chrom_names.size() > 1)
-    throw runtime_error("error: more than one seq "
-                            "in chrom file" + chrom_file);
-  cpg_positions.clear();
-  collect_cpgs(chrom_seqs.front(), cpg_positions);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////
-
-
-static void
 clip_reads(const size_t start_pos, const size_t end_pos,
            vector<epiread> &r) {
   size_t j = 0;
@@ -183,7 +166,23 @@ clip_reads(const size_t start_pos, const size_t end_pos,
       ++j;
     }
   }
-  r.erase(r.begin() + j, r.end());
+  r.erase(begin(r) + j, end(r));
+}
+
+
+static void
+get_chrom(const string &chrom_name,
+          const vector<string> &all_chroms,
+          const unordered_map<string, size_t> &chrom_lookup,
+          string &chrom) {
+
+  auto the_chrom = chrom_lookup.find(chrom_name);
+  if (the_chrom == end(chrom_lookup))
+    throw runtime_error("could not find chrom: " + chrom_name);
+
+  chrom = all_chroms[the_chrom->second];
+  if (chrom.empty())
+    throw runtime_error("problem with chrom: " + chrom_name);
 }
 
 
@@ -199,7 +198,7 @@ main(int argc, const char **argv) {
     bool USE_BIC = false;
 
     string outfile;
-    string chroms_dir;
+    string chrom_file;
 
     size_t max_itr = 10;
     double high_prob = 0.75, low_prob = 0.25;
@@ -209,7 +208,7 @@ main(int argc, const char **argv) {
                            "<bed-regions> <mapped-reads>");
     opt_parse.add_opt("output", 'o', "output file", false, outfile);
     opt_parse.add_opt("chrom", 'c', "genome sequence file/directory",
-                      true, chroms_dir);
+                      true, chrom_file);
     opt_parse.add_opt("itr", 'i', "max iterations", false, max_itr);
     opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
     opt_parse.add_opt("progress", 'P', "print progress info", false, PROGRESS);
@@ -239,19 +238,44 @@ main(int argc, const char **argv) {
     const string reads_file_name(leftover_args.back());
     /****************** END COMMAND LINE OPTIONS *****************/
 
+    vector<string> chrom_files;
+    if (isdir(chrom_file.c_str()))
+      read_dir(chrom_file, fasta_suffix, chrom_files);
+    else chrom_files.push_back(chrom_file);
+
+    if (VERBOSE)
+      cerr << "n_chrom_files:\t" << chrom_files.size() << endl;
+
+    /* first load in all the chromosome sequences and names, and make
+       a map from chromosome name to the location of the chromosome
+       itself */
+    vector<string> all_chroms;
+    vector<string> chrom_names;
+    unordered_map<string, size_t> chrom_lookup;
+    for (auto i(begin(chrom_files)); i != end(chrom_files); ++i) {
+      vector<string> tmp_chroms, tmp_names;
+      read_fasta_file_short_names(*i, tmp_names, tmp_chroms);
+      for (size_t j = 0; j < tmp_chroms.size(); ++j) {
+        if (chrom_lookup.find(tmp_names[j]) != end(chrom_lookup))
+          throw runtime_error("repeated chromosome or name: " + tmp_names[j]);
+        chrom_names.push_back(tmp_names[j]);
+        chrom_lookup[chrom_names.back()] = all_chroms.size();
+        all_chroms.push_back("");
+        all_chroms.back().swap(tmp_chroms[j]);
+      }
+    }
+
     vector<GenomicRegion> regions;
     ReadBEDFile(regions_file, regions);
     if (!check_sorted(regions))
       throw runtime_error("regions not sorted in: " + regions_file);
 
-    unordered_map<string, string> chrom_files;
-    identify_chromosomes(chroms_dir, fasta_suffix, chrom_files);
-
     size_t n_regions  = regions.size();
     if (VERBOSE)
       cerr << "NUMBER OF REGIONS: " << n_regions << endl;
 
-    string curr_chrom;
+    string chrom_name;
+    string chrom;
     vector<size_t> cpg_positions;
 
     vector<GenomicRegion> amrs;
@@ -261,16 +285,20 @@ main(int argc, const char **argv) {
     std::ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
     for (size_t i = 0; i < regions.size(); ++i) {
+
       if (PROGRESS)
         cerr << '\r' << percent(i, n_regions) << "%\r";
 
-      if (regions[i].get_chrom() != curr_chrom) {
-        curr_chrom = regions[i].get_chrom();
-        const unordered_map<string, string>::const_iterator
-          chrom_file(chrom_files.find(curr_chrom));
-        if (chrom_file == chrom_files.end())
-          throw runtime_error("no chrom file for:\n" + toa(regions[i]));
-        get_cpg_positions(chrom_file->second, cpg_positions);
+      // get the correct chrom if it has changed
+      if (regions[i].get_chrom() != chrom_name) {
+        chrom_name = regions[i].get_chrom();
+        if (VERBOSE)
+          cerr << "processing " << chrom_name << endl;
+
+        get_chrom(chrom_name, all_chroms, chrom_lookup, chrom);
+
+        cpg_positions.clear();
+        collect_cpgs(chrom, cpg_positions);
       }
 
       GenomicRegion converted_region(regions[i]);
