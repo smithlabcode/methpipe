@@ -374,6 +374,10 @@ main(int argc, const char **argv) {
       throw std::runtime_error("problem with input file: " + mapped_reads_file);
 
     out << sam_reader.get_header(); // includes newline
+    // GS TODO: the empty argument below is the program version, it
+    // should be an extern string to the methpipe version when we
+    // set prefix command calls
+    write_pg_line(argc, argv, "FORMAT_READS", "", out);
 
     size_t count_a = 0, count_b = 0;
     sam_rec aln;
