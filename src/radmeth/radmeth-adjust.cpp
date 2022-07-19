@@ -96,7 +96,7 @@ public:
 
 private:
   double correlation(const vector<double> &x,
-                      const vector<double> &y);
+                     const vector<double> &y);
   void bin(const vector<PvalLocus> &loci);
   vector< vector<double> > x_pvals_for_bin_;
   vector< vector<double> > y_pvals_for_bin_;
@@ -217,7 +217,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
       size_t up_dist = cur_pos->pos - (up_pos->pos + 1);
 
       if(up_dist <= max_distance_) {
-          neighbors.push_back(*up_pos);
+        neighbors.push_back(*up_pos);
       } else
         too_far = true;
 
@@ -235,7 +235,7 @@ ProximalLoci::get(vector<PvalLocus> &neighbors) {
       size_t down_dist = down_pos->pos - (cur_pos->pos + 1);
 
       if (down_dist <= max_distance_) {
-          neighbors.push_back(*down_pos);
+        neighbors.push_back(*down_pos);
       }
       else too_far = true;
 
@@ -278,7 +278,7 @@ DistanceCorrelation::bin(const vector<PvalLocus> &loci) {
 
 double
 DistanceCorrelation::correlation(const vector<double> &x,
-                                    const vector<double> &y) {
+                                 const vector<double> &y) {
   //Correlation is 0 when all bins are empty.
   if (x.size() <= 1)
     return 0;
@@ -287,8 +287,8 @@ DistanceCorrelation::correlation(const vector<double> &x,
   gsl_vector_const_view gsl_y = gsl_vector_const_view_array(&y[0], y.size());
   const size_t stride = 1;
   double corr = gsl_stats_correlation( gsl_x.vector.data, stride,
-                                         gsl_y.vector.data, stride,
-                                         x.size());
+                                       gsl_y.vector.data, stride,
+                                       x.size());
   return corr;
 }
 
@@ -303,7 +303,7 @@ DistanceCorrelation::correlation_table(const vector<PvalLocus> &loci) {
 
   for (size_t bin = 0; bin < num_bins; ++bin) {
     const double corr = correlation(x_pvals_for_bin_[bin],
-                                      y_pvals_for_bin_[bin]);
+                                    y_pvals_for_bin_[bin]);
     correlation_table.push_back(corr);
   }
 
@@ -321,7 +321,7 @@ distance_corr_matrix(BinForDistance bin_for_dist,
   corr_matrix.resize(num_neighbors);
 
   for (std::vector<std::vector<double> >::iterator row = corr_matrix.begin();
-        row != corr_matrix.end(); ++row)
+       row != corr_matrix.end(); ++row)
     row->resize(num_neighbors);
 
   for (size_t row = 0; row < num_neighbors; ++row) {
@@ -346,18 +346,17 @@ void
 combine_pvals(vector<PvalLocus> &loci, const BinForDistance &bin_for_distance) {
   DistanceCorrelation distance_correlation(bin_for_distance);
   vector<double> correlation_for_bin =
-                                  distance_correlation.correlation_table(loci);
+    distance_correlation.correlation_table(loci);
   ProximalLoci proximal_loci(loci, bin_for_distance.max_dist());
   vector<double> combined_pvalues;
   vector<PvalLocus> neighbors;
   size_t i = 0;
 
   while (proximal_loci.get(neighbors)) {
-   vector< vector<double> > correlation_matrix;
-   vector<double> p_vals;
+    vector<vector<double> > correlation_matrix;
+    vector<double> p_vals;
 
-   for (vector<PvalLocus>::const_iterator it = neighbors.begin();
-        it != neighbors.end(); ++it) {
+    for (auto it = begin(neighbors); it != end(neighbors); ++it) {
       double pval = it->raw_pval;
       p_vals.push_back(pval);
     }
@@ -414,100 +413,103 @@ fdr(vector<PvalLocus> &loci) {
 int
 main_radmeth_adjust(int argc, const char **argv) {
 
-  // first argument is name of command
-  const string command_name = argv[0];
+  try {
 
-  string outfile;
-  string bin_spec = "1:200:1";
-  bool VERBOSE = false;
+    string outfile;
+    string bin_spec = "1:200:1";
+    bool VERBOSE = false;
 
-  /**************** GET COMMAND LINE ARGUMENTS *************************/
-  OptionParser opt_parse(command_name,
-                         "compute adjusted p-values using autocorrelation",
-                         "<regression-output>");
-  opt_parse.add_opt("out", 'o', "output file (default: stdout)",
-                    false, outfile);
-  opt_parse.add_opt("bins", 'b', "corrlation bin specs", false , bin_spec);
-  opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-  vector<string> leftover_args;
-  opt_parse.parse(argc, argv, leftover_args);
-  if (argc == 2 || opt_parse.help_requested()) {
-    cerr << opt_parse.help_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (opt_parse.about_requested()) {
-    cerr << opt_parse.about_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (opt_parse.option_missing()) {
-    cerr << opt_parse.option_missing_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (leftover_args.size() != 1) {
-    cerr << opt_parse.help_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  const string bed_filename = leftover_args.front();
-  /*********************************************************************/
-
-  BinForDistance bin_for_dist(bin_spec);
-
-  ifstream bed_file(bed_filename);
-  if (!bed_file)
-    throw "could not open file: " + bed_filename;
-
-  if (VERBOSE)
-    cerr << "[reading input]" << endl;
-
-  // Read in all p-value loci. The loci that are not correspond to valid
-  // p-values (i.e. values in [0, 1]) are skipped.
-  vector<PvalLocus> pvals;
-  string input_line, prev_chrom;
-
-  size_t chrom_offset = 0;
-
-  while (getline(bed_file, input_line)) {
-
-    istringstream iss(input_line);
-    string chrom, sign, name;
-    size_t position;
-    double pval;
-    if (!(iss >> chrom >> position >> sign >> name >> pval))
-      throw runtime_error("failed to parse line: " + input_line);
-
-    // Skip loci that do not correspond to valid p-values.
-    if (0 <= pval && pval <= 1) {
-      // locus is on new chrom.
-      if (!prev_chrom.empty() && prev_chrom != chrom)
-        chrom_offset += pvals.back().pos;
-
-      PvalLocus plocus;
-      plocus.raw_pval = pval;
-      plocus.pos = chrom_offset + bin_for_dist.max_dist() + 1 + position;
-
-      pvals.push_back(plocus);
-      prev_chrom = chrom;
+    /**************** GET COMMAND LINE ARGUMENTS *************************/
+    OptionParser opt_parse(strip_path(argv[0]),
+                           "compute adjusted p-values using autocorrelation",
+                           "<regression-output>");
+    opt_parse.set_show_defaults();
+    opt_parse.add_opt("out", 'o', "output file (default: stdout)",
+                      false, outfile);
+    opt_parse.add_opt("bins", 'b', "corrlation bin specs", false , bin_spec);
+    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    vector<string> leftover_args;
+    opt_parse.parse(argc, argv, leftover_args);
+    if (argc == 1 || opt_parse.help_requested()) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
     }
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (leftover_args.size() != 1) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    const string bed_filename = leftover_args.front();
+    /*********************************************************************/
+
+    BinForDistance bin_for_dist(bin_spec);
+
+    ifstream bed_file(bed_filename);
+    if (!bed_file)
+      throw "could not open file: " + bed_filename;
+
+    if (VERBOSE)
+      cerr << "[reading input]" << endl;
+
+    // Read in all p-value loci. The loci that are not correspond to valid
+    // p-values (i.e. values in [0, 1]) are skipped.
+    vector<PvalLocus> pvals;
+    string input_line, prev_chrom;
+
+    size_t chrom_offset = 0;
+
+    while (getline(bed_file, input_line)) {
+
+      istringstream iss(input_line);
+      string chrom, sign, name;
+      size_t position;
+      double pval;
+      if (!(iss >> chrom >> position >> sign >> name >> pval))
+        throw runtime_error("failed to parse line: " + input_line);
+
+      // Skip loci that do not correspond to valid p-values.
+      if (0 <= pval && pval <= 1) {
+        // locus is on new chrom.
+        if (!prev_chrom.empty() && prev_chrom != chrom)
+          chrom_offset += pvals.back().pos;
+
+        PvalLocus plocus;
+        plocus.raw_pval = pval;
+        plocus.pos = chrom_offset + bin_for_dist.max_dist() + 1 + position;
+
+        pvals.push_back(plocus);
+        prev_chrom = chrom;
+      }
+    }
+
+    if (VERBOSE)
+      cerr << "[combining p-values]" << endl;
+    combine_pvals(pvals, bin_for_dist);
+
+    if (VERBOSE)
+      cerr << "[running multiple test adjustment]" << endl;
+    fdr(pvals);
+
+    ofstream of;
+    if (!outfile.empty()) of.open(outfile);
+    ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+
+    ifstream original_bed_file(bed_filename);
+
+    update_pval_loci(original_bed_file, pvals, out);
+
+    //TODO: Check that the regions do not overlap & sorted
   }
-
-  if (VERBOSE)
-    cerr << "[combining p-values]" << endl;
-  combine_pvals(pvals, bin_for_dist);
-
-  if (VERBOSE)
-    cerr << "[running multiple test adjustment]" << endl;
-  fdr(pvals);
-
-  ofstream of;
-  if (!outfile.empty()) of.open(outfile);
-  ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
-
-  ifstream original_bed_file(bed_filename);
-
-  update_pval_loci(original_bed_file, pvals, out);
-
-  //TODO: Check that the regions do not overlap & sorted
+  catch (const std::exception &e) {
+    cerr << "ERROR: " << e.what() << endl;
+    exit(EXIT_FAILURE);
+  }
   return EXIT_SUCCESS;
 }
-
-

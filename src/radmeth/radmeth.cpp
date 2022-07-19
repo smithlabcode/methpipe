@@ -1,18 +1,18 @@
-/*    Copyright (C) 2013 University of Southern California and
- *                       Egor Dolzhenko
- *                       Andrew D Smith
+/* Copyright (C) 2013 University of Southern California and
+ *                    Egor Dolzhenko
+ *                    Andrew D Smith
  *
- *    Authors: Andrew D. Smith and Egor Dolzhenko
+ * Authors: Andrew D. Smith and Egor Dolzhenko
  *
- *    This program is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #include <iostream>
@@ -21,7 +21,6 @@
 #include <iomanip>
 #include <vector>
 #include <string>
-#include <stdexcept>
 #include <cmath>
 #include <algorithm>
 
@@ -75,7 +74,7 @@ struct Regression {
 };
 
 istream&
-operator>> (istream &is, Design &design) {
+operator>>(istream &is, Design &design) {
   string header_encoding;
   getline(is, header_encoding);
 
@@ -115,7 +114,7 @@ operator>> (istream &is, Design &design) {
 }
 
 ostream&
-operator<< (ostream &os, const Design &design) {
+operator<<(ostream &os, const Design &design) {
   for(size_t factor = 0; factor < design.factor_names.size(); ++factor) {
     os << design.factor_names[factor];
     if (factor + 1 != design.factor_names.size())
@@ -225,8 +224,9 @@ operator>>(istream &table_encoding, SiteProportions &props) {
 static double
 pi(Regression *reg, size_t sample, const gsl_vector *parameters) {
   double dot_prod = 0;
+  // ADS: this function doesn't have a very helpful name
 
-  for(size_t factor = 0; factor < reg->design.factor_names.size(); ++factor)
+  for (size_t factor = 0; factor < reg->design.factor_names.size(); ++factor)
     dot_prod +=
       reg->design.matrix[sample][factor]*gsl_vector_get(parameters, factor);
 
@@ -387,6 +387,7 @@ fit(Regression &r, vector<double> initial_parameters) {
   }
   while (status == GSL_CONTINUE && iter < 700);
   //It it reasonable to reduce the number of iterations to 500?
+  // ADS: 700 vs. 500? what's the difference?
 
   r.max_loglik = (-1)*neg_loglik(s->x, &r);
 
@@ -478,137 +479,145 @@ has_extreme_counts(const Regression &reg) {
 int
 main_radmeth(int argc, const char **argv) {
 
-  const string command_name = argv[0];
+  try {
 
-  string outfile;
-  string test_factor_name;
-  bool VERBOSE = false;
+    static const string description =
+      "calculate differential methylation scores";
 
-  OptionParser opt_parse(command_name,
-                         "calculate differential methylation scores",
-                         "<design-matrix> <data-matrix>");
-  opt_parse.set_show_defaults();
-  opt_parse.add_opt("out", 'o', "output file (default: stdout)",
-                    false, outfile);
-  opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
-  opt_parse.add_opt("factor", 'f', "a factor to test", true, test_factor_name);
+    string outfile;
+    string test_factor_name;
+    bool VERBOSE = false;
 
-  vector<string> leftover_args;
-  opt_parse.parse(argc, argv, leftover_args);
-  if (argc == 2 || opt_parse.help_requested()) {
-    cerr << opt_parse.help_message() << endl
-         << opt_parse.about_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (opt_parse.about_requested()) {
-    cerr << opt_parse.about_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (opt_parse.option_missing()) {
-    cerr << opt_parse.option_missing_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  if (leftover_args.size() != 2) {
-    cerr << opt_parse.help_message() << endl;
-    return EXIT_SUCCESS;
-  }
-  const string design_filename(leftover_args.front());
-  const string table_filename(leftover_args.back());
+    /****************** COMMAND LINE OPTIONS ********************/
+    OptionParser opt_parse(strip_path(argv[0]), description,
+                           "<design-matrix> <data-matrix>");
+    opt_parse.set_show_defaults();
+    opt_parse.add_opt("out", 'o', "output file (default: stdout)",
+                      false, outfile);
+    opt_parse.add_opt("verbose", 'v', "print more run info", false, VERBOSE);
+    opt_parse.add_opt("factor", 'f', "a factor to test", true, test_factor_name);
 
-  ifstream design_file(design_filename);
-  if (!design_file)
-    throw runtime_error("could not open file: " + design_filename);
+    vector<string> leftover_args;
+    opt_parse.parse(argc, argv, leftover_args);
+    if (argc == 1 || opt_parse.help_requested()) {
+      cerr << opt_parse.help_message() << endl
+           << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.about_requested()) {
+      cerr << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (opt_parse.option_missing()) {
+      cerr << opt_parse.option_missing_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (leftover_args.size() != 2) {
+      cerr << opt_parse.help_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    const string design_filename(leftover_args.front());
+    const string table_filename(leftover_args.back());
+    /****************** END COMMAND LINE OPTIONS *****************/
 
-  ifstream table_file(table_filename);
-  if (!table_file)
-    throw runtime_error("could not open file: " + table_filename);
+    ifstream design_file(design_filename);
+    if (!design_file)
+      throw runtime_error("could not open file: " + design_filename);
 
-  ofstream of;
-  if (!outfile.empty()) of.open(outfile);
-  ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
+    ifstream table_file(table_filename);
+    if (!table_file)
+      throw runtime_error("could not open file: " + table_filename);
 
-  // initialize full design matrix from file
-  Regression full_regression;
-  design_file >> full_regression.design;
+    ofstream of;
+    if (!outfile.empty()) of.open(outfile);
+    ostream out(outfile.empty() ? cout.rdbuf() : of.rdbuf());
 
-  // Check that provided test factor name exists and find its index.
-  // Identify test factors with their indexes to simplify naming
-  vector<string>::const_iterator test_factor_it =
-    find(begin(full_regression.design.factor_names),
-              end(full_regression.design.factor_names), test_factor_name);
+    // initialize full design matrix from file
+    Regression full_regression;
+    design_file >> full_regression.design;
 
-  if (test_factor_it == end(full_regression.design.factor_names))
-    throw runtime_error("Error: " + test_factor_name +
-                        " is not a part of the design specification.");
+    // Check that provided test factor name exists and find its index.
+    // Identify test factors with their indexes to simplify naming
+    auto test_factor_it = find(begin(full_regression.design.factor_names),
+                               end(full_regression.design.factor_names),
+                               test_factor_name);
 
-  const size_t test_factor = test_factor_it -
-    begin(full_regression.design.factor_names);
+    if (test_factor_it == end(full_regression.design.factor_names))
+      throw runtime_error("Error: " + test_factor_name +
+                          " is not a part of the design specification.");
 
-  Regression null_regression;
-  null_regression.design = full_regression.design;
-  remove_factor(null_regression.design, test_factor);
+    const size_t test_factor = test_factor_it -
+      begin(full_regression.design.factor_names);
 
-  // Make sure that the first line of the proportion table file contains
-  // names of the samples. Throw an exception if the names or their order
-  // in the proportion table does not match those in the full design matrix.
-  string sample_names_encoding;
-  getline(table_file, sample_names_encoding);
+    Regression null_regression;
+    null_regression.design = full_regression.design;
+    remove_factor(null_regression.design, test_factor);
 
-  if (full_regression.design.sample_names != split(sample_names_encoding))
-    throw runtime_error(sample_names_encoding + " does not match factor "
-                        "names or their order in the design matrix. "
-                        "Please verify that the design matrix and the "
-                        "proportion table are correctly formatted.");
+    // Make sure that the first line of the proportion table file contains
+    // names of the samples. Throw an exception if the names or their order
+    // in the proportion table does not match those in the full design matrix.
+    string sample_names_encoding;
+    getline(table_file, sample_names_encoding);
 
-  // Performing the log-likelihood ratio test on proportions from each row
-  // of the proportion table.
-  while (table_file >> full_regression.props) {
+    if (full_regression.design.sample_names != split(sample_names_encoding))
+      throw runtime_error(sample_names_encoding + " does not match factor "
+                          "names or their order in the design matrix. "
+                          "Please verify that the design matrix and the "
+                          "proportion table are correctly formatted.");
 
-    if (full_regression.design.sample_names.size() !=
-        full_regression.props.total.size())
-      throw runtime_error("found row with wrong number of columns");
+    // Performing the log-likelihood ratio test on proportions from each row
+    // of the proportion table.
+    while (table_file >> full_regression.props) {
 
-    size_t coverage_factor = 0, coverage_rest = 0,
-      meth_factor = 0, meth_rest = 0;
+      if (full_regression.design.sample_names.size() !=
+          full_regression.props.total.size())
+        throw runtime_error("found row with wrong number of columns");
 
-    for(size_t s = 0; s < full_regression.design.sample_names.size(); ++s) {
-      if (full_regression.design.matrix[s][test_factor] != 0) {
-        coverage_factor += full_regression.props.total[s];
-        meth_factor += full_regression.props.meth[s];
+      size_t coverage_factor = 0, coverage_rest = 0,
+        meth_factor = 0, meth_rest = 0;
+
+      for(size_t s = 0; s < full_regression.design.sample_names.size(); ++s) {
+        if (full_regression.design.matrix[s][test_factor] != 0) {
+          coverage_factor += full_regression.props.total[s];
+          meth_factor += full_regression.props.meth[s];
+        }
+        else {
+          coverage_rest += full_regression.props.total[s];
+          meth_rest += full_regression.props.meth[s];
+        }
+      }
+
+      out << full_regression.props.chrom << "\t"
+          << full_regression.props.position << "\t"
+          << full_regression.props.strand << "\t"
+          << full_regression.props.context << "\t";
+
+      // Do not perform the test if there's no coverage in either all case or
+      // all control samples. Also do not test if the site is completely
+      // methylated or completely unmethylated across all samples.
+      if (has_low_coverage(full_regression, test_factor)) {
+        out << -1;
+      }
+      else if (has_extreme_counts(full_regression)) {
+        out << -1;
       }
       else {
-        coverage_rest += full_regression.props.total[s];
-        meth_rest += full_regression.props.meth[s];
+        fit(full_regression);
+        null_regression.props = full_regression.props;
+        fit(null_regression);
+        const double pval = loglikratio_test(null_regression.max_loglik,
+                                             full_regression.max_loglik);
+
+        // If error occured in fitting (p-val = nan or -nan).
+        out << ((pval != pval) ? -1 : pval);
       }
+      out << "\t" << coverage_factor << "\t" << meth_factor
+          << "\t" << coverage_rest << "\t" << meth_rest << endl;
     }
-
-    out << full_regression.props.chrom << "\t"
-        << full_regression.props.position << "\t"
-        << full_regression.props.strand << "\t"
-        << full_regression.props.context << "\t";
-
-    // Do not perform the test if there's no coverage in either all case or
-    // all control samples. Also do not test if the site is completely
-    // methylated or completely unmethylated across all samples.
-    if (has_low_coverage(full_regression, test_factor)) {
-      out << -1;
-    }
-    else if (has_extreme_counts(full_regression)) {
-      out << -1;
-    }
-    else {
-      fit(full_regression);
-      null_regression.props = full_regression.props;
-      fit(null_regression);
-      const double pval = loglikratio_test(null_regression.max_loglik,
-                                           full_regression.max_loglik);
-
-      // If error occured in fitting (p-val = nan or -nan).
-      out << ((pval != pval) ? -1 : pval);
-    }
-    out << "\t" << coverage_factor << "\t" << meth_factor
-        << "\t" << coverage_rest << "\t" << meth_rest << endl;
   }
-
+  catch (const std::exception &e) {
+    cerr << "ERROR: " << e.what() << endl;
+    exit(EXIT_FAILURE);
+  }
   return EXIT_SUCCESS;
 }

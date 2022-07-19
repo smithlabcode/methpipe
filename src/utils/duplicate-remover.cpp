@@ -220,6 +220,7 @@ duplicate_remover(const bool VERBOSE,
                   const string &infile,
                   const string &statfile,
                   const string &histfile,
+                  const string &pg_line,
                   T &out) {
 
   // histogram is tabulated whether or not user requests it, as there
@@ -240,9 +241,7 @@ duplicate_remover(const bool VERBOSE,
 
   // header of input = header of output
   out << in.get_header();
-
-  // ADS: should we update the header to include the removal of
-  // duplicates?
+  out << pg_line; // includes newline
 
   // The outer and inner buffers are declared here so that the memory
   // they use can be re-used without reallocation. The inner buffer
@@ -374,8 +373,15 @@ main_duplicate_remover(int argc, const char **argv) {
     if (!out)
       throw runtime_error("failed to open output file: " + outfile);
 
+    // GS TODO: the empty argument below is the program version, it
+    // should be an extern string to the methpipe version when we
+    // set prefix command calls
+    std::ostringstream oss;
+    write_pg_line(argc, argv, "DUPLICATE_REMOVER", "", oss);
+    const string pg_line = oss.str();
+
     duplicate_remover(VERBOSE, USE_SEQUENCE, ALL_C, DISABLE_SORT_TEST,
-                      infile, statfile, histfile, out);
+                      infile, statfile, histfile, pg_line, out);
   }
   catch (const runtime_error &e) {
     cerr << e.what() << endl;
