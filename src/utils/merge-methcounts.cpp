@@ -1,6 +1,6 @@
 /* merge-methcounts: a program for merging methcounts files
  *
- * Copyright (C) 2011-2019 University of Southern California and
+ * Copyright (C) 2011-2022 University of Southern California and
  *                         Andrew D. Smith
  *
  * Authors: Benjamin E Decato, Meng Zhou and Andrew D Smith
@@ -25,6 +25,9 @@
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+#include <unordered_set>
+#include <unordered_map>
+#include <queue>
 
 #include "OptionParser.hpp"
 #include "smithlab_utils.hpp"
@@ -39,6 +42,8 @@ using std::cerr;
 using std::endl;
 using std::runtime_error;
 using std::numeric_limits;
+using std::unordered_set;
+using std::unordered_map;
 
 static void
 set_invalid(MSite &s) {s.pos = numeric_limits<size_t>::max();}
@@ -59,8 +64,9 @@ any_sites_unprocessed(const vector<string> &filenames,
       outdated[i] = false;
       MSite tmp_site;
       if ((*infiles[i]) >> tmp_site) {
-        if (tmp_site < sites[i])
-          throw runtime_error("error: sites not sorted in " + filenames[i]);
+        // ADS: chrom order within a file already tested
+        if (tmp_site.pos <= sites[i].pos && tmp_site.chrom == sites[i].chrom)
+          throw runtime_error("sites not sorted in " + filenames[i]);
         sites_remain = true;
         sites[i] = tmp_site;
       }
@@ -72,25 +78,49 @@ any_sites_unprocessed(const vector<string> &filenames,
   return sites_remain;
 }
 
+
+static bool
+site_precedes(const vector<MSite> &sites,
+              const unordered_map<string, size_t> &chroms_order,
+              const size_t a, const size_t b) {
+  if (chroms_order.empty())
+    return sites[a] < sites[b];
+
+  const size_t a_chr = chroms_order.find(sites[a].chrom)->second;
+  const size_t b_chr = chroms_order.find(sites[b].chrom)->second;
+
+  return ((a_chr < b_chr) ||
+          (a_chr == b_chr && sites[a].pos < sites[b].pos));
+}
+
+
 static size_t
-find_minimum_site(const vector<MSite> &sites, const vector<bool> &outdated) {
+find_minimum_site(const vector<MSite> &sites,
+                  const unordered_map<string, size_t> &chroms_order,
+                  const vector<bool> &outdated) {
 
   const size_t n_files = sites.size();
+
+  // ms_id is the id of the minimum site, the next one to print
   size_t ms_id = numeric_limits<size_t>::max();
 
+  // make sure there is at least one remaining site to print
   for (size_t i = 0; i < n_files && ms_id == numeric_limits<size_t>::max(); ++i)
     if (is_valid(sites[i]) && !outdated[i])
       ms_id = i;
 
   if (ms_id == numeric_limits<size_t>::max())
-    throw runtime_error("failed in find_minimum_site");
+    throw runtime_error("failed in a next site to print");
 
+  // now find the earliest site to print among those that could be
   for (size_t i = 0; i < n_files; ++i)
-    if (!outdated[i] && is_valid(sites[i]) && sites[i] < sites[ms_id])
+    if (!outdated[i] && is_valid(sites[i]) &&
+        site_precedes(sites, chroms_order, i, ms_id))
       ms_id = i;
 
   return ms_id;
 }
+
 
 static bool
 same_location(const MSite &a, const MSite &b) {
@@ -98,12 +128,14 @@ same_location(const MSite &a, const MSite &b) {
 }
 
 static size_t
-collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
+collect_sites_to_print(const vector<MSite> &sites,
+                       const unordered_map<string, size_t> &chroms_order,
+                       const vector<bool> &outdated,
                        vector<bool> &to_print) {
 
   const size_t n_files = sites.size();
 
-  const size_t min_site_idx = find_minimum_site(sites, outdated);
+  const size_t min_site_idx = find_minimum_site(sites, chroms_order, outdated);
 
   for (size_t i = 0; i < n_files; ++i)
     // condition below covers "is_valid(sites[i])"
@@ -112,6 +144,7 @@ collect_sites_to_print(const vector<MSite> &sites, const vector<bool> &outdated,
 
   return min_site_idx;
 }
+
 
 static void
 write_line_for_tabular(const bool write_fractional,
@@ -171,12 +204,104 @@ write_line_for_merged_counts(std::ostream &out,
   out << min_site << '\n';
 }
 
+
 static string
-remove_extension(const std::string &filename){
+remove_extension(const std::string &filename) {
   const size_t last_dot = filename.find_last_of(".");
   if (last_dot == std::string::npos) return filename;
   else return filename.substr(0, last_dot);
 }
+
+
+static string
+remove_suffix(const string &suffix, const std::string &filename) {
+  if (filename.substr(filename.size() - suffix.size(), suffix.size()) == suffix)
+    return filename.substr(0, filename.size() - suffix.size());
+  return filename;
+}
+
+
+static void
+get_orders_by_file(const string &filename, vector<string> &chroms_order) {
+
+  igzfstream in(filename);
+  if (!in)
+    throw runtime_error("bad file: " + filename);
+  chroms_order.clear();
+
+  unordered_set<string> chroms_seen;
+  string line;
+  string prev_chrom;
+
+  while (getline(in, line)) {
+    line.resize(line.find_first_of(" \t"));
+    if (line != prev_chrom) {
+      if (chroms_seen.find(line) != end(chroms_seen))
+        throw runtime_error("chroms out of order in: " + filename);
+      chroms_seen.insert(line);
+      chroms_order.push_back(line);
+      std::swap(line, prev_chrom);
+    }
+  }
+}
+
+
+static void
+get_chroms_order(const vector<string> &filenames,
+                unordered_map<string, size_t> &chroms_order) {
+
+  // get order of chroms in each file
+  vector<vector<string>> orders(filenames.size());
+  for (size_t i = 0; i < filenames.size(); ++i)
+    get_orders_by_file(filenames[i], orders[i]);
+
+  // get the union of chrom sets
+  unordered_set<string> the_union;
+  for (size_t i = 0; i < orders.size(); ++i)
+    for (size_t j = 0; j < orders[i].size(); ++j)
+      the_union.insert(orders[i][j]);
+
+  // get an adjacency list and in-degree for each node
+  unordered_map<string, vector<string>> adj_lists;
+  unordered_map<string, size_t> in_degree;
+  for (auto &&i : the_union) {
+    in_degree[i] = 0;
+    adj_lists[i] = vector<string>();
+  }
+  for (auto &&i : orders) {
+    auto j = begin(i);
+    for (auto k = j + 1; k != end(i); ++j, ++k) {
+      adj_lists[*j].push_back(*k);
+      ++in_degree[*k];
+    }
+  }
+
+  std::queue<string> q; // invariant: nodes with no incoming edge
+  for (auto &&i : the_union)
+    if (in_degree[i] == 0)
+      q.push(i);
+
+  while (!q.empty()) {
+    const string u = q.front();
+    q.pop();
+
+    // iterate over the edges (u, v)
+    for (auto &&v : adj_lists[u]) {
+      --in_degree[v]; // degree should not appear here as 0
+      if (in_degree[v] == 0) // this should only happen once per v
+        q.push(v);
+    }
+    adj_lists[u].clear(); // delete node; already had in_degree 0
+
+    chroms_order.insert(make_pair(u, chroms_order.size()));
+  }
+
+  // finally, make sure we found a consistent order
+  for (auto &&i : adj_lists)
+    if (!i.second.empty())
+      throw runtime_error("inconsistent order of chroms between files");
+}
+
 
 
 /*
@@ -210,8 +335,12 @@ main(int argc, const char **argv) {
     bool VERBOSE;
     bool write_tabular_format = false;
     bool write_fractional = false;
+    bool ignore_chroms_order = false;
 
     string header_info;
+    string header_prefix;
+    string column_name_suffix = "RM";
+    string suffix_to_remove;
 
     size_t min_reads = 1;
 
@@ -224,10 +353,24 @@ main(int argc, const char **argv) {
                       false, header_info);
     opt_parse.add_opt("tabular", 't', "output as table",
                       false, write_tabular_format);
+    opt_parse.add_opt("prefix", 'p', "prefix header with character",
+                      false, header_prefix);
+    opt_parse.add_opt("remove", '\0', "Suffix to remove from filenames when "
+                      "making column names for tabular format. If not "
+                      "specified, suffix including from final dot is removed.",
+                      false, suffix_to_remove);
+    opt_parse.add_opt("suff", 's',
+                      "column name suffixes, one for total reads and one for "
+                      "methylated reads, to be separated from sample name "
+                      "with underscore",
+                      false, column_name_suffix);
     opt_parse.add_opt("fractional", 'f', "output fractions (requires tabular)",
                       false, write_fractional);
     opt_parse.add_opt("reads", 'r', "min reads (for fractional)",
                       false, min_reads);
+    opt_parse.add_opt("ignore", '\0',"Do not attempt to determine chromosome. "
+                      "Lexicographic order will be used.",
+                      false, ignore_chroms_order);
     opt_parse.add_opt("verbose", 'v',"print more run info", false, VERBOSE);
     opt_parse.set_show_defaults();
     vector<string> leftover_args;
@@ -253,8 +396,27 @@ main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
+    if (column_name_suffix.size() != 2) {
+      cerr << "column name suffix must be 2 letters" << endl;
+      return EXIT_SUCCESS;
+    }
     vector<string> meth_files(leftover_args);
     /****************** END COMMAND LINE OPTIONS *****************/
+
+    unordered_map<string, size_t> chroms_order;
+    if (!ignore_chroms_order) {
+      if (VERBOSE)
+        cerr << "resolving chromosome order" << endl;
+      get_chroms_order(meth_files, chroms_order);
+      if (VERBOSE) {
+        cerr << "chromosome order" << endl;
+        vector<string> v(chroms_order.size());
+        for (auto &&i : chroms_order)
+          v[i.second] = i.first;
+        for (auto &&i : v)
+          cerr << i << endl;
+      }
+    }
 
     const size_t n_files = meth_files.size();
 
@@ -271,10 +433,24 @@ main(int argc, const char **argv) {
 
     // print header if user specifies or if tabular output format
     if (write_tabular_format) {
-      // tabular format header does not include '#' character
+
       vector<string> colnames;
       for (auto &&i : meth_files)
-        colnames.push_back(strip_path(remove_extension(i)));
+        colnames.push_back(strip_path(i));
+
+      for (auto &&i : colnames)
+        i = suffix_to_remove.empty() ?
+          remove_extension(i) : remove_suffix(suffix_to_remove, i);
+
+      if (!write_fractional) {
+        vector<string> tmp;
+        for (auto &&i : colnames) {
+          tmp.push_back(i + "_" + column_name_suffix[0]);
+          tmp.push_back(i + "_" + column_name_suffix[1]);
+        }
+        swap(tmp, colnames);
+      }
+
       copy(begin(colnames), end(colnames),
            std::ostream_iterator<string>(out, "\t"));
       out << endl;
@@ -285,6 +461,7 @@ main(int argc, const char **argv) {
     vector<MSite> sites(n_files);
     vector<bool> outdated(n_files, true);
     vector<bool> sites_to_print; // declared here to keep allocation
+    vector<unordered_set<string> > chroms_seen(n_files);
 
     while (any_sites_unprocessed(meth_files, infiles, outdated, sites)) {
 
@@ -293,7 +470,7 @@ main(int argc, const char **argv) {
 
       // below idx is one index among the sites to print
       const size_t idx =
-        collect_sites_to_print(sites, outdated, sites_to_print);
+        collect_sites_to_print(sites, chroms_order, outdated, sites_to_print);
 
       // output the appropriate sites' data
       if (write_tabular_format)
