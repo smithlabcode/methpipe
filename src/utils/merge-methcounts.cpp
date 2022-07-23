@@ -338,7 +338,6 @@ main(int argc, const char **argv) {
     bool ignore_chroms_order = false;
 
     string header_info;
-    string header_prefix;
     string column_name_suffix = "RM";
     string suffix_to_remove;
 
@@ -353,8 +352,6 @@ main(int argc, const char **argv) {
                       false, header_info);
     opt_parse.add_opt("tabular", 't', "output as table",
                       false, write_tabular_format);
-    opt_parse.add_opt("prefix", 'p', "prefix header with character",
-                      false, header_prefix);
     opt_parse.add_opt("remove", '\0', "Suffix to remove from filenames when "
                       "making column names for tabular format. If not "
                       "specified, suffix including from final dot is removed.",
