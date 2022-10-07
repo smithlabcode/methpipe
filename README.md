@@ -1,3 +1,18 @@
+NOTICE: MethPipe is no longer maintained in this repository
+============================================================
+
+MethPipe is now [DNMTools](https://github.com/smithlabcode/dnmtools). The
+MethPipe repository will remain open for issues and discussion, but further releases,
+updates and fixes will no longer be maintained in this page. We strongly
+recommend that users replace their existing release of MethPipe with the
+most recent version of DNMTools, which contains all existing MethPipe programs
+along with various fixes, improvements and novel programs for bisulfite sequencing
+data analysis.
+
+[Visit the DNMTools repository](https://github.com/smithlabcode/dnmtools)
+
+------------------------------------------------------------------
+
 The MethPipe software package is a computational pipeline for
 analyzing bisulfite sequencing data (WGBS and RRBS). MethPipe provides
 tools methylation-specific technical evaluation of sequencing data,
